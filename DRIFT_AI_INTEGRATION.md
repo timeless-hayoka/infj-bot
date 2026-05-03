@@ -10,18 +10,8 @@ This note records how the Google Drive and Drift-related material was folded int
 
 ## Included Sources
 
-- `/home/crexs/hacker_hub/scripts/drift-engine/drift_soul.txt`
-- `/home/crexs/hacker_hub/scripts/drift-engine/README.md`
-- `/home/crexs/hacker_hub/scripts/drift-engine/drift_memory_v2.py`
-- `/home/crexs/hacker_hub/scripts/drift-engine/drift_memory_v3.py`
-- `/home/crexs/hacker_hub/scripts/drift-engine/drift_chat.py`
-- `/home/crexs/hacker_hub/scripts/drift-engine/drift-core-v2.py`
-- `/home/crexs/hacker_hub/scripts/drift-engine/drift-memory.js`
-- `/home/crexs/GoogleDrive/ai_bridge.py`
-- `/home/crexs/GoogleDrive/ai_bridge (1).py`
-- `/home/crexs/GoogleDrive/ai_bridge (2).py`
-- `/home/crexs/GoogleDrive/emotions.docx`
-- `/home/crexs/GoogleDrive/emotions (1).docx`
+- Local checkout of `drift-engine` (for example `drift_soul.txt`, `README.md`, `drift_memory_v*.py`, `drift_chat.py`, `drift-core-v2.py`, `drift-memory.js`).
+- Google Drive exports used during integration (`ai_bridge` variants, `emotions.docx` drafts).
 
 ## Concepts Added
 
@@ -43,7 +33,7 @@ The bot does not import or seed instructions for backdoors, persistence, credent
 ## Reapply
 
 ```bash
-cd /home/crexs/infj_bot
+cd /path/to/infj_bot
 source venv/bin/activate
 python seed_cognition.py
 ./scripts/health_check.sh
