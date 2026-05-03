@@ -1,6 +1,12 @@
 .env
 .env.*
+.env.local
 !.env.example
+*.pem
+id_rsa
+id_ed25519
+.github_token
+secrets/
 venv/
 .venv/
 __pycache__/
