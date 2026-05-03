@@ -1,0 +1,27 @@
+.env
+.env.*
+!.env.example
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+*.tar.gz
+
+# Runtime data — do not commit
+*.db
+chroma_db/
+history.jsonl
+tool_audit.jsonl
+
+# Piper / voice weights (large; reinstall via piper or copy locally)
+voices/*.onnx
+
+# Tool / recovery artifacts (may contain sensitive paths)
+BLKKNIGHT_RECOVERY/
+recon/
+
+.DS_Store
+*.log
