@@ -10,7 +10,7 @@ This note records how the Google Drive and Drift-related material was folded int
 
 ## Included Sources
 
-- Local checkout of `drift-engine` (for example `drift_soul.txt`, `README.md`, `drift_memory_v*.py`, `drift_chat.py`, `drift-core-v2.py`, `drift-memory.js`).
+- A **local** checkout of the private **`drift-engine`** project (for example `drift_soul.txt`, `README.md`, `drift_memory_v*.py`, `drift_chat.py`, `drift-core-v2.py`, `drift-memory.js`). That repository is not bundled here and is not cloneable without access; INFJ Bot only carries **derived concepts** in Chroma via `seed_cognition.py`.
 - Google Drive exports used during integration (`ai_bridge` variants, `emotions.docx` drafts).
 
 ## Concepts Added
