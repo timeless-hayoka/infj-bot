@@ -1,0 +1,21 @@
+name: infj_companion
+version: 0.1.0
+description: "MCP agent exposing the INFJ Companion via stdio."
+entrypoint: python mcp_server.py
+transport: stdio
+runtime:
+  language: python
+  activate_venv: venv
+  requirements_file: requirements.txt
+tools:
+  - emotional_clarity
+  - dissonance_map
+  - memory_search
+  - document_search
+  - todo_list
+  - todo_add
+  - todo_complete
+  - companion_think
+  - ingest_document
+  - autonomy_execute
+  - autonomy

@@ -247,6 +247,14 @@ class RelationshipModel:
             return f"It has been {months} month{'s' if months > 1 else ''} since we first spoke."
         return None
 
+
+    def cycle(self, context):
+        try:
+            ws = get_workspace()
+            ws.submit(source="relationship", content="relationship state observed", salience=0.5)
+        except Exception:
+            pass
+
 def _register():
     from cognitive_architecture import CognitiveArchitecture, CognitivePlugin
     arch = CognitiveArchitecture()
@@ -256,7 +264,7 @@ def _register():
             description="Cognitive module: relationship",
             module_path="relationship",
             instance_factory=RelationshipModel,
-                        cycle_handler=None,
+                        cycle_handler='cycle',
             cycle_frequency=1,
             cycle_priority=50,
                         prompt_formatter='format_relationship_prompt',

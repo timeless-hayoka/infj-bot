@@ -322,6 +322,12 @@ class TemporalSense:
             from datetime import datetime
             idle = (datetime.now() - context.last_interaction_time).total_seconds() / 60.0
             self.feel_time_passing(idle)
+        try:
+            from global_workspace import get_workspace
+            ws = get_workspace()
+            ws.submit(source="temporal", content="temporal sense updated", salience=0.4)
+        except Exception:
+            pass
 
 def _register():
     from cognitive_architecture import CognitiveArchitecture, CognitivePlugin

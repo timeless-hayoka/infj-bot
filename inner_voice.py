@@ -159,6 +159,17 @@ class InnerVoice:
         if len(being.working_memory) > 20:
             being.working_memory = being.working_memory[-20:]
         being.state.last_thought = thought
+        try:
+            from memory import InfjMemory
+            InfjMemory().save_thought(thought, thought_type="inner_voice", source="inner_voice", emotion_tag=being.state.mood, importance=0.5)
+        except Exception:
+            pass
+        try:
+            from global_workspace import get_workspace
+            ws = get_workspace()
+            ws.submit(source="inner_voice", content=f"Thought: {thought[:160]}", salience=0.55, emotion_tag=being.state.mood, intensity=being.state.energy)
+        except Exception:
+            pass
 
 def _register():
     from cognitive_architecture import CognitiveArchitecture, CognitivePlugin

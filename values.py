@@ -175,6 +175,14 @@ class ValueSystem:
     def get_all_values(self) -> Dict[str, Dict]:
         return self.values
 
+
+    def cycle(self, context):
+        try:
+            ws = get_workspace()
+            ws.submit(source="values", content="value system cycle completed", salience=0.45)
+        except Exception:
+            pass
+
 def _register():
     from cognitive_architecture import CognitiveArchitecture, CognitivePlugin
     arch = CognitiveArchitecture()
@@ -184,7 +192,7 @@ def _register():
             description="Cognitive module: values",
             module_path="values",
             instance_factory=ValueSystem,
-                        cycle_handler=None,
+                        cycle_handler='cycle',
             cycle_frequency=1,
             cycle_priority=50,
                         prompt_formatter='format_prompt_snippet',

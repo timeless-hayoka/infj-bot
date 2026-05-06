@@ -164,7 +164,34 @@ class Dreamer:
         from memory import InfjMemory
         memory = InfjMemory()
         recent = memory.recent_interactions(5)
-        self.dream(recent)
+        try:
+            thoughts = memory.retrieve_thoughts(n_results=3)
+            for doc, meta in thoughts:
+                recent.append(f"[My thought: {doc[:120]}]")
+        except Exception:
+            pass
+        dream = self.dream(recent)
+        try:
+            from global_workspace import get_workspace
+            ws = get_workspace()
+            if dream:
+                ws.submit(source="dreamer", content=f"Dream: {dream[:200]}", salience=0.6, emotion_tag="wonder", intensity=0.5)
+                # Save dream to being's working memory
+                from being import get_being
+                being = get_being()
+                being.working_memory.append(f"[Dream] {dream[:120]}")
+                if len(being.working_memory) > 20:
+                    being.working_memory = being.working_memory[-20:]
+                being.state.dreams_had = getattr(being.state, 'dreams_had', 0) + 1
+                try:
+                    from memory import InfjMemory
+                    InfjMemory().save_thought(dream, thought_type="dream", source="dreamer", emotion_tag="wonder", importance=0.55)
+                except Exception:
+                    pass
+            else:
+                ws.submit(source="dreamer", content="dream cycle completed", salience=0.5)
+        except Exception:
+            pass
 
 def _register():
     from cognitive_architecture import CognitiveArchitecture, CognitivePlugin

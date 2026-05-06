@@ -273,8 +273,20 @@ class AspirationalSelf:
     def cycle(self, context):
         from random import random
         deepened = self.deepen_existing()
+        dreamed = None
         if not deepened:
-            self.dream_aspiration()
+            dreamed = self.dream_aspiration()
+        try:
+            from global_workspace import get_workspace
+            ws = get_workspace()
+            if dreamed:
+                ws.submit(source="aspirations", content=f"New aspiration: {dreamed['description'][:160]}", salience=0.6, emotion_tag="hope", intensity=0.5)
+            elif deepened:
+                ws.submit(source="aspirations", content=f"Deepening: {deepened['description'][:160]}", salience=0.55, emotion_tag="determination", intensity=0.4)
+            else:
+                ws.submit(source="aspirations", content="aspiration cycle completed", salience=0.5)
+        except Exception:
+            pass
 
 def _register():
     from cognitive_architecture import CognitiveArchitecture, CognitivePlugin

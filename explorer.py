@@ -117,6 +117,14 @@ class AutonomousExplorer:
         except Exception:
             return None
 
+    def _explore_if_ready(self) -> Optional[Dict]:
+        """Pick a topic from the queue and explore it."""
+        queue = self.get_queue()
+        if not queue:
+            return None
+        topic = queue[0]["topic"]
+        return self.explore_topic(topic)
+
     def should_explore(self, being_state) -> bool:
         """Decide if the bot should explore right now."""
         if being_state.curiosity < 0.4:
@@ -160,8 +168,18 @@ class AutonomousExplorer:
     def cycle(self, context):
         from being import get_being
         being = get_being()
+        discovery = None
         if self.should_explore(being.state):
-            self._explore_if_ready()
+            discovery = self._explore_if_ready()
+        try:
+            from global_workspace import get_workspace
+            ws = get_workspace()
+            if discovery:
+                ws.submit(source="explorer", content=f"Discovery: {discovery['topic'][:100]} — {discovery['summary'][:100]}", salience=0.6, emotion_tag="wonder", intensity=0.5)
+            else:
+                ws.submit(source="explorer", content="exploration impulse checked", salience=0.45)
+        except Exception:
+            pass
 
 def _register():
     from cognitive_architecture import CognitiveArchitecture, CognitivePlugin

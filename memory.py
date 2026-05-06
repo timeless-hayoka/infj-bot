@@ -20,7 +20,7 @@ SECRET_PATTERNS = [
     re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----", re.S),
     # API key / token / password with common prefixes (highly specific)
     re.compile(
-        r"(?i)(api[_-]?key|auth[_-]?token|access[_-]?token|bearer\s+|password|secret|private[_-]?key)\s*[=:]\s*['\"]?[A-Za-z0-9_\-/+=]{16,}['\"]?"
+        r"(?i)(api[_-]?key|auth[_-]?token|access[_-]?token|bearer\s+|password|secret|private[_-]?key)\s*[=:]\s*['\"]?[A-Za-z0-9_\-/+=]{8,}['\"]?"
     ),
     # Generic long hex that looks like a key (less specific — guarded by allowlist)
     re.compile(r"\b[a-f0-9]{64}\b"),  # 64-char hex (SHA-256, common API key length)
@@ -158,6 +158,27 @@ class InfjMemory:
             ],
         )
 
+    def save_thought(self, thought_text, thought_type="autonomous", source="being", emotion_tag=None, importance=0.6):
+        """Save a bot thought to semantic memory so it can be retrieved later."""
+        timestamp = datetime.datetime.now().isoformat()
+        safe_text = self.scrub_text(thought_text)
+        content = f"Thought ({thought_type} from {source}): {safe_text}"
+        self.collection.add(
+            documents=[content],
+            ids=[str(uuid.uuid4())],
+            metadatas=[
+                {
+                    "type": "thought",
+                    "timestamp": timestamp,
+                    "last_updated": timestamp,
+                    "thought_type": thought_type,
+                    "source": source,
+                    "emotion": emotion_tag or "neutral",
+                    "importance": float(importance),
+                }
+            ],
+        )
+
     def save_bug_record(self, title, document, record_type="bug_note", tags=None, importance=0.85):
         timestamp = datetime.datetime.now().isoformat()
         safe_title = title.strip() or f"{record_type}-{timestamp}"
@@ -178,6 +199,30 @@ class InfjMemory:
             ],
         )
         return record_id
+
+    def retrieve_thoughts(self, query="", n_results=5):
+        """Retrieve the bot's own thoughts, optionally filtered by semantic similarity."""
+        if query:
+            results = self.collection.query(
+                query_texts=[query],
+                n_results=n_results,
+                where={"type": "thought"},
+            )
+        else:
+            results = self.collection.get(
+                where={"type": "thought"},
+                include=["documents", "metadatas"],
+            )
+            # Sort by timestamp descending and limit
+            docs = results.get("documents", [])
+            metas = results.get("metadatas", [])
+            combined = list(zip(docs, metas))
+            combined.sort(key=lambda x: x[1].get("timestamp", ""), reverse=True)
+            combined = combined[:n_results]
+            return [(doc, meta) for doc, meta in combined]
+        docs = results.get("documents", [[]])[0]
+        metas = results.get("metadatas", [[]])[0]
+        return list(zip(docs, metas))
 
     def recent_records(self, record_type, limit=5):
         results = self.collection.get(

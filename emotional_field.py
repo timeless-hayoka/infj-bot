@@ -167,6 +167,12 @@ class EmotionalField:
 
     def decay_cycle(self, context):
         self.decay()
+        try:
+            from global_workspace import get_workspace
+            ws = get_workspace()
+            ws.submit(source="emotional_field", content="emotional field decayed", salience=0.5)
+        except Exception:
+            pass
 
 def _register():
     from cognitive_architecture import CognitiveArchitecture, CognitivePlugin

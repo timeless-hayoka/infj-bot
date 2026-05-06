@@ -46,6 +46,8 @@ class CycleContext:
     iteration: int
     minutes_since_interaction: float
     last_interaction_time: Optional[datetime]
+    last_user_input: str = ""
+    last_interaction: Optional[Dict] = None
 
 
 @dataclass

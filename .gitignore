@@ -31,3 +31,14 @@ recon/
 
 .DS_Store
 *.log
+
+# IDE
+.idea/
+
+# Local/personal files (not for public repo)
+OWNER_PROFILE.md
+DRIFT_IDENTITY_PROMPT.txt
+AI_COMPANY_OUTREACH.md
+scripts/drift_boot.sh
+scripts/drift_watcher.sh
+scripts/install_drift_hook.sh

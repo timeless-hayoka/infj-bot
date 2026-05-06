@@ -8,7 +8,7 @@ from typing import List, Optional
 import chromadb
 
 from config import PROJECT_ROOT
-from memory import LocalEmbeddingFunction
+from embeddings import get_default_embedding_function, LocalEmbeddingFunction
 
 SUPPORTED_TEXT = {".txt", ".md", ".py", ".js", ".ts", ".jsx", ".tsx", ".json", ".yaml", ".yml", ".csv", ".sh", ".html", ".css", ".rs", ".go", ".java", ".c", ".cpp", ".h"}
 MAX_INGEST_FILE_BYTES = 2_000_000
@@ -85,11 +85,15 @@ def _read_file(path: Path) -> str:
 
 
 class DocumentStore:
-    def __init__(self, persist_directory=None, embedding_function=None):
+    def __init__(self, persist_directory=None, embedding_function=None, use_semantic=True):
         if persist_directory is None:
             persist_directory = str(PROJECT_ROOT / "chroma_db")
         if embedding_function is None:
-            embedding_function = LocalEmbeddingFunction()
+            if use_semantic:
+                embedding_function = get_default_embedding_function()
+            else:
+                embedding_function = LocalEmbeddingFunction()
+        self.embedding_function = embedding_function
         self.client = chromadb.PersistentClient(path=persist_directory)
         self.collection = self.client.get_or_create_collection(
             name="infj_documents",

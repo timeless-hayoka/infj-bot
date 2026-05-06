@@ -48,10 +48,12 @@ class SemanticEmbeddingFunction:
             embeddings = embeddings.reshape(1, -1)
         return [emb.astype(np.float32) for emb in embeddings]
 
-    def embed_query(self, query: str) -> np.ndarray:
-        if isinstance(query, list):
-            return self.embed_documents(query)
-        emb = self.model.encode(query, show_progress_bar=False, convert_to_numpy=True)
+    def embed_query(self, input=None, query: str = None) -> np.ndarray:
+        # ChromaDB passes input=...; we also accept query=... for clarity
+        q = query if query is not None else input
+        if isinstance(q, list):
+            return self.embed_documents(q)
+        emb = self.model.encode(q, show_progress_bar=False, convert_to_numpy=True)
         return emb.astype(np.float32)
 
     def name(self) -> str:
@@ -85,10 +87,11 @@ class LocalEmbeddingFunction:
     def __call__(self, input):
         return self.embed_documents(input)
 
-    def embed_query(self, input):
-        if isinstance(input, str):
-            return self.embed_documents([input])[0]
-        return self.embed_documents(input)
+    def embed_query(self, input=None, query=None):
+        q = query if query is not None else input
+        if isinstance(q, str):
+            return self.embed_documents([q])[0]
+        return self.embed_documents(q)
 
     def embed_documents(self, input):
         import hashlib

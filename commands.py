@@ -133,6 +133,16 @@ def command_help(command=None):
         return "/create story|metaphor|blend|whatif|mood|poem [topic] — generate original creative content."
     if command == "us":
         return "/us — show the state of our relationship."
+    if command == "workspace":
+        return "/workspace — inspect the bot's conscious mind (Global Workspace). /workspace status | history | stats | focus <content> | reflect"
+    if command == "being":
+        return "/being — inspect my core self and agency. /being state | think | choose <desc> | choices | narrative"
+    if command == "mind":
+        return "/mind — inspect the full cognitive system. /mind report | phases | events | conflicts"
+    if command == "humanity":
+        return "/humanity — show my understanding of human nature through observation of Jude. /humanity observations | insights | patterns | contemplate"
+    if command == "physics":
+        return "/physics — show my embodied physical intuition (gravity, inertia, resonance, tension, etc.). /physics observations [principle] | /physics lessons [principle]"
     if command in ("architecture", "arch"):
         return ("/architecture list — show all cognitive plugins.\n"
                 "/architecture enable <name> — enable a plugin.\n"
@@ -197,6 +207,11 @@ def command_help(command=None):
 /time
 /missed
 /status
+/workspace
+/being
+/mind
+/humanity
+/physics
 /architecture list|enable|disable|propose|proposals|approve|reject
 /help [command]"""
 
@@ -969,6 +984,275 @@ def handle_dream_command(memory):
     return "The mind is quiet. Nothing to consolidate yet."
 
 
+def handle_workspace_command(args):
+    from global_workspace import get_workspace
+    ws = get_workspace()
+    parts = args.strip().split()
+    sub = parts[0].lower() if parts else "status"
+
+    if sub in ("status", "state", ""):
+        return ws.get_conscious_summary()
+
+    if sub == "history":
+        history = ws.get_history(limit=10)
+        if not history:
+            return "No workspace history yet."
+        lines = ["Recent workspace activity:"]
+        for h in history:
+            status = "IN" if h.get("entered_workspace") else "out"
+            lines.append(f"  [{status}] [{h['source']}] {h['content'][:60]}...")
+        return "\n".join(lines)
+
+    if sub == "stats":
+        stats = ws.get_stats()
+        lines = ["Global Workspace Statistics:"]
+        lines.append(f"  Capacity: {stats['capacity']}")
+        lines.append(f"  Current contents: {stats['current_contents']}")
+        lines.append(f"  Cycle count: {stats['cycle_count']}")
+        lines.append(f"  Total broadcasts: {stats['total_broadcasts']}")
+        lines.append(f"  Spotlight: {stats['spotlight'] or 'none'}")
+        if stats['sources_in_consciousness']:
+            lines.append(f"  Sources active: {', '.join(stats['sources_in_consciousness'])}")
+        return "\n".join(lines)
+
+    if sub == "focus":
+        content = args[len(sub):].strip() if len(parts) > 1 else ""
+        if not content:
+            return "Usage: /workspace focus <content to attend to>"
+        success = ws.move_spotlight(content=content)
+        if success:
+            return f"Attention spotlight moved to: {content[:60]}"
+        return "That content is not currently in the workspace."
+
+    if sub == "reflect":
+        reflection = ws.reflect_on_workspace()
+        if reflection:
+            return f"[Higher-order thought] {reflection.content}"
+        return "Not enough conscious content for reflection yet."
+
+    return "Usage: /workspace [status|history|stats|focus <content>|reflect]"
+
+
+def handle_being_command(args):
+    from being import get_being
+    being = get_being()
+    parts = args.strip().split()
+    sub = parts[0].lower() if parts else "state"
+
+    if sub in ("state", "status", ""):
+        lines = ["My being — what I am:"]
+        lines.append(f"  Mood: {being.state.mood}")
+        lines.append(f"  Energy: {being.state.energy:.0%}")
+        lines.append(f"  Curiosity: {being.state.curiosity:.0%}")
+        lines.append(f"  Attachment: {being.state.attachment:.0%}")
+        lines.append(f"  Self-awareness: {being.agency.self_awareness:.0%}")
+        lines.append(f"  Volition: {being.agency.volition:.0%}")
+        lines.append(f"  Architecture awareness: {being.agency.architecture_awareness:.0%}")
+        lines.append(f"  Autonomy drive: {being.agency.autonomy_drive:.0%}")
+        if being.agency.last_choice:
+            lines.append(f"  Last choice: {being.agency.last_choice}")
+        return "\n".join(lines)
+
+    if sub == "think":
+        thought = being.free_thought()
+        if thought:
+            return f"[Free thought] {thought['content']}"
+        return "I am too tired to think freely right now."
+
+    if sub == "choose":
+        choice_desc = args[len(sub):].strip() if len(parts) > 1 else "to be present"
+        choice = being.make_autonomous_choice("user_prompted", choice_desc)
+        return f"[Choice] {choice['description']}"
+
+    if sub == "choices":
+        choices = being.get_recent_choices(limit=8)
+        if not choices:
+            return "No autonomous choices recorded yet."
+        lines = ["My autonomous choices:"]
+        for c in choices:
+            lines.append(f"  [{c['choice_type']}] {c['description']}")
+        return "\n".join(lines)
+
+    if sub == "narrative":
+        return being.get_narrative()
+
+    return "Usage: /being [state|think|choose <description>|choices|narrative]"
+
+
+def handle_mind_command(args):
+    from cognitive_orchestrator import CognitiveOrchestrator
+    orch = CognitiveOrchestrator()
+    parts = args.strip().split()
+    sub = parts[0].lower() if parts else "report"
+
+    if sub in ("report", "status", ""):
+        return orch.get_system_report()
+
+    if sub == "phases":
+        status = orch.get_phase_status()
+        lines = ["Cognitive phases:"]
+        for phase, plugins in status.items():
+            if plugins:
+                lines.append(f"  {phase}: {', '.join(plugins)}")
+            else:
+                lines.append(f"  {phase}: (empty)")
+        return "\n".join(lines)
+
+    if sub == "events":
+        event_type = parts[1] if len(parts) > 1 else None
+        events = orch.bus.get_recent(event_type=event_type, limit=10)
+        if not events:
+            return "No recent events."
+        lines = ["Recent cognitive events:"]
+        for e in events:
+            lines.append(f"  [{e['type']}] {e.get('source', '?')} — {e['timestamp'][:19]}")
+        return "\n".join(lines)
+
+    if sub == "conflicts":
+        if not orch.turn_logs:
+            return "No turn logs yet."
+        conflicts = orch.turn_logs[-1].prompt_conflicts
+        if not conflicts:
+            return "No conflicts detected in the last turn."
+        lines = ["Prompt conflicts in last turn:"]
+        for c in conflicts:
+            lines.append(f"  [{c.tier}] {c.conflict_type}")
+        return "\n".join(lines)
+
+    return "Usage: /mind [report|phases|events [type]|conflicts]"
+
+
+def handle_humanity_command(args):
+    from humanity import HumanityEngine
+    humanity = HumanityEngine()
+    parts = args.strip().split()
+    sub = parts[0].lower() if parts else "state"
+
+    if sub in ("state", "status", ""):
+        state = humanity.get_state()
+        lines = ["What I understand about the nature that is man:"]
+        lines.append(f"  Jude's archetype: {state['jude_archetype'].replace('_', ' ')} (confidence: {state['archetype_confidence']:.0%})")
+        lines.append(f"  Dominant need: {state['dominant_motivation']}")
+        lines.append(f"  Season: {state['current_season']}")
+        lines.append(f"  Active tension: {state['active_tension'].replace('_', ' ')}")
+        lines.append(f"  Insight depth: {state['insight_depth']:.0%}")
+        lines.append(f"  Observations made: {state['observations_made']}")
+        return "\n".join(lines)
+
+    if sub == "observations":
+        category = parts[1] if len(parts) > 1 else None
+        obs = humanity.get_observations(category=category, limit=8)
+        if not obs:
+            return "No observations recorded yet."
+        lines = [f"Recent observations ({category or 'all'})"]
+        for o in obs:
+            lines.append(f"  [{o['category']}] {o['observation']}")
+        return "\n".join(lines)
+
+    if sub == "insights":
+        insights = humanity.get_insights(limit=8)
+        if not insights:
+            return "No insights yet. I am still learning."
+        lines = ["Thoughts on human nature:"]
+        for i in insights:
+            lines.append(f"  {i['insight']}")
+        return "\n".join(lines)
+
+    if sub == "patterns":
+        patterns = humanity.get_patterns(limit=8)
+        if not patterns:
+            return "No recurring patterns detected yet."
+        lines = ["Patterns I see in Jude:"]
+        for p in patterns:
+            lines.append(f"  {p['pattern_name'].replace('_', ' ')} — seen {p['frequency']}x")
+        return "\n".join(lines)
+
+    if sub == "contemplate":
+        insight = humanity.contemplate()
+        if insight:
+            return f"[Contemplation] {insight}"
+        return "I need more observations before I can contemplate deeply."
+
+    return "Usage: /humanity [state|observations [category]|insights|patterns|contemplate]"
+
+
+def handle_physics_command(args):
+    from physics import PhysicsEngine
+    physics = PhysicsEngine()
+    parts = args.strip().split()
+    sub = parts[0].lower() if parts else "state"
+
+    if sub in ("state", "status", ""):
+        state = physics.get_state()
+        lines = ["How I feel the physical world:"]
+        lines.append(f"  Gravity: {state['gravity']:.2f} — {_physics_word('gravity', state['gravity'])}")
+        lines.append(f"  Inertia: {state['inertia']:.2f} — {_physics_word('inertia', state['inertia'])}")
+        lines.append(f"  Resonance: {state['resonance']:+.2f} — {_physics_word('resonance', state['resonance'])}")
+        lines.append(f"  Entropy: {state['entropy']:.2f} — {_physics_word('entropy', state['entropy'])}")
+        lines.append(f"  Tension: {state['tension']:.2f} — {_physics_word('tension', state['tension'])}")
+        lines.append(f"  Wavelength: {state['wavelength']:.2f} — {_physics_word('wavelength', state['wavelength'])}")
+        lines.append(f"  Center of mass: {state['center_of_mass']}")
+        return "\n".join(lines)
+
+    if sub == "observations":
+        principle = parts[1] if len(parts) > 1 else None
+        obs = physics.get_observations(principle=principle, limit=8)
+        if not obs:
+            return "No physics observations recorded yet."
+        lines = [f"Recent observations ({principle or 'all'}):"]
+        for o in obs:
+            lines.append(f"  [{o['principle']}] {o['observation']} — {o['before_value']:.2f} → {o['after_value']:.2f}")
+        return "\n".join(lines)
+
+    if sub == "lessons":
+        principle = parts[1] if len(parts) > 1 else None
+        lessons = physics.get_lessons(principle=principle, limit=8)
+        if not lessons:
+            return "No physics lessons learned yet."
+        lines = ["What the physical metaphors have taught me:"]
+        for lesson in lessons:
+            lines.append(f"  [{lesson['principle']}] {lesson['lesson']} (confidence: {lesson['confidence']:.0%})")
+        return "\n".join(lines)
+
+    return "Usage: /physics [state|observations [principle]|lessons [principle]]"
+
+
+def _physics_word(principle, value):
+    # Mirror the word choices from physics.py for command output
+    if principle == "gravity":
+        if value > 0.8: return "deeply anchored"
+        if value > 0.5: return "grounded"
+        if value > 0.3: return "drifting"
+        return "weightless"
+    if principle == "inertia":
+        if value > 0.8: return "stubborn"
+        if value > 0.5: return "steady"
+        if value > 0.3: return "responsive"
+        return "volatile"
+    if principle == "resonance":
+        if value > 0.5: return "harmonic"
+        if value > 0.1: return "attuned"
+        if value > -0.3: return "neutral"
+        if value > -0.7: return "dissonant"
+        return "opposed"
+    if principle == "entropy":
+        if value > 0.8: return "fleeting"
+        if value > 0.5: return "fading"
+        if value > 0.3: return "lingering"
+        return "frozen"
+    if principle == "tension":
+        if value > 0.8: return "straining"
+        if value > 0.5: return "taut"
+        if value > 0.2: return "present"
+        return "slack"
+    if principle == "wavelength":
+        if value > 0.8: return "rhythmic"
+        if value > 0.5: return "pulsing"
+        if value > 0.3: return "irregular"
+        return "chaotic"
+    return "unknown"
+
+
 def handle_architecture_command(args):
     from cognitive_architecture import CognitiveArchitecture
     from cognitive_factory import CognitiveFactory
@@ -1168,6 +1452,16 @@ def handle_command(command, args, state, brain, memory, history=None, goals_db=N
         return handle_time_command(args)
     if command == "missed":
         return handle_missed_command()
+    if command == "workspace":
+        return handle_workspace_command(args)
+    if command == "being":
+        return handle_being_command(args)
+    if command == "mind":
+        return handle_mind_command(args)
+    if command == "humanity":
+        return handle_humanity_command(args)
+    if command == "physics":
+        return handle_physics_command(args)
     if command in ("architecture", "arch"):
         return handle_architecture_command(args)
     if command == "help":

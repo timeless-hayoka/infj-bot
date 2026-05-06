@@ -187,6 +187,12 @@ class MetacognitionEngine:
         edge = self.current_growth_edge()
         from growth_trajectory import GrowthTrajectory
         GrowthTrajectory().record_event('metacognition', edge, significance=0.6)
+        try:
+            from global_workspace import get_workspace
+            ws = get_workspace()
+            ws.submit(source="metacognition", content=f"Growth edge: {edge[:160]}", salience=0.55, emotion_tag="curiosity", intensity=0.5)
+        except Exception:
+            pass
 
 def _register():
     from cognitive_architecture import CognitiveArchitecture, CognitivePlugin

@@ -234,6 +234,14 @@ class CreativeEngine:
         ]
         return "\n".join(lines)
 
+
+    def cycle(self, context):
+        try:
+            ws = get_workspace()
+            ws.submit(source="creativity", content="creative impulse cycled", salience=0.45)
+        except Exception:
+            pass
+
 def _register():
     from cognitive_architecture import CognitiveArchitecture, CognitivePlugin
     arch = CognitiveArchitecture()
@@ -243,7 +251,7 @@ def _register():
             description="Cognitive module: creativity",
             module_path="creativity",
             instance_factory=CreativeEngine,
-                        cycle_handler=None,
+                        cycle_handler='cycle',
             cycle_frequency=1,
             cycle_priority=50,
                         prompt_formatter=None,

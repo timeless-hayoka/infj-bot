@@ -405,13 +405,24 @@ class PredictiveNeeds:
 
     def cycle(self, context):
         prediction = self.predict_current_need()
+        anomaly = self.detect_anomaly()
         if prediction and prediction['confidence'] > 0.5:
             from growth_trajectory import GrowthTrajectory
             GrowthTrajectory().record_event('prediction', prediction['prediction'], significance=prediction['confidence'])
-        anomaly = self.detect_anomaly()
         if anomaly and anomaly['significance'] > 0.5:
             from growth_trajectory import GrowthTrajectory
             GrowthTrajectory().record_event('anomaly', anomaly['description'], significance=anomaly['significance'])
+        try:
+            from global_workspace import get_workspace
+            ws = get_workspace()
+            if anomaly and anomaly['significance'] > 0.5:
+                ws.submit(source="predictor", content=f"Anomaly: {anomaly['description'][:160]}", salience=min(0.7, anomaly['significance'] + 0.2), emotion_tag="concern", intensity=anomaly['significance'])
+            elif prediction and prediction['confidence'] > 0.5:
+                ws.submit(source="predictor", content=f"Prediction: {prediction['prediction'][:160]}", salience=prediction['confidence'], emotion_tag="anticipation", intensity=prediction['confidence'] * 0.7)
+            else:
+                ws.submit(source="predictor", content="predictive cycle completed", salience=0.45)
+        except Exception:
+            pass
 
 def _register():
     from cognitive_architecture import CognitiveArchitecture, CognitivePlugin

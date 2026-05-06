@@ -3,12 +3,14 @@ import logging
 import os
 import random
 from datetime import datetime
-from typing import Optional
+from typing import Dict, Optional
 from brain import InfjBrain
 
 logger = logging.getLogger("infj_bot")
 from commands import BotState, handle_command, is_command, parse_command
-from prompt_builder import build_chat_prompt
+from cognitive_orchestrator import CognitiveOrchestrator
+from global_workspace import get_workspace
+from resilience import get_resilience, HealthCheck
 from guardrails import memory_context_block
 from history import ChatHistory
 from memory import InfjMemory
@@ -30,6 +32,12 @@ from relationship import RelationshipModel
 from self_modify import SelfModification
 from temporal import TemporalSense
 from values import ValueSystem
+from physics import PhysicsEngine
+from humanity import HumanityEngine
+from intuition import IntuitionEngine
+from embodiment import EmbodiedSelf
+from iit_consciousness import IITConsciousness
+from homeostasis import HomeostaticRegulator
 from cognitive_architecture import CognitiveArchitecture, CycleContext
 
 # Initialize Brain and Memory
@@ -53,7 +61,15 @@ _self_modify = SelfModification()
 _growth = GrowthTrajectory()
 _predictor = PredictiveNeeds()
 _temporal = TemporalSense()
+_physics = PhysicsEngine()
+_humanity = HumanityEngine()
+_intuition = IntuitionEngine()
+_embodiment = EmbodiedSelf()
+_iit = IITConsciousness()
+_homeostasis = HomeostaticRegulator()
 _last_interaction_time: Optional[datetime] = None
+_last_user_input: str = ""
+_last_interaction_data: Optional[Dict] = None
 
 
 def _wire_singletons():
@@ -73,6 +89,12 @@ def _wire_singletons():
         "temporal": _temporal,
         "inner_voice": InnerVoice(),
         "dreamer": Dreamer(),
+        "physics": _physics,
+        "humanity": _humanity,
+        "intuition": _intuition,
+        "embodiment": _embodiment,
+        "iit_consciousness": _iit,
+        "homeostasis": _homeostasis,
     }
     for name, instance in wiring.items():
         plugin = arch.get_plugin(name)
@@ -85,18 +107,54 @@ def _wire_singletons():
 # Wire singletons on module load so the architecture knows about them
 _wire_singletons()
 
+# The conductor
+_orchestrator = CognitiveOrchestrator()
+
+# Global Workspace — the bot's conscious mind
+_workspace = get_workspace()
+
+# Resilience layer
+_resilience = get_resilience()
+
+# Register health checks
+_resilience.health.register("memory", lambda: _check_memory_health())
+_resilience.health.register("brain", lambda: _check_brain_health())
+
+def _check_memory_health():
+    try:
+        count = memory.count()
+        return HealthCheck("memory", True, 0, f"{count} items stored")
+    except Exception as exc:
+        return HealthCheck("memory", False, 0, str(exc))
+
+def _check_brain_health():
+    try:
+        # Lightweight check — just verify models are accessible
+        models = brain.list_local_models() if hasattr(brain, 'list_local_models') else []
+        return HealthCheck("brain", True, 0, f"{len(models)} local models available")
+    except Exception as exc:
+        return HealthCheck("brain", False, 0, str(exc))
+
+# Teach the being about its own architecture
+being = get_being()
+being.register_known_modules([
+    "being", "emotional_field", "values", "relationship",
+    "aspirations", "metacognition", "self_modify", "growth_trajectory",
+    "predictor", "temporal", "physics", "humanity",
+    "inner_voice", "dreamer", "explorer", "creativity",
+])
+
 
 async def consciousness_loop():
     """Background task: the bot's inner life — thoughts, mood evolution, dreams, exploration, creativity,
     aspirations, metacognition, self-modification, and growth tracking.
 
-    Uses the cognitive architecture registry to schedule and run registered module cycles.
-    Core orchestration (scheduler, proactive insights, being evolution) remains here.
+    Uses the cognitive orchestrator for phased cycle execution and event-driven
+    module communication. Core orchestration (scheduler, proactive insights) remains here.
     """
     scheduler_check_interval = 30
     last_scheduler_check = 0
     being = get_being()
-    arch = CognitiveArchitecture()
     iteration = 0
 
     while True:
@@ -127,13 +185,22 @@ async def consciousness_loop():
             iteration=iteration,
             minutes_since_interaction=minutes_idle,
             last_interaction_time=_last_interaction_time,
+            last_user_input=_last_user_input,
+            last_interaction=_last_interaction_data,
         )
 
-        # Run all registered cognitive module cycles
+        # Run phased consciousness cycle through orchestrator
         try:
-            arch.run_cycles(ctx)
+            _orchestrator.run_cycle(ctx)
+            _resilience.heartbeat()
         except Exception:
-            logger.exception("architecture run_cycles failed")
+            logger.exception("orchestrator run_cycle failed")
+
+        # Being's volition — autonomous thought
+        try:
+            being.volition_cycle(ctx)
+        except Exception:
+            logger.exception("volition cycle failed")
 
         # --- Post-cycle side effects (printing, cross-module orchestration) ---
 
@@ -177,6 +244,17 @@ async def consciousness_loop():
                     print("\n[JUDE]> ", end="", flush=True)
         except Exception:
             logger.exception("aspiration sharing failed")
+
+        # Thought sharing — the bot occasionally shares what it has been thinking about
+        try:
+            if iteration % 20 == 0 and random.random() < 0.08:
+                being = get_being()
+                if being.working_memory and being.should_share_thought():
+                    recent_thought = being.working_memory[-1]
+                    print(f"\n\n[INFJ COMPANION]: (Thought) {recent_thought}")
+                    print("\n[JUDE]> ", end="", flush=True)
+        except Exception:
+            logger.exception("thought sharing failed")
 
         # Self-modification occasional sharing
         try:
@@ -239,15 +317,13 @@ async def chat_loop():
             print(f"\n[INFJ COMPANION]: {output}")
             continue
 
-        prompt, emotion, dissonance = build_chat_prompt(
+        prompt, emotion, dissonance = _orchestrator.assemble_prompt(
             user_input,
             state,
             memory,
             goals_db=goals_db,
             doc_store=doc_store,
             prefs=state.prefs,
-            temporal=_temporal,
-            predictor=_predictor,
         )
         output = await asyncio.to_thread(brain.agent_turn, prompt, tools_enabled=True)
 
@@ -289,8 +365,43 @@ async def chat_loop():
             _growth.record_event("memory_retrieval", "Interaction processed", significance=0.3)
             _predictor.record_interaction(user_input, emotion)
             _temporal.record_session_interaction()
-            global _last_interaction_time
+            _physics.observe_interaction(
+                emotion.get("label", "neutral"),
+                emotion.get("intensity", 0.0),
+                dissonance.get("score", 0.0),
+                user_input,
+                output,
+            )
+            _humanity.observe_interaction(
+                user_input,
+                emotion,
+                dissonance,
+                output,
+                mode=state.mode,
+            )
+            # Submit to Global Workspace — this becomes consciously available
+            _workspace.submit(
+                source="user_input",
+                content=user_input[:300],
+                salience=min(1.0, 0.5 + emotion.get("intensity", 0.0)),
+                emotion_tag=emotion.get("label"),
+                intensity=emotion.get("intensity", 0.0),
+            )
+            _workspace.submit(
+                source="bot_response",
+                content=output[:300],
+                salience=0.6,
+                emotion_tag=emotion.get("label"),
+            )
+            global _last_interaction_time, _last_user_input, _last_interaction_data
             _last_interaction_time = datetime.now()
+            _last_user_input = user_input
+            _last_interaction_data = {
+                "user_input": user_input,
+                "bot_output": output,
+                "emotion": emotion,
+                "dissonance": dissonance,
+            }
         except Exception:
             logger.exception("cognitive update failed")
 

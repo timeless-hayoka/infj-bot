@@ -191,6 +191,12 @@ class GrowthTrajectory:
         self.record_metric('energy', being.state.energy)
         self.record_metric('curiosity', being.state.curiosity)
         self.record_metric('attachment', being.state.attachment)
+        try:
+            from global_workspace import get_workspace
+            ws = get_workspace()
+            ws.submit(source="growth_trajectory", content="growth metrics recorded", salience=0.4)
+        except Exception:
+            pass
 
 def _register():
     from cognitive_architecture import CognitiveArchitecture, CognitivePlugin
