@@ -42,3 +42,8 @@ AI_COMPANY_OUTREACH.md
 scripts/drift_boot.sh
 scripts/drift_watcher.sh
 scripts/install_drift_hook.sh
+
+# Drift runtime artifacts (local only)
+.drift_boot.log
+.drift_seen_pids
+.drift_watcher.pid

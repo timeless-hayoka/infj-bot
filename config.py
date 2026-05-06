@@ -15,6 +15,12 @@ PERSIST_DIRECTORY = PROJECT_ROOT / "chroma_db"
 HISTORY_PATH = PROJECT_ROOT / "history.jsonl"
 
 API_KEY = os.getenv("API_KEY") or os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+
+# Anthropic / Claude
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY") or os.getenv("CLAUDE_API_KEY")
+ANTHROPIC_ORG_ID = os.getenv("ANTHROPIC_ORG_ID")
+CLAUDE_MODEL = os.getenv("CLAUDE_MODEL", "claude-sonnet-4-20250514")
+
 REFLECTION_INTERVAL = int(os.getenv("REFLECTION_INTERVAL", "10"))
 
 INFJ_PRIMARY_MODEL = os.getenv("INFJ_PRIMARY_MODEL", "gemini-2.5-flash")
