@@ -64,7 +64,7 @@ class TestCodeGeneration:
         proposal = fresh_factory.propose("gratitude")
         source = fresh_factory.generate_module(proposal)
         for method in proposal.proposed_methods:
-            assert f"def {method}(self)" in source
+            assert f"def {method}(self, *args, **kwargs)" in source
 
 
 class TestValidation:

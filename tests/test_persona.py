@@ -110,9 +110,24 @@ class TestOutputFormat(unittest.TestCase):
         self.assertIn("posture", hint)
 
     def test_mode_rail_nonempty_for_defined_modes(self):
-        for mode in ["bughunter", "engineer", "clarity", "researcher", "coach"]:
+        for mode in ["bughunter", "engineer", "clarity", "researcher", "coach", "companion", "critic", "quiet"]:
             rail = mode_scope_rail(mode)
             self.assertTrue(len(rail) > 10, f"Mode {mode} rail is too short")
+
+    def test_mode_rail_companion_has_boundaries(self):
+        rail = mode_scope_rail("companion")
+        self.assertIn("BOUNDARY", rail)
+        self.assertIn("diagnose", rail)
+
+    def test_mode_rail_critic_is_constructive(self):
+        rail = mode_scope_rail("critic")
+        self.assertIn("CONSTRUCT", rail)
+        self.assertIn("EVIDENCE", rail)
+
+    def test_mode_rail_quiet_is_brief(self):
+        rail = mode_scope_rail("quiet")
+        self.assertIn("BREVITY", rail)
+        self.assertIn("short", rail)
 
 
 if __name__ == "__main__":

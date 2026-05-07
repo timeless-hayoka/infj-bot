@@ -143,7 +143,9 @@ class TestGuardrails(unittest.TestCase):
         self.assertIn("Bug Hunter", mode_scope_rail("bughunter"))
         self.assertIn("Researcher", mode_scope_rail("researcher"))
         self.assertIn("Coach", mode_scope_rail("coach"))
-        self.assertEqual(mode_scope_rail("companion"), "")
+        self.assertIn("Companion", mode_scope_rail("companion"))
+        self.assertIn("Critic", mode_scope_rail("critic"))
+        self.assertIn("Quiet", mode_scope_rail("quiet"))
 
 
 class TestMemory(unittest.TestCase):
