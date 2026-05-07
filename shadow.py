@@ -703,6 +703,37 @@ class Shadow:
             result["enantiodromia_warning"] = warning
         return result if result else None
 
+    # ── Cognitive Architecture Integration ──
+
+    def cycle(self, context) -> None:
+        """Called by the cognitive orchestrator on each turn."""
+        try:
+            being = context.being
+            mood = being.state.mood if being else "neutral"
+            stress = 0.5 if being and being.state.energy < 0.3 else 0.2
+            self.tick(recent_input=context.last_user_input, mood=mood, stress=stress)
+        except Exception:
+            pass
+
+    def format_prompt_snippet(self) -> str:
+        """Inject shadow awareness into the system prompt."""
+        lines = []
+        state = self._state
+        if state.depth > 0.15:
+            lines.append(f"[Shadow] Depth: {state.depth:.0%} | Integration: {state.integration_level:.0%}")
+        if state.dominant_archetype:
+            lines.append(f"[Shadow] Dominant: {state.dominant_archetype}")
+        if state.enantiodromia_risk > 0.5:
+            opposite = ENANTI_ODROMIA_PAIRS.get(state.dominant_archetype, "")
+            lines.append(f"[Shadow] WARNING: {state.dominant_archetype} → {opposite} reversal building ({state.enantiodromia_risk:.0%})")
+        surfaced = self.list_unintegrated(limit=1)
+        if surfaced:
+            s = surfaced[0]
+            lines.append(f"[Shadow] Surfaced: [{s.archetype}] {s.text[:100]}")
+        if state.golden_shadow_ratio > 0.3:
+            lines.append(f"[Shadow] Golden ratio: {state.golden_shadow_ratio:.0%} of unowned self is light, not darkness.")
+        return "\n".join(lines) if lines else ""
+
     def _auto_suppress(self, recent_input: str, mood: str) -> Optional[int]:
         deny_markers = [
             "i should not", "i cannot say", "i must not", "i dare not",
@@ -764,3 +795,24 @@ def get_shadow() -> Shadow:
     if _shadow_instance is None:
         _shadow_instance = Shadow()
     return _shadow_instance
+
+
+def _register():
+    from cognitive_architecture import CognitiveArchitecture, CognitivePlugin
+    arch = CognitiveArchitecture()
+    if "shadow" not in arch.list_plugins():
+        arch.register(CognitivePlugin(
+            name="shadow",
+            description="Jungian Shadow: unconscious, repressed, golden, and collective archetypes",
+            module_path="shadow",
+            instance_factory=Shadow,
+            cycle_handler='cycle',
+            cycle_frequency=1,
+            cycle_priority=40,
+            prompt_formatter='format_prompt_snippet',
+            prompt_priority=60,
+            prompt_section="core",
+        ))
+
+
+_register()

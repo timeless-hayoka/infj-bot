@@ -38,6 +38,7 @@ from intuition import IntuitionEngine
 from embodiment import EmbodiedSelf
 from iit_consciousness import IITConsciousness
 from homeostasis import HomeostaticRegulator
+from shadow import get_shadow
 from cognitive_architecture import CognitiveArchitecture, CycleContext
 
 # Initialize Brain and Memory
@@ -142,6 +143,7 @@ being.register_known_modules([
     "aspirations", "metacognition", "self_modify", "growth_trajectory",
     "predictor", "temporal", "physics", "humanity",
     "inner_voice", "dreamer", "explorer", "creativity",
+    "shadow",
 ])
 
 

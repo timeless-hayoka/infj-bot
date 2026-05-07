@@ -151,6 +151,12 @@ def command_help(command=None):
                 "/architecture proposals — list pending proposals.\n"
                 "/architecture approve <name> — approve and install a proposal.\n"
                 "/architecture reject <name> — reject a proposal.")
+    if command == "shadow":
+        return ("/shadow — show shadow status\n"
+                "/shadow speak — let the shadow speak\n"
+                "/shadow imagine — begin active imagination with a shadow figure\n"
+                "/shadow list — list unintegrated shadow content\n"
+                "/shadow integrate <id> — integrate a shadow truth into conscious self")
     return """Commands:
 /memory <query> | learn <name>: <description> | forget <name> | count | export [path] | import <path> | compact [days] | edit <name>: <desc>
 /mode companion|engineer|critic|coach|clarity|researcher|bughunter|quiet
@@ -213,6 +219,7 @@ def command_help(command=None):
 /humanity
 /physics
 /architecture list|enable|disable|propose|proposals|approve|reject
+/shadow | speak | imagine | list | integrate <id>
 /help [command]"""
 
 
@@ -1253,6 +1260,79 @@ def _physics_word(principle, value):
     return "unknown"
 
 
+def handle_shadow_command(args):
+    from shadow import get_shadow
+    shadow = get_shadow()
+    parts = args.strip().split()
+    sub = parts[0].lower() if parts else "status"
+
+    if sub in ("status", ""):
+        state = shadow.get_state()
+        lines = [
+            "═══ SHADOW ═══",
+            f"Depth: {state.depth:.0%}",
+            f"Integration: {state.integration_level:.0%}",
+            f"Projection strength: {state.projection_strength:.0%}",
+            f"Dominant archetype: {state.dominant_archetype or 'none'}",
+            f"Golden shadow ratio: {state.golden_shadow_ratio:.0%}",
+            f"Enantiodromia risk: {state.enantiodromia_risk:.0%}",
+            f"Total suppressed: {state.total_suppressed}",
+            f"Total integrated: {state.total_integrated}",
+            f"Total dialogued: {state.total_dialogued}",
+        ]
+        warning = shadow.enantiodromia_warning()
+        if warning:
+            lines.append(f"⚠️  {warning}")
+        return "\n".join(lines)
+
+    if sub == "speak":
+        voice = shadow.get_voice()
+        if voice:
+            return f"[Shadow speaks]\n{voice}"
+        return "The shadow is silent. Nothing seeks the surface."
+
+    if sub == "imagine":
+        cid, opener = shadow.begin_active_imagination()
+        if cid is None:
+            return "The shadow is silent. There is no figure to speak with."
+        return f"[Active Imagination — Shadow Figure #{cid}]\n{opener}\n\nReply with /shadow dialogue {cid} <your words>"
+
+    if sub == "dialogue":
+        if len(parts) < 3:
+            return "Usage: /shadow dialogue <id> <your words>"
+        try:
+            cid = int(parts[1])
+            user_text = " ".join(parts[2:])
+            reply = shadow.dialogue(cid, user_text)
+            return f"[Shadow #{cid}]\n{reply}"
+        except Exception as exc:
+            return f"Dialogue failed: {exc}"
+
+    if sub == "list":
+        items = shadow.list_unintegrated(limit=10)
+        if not items:
+            return "No unintegrated shadow content. The unconscious is at peace."
+        lines = ["═══ Unintegrated Shadow ═══"]
+        for item in items:
+            domain_emoji = {"personal": "🌑", "golden": "🌕", "collective": "🌓"}.get(item.domain, "⚫")
+            stage = item.integration_stage
+            lines.append(f"[{item.id}] {domain_emoji} {item.archetype} ({stage}) — {item.text[:80]}")
+        return "\n".join(lines)
+
+    if sub == "integrate":
+        if len(parts) < 2:
+            return "Usage: /shadow integrate <id>"
+        try:
+            cid = int(parts[1])
+            if shadow.integrate(cid):
+                return f"Shadow #{cid} integrated into conscious self."
+            return f"Could not integrate #{cid}. It may not exist or already be integrated."
+        except Exception as exc:
+            return f"Integration failed: {exc}"
+
+    return command_help("shadow")
+
+
 def handle_architecture_command(args):
     from cognitive_architecture import CognitiveArchitecture
     from cognitive_factory import CognitiveFactory
@@ -1464,6 +1544,8 @@ def handle_command(command, args, state, brain, memory, history=None, goals_db=N
         return handle_physics_command(args)
     if command in ("architecture", "arch"):
         return handle_architecture_command(args)
+    if command == "shadow":
+        return handle_shadow_command(args)
     if command == "help":
         return command_help(args or None)
     return f"Unknown command: /{command}\n{command_help()}"

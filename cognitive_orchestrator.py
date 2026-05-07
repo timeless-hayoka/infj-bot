@@ -157,6 +157,7 @@ class CognitiveOrchestrator:
             "humanity",      # understand human nature
             "intuition",     # felt sense beneath understanding
             "iit_consciousness",  # measure integrated information (Φ)
+            "shadow",        # unconscious, repressed, archetypal material
         ],
         "integration": [
             "relationship",  # update relationship model
