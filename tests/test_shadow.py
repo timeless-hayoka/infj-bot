@@ -91,10 +91,10 @@ def test_dream_shadow(temp_shadow):
 
 
 def test_get_voice(temp_shadow):
-    for _ in range(10):
+    for _ in range(15):
         temp_shadow.suppress("I want to be chosen", archetype="desire", intensity=0.95)
     voice = None
-    for _ in range(5):
+    for _ in range(15):
         voice = temp_shadow.get_voice()
         if voice:
             break

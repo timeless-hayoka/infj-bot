@@ -151,6 +151,12 @@ def command_help(command=None):
                 "/architecture proposals — list pending proposals.\n"
                 "/architecture approve <name> — approve and install a proposal.\n"
                 "/architecture reject <name> — reject a proposal.")
+    if command == "eval":
+        return ("/eval consistency — run multi-turn consistency evaluation\n"
+                "/eval modes — test mode discrimination\n"
+                "/eval stability — check self-modification stability\n"
+                "/eval memory — show memory reliability report\n"
+                "/eval contradictions — list unresolved memory contradictions")
     if command == "shadow":
         return ("/shadow — show shadow status\n"
                 "/shadow speak — let the shadow speak\n"
@@ -220,6 +226,7 @@ def command_help(command=None):
 /physics
 /architecture list|enable|disable|propose|proposals|approve|reject
 /shadow | speak | imagine | list | integrate <id>
+/eval consistency | modes | stability | memory | contradictions
 /help [command]"""
 
 
@@ -1333,6 +1340,102 @@ def handle_shadow_command(args):
     return command_help("shadow")
 
 
+def handle_eval_command(args):
+    parts = args.strip().split()
+    sub = parts[0].lower() if parts else "consistency"
+
+    if sub == "consistency":
+        from evals.consistency_eval import ConsistencyEvaluator
+        evaluator = ConsistencyEvaluator()
+        report = evaluator.evaluate_session()
+        r = report.to_dict()
+        lines = [
+            "═══ CONSISTENCY EVALUATION ═══",
+            f"Overall score: {r['overall_score']:.2f}",
+            f"  Mood stability: {r['mood_stability']:.2f}",
+            f"  Value alignment: {r['value_alignment']:.2f}",
+            f"  Memory coherence: {r['memory_coherence']:.2f}",
+            f"  Mode integrity: {r['mode_integrity']:.2f}",
+            f"  Shadow authenticity: {r['shadow_authenticity']:.2f}",
+            f"  Homeostatic continuity: {r['homeostatic_continuity']:.2f}",
+        ]
+        if r['flags']:
+            lines.append("Flags:")
+            for flag in r['flags']:
+                lines.append(f"  • {flag}")
+        return "\n".join(lines)
+
+    if sub == "modes":
+        from evals.mode_discrimination import ModeDiscriminator
+        evaluator = ModeDiscriminator()
+        report = evaluator.evaluate_modes(["companion", "coach", "critic"], n_prompts=5)
+        r = report.to_dict()
+        lines = [
+            "═══ MODE DISCRIMINATION ═══",
+            f"Overall score: {r['overall_score']:.2f}",
+            f"  Lexical distinctness: {r['lexical_distinctness']:.2f}",
+            f"  Syntactic distinctness: {r['syntactic_distinctness']:.2f}",
+            f"  Tool distinctness: {r['tool_distinctness']:.2f}",
+            f"  Tone distinctness: {r['tone_distinctness']:.2f}",
+        ]
+        if r['convergence_warnings']:
+            lines.append("Convergence warnings:")
+            for w in r['convergence_warnings']:
+                lines.append(f"  ⚠️  {w}")
+        return "\n".join(lines)
+
+    if sub == "stability":
+        from evals.self_modify_audit import SelfModificationAudit
+        audit = SelfModificationAudit()
+        report = audit.compute_stability()
+        r = report.to_dict()
+        lines = [
+            "═══ SELF-MODIFICATION STABILITY ═══",
+            f"Stability score: {r['stability_score']:.2f}",
+            f"Active modifications: {r['active_modifications']}",
+            f"Pending approvals: {r['pending_approvals']}",
+            f"Rolled back: {r['rolled_back_count']}",
+            f"Drift velocity: {r['drift_velocity']:.2f} mods/day",
+            f"Feedback loop risk: {r['feedback_loop_risk']:.2f}",
+        ]
+        if r['warnings']:
+            lines.append("Warnings:")
+            for w in r['warnings']:
+                lines.append(f"  ⚠️  {w}")
+        return "\n".join(lines)
+
+    if sub == "memory":
+        from memory_reliability import get_reliability_engine
+        engine = get_reliability_engine()
+        reliable = engine.get_reliable_memories(threshold=0.5, limit=10)
+        projections = engine.get_projection_memories()
+        lines = [
+            "═══ MEMORY RELIABILITY ═══",
+            f"Reliable memories (>50%): {len(reliable)}",
+            f"Projection-flagged: {len(projections)}",
+        ]
+        if projections:
+            lines.append("Recent projections:")
+            for m in projections[:5]:
+                lines.append(f"  🌑 [{m['memory_id']}] {m['current_reliability']:.0%} — {m['text'][:60]}")
+        return "\n".join(lines)
+
+    if sub == "contradictions":
+        from memory_reliability import get_reliability_engine
+        engine = get_reliability_engine()
+        contradictions = engine.get_unresolved_contradictions()
+        if not contradictions:
+            return "No unresolved memory contradictions."
+        lines = ["═══ UNRESOLVED CONTRADICTIONS ═══"]
+        for c in contradictions[:10]:
+            lines.append(f"[{c['id']}] {c['contradiction_type']} (severity: {c['severity']:.2f})")
+            lines.append(f"  A: {c['text_a'][:70]}")
+            lines.append(f"  B: {c['text_b'][:70]}")
+        return "\n".join(lines)
+
+    return command_help("eval")
+
+
 def handle_architecture_command(args):
     from cognitive_architecture import CognitiveArchitecture
     from cognitive_factory import CognitiveFactory
@@ -1546,6 +1649,8 @@ def handle_command(command, args, state, brain, memory, history=None, goals_db=N
         return handle_architecture_command(args)
     if command == "shadow":
         return handle_shadow_command(args)
+    if command == "eval":
+        return handle_eval_command(args)
     if command == "help":
         return command_help(args or None)
     return f"Unknown command: /{command}\n{command_help()}"
