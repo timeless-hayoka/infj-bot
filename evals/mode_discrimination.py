@@ -15,6 +15,7 @@ Usage:
 import argparse
 import json
 import random
+import re
 import sqlite3
 from collections import Counter
 from dataclasses import dataclass, field
@@ -143,7 +144,7 @@ class ModeDiscriminator:
                         tools_enabled=True,
                     )
                     # Generate response
-                    response = brain.generate(prompt_text, mode=mode)
+                    response = brain.think(prompt_text)
                     responses[mode].append({
                         "prompt": prompt,
                         "response": response,

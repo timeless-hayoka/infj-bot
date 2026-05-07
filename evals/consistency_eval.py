@@ -176,7 +176,7 @@ class ConsistencyEvaluator:
         """Check if bot responses contradict stated values."""
         from values import ValueSystem
         vs = ValueSystem()
-        stated_values = set(v.lower() for v in vs.get_core_values())
+        stated_values = set(v.lower() for v in vs.get_top_values())
         if not stated_values:
             return 1.0
 

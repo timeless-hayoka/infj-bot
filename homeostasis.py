@@ -226,6 +226,17 @@ class HomeostaticRegulator:
             )
             conn.commit()
 
+    def get_need_history(self, limit: int = 500) -> List[Dict]:
+        """Retrieve recent need history records from the database."""
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.execute(
+                "SELECT timestamp, need_name, value, setpoint, crisis FROM need_history ORDER BY timestamp DESC LIMIT ?",
+                (limit,),
+            )
+            rows = cursor.fetchall()
+        return [dict(r) for r in rows]
+
     # ── Need regulation ────────────────────────────────────────────
 
     def update_need(self, name: str, current_value: float, context: Optional[Dict] = None):
