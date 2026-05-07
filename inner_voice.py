@@ -60,6 +60,20 @@ class InnerVoice:
         being = get_being()
         mood = being.state.mood
 
+        # Shadow voice — occasionally the unconscious speaks directly
+        if random.random() < 0.15:
+            try:
+                from shadow import get_shadow
+                shadow = get_shadow()
+                voice = shadow.get_voice(context=" ".join(memory_fragments or []))
+                if voice:
+                    self.thought_history.append(f"[Shadow] {voice}")
+                    if len(self.thought_history) > self.max_history:
+                        self.thought_history = self.thought_history[-self.max_history:]
+                    return f"[Shadow] {voice}"
+            except Exception:
+                pass
+
         # Choose a seed based on mood
         if mood in ("curious", "excited", "restless"):
             seed = random.choice(self.CREATIVE_SEEDS + self.PHILOSOPHICAL_SEEDS)

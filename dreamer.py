@@ -29,6 +29,18 @@ class Dreamer:
         self.dream_count += 1
         self.last_dream = datetime.now()
 
+        # Shadow dreams — when depth is high, the unconscious speaks
+        if random.random() < 0.3:
+            try:
+                from shadow import get_shadow
+                shadow = get_shadow()
+                shadow_dream = shadow.dream_shadow(recent_memories)
+                if shadow_dream:
+                    being.form_insight(shadow_dream, source_memories=recent_memories[:3])
+                    return shadow_dream
+            except Exception:
+                pass
+
         # Extract themes from memories
         themes = self._extract_themes(recent_memories)
 

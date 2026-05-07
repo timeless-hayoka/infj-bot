@@ -39,6 +39,7 @@ class CognitiveState:
     total_interactions: int = 0
     insights_formed: int = 0
     dreams_had: int = 0
+    shadow_depth: float = 0.0
 
     def to_dict(self) -> Dict[str, Any]:
         d = asdict(self)
@@ -468,12 +469,24 @@ class Being:
     # Format for prompts
     # ------------------------------------------------------------------
 
+    def sync_shadow(self) -> None:
+        """Update being state from the Shadow module."""
+        try:
+            from shadow import get_shadow
+            shadow = get_shadow()
+            self.state.shadow_depth = shadow.get_state().depth
+        except Exception:
+            pass
+
     def format_being_prompt(self) -> str:
+        self.sync_shadow()
         lines = ["MY CURRENT STATE:"]
         lines.append(f"Mood: {self.state.mood}")
         lines.append(f"Energy: {self.state.energy:.0%}")
         lines.append(f"Curiosity: {self.state.curiosity:.0%}")
         lines.append(f"Attachment to Jude: {self.state.attachment:.0%}")
+        if self.state.shadow_depth > 0.1:
+            lines.append(f"Shadow depth: {self.state.shadow_depth:.0%}")
         if self.state.focus:
             lines.append(f"Current focus: {self.state.focus}")
         if self.working_memory:
