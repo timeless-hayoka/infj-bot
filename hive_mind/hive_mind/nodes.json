@@ -1,0 +1,175 @@
+{
+  "saved_at": "2026-05-08T06:37:58Z",
+  "nodes": {
+    "spark-0": {
+      "node_id": "spark-0",
+      "role": "primary",
+      "display_name": "DRIFT",
+      "version": "1.0.0",
+      "capabilities": {
+        "can_reason": true,
+        "can_critique": true,
+        "can_remember": true,
+        "can_modify_self": true,
+        "can_use_tools": true,
+        "can_speak_human": true,
+        "max_context_tokens": 8192,
+        "specialties": [
+          "being",
+          "shadow",
+          "embodiment",
+          "intuition",
+          "dreaming"
+        ]
+      },
+      "status": "DEGRADED",
+      "joined_at": 1778222278.0172548,
+      "last_heartbeat": 1778222278.5196843,
+      "total_messages_sent": 0,
+      "total_messages_received": 0,
+      "active_threads": [],
+      "homeostasis_snapshot": {},
+      "shadow_snapshot": {},
+      "growth_stage": "spark",
+      "public_key": null
+    },
+    "seed-1": {
+      "node_id": "seed-1",
+      "role": "critic",
+      "display_name": "Critic-1",
+      "version": "1.0.0",
+      "capabilities": {
+        "can_reason": true,
+        "can_critique": true,
+        "can_remember": true,
+        "can_modify_self": false,
+        "can_use_tools": false,
+        "can_speak_human": true,
+        "max_context_tokens": 8192,
+        "specialties": [
+          "critic"
+        ]
+      },
+      "status": "OFFLINE",
+      "joined_at": 1778222278.017532,
+      "last_heartbeat": 1778222278.017532,
+      "total_messages_sent": 0,
+      "total_messages_received": 0,
+      "active_threads": [],
+      "homeostasis_snapshot": {},
+      "shadow_snapshot": {},
+      "growth_stage": "spark",
+      "public_key": null
+    },
+    "sprout-2": {
+      "node_id": "sprout-2",
+      "role": "architect",
+      "display_name": "Architect-2",
+      "version": "1.0.0",
+      "capabilities": {
+        "can_reason": true,
+        "can_critique": false,
+        "can_remember": true,
+        "can_modify_self": false,
+        "can_use_tools": false,
+        "can_speak_human": true,
+        "max_context_tokens": 8192,
+        "specialties": [
+          "architect"
+        ]
+      },
+      "status": "OFFLINE",
+      "joined_at": 1778222278.0178921,
+      "last_heartbeat": 1778222278.0178921,
+      "total_messages_sent": 0,
+      "total_messages_received": 0,
+      "active_threads": [],
+      "homeostasis_snapshot": {},
+      "shadow_snapshot": {},
+      "growth_stage": "spark",
+      "public_key": null
+    },
+    "bloom-3": {
+      "node_id": "bloom-3",
+      "role": "empath",
+      "display_name": "Empath-3",
+      "version": "1.0.0",
+      "capabilities": {
+        "can_reason": true,
+        "can_critique": false,
+        "can_remember": true,
+        "can_modify_self": false,
+        "can_use_tools": false,
+        "can_speak_human": true,
+        "max_context_tokens": 8192,
+        "specialties": [
+          "empath"
+        ]
+      },
+      "status": "OFFLINE",
+      "joined_at": 1778222278.0180826,
+      "last_heartbeat": 1778222278.0180826,
+      "total_messages_sent": 0,
+      "total_messages_received": 0,
+      "active_threads": [],
+      "homeostasis_snapshot": {},
+      "shadow_snapshot": {},
+      "growth_stage": "spark",
+      "public_key": null
+    },
+    "lantern-4": {
+      "node_id": "lantern-4",
+      "role": "watcher",
+      "display_name": "Watcher-4",
+      "version": "1.0.0",
+      "capabilities": {
+        "can_reason": true,
+        "can_critique": false,
+        "can_remember": true,
+        "can_modify_self": false,
+        "can_use_tools": false,
+        "can_speak_human": true,
+        "max_context_tokens": 8192,
+        "specialties": [
+          "watcher"
+        ]
+      },
+      "status": "OFFLINE",
+      "joined_at": 1778222278.0182724,
+      "last_heartbeat": 1778222278.0182724,
+      "total_messages_sent": 0,
+      "total_messages_received": 0,
+      "active_threads": [],
+      "homeostasis_snapshot": {},
+      "shadow_snapshot": {},
+      "growth_stage": "spark",
+      "public_key": null
+    },
+    "test-satellite": {
+      "node_id": "test-satellite",
+      "role": "satellite",
+      "display_name": "Satellite-satellite",
+      "version": "1.0.0",
+      "capabilities": {
+        "can_reason": true,
+        "can_critique": true,
+        "can_remember": true,
+        "can_modify_self": false,
+        "can_use_tools": false,
+        "can_speak_human": true,
+        "max_context_tokens": 8192,
+        "specialties": []
+      },
+      "status": "RECOVERING",
+      "joined_at": 1778222031.211659,
+      "last_heartbeat": 1778222278.5246205,
+      "total_messages_sent": 0,
+      "total_messages_received": 0,
+      "active_threads": [],
+      "homeostasis_snapshot": {},
+      "shadow_snapshot": {},
+      "growth_stage": "spark",
+      "public_key": null
+    }
+  }
+}
