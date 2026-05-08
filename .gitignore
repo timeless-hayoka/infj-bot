@@ -46,6 +46,9 @@ scripts/drift_boot.sh
 scripts/drift_watcher.sh
 scripts/install_drift_hook.sh
 
+# Local-only / private experiments (not published)
+hive_mind/
+
 # Drift runtime artifacts (local only)
 .drift_boot.log
 .drift_seen_pids

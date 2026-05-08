@@ -13,7 +13,6 @@ Local **AI companion** with durable memory, multiple chat modes, reflection help
 - **Interfaces** — Interactive terminal chat, **Rich** TUI, one-shot `ask`, and a **FastAPI** web UI on `127.0.0.1:8765`.
 - **Commands** — Focus, planning, memory CRUD, reflection, cognitive-dissonance helper, todos, document ingest/RAG, tool listing and audit, and more (see below).
 - **Offline checks** — `health` script compiles critical modules, runs a small stress harness, and verifies Chroma (optional live Gemini ping).
-- **DRIFT Hive Mind (experimental)** — Multi-node federation sketch: shared memory, DCP message protocol, consensus loop, Observatory/Mirror roadmap. Lives under [`hive_mind/`](hive_mind/README.md); orchestrator exposes DRIFT interior state via `DriftBridge` for future multi-agent coordination (not wired into daily chat yet).
 
 ## Requirements
 
@@ -115,7 +114,6 @@ See `SECURITY.md`. **Never commit `.env`**, API keys, or raw database exports. I
 | `DRIFT_AI_INTEGRATION.md` | How Drift-derived concepts were seeded (Drift repo is private) |
 | `UPGRADE_BACKLOG.md` | Maintainer-facing improvement ideas |
 | `SECURITY.md` | Reporting and secret-handling expectations |
-| [`hive_mind/README.md`](hive_mind/README.md) | Experimental **Hive Mind**: DCP protocol, federation, observatory plan — see [`MANIFESTO.md`](hive_mind/MANIFESTO.md), [`PROTOCOL.md`](hive_mind/PROTOCOL.md) |
 
 ---
 
