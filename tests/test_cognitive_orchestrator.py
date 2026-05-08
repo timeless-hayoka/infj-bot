@@ -94,6 +94,8 @@ class TestOrchestrator:
     @pytest.fixture
     def fresh_orch(self):
         CognitiveArchitecture.reset_instance()
+        # Plugin rows are loaded from SQLite; self-registering modules must be imported on a clean DB.
+        import temporal  # noqa: F401
         orch = CognitiveOrchestrator()
         yield orch
         CognitiveArchitecture.reset_instance()

@@ -10,8 +10,25 @@ jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      # google-genai Client needs a non-empty key at import time; these tests do not call the live API.
+      API_KEY: ci-placeholder-not-for-production
+      GEMINI_API_KEY: ci-placeholder-not-for-production
+      GOOGLE_API_KEY: ci-placeholder-not-for-production
+      HF_HOME: ${{ github.workspace }}/.hf_cache
+
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install OS libraries (PortAudio for sounddevice)
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y libportaudio2
+
+      - uses: actions/cache@v4
+        with:
+          path: .hf_cache
+          key: huggingface-${{ runner.os }}-v1-${{ hashFiles('requirements.txt') }}
 
       - name: Set up Python
         uses: actions/setup-python@v5

@@ -16,6 +16,9 @@ __pycache__/
 .mypy_cache/
 *.tar.gz
 
+# CI / Hugging Face model cache (when HF_HOME points into the repo)
+.hf_cache/
+
 # Runtime data — do not commit
 *.db
 chroma_db/
