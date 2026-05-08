@@ -22,9 +22,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from config import PROJECT_ROOT
-
-EVAL_DB = PROJECT_ROOT / "evals" / "consistency_eval.db"
+from config import CONSISTENCY_EVAL_DB as EVAL_DB
 
 
 def _load_turn_logs(limit: int = 500) -> List[Dict]:

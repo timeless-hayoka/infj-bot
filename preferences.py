@@ -9,9 +9,7 @@ import sqlite3
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from config import PROJECT_ROOT
-
-PREFS_DB = PROJECT_ROOT / "preferences.db"
+from config import PREFS_DB
 
 DEFAULT_PREFS = {
     "communication_style": "warm and analytical",  # casual, formal, technical, warm, direct

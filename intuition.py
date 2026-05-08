@@ -19,9 +19,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from config import PROJECT_ROOT
-
-INTUITION_DB = PROJECT_ROOT / "intuition.db"
+from config import INTUITION_DB
 
 # Somatic qualities — the "feel" of a situation before it is named
 FELT_QUALITIES = [

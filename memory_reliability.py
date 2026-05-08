@@ -27,9 +27,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 
-from config import PROJECT_ROOT
-
-RELIABILITY_DB = PROJECT_ROOT / "memory_reliability.db"
+from config import RELIABILITY_DB
 
 # Source types and base confidence
 SOURCE_CONFIDENCE = {

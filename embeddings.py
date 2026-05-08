@@ -5,6 +5,7 @@ search, while keeping the old hash-based fallback available.
 """
 
 import logging
+import os
 from typing import Any, Dict, List
 
 import numpy as np
@@ -120,6 +121,10 @@ class LocalEmbeddingFunction:
 
 def get_default_embedding_function():
     """Return the default embedding function (semantic)."""
+    mode = os.getenv("INFJ_EMBEDDING_MODE", "semantic").strip().lower()
+    if mode in {"local", "hash", "offline"}:
+        return LocalEmbeddingFunction()
+
     try:
         return SemanticEmbeddingFunction()
     except Exception:

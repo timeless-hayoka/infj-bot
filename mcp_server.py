@@ -38,10 +38,38 @@ Use these tools when:
 """,
 )
 
-brain = InfjBrain()
-memory = InfjMemory()
-goals_db = GoalsDB()
-doc_store = DocumentStore()
+brain: Optional[InfjBrain] = None
+memory: Optional[InfjMemory] = None
+goals_db: Optional[GoalsDB] = None
+doc_store: Optional[DocumentStore] = None
+
+
+def get_brain() -> InfjBrain:
+    global brain
+    if brain is None:
+        brain = InfjBrain()
+    return brain
+
+
+def get_memory() -> InfjMemory:
+    global memory
+    if memory is None:
+        memory = InfjMemory()
+    return memory
+
+
+def get_goals_db() -> GoalsDB:
+    global goals_db
+    if goals_db is None:
+        goals_db = GoalsDB()
+    return goals_db
+
+
+def get_doc_store() -> DocumentStore:
+    global doc_store
+    if doc_store is None:
+        doc_store = DocumentStore()
+    return doc_store
 
 
 def create_http_app(token: str | None = None) -> FastAPI:
@@ -91,6 +119,10 @@ def create_http_app(token: str | None = None) -> FastAPI:
     logging.basicConfig(level=os.getenv("MCP_LOG_LEVEL", "INFO"))
     logger = logging.getLogger("infj_mcp")
 
+    # Bounded task tracking for scheduled jobs
+    _scheduled_tasks: set = set()
+    _max_scheduled_tasks = int(os.getenv("MCP_MAX_SCHEDULED_TASKS", "50"))
+
     async def schedule_worker():
         while True:
             now = time.time()
@@ -100,6 +132,10 @@ def create_http_app(token: str | None = None) -> FastAPI:
                     to_run.append((tid, t))
             for tid, t in to_run:
                 t["running"] = True
+                if len(_scheduled_tasks) >= _max_scheduled_tasks:
+                    logger.warning("Max scheduled tasks (%d) reached; dropping task %s", _max_scheduled_tasks, tid)
+                    scheduled.pop(tid, None)
+                    continue
                 async def run_and_cleanup(tid=tid, t=t):
                     try:
                         plan = t["plan"]
@@ -121,7 +157,9 @@ def create_http_app(token: str | None = None) -> FastAPI:
                             t["result"] = results
                     finally:
                         scheduled.pop(tid, None)
-                asyncio.create_task(run_and_cleanup())
+                task = asyncio.create_task(run_and_cleanup())
+                _scheduled_tasks.add(task)
+                task.add_done_callback(_scheduled_tasks.discard)
             await asyncio.sleep(0.5)
 
     # start background worker
@@ -273,7 +311,7 @@ def dissonance_map(text: str) -> str:
 @mcp.tool()
 def memory_search(query: str, n_results: int = 5) -> str:
     """Search the bot's long-term memory for relevant past interactions and concepts."""
-    results = memory.search(query, n_results=n_results)
+    results = get_memory().search(query, n_results=n_results)
     if not results:
         return "No matching memories found."
     lines = []
@@ -286,14 +324,14 @@ def memory_search(query: str, n_results: int = 5) -> str:
 @mcp.tool()
 def document_search(query: str, n_results: int = 5) -> str:
     """Search ingested documents (PDFs, notes, code) for relevant passages."""
-    results = doc_store.search(query, n_results=n_results)
+    results = get_doc_store().search(query, n_results=n_results)
     return format_doc_results(results)
 
 
 @mcp.tool()
 def todo_list(status: str = "active") -> str:
     """List active or completed goals/todos."""
-    goals = goals_db.list_goals(status=status, limit=20)
+    goals = get_goals_db().list_goals(status=status, limit=20)
     if not goals:
         return f"No {status} goals."
     lines = []
@@ -309,14 +347,14 @@ def todo_add(title: str, description: str = "", priority: str = "normal") -> str
     """Add a new goal or todo. Priority: low, normal, high."""
     pmap = {"low": 0, "normal": 1, "high": 2}
     p = pmap.get(priority.lower(), 1)
-    gid = goals_db.add_goal(title, description=description, priority=p)
+    gid = get_goals_db().add_goal(title, description=description, priority=p)
     return f"Added goal [{gid}]: {title}"
 
 
 @mcp.tool()
 def todo_complete(goal_id: str) -> str:
     """Mark a goal as done."""
-    if goals_db.complete_goal(goal_id):
+    if get_goals_db().complete_goal(goal_id):
         return f"Marked [{goal_id}] as done."
     return f"Goal [{goal_id}] not found or already done."
 
@@ -324,7 +362,7 @@ def todo_complete(goal_id: str) -> str:
 @mcp.tool()
 def companion_think(prompt: str) -> str:
     """Ask the INFJ companion to think deeply about a prompt and return its response."""
-    return brain.think(prompt)
+    return get_brain().think(prompt)
 
 
 @mcp.tool()
@@ -332,7 +370,7 @@ def ingest_document(path: str, tags: str = "") -> str:
     """Ingest a file or directory into the document RAG store."""
     tag_list = [t.strip() for t in tags.split(",") if t.strip()]
     try:
-        count = doc_store.ingest(path, tags=tag_list)
+        count = get_doc_store().ingest(path, tags=tag_list)
         return f"Ingested {count} chunks from {path}."
     except Exception as exc:
         return f"Ingest failed: {exc}"

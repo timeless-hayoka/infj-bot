@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install -r requirements.txt pytest
+
+      - name: Run tests
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: python -m pytest -q tests/

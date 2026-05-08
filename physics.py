@@ -15,6 +15,8 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 
+from config import PHYSICS_DB
+
 logger = logging.getLogger("infj_bot")
 
 
@@ -44,10 +46,8 @@ class PhysicsEngine:
     - wavelength: do we fall into rhythms, or is everything jagged?
     """
 
-    PHYSICS_DB = "data/physics.db"
-
     def __init__(self, db_path: Optional[str] = None):
-        self.db_path = db_path or self.PHYSICS_DB
+        self.db_path = db_path or str(PHYSICS_DB)
         self.state = PhysicsState()
         self._init_db()
         self._load_state()

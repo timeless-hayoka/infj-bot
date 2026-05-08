@@ -26,9 +26,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Set
 
-from config import PROJECT_ROOT
-
-IIT_DB = PROJECT_ROOT / "iit_consciousness.db"
+from config import IIT_DB
 
 # Qualia space axes — the dimensions of subjective experience
 QUALIA_AXES = ["valence", "arousal", "complexity", "unity", "boundaries", "depth", "luminosity"]

@@ -12,9 +12,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from config import PROJECT_ROOT
-
-PREDICTOR_DB = PROJECT_ROOT / "predictor.db"
+from config import PREDICTOR_DB
 
 # Signals that often precede stress
 STRESS_SIGNALS = [

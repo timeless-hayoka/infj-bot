@@ -4,6 +4,7 @@ import os
 import random
 import sys
 import tempfile
+from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -12,13 +13,28 @@ import pytest
 from global_workspace import Broadcast, GlobalWorkspace
 
 
+def _unlink_workspace_db_files(path: str) -> None:
+    """Remove main DB and WAL sidecars created when journal_mode=WAL."""
+    for candidate in (
+        Path(path),
+        Path(f"{path}-wal"),
+        Path(f"{path}-shm"),
+    ):
+        try:
+            candidate.unlink(missing_ok=True)
+        except OSError:
+            pass
+
+
 @pytest.fixture
 def fresh_workspace():
     with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
         path = tmp.name
-    ws = GlobalWorkspace(db_path=path, capacity=3)
-    yield ws
-    os.unlink(path)
+    try:
+        ws = GlobalWorkspace(db_path=path, capacity=3)
+        yield ws
+    finally:
+        _unlink_workspace_db_files(path)
 
 
 class TestBroadcast:

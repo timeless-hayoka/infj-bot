@@ -10,9 +10,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from config import PROJECT_ROOT
-
-RELATIONSHIP_DB = PROJECT_ROOT / "relationship.db"
+from config import RELATIONSHIP_DB
 
 RELATIONSHIP_STAGES = [
     (0, "stranger", "We are just beginning to know each other."),

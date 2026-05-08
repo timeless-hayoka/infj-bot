@@ -13,12 +13,16 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 from urllib.parse import urlparse
 
-from config import PROJECT_ROOT
+from config import COLD_STORAGE_DIR, PROJECT_ROOT, RECON_DIR, TOOL_AUDIT_PATH
 
-SAFE_HOME = Path.home()
-COLD_STORAGE_DIR = PROJECT_ROOT / "BLKKNIGHT_RECOVERY"
-TOOL_AUDIT_PATH = PROJECT_ROOT / "tool_audit.jsonl"
-RECON_DIR = PROJECT_ROOT / "recon"
+# Home anchor for ~ and relative paths in tool I/O (tests may replace this attribute).
+_safe_home_raw = os.getenv("INFJ_SAFE_HOME", "").strip()
+SAFE_HOME = (
+    Path(_safe_home_raw).expanduser().resolve()
+    if _safe_home_raw
+    else Path.home().expanduser().resolve()
+)
+
 MAX_FILE_READ_BYTES = 1_048_576  # 1 MB
 MAX_FILE_WRITE_BYTES = 1_048_576  # 1 MB
 MAX_COMMAND_CHARS = 2_000

@@ -21,6 +21,7 @@ infj_bot web
 infj_bot health
 infj_bot health --live
 infj_bot backup
+infj_bot restore /media/crexs/PortableSSD/infj_bot_backup
 infj_bot path
 ```
 
@@ -172,4 +173,5 @@ Connect from Claude, Cursor, or any MCP client via stdio.
 - `seed_cognition.py` can re-seed or update the memory concepts.
 - `stress_test.py` can verify local memory/retrieval without using API quota.
 - Preserve `chroma_db/` as a directory when copying backups.
+- `scripts/restore.sh` restores a PortableSSD backup directory into a fresh target folder and unpacks the bundled `venv` archive if present.
 - Do not commit `.env`, `venv/`, `__pycache__/`, or generated archives.

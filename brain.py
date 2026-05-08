@@ -1,3 +1,4 @@
+import concurrent.futures
 import os
 import time
 try:
@@ -283,6 +284,23 @@ class InfjBrain:
     # Agent turn with tools
     # ------------------------------------------------------------------
 
+    def _execute_tools_with_timeout(self, tool_calls, timeout=120):
+        """Execute tool calls with a per-tool timeout to prevent hung processes."""
+        results = []
+        for call in tool_calls:
+            import json as _json
+            raw = _json.dumps(call)
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(execute_tool_call, raw)
+                try:
+                    result = future.result(timeout=timeout)
+                except concurrent.futures.TimeoutError:
+                    result = f"[Error: Tool '{call.get('name')}' timed out after {timeout}s]"
+                except Exception as exc:
+                    result = f"[Error: {exc}]"
+            results.append(f"Tool '{call.get('name')}' result:\n{result}")
+        return results
+
     def agent_turn(self, user_input, tools_enabled=True, max_iterations=3):
         if not tools_enabled:
             return self.think(user_input)
@@ -309,12 +327,7 @@ class InfjBrain:
                     primary_text = response_text
                     break
 
-                results = []
-                for call in tool_calls:
-                    import json as _json
-                    raw = _json.dumps(call)
-                    result = execute_tool_call(raw)
-                    results.append(f"Tool '{call.get('name')}' result:\n{result}")
+                results = self._execute_tools_with_timeout(tool_calls)
                 tool_results = "\n\n".join(results)
                 context = (
                     f"Your previous thought included tool calls. Here are the results:\n\n"
@@ -372,12 +385,7 @@ class InfjBrain:
                     primary_text = response_text
                     break
 
-                results = []
-                for call in tool_calls:
-                    import json as _json
-                    raw = _json.dumps(call)
-                    result = execute_tool_call(raw)
-                    results.append(f"Tool '{call.get('name')}' result:\n{result}")
+                results = self._execute_tools_with_timeout(tool_calls)
                 tool_results = "\n\n".join(results)
                 context = (
                     f"Your previous thought included tool calls. Here are the results:\n\n"

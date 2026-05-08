@@ -7,7 +7,7 @@ import re
 from pathlib import Path
 from typing import List, Optional, Tuple
 
-from config import PERSIST_DIRECTORY
+from config import INFJ_MEMORY_SEARCH_TOP_K, PERSIST_DIRECTORY
 from embeddings import get_default_embedding_function, LocalEmbeddingFunction, SemanticEmbeddingFunction
 
 
@@ -36,6 +36,9 @@ LEGIT_HEX_ALLOWLIST = [
     re.compile(r"^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$"),  # UUID
     re.compile(r"^[a-f0-9]{7,40}$"),  # short git hashes
     re.compile(r"^0x[a-f0-9]+$"),  # Ethereum / hex addresses
+    re.compile(r"^[a-f0-9]{32}$"),  # MD5
+    re.compile(r"^[a-f0-9]{64}$"),  # SHA-256
+    re.compile(r"^[a-f0-9]{128}$"),  # SHA-512
 ]
 
 
@@ -200,8 +203,10 @@ class InfjMemory:
         )
         return record_id
 
-    def retrieve_thoughts(self, query="", n_results=5):
+    def retrieve_thoughts(self, query="", n_results=None):
         """Retrieve the bot's own thoughts, optionally filtered by semantic similarity."""
+        if n_results is None:
+            n_results = INFJ_MEMORY_SEARCH_TOP_K
         if query:
             results = self.collection.query(
                 query_texts=[query],
@@ -233,8 +238,10 @@ class InfjMemory:
         records.sort(key=lambda record: record[1].get("timestamp", ""), reverse=True)
         return records[:limit]
 
-    def retrieve_context(self, query, n_results=5, include_metadata=False, rerank=True):
+    def retrieve_context(self, query, n_results=None, include_metadata=False, rerank=True):
         """Retrieve memory with hybrid reranking (semantic + importance + recency)."""
+        if n_results is None:
+            n_results = INFJ_MEMORY_SEARCH_TOP_K
         results = self.collection.query(
             query_texts=[query],
             n_results=n_results * 3 if rerank else n_results,
@@ -278,7 +285,10 @@ class InfjMemory:
         top = scored[:top_k]
         return [doc for _s, doc, _m in top], [meta for _s, _d, meta in top]
 
-    def search(self, query, n_results=5):
+    def search(self, query, n_results=None):
+        """Search memories and return list of (document, metadata) pairs."""
+        if n_results is None:
+            n_results = INFJ_MEMORY_SEARCH_TOP_K
         return self.retrieve_context(query, n_results=n_results, include_metadata=True)
 
     def recent_interactions(self, limit=10):

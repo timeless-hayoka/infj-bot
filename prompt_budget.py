@@ -13,6 +13,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+from config import INFJ_MAX_TOTAL_PROMPT_CHARS
+
 logger = logging.getLogger("infj_bot")
 
 # Rough heuristic: ~4 chars per token for English text
@@ -73,12 +75,14 @@ class PromptBudget:
 
     def __init__(
         self,
-        max_total_chars: int = 12000,
+        max_total_chars: Optional[int] = None,
         core_budget: int = 3000,
         cognitive_budget: int = 4000,
         analysis_budget: int = 2500,
         context_budget: int = 2500,
     ):
+        if max_total_chars is None:
+            max_total_chars = INFJ_MAX_TOTAL_PROMPT_CHARS
         self.max_total_chars = max_total_chars
         self.tiers: Dict[str, BudgetTier] = {
             "core": BudgetTier("core", core_budget),

@@ -141,6 +141,8 @@ class TestGuardrails(unittest.TestCase):
 
     def test_mode_rails(self):
         self.assertIn("Bug Hunter", mode_scope_rail("bughunter"))
+        self.assertIn("Drift Rail", mode_scope_rail("drift"))
+        self.assertIn("companion", mode_scope_rail("drift"))
         self.assertIn("Researcher", mode_scope_rail("researcher"))
         self.assertIn("Coach", mode_scope_rail("coach"))
         self.assertIn("Companion", mode_scope_rail("companion"))

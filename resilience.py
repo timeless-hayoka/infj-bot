@@ -15,6 +15,8 @@ from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional
 
+from config import HEALTH_DB
+
 logger = logging.getLogger("infj_bot")
 
 
@@ -93,10 +95,8 @@ class HealthCheck:
 class HealthMonitor:
     """Monitors the health of cognitive modules and subsystems."""
 
-    HEALTH_DB = "data/health.db"
-
     def __init__(self, db_path: Optional[str] = None):
-        self.db_path = db_path or self.HEALTH_DB
+        self.db_path = db_path or str(HEALTH_DB)
         self._checks: Dict[str, Callable[[], HealthCheck]] = {}
         self._history: List[HealthCheck] = []
         self._max_history = 500

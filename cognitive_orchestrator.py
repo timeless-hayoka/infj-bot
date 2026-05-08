@@ -285,6 +285,11 @@ class CognitiveOrchestrator:
         """Assemble the full prompt with budget tracking and conflict resolution."""
         from prompt_budget import PromptBudget
         from cognition import detect_dissonance
+        from drift import (
+            drift_mode_brief,
+            retrieve_drift_context,
+            should_include_drift_context,
+        )
         from emotion import detect_emotion
         from guardrails import cyber_context_hint, memory_context_block, mode_scope_rail
         from tools import build_tool_prompt
@@ -292,6 +297,7 @@ class CognitiveOrchestrator:
 
         emotion = detect_emotion(message)
         dissonance = detect_dissonance(message)
+        include_drift = should_include_drift_context(message, state.mode)
         context = memory.retrieve_context(message)
 
         budget = PromptBudget()
@@ -300,6 +306,13 @@ class CognitiveOrchestrator:
         being = get_being()
         budget.add("core", f"Current mode: {state.mode}\n{mode_scope_rail(state.mode)}", label="mode")
         budget.add("core", being.format_being_prompt(), label="being")
+
+        # Emotional tone directive — shapes HOW DRIFT speaks this turn
+        from emotion import emotional_tone_instruction
+        tone_directive = emotional_tone_instruction(emotion)
+        budget.add("core", f"TONE THIS TURN: {tone_directive}", label="emotional_tone")
+        if include_drift:
+            budget.add("core", drift_mode_brief(), label="drift_brief")
 
         # Global Workspace — the bot's conscious awareness
         workspace_snippet = self.workspace.format_prompt_snippet()
@@ -343,6 +356,10 @@ Use this to clarify inner conflict without pathologizing it.
 
         # Context tier
         budget.add("context", memory_context_block(context), label="memory")
+        if include_drift:
+            drift_context = retrieve_drift_context(memory, message)
+            if drift_context:
+                budget.add("context", drift_context, label="drift_memory")
         if goals_db is not None:
             summary = goals_db.active_summary()
             if summary and summary != "No active goals.":

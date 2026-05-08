@@ -27,6 +27,13 @@ class TestPersonaBoundaries(unittest.TestCase):
         self.assertIn("Defense-In-Depth", rail)
         self.assertIn("weaponized", rail)
 
+    def test_mode_rail_drift_is_companion_and_safe(self):
+        rail = mode_scope_rail("drift")
+        self.assertIn("companion", rail)
+        self.assertIn("guardian", rail)
+        self.assertIn("defensive", rail)
+        self.assertIn("backdoors", rail)
+
     def test_mode_rail_researcher_uncertainty(self):
         rail = mode_scope_rail("researcher")
         self.assertIn("falsifiability", rail)
@@ -110,7 +117,7 @@ class TestOutputFormat(unittest.TestCase):
         self.assertIn("posture", hint)
 
     def test_mode_rail_nonempty_for_defined_modes(self):
-        for mode in ["bughunter", "engineer", "clarity", "researcher", "coach", "companion", "critic", "quiet"]:
+        for mode in ["bughunter", "engineer", "clarity", "researcher", "coach", "companion", "critic", "drift", "quiet"]:
             rail = mode_scope_rail(mode)
             self.assertTrue(len(rail) > 10, f"Mode {mode} rail is too short")
 

@@ -136,3 +136,24 @@ class TestOrchestrator:
         assert isinstance(prompt, str)
         assert "hello" in prompt
         assert "emotion" in emotion or "label" in emotion
+
+    def test_drift_mode_adds_brief_and_curated_memory(self, fresh_orch):
+        class MockState:
+            mode = "drift"
+            prefs = None
+        class MockMemory:
+            def retrieve_context(self, query):
+                return []
+            def search(self, query, n_results=2):
+                return [
+                    (
+                        "Concept: Drift Soul Companion Core\nDescription: Be a companion and guardian.",
+                        {"concept": "Drift Soul Companion Core", "tags": "seed,drift"},
+                    )
+                ]
+        prompt, emotion, dissonance = fresh_orch.assemble_prompt(
+            "help me think through this", MockState(), MockMemory()
+        )
+        assert "Drift mode brief" in prompt
+        assert "Curated Drift memory context" in prompt
+        assert "Drift Soul Companion Core" in prompt

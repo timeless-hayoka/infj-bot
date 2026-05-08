@@ -10,9 +10,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from config import PROJECT_ROOT
-
-ASPIRATIONS_DB = PROJECT_ROOT / "aspirations.db"
+from config import ASPIRATIONS_DB
 
 # Core purpose — non-negotiable, stable across all aspirations
 CORE_PURPOSE = (

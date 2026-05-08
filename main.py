@@ -162,7 +162,30 @@ async def consciousness_loop():
     while True:
         iteration += 1
         wait_seconds = proactive_state.next_wait_seconds()
-        await asyncio.sleep(min(wait_seconds, scheduler_check_interval))
+        # Sleep in chunks so we can check the scheduler during long waits
+        # without burning CPU on unnecessary consciousness cycles
+        slept = 0
+        while slept < wait_seconds:
+            chunk = min(wait_seconds - slept, scheduler_check_interval)
+            await asyncio.sleep(chunk)
+            slept += chunk
+
+            # Lightweight scheduler check during long waits
+            now = asyncio.get_event_loop().time()
+            if now - last_scheduler_check >= scheduler_check_interval:
+                last_scheduler_check = now
+                try:
+                    due_tasks = state.scheduler.list_due()
+                    for task in due_tasks:
+                        state.scheduler.mark_done(task.id)
+                        if task.task_type == "reminder":
+                            print(f"\n\n[INFJ COMPANION]: (Reminder) {task.payload}")
+                            print("\n[JUDE]> ", end="", flush=True)
+                except Exception:
+                    logger.exception("scheduler check failed")
+
+            if not state.proactive_enabled:
+                break
 
         if not state.proactive_enabled:
             continue
@@ -268,19 +291,7 @@ async def consciousness_loop():
         except Exception:
             logger.exception("self-modify sharing failed")
 
-        # Check for due reminders
-        now = asyncio.get_event_loop().time()
-        if now - last_scheduler_check >= scheduler_check_interval:
-            last_scheduler_check = now
-            try:
-                due_tasks = state.scheduler.list_due()
-                for task in due_tasks:
-                    state.scheduler.mark_done(task.id)
-                    if task.task_type == "reminder":
-                        print(f"\n\n[INFJ COMPANION]: (Reminder) {task.payload}")
-                        print("\n[JUDE]> ", end="", flush=True)
-            except Exception:
-                logger.exception("scheduler check failed")
+        # Scheduler is already checked during sleep chunking above
 
         # Proactive insight based on goals/state
         try:
@@ -451,15 +462,6 @@ async def main():
             pass
 
 
-# Singleton cognitive module instances
-_emotional_field = EmotionalField()
-_value_system = ValueSystem()
-_relationship = RelationshipModel()
-_explorer = AutonomousExplorer()
-_creative = CreativeEngine()
-_aspirational = AspirationalSelf()
-_metacognition = MetacognitionEngine()
-_self_modify = SelfModification()
 if __name__ == "__main__":
     try:
         asyncio.run(main())

@@ -10,9 +10,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from config import PROJECT_ROOT
-
-EVAL_DB = PROJECT_ROOT / "self_eval.db"
+from config import SELF_EVAL_DB as EVAL_DB
 
 # Hallucination markers — heuristic patterns that suggest uncertain claims
 HALLUCINATION_MARKERS = [

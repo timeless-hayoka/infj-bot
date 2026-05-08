@@ -103,6 +103,13 @@ def cmd_backup(args):
     return subprocess.call(command, cwd=str(PROJECT_ROOT))
 
 
+def cmd_restore(args):
+    command = [str(PROJECT_ROOT / "scripts" / "restore.sh"), args.source]
+    if args.target:
+        command.append(args.target)
+    return subprocess.call(command, cwd=str(PROJECT_ROOT))
+
+
 def cmd_path(_args):
     print(PROJECT_ROOT)
     return 0
@@ -140,6 +147,11 @@ def build_parser():
     backup = sub.add_parser("backup", help="Create a backup archive.")
     backup.add_argument("output", nargs="?", help="Optional output tar.gz path.")
     backup.set_defaults(func=cmd_backup)
+
+    restore = sub.add_parser("restore", help="Restore from a backup directory.")
+    restore.add_argument("source", help="Backup directory, such as the PortableSSD handoff path.")
+    restore.add_argument("target", nargs="?", help="Optional restore target directory.")
+    restore.set_defaults(func=cmd_restore)
 
     path = sub.add_parser("path", help="Print the bot project path.")
     path.set_defaults(func=cmd_path)

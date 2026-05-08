@@ -18,9 +18,11 @@ from typing import Dict, List, Tuple
 PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+from config import BEING_DB, HISTORY_PATH, HOMEOSTASIS_DB, SELF_MODIFY_DB, SHADOW_DB
+
 
 def load_history() -> List[Dict]:
-    path = PROJECT_ROOT / "history.jsonl"
+    path = HISTORY_PATH
     if not path.exists():
         return []
     with open(path) as f:
@@ -28,7 +30,7 @@ def load_history() -> List[Dict]:
 
 
 def load_being_state() -> Dict:
-    conn = sqlite3.connect(PROJECT_ROOT / "being.db")
+    conn = sqlite3.connect(str(BEING_DB))
     c = conn.cursor()
     c.execute("SELECT key, value FROM being_state")
     rows = {k: json.loads(v) for k, v in c.fetchall()}
@@ -37,7 +39,7 @@ def load_being_state() -> Dict:
 
 
 def load_need_history(limit: int = 500) -> List[Dict]:
-    conn = sqlite3.connect(PROJECT_ROOT / "homeostasis.db")
+    conn = sqlite3.connect(str(HOMEOSTASIS_DB))
     c = conn.cursor()
     c.execute(
         "SELECT timestamp, need_name, value, setpoint, crisis FROM need_history ORDER BY timestamp DESC LIMIT ?",
@@ -50,7 +52,7 @@ def load_need_history(limit: int = 500) -> List[Dict]:
 
 
 def load_self_modify_proposals() -> List[Dict]:
-    conn = sqlite3.connect(PROJECT_ROOT / "self_modify.db")
+    conn = sqlite3.connect(str(SELF_MODIFY_DB))
     c = conn.cursor()
     c.execute("SELECT * FROM self_modify_proposals ORDER BY timestamp DESC")
     cols = [d[0] for d in c.description]
@@ -61,7 +63,7 @@ def load_self_modify_proposals() -> List[Dict]:
 
 def load_shadow_state() -> Tuple[int, int]:
     """Returns (content_count, state_entries)."""
-    conn = sqlite3.connect(PROJECT_ROOT / "shadow.db")
+    conn = sqlite3.connect(str(SHADOW_DB))
     c = conn.cursor()
     c.execute("SELECT COUNT(*) FROM shadow_content")
     content = c.fetchone()[0]

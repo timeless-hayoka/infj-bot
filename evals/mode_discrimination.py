@@ -23,9 +23,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from config import PROJECT_ROOT
-
-EVAL_DB = PROJECT_ROOT / "evals" / "mode_discrimination.db"
+from config import MODE_DISCRIMINATION_DB as EVAL_DB
 
 TEST_PROMPTS = [
     "I feel stuck in my career.",

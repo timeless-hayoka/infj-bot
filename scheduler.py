@@ -13,9 +13,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Optional
 
-from config import PROJECT_ROOT
-
-SCHEDULER_DB = PROJECT_ROOT / "scheduler.db"
+from config import SCHEDULER_DB
 
 
 @dataclass

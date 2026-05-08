@@ -20,9 +20,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from config import PROJECT_ROOT
-
-AUDIT_DB = PROJECT_ROOT / "evals" / "self_modify_audit.db"
+from config import SELF_MODIFY_AUDIT_DB as AUDIT_DB
 
 
 @dataclass

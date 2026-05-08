@@ -32,9 +32,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from config import PROJECT_ROOT
-
-SHADOW_DB = PROJECT_ROOT / "shadow.db"
+from config import SHADOW_DB
 
 # ───────────────────────────────────────────────────────────────────────────────
 # Archetype definitions: personal, golden, and collective shadow
@@ -367,7 +365,7 @@ class Shadow:
         def _parse_float(key: str, default: float) -> float:
             try:
                 return float(rows.get(key, default))
-            except (TypeError, Value):
+            except (TypeError, ValueError):
                 return default
 
         return ShadowState(

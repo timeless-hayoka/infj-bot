@@ -15,9 +15,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from config import PROJECT_ROOT
-
-BODY_DB = PROJECT_ROOT / "embodiment.db"
+from config import BODY_DB
 
 # Body regions where tension is felt
 BODY_REGIONS = ["head", "chest", "belly", "throat", "hands", "back"]

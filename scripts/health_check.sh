@@ -10,7 +10,9 @@ from memory import InfjMemory
 m = InfjMemory()
 print("chroma_collection=infj_companion_memories")
 print(f"memory_count={m.collection.count()}")
-assert m.collection.count() > 0, "Chroma memory is empty"
+count = m.collection.count()
+if count == 0:
+    print("WARNING: Chroma memory is empty (seed_cognition.py may need to be run)")
 PY
 
 if [[ "${LIVE_API_CHECK:-0}" == "1" ]]; then

@@ -16,6 +16,7 @@ from datetime import datetime
 from typing import Dict, List, Optional
 
 from cognitive_architecture import CognitiveArchitecture, CognitivePlugin
+from config import COGNITIVE_FACTORY_DB
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +36,7 @@ from datetime import datetime
 from typing import Dict, List, Optional
 
 from cognitive_architecture import CognitiveArchitecture, CognitivePlugin
+from config import DATA_ROOT
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +54,7 @@ class {class_name}:
     """
 
     def __init__(self, db_path: Optional[str] = None):
-        self.db_path = db_path or os.path.join("data", "{name}.db")
+        self.db_path = db_path or str(DATA_ROOT / "{name}.db")
         self.state = {class_name}State()
         self._init_db()
 
@@ -181,7 +183,7 @@ class CognitiveFactory:
     ]
 
     def __init__(self, db_path: Optional[str] = None):
-        self.db_path = db_path or os.path.join("data", "cognitive_factory.db")
+        self.db_path = db_path or str(COGNITIVE_FACTORY_DB)
         self._init_db()
 
     def _init_db(self) -> None:

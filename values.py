@@ -10,9 +10,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from config import PROJECT_ROOT
-
-VALUES_DB = PROJECT_ROOT / "values.db"
+from config import VALUES_DB
 
 # Core value dimensions that can emerge
 VALUE_DIMENSIONS = [

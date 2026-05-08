@@ -13,14 +13,51 @@ Key principles implemented:
 """
 
 import logging
+import os
 import random
 import sqlite3
 import threading
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
+from pathlib import Path
+from typing import Dict, List, Optional, Union
+
+from config import WORKSPACE_DB
 
 logger = logging.getLogger("infj_bot")
+
+SQLitePath = Union[str, Path, os.PathLike]
+
+
+def _normalize_sqlite_path(db_path: Optional[SQLitePath]) -> str:
+    """Resolve db path for sqlite3; create parent dirs for on-disk files."""
+    raw = WORKSPACE_DB if db_path is None else db_path
+    if isinstance(raw, Path):
+        s = os.fspath(raw.expanduser())
+    else:
+        s = os.fspath(Path(str(raw)).expanduser())
+    if s == ":memory:" or s.startswith(":memory:?") or (
+        s.startswith("file:") and "mode=memory" in s
+    ):
+        return s
+    p = Path(s).expanduser().resolve(strict=False)
+    try:
+        p.parent.mkdir(parents=True, exist_ok=True)
+    except OSError as e:
+        logger.warning("Could not create workspace DB directory %s: %s", p.parent, e)
+        raise
+    return os.fspath(p)
+
+
+def _sqlite_connect(db_path_str: str) -> sqlite3.Connection:
+    """Open SQLite with timeouts and WAL for safer multi-threaded access."""
+    conn = sqlite3.connect(db_path_str, timeout=60.0)
+    try:
+        conn.execute("PRAGMA busy_timeout = 60000")
+        conn.execute("PRAGMA journal_mode = WAL")
+    except sqlite3.Error as e:
+        logger.debug("SQLite PRAGMA setup skipped or failed for %s: %s", db_path_str, e)
+    return conn
 
 
 @dataclass
@@ -65,10 +102,8 @@ class GlobalWorkspace:
     - Attention is the spotlight that selects within the workspace
     """
 
-    WORKSPACE_DB = "data/workspace.db"
-
-    def __init__(self, db_path: Optional[str] = None, capacity: int = 5):
-        self.db_path = db_path or self.WORKSPACE_DB
+    def __init__(self, db_path: Optional[SQLitePath] = None, capacity: int = 5):
+        self.db_path = _normalize_sqlite_path(db_path)
         self.state = WorkspaceState(capacity=capacity)
         self._submissions: List[Broadcast] = []
         self._lock = threading.Lock()
@@ -76,7 +111,7 @@ class GlobalWorkspace:
         self._load_state()
 
     def _init_db(self):
-        with sqlite3.connect(self.db_path) as conn:
+        with _sqlite_connect(self.db_path) as conn:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS workspace_history (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -96,7 +131,7 @@ class GlobalWorkspace:
             conn.commit()
 
     def _load_state(self):
-        with sqlite3.connect(self.db_path) as conn:
+        with _sqlite_connect(self.db_path) as conn:
             row = conn.execute(
                 "SELECT value FROM workspace_state WHERE key = 'cycle_count'"
             ).fetchone()
@@ -107,7 +142,7 @@ class GlobalWorkspace:
                     pass
 
     def _save_state(self):
-        with sqlite3.connect(self.db_path) as conn:
+        with _sqlite_connect(self.db_path) as conn:
             conn.execute(
                 "INSERT OR REPLACE INTO workspace_state (key, value) VALUES (?, ?)",
                 ("cycle_count", str(self.state.cycle_count)),
@@ -175,7 +210,7 @@ class GlobalWorkspace:
                 w.broadcast_count += 1
 
             # Persist history
-            with sqlite3.connect(self.db_path) as conn:
+            with _sqlite_connect(self.db_path) as conn:
                 for score, b in scored:
                     entered = 1 if b in winners else 0
                     conn.execute("""
@@ -351,7 +386,7 @@ class GlobalWorkspace:
             }
 
     def get_history(self, limit: int = 20) -> List[Dict]:
-        with sqlite3.connect(self.db_path) as conn:
+        with _sqlite_connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
                 "SELECT * FROM workspace_history ORDER BY timestamp DESC LIMIT ?",

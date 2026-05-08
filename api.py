@@ -1,4 +1,5 @@
 """FastAPI web app with SSE streaming, markdown rendering, and modern UI."""
+import asyncio
 import json
 import traceback
 from contextlib import asynccontextmanager
@@ -325,13 +326,14 @@ async def api_chat(request: Request):
     if not message:
         return JSONResponse({"error": "message is required"}, status_code=400)
     prompt, emotion, dissonance = build_chat_prompt(message, state, memory, goals_db=goals_db, doc_store=doc_store, prefs=state.prefs)
-    output = brain.agent_turn(prompt, tools_enabled=True)
+    output = await asyncio.to_thread(brain.agent_turn, prompt, tools_enabled=True)
     try:
-        brain.evaluate_last(prompt, output)
+        await asyncio.to_thread(brain.evaluate_last, prompt, output)
     except Exception:
         pass
     importance = min(0.95, 0.45 + emotion["intensity"] * 0.3 + dissonance["score"] * 0.15)
-    memory.save_interaction(
+    await asyncio.to_thread(
+        memory.save_interaction,
         message,
         output,
         mode=state.mode,
@@ -339,7 +341,7 @@ async def api_chat(request: Request):
         importance=importance,
         dissonance=dissonance,
     )
-    history.append(message, output, state.mode, emotion, dissonance)
+    await asyncio.to_thread(history.append, message, output, state.mode, emotion, dissonance)
     state.turns += 1
     return {"reply": output}
 
@@ -363,19 +365,20 @@ async def api_chat_stream(request: Request):
 
     async def event_generator():
         try:
-            chunks = []
-            for chunk in brain.agent_turn_stream(prompt, tools_enabled=True):
-                chunks.append(chunk)
+            # Run synchronous stream in a thread to avoid blocking the event loop
+            chunks = await asyncio.to_thread(lambda: list(brain.agent_turn_stream(prompt, tools_enabled=True)))
+            for chunk in chunks:
                 yield f"data: {json.dumps({'chunk': chunk})}\n\n"
             yield "data: [DONE]\n\n"
 
             output = "".join(chunks)
             try:
-                brain.evaluate_last(prompt, output)
+                await asyncio.to_thread(brain.evaluate_last, prompt, output)
             except Exception:
                 pass
             importance = min(0.95, 0.45 + emotion["intensity"] * 0.3 + dissonance["score"] * 0.15)
-            memory.save_interaction(
+            await asyncio.to_thread(
+                memory.save_interaction,
                 message,
                 output,
                 mode=state.mode,
@@ -383,7 +386,7 @@ async def api_chat_stream(request: Request):
                 importance=importance,
                 dissonance=dissonance,
             )
-            history.append(message, output, state.mode, emotion, dissonance)
+            await asyncio.to_thread(history.append, message, output, state.mode, emotion, dissonance)
             state.turns += 1
         except Exception as exc:
             traceback.print_exc()

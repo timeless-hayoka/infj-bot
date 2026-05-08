@@ -1,0 +1,15 @@
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.env
+*.db
+chroma_db/
+data/
+evals/
+history.jsonl
+tool_audit.jsonl
+voices/*.onnx
+voices/*.onnx.json
+*.tar.gz
+.git/

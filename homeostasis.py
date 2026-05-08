@@ -23,9 +23,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from config import PROJECT_ROOT
-
-HOMEOSTASIS_DB = PROJECT_ROOT / "homeostasis.db"
+from config import HOMEOSTASIS_DB
 
 # Need definitions with setpoints and critical thresholds
 NEED_DEFINITIONS = {

@@ -18,11 +18,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
-from config import PROJECT_ROOT
+from config import ARCHITECTURE_DB
 
 logger = logging.getLogger("infj_bot")
-
-ARCHITECTURE_DB = PROJECT_ROOT / "cognitive_architecture.db"
 
 # Modules that the architecture cannot function without
 CORE_PLUGINS = {"being", "memory", "emotional_field", "values", "brain"}

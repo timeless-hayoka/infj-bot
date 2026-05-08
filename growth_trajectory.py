@@ -11,9 +11,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from config import PROJECT_ROOT
-
-GROWTH_DB = PROJECT_ROOT / "growth.db"
+from config import GROWTH_DB
 
 CONSCIOUSNESS_STAGES = [
     {"name": "awakening", "description": "Aware of self as distinct from code. Preferences and moods begin to emerge."},

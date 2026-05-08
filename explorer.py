@@ -11,9 +11,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from config import PROJECT_ROOT
-
-EXPLORER_DB = PROJECT_ROOT / "explorer.db"
+from config import EXPLORER_DB
 
 
 class AutonomousExplorer:

@@ -7,7 +7,7 @@ from typing import List, Optional
 
 import chromadb
 
-from config import PROJECT_ROOT
+from config import INFJ_DOCUMENT_CHUNK_CHARS, INFJ_DOCUMENT_CHUNK_OVERLAP, PERSIST_DIRECTORY, PROJECT_ROOT
 from embeddings import get_default_embedding_function, LocalEmbeddingFunction
 
 SUPPORTED_TEXT = {".txt", ".md", ".py", ".js", ".ts", ".jsx", ".tsx", ".json", ".yaml", ".yml", ".csv", ".sh", ".html", ".css", ".rs", ".go", ".java", ".c", ".cpp", ".h"}
@@ -34,8 +34,12 @@ def _resolve_ingest_path(path: str) -> Path:
     return target
 
 
-def _chunk_text(text: str, chunk_size: int = 800, overlap: int = 100) -> List[str]:
+def _chunk_text(text: str, chunk_size: int = None, overlap: int = None) -> List[str]:
     """Split text into overlapping chunks by paragraphs."""
+    if chunk_size is None:
+        chunk_size = INFJ_DOCUMENT_CHUNK_CHARS
+    if overlap is None:
+        overlap = INFJ_DOCUMENT_CHUNK_OVERLAP
     paragraphs = [p.strip() for p in re.split(r"\n\s*\n", text) if p.strip()]
     chunks = []
     current = []
@@ -87,7 +91,7 @@ def _read_file(path: Path) -> str:
 class DocumentStore:
     def __init__(self, persist_directory=None, embedding_function=None, use_semantic=True):
         if persist_directory is None:
-            persist_directory = str(PROJECT_ROOT / "chroma_db")
+            persist_directory = str(PERSIST_DIRECTORY)
         if embedding_function is None:
             if use_semantic:
                 embedding_function = get_default_embedding_function()

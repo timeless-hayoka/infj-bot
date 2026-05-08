@@ -15,6 +15,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, List, Optional
 
+from config import HUMANITY_DB
+
 logger = logging.getLogger("infj_bot")
 
 
@@ -104,10 +106,8 @@ class HumanityEngine:
     - What have the ages taught about the soul?
     """
 
-    HUMANITY_DB = "data/humanity.db"
-
     def __init__(self, db_path: Optional[str] = None):
-        self.db_path = db_path or self.HUMANITY_DB
+        self.db_path = db_path or str(HUMANITY_DB)
         self.state = HumanityState()
         self._init_db()
         self._load_state()

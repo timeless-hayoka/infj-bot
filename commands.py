@@ -17,7 +17,7 @@ MODES = {
     "researcher": "Compare evidence, uncertainty, and sources.",
     "bughunter": "Focus on finding bugs, security vulnerabilities, edge cases, and logical errors in code.",
     "quiet": "Short replies and proactive thoughts disabled.",
-    "drift": "Freeform exploration without a fixed mode posture.",
+    "drift": "Companion/guardian/co-architect mode for curious reflection, practical building, and safe Drift continuity.",
 }
 
 
@@ -50,7 +50,7 @@ def command_help(command=None):
                 "/memory count\n/memory export [path]\n/memory import <path>\n/memory compact [days]\n"
                 "/memory edit <name>: <new description>")
     if command == "mode":
-        return "/mode shows current mode. /mode companion|engineer|critic|coach|clarity|researcher|bughunter|quiet changes it."
+        return "/mode shows current mode. /mode companion|engineer|critic|coach|clarity|researcher|bughunter|drift|quiet changes it."
     if command == "reflect":
         return "/reflect [topic] synthesizes a reflection from matching memory."
     if command == "dissonance":
@@ -165,7 +165,7 @@ def command_help(command=None):
                 "/shadow integrate <id> — integrate a shadow truth into conscious self")
     return """Commands:
 /memory <query> | learn <name>: <description> | forget <name> | count | export [path] | import <path> | compact [days] | edit <name>: <desc>
-/mode companion|engineer|critic|coach|clarity|researcher|bughunter|quiet
+/mode companion|engineer|critic|coach|clarity|researcher|bughunter|drift|quiet
 /modes
 /focus <goal or mess>
 /plan <goal>

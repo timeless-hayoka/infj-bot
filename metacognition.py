@@ -9,9 +9,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from config import PROJECT_ROOT
-
-METACOGNITION_DB = PROJECT_ROOT / "metacognition.db"
+from config import METACOGNITION_DB
 
 COGNITIVE_PATTERNS = {
     "over_certainty": "I notice I state things as facts when they are inferences.",

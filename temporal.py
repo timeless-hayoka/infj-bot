@@ -11,9 +11,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from config import PROJECT_ROOT
-
-TEMPORAL_DB = PROJECT_ROOT / "temporal.db"
+from config import TEMPORAL_DB
 
 
 def _format_duration(minutes: float) -> str:

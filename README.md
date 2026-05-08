@@ -7,7 +7,7 @@ Local **AI companion** with durable memory, multiple chat modes, reflection help
 ## Features
 
 - **Long-term memory** — Chroma-backed retrieval with metadata (mode, emotion hints, importance, etc.). Guardrails treat memories as context, not absolute truth.
-- **Chat modes** — `companion`, `engineer`, `critic`, `coach`, `clarity`, `researcher`, `bughunter`, `drift`, `quiet` (see slash commands).
+- **Chat modes** — `companion`, `engineer`, `critic`, `coach`, `clarity`, `researcher`, `bughunter`, `drift`, `quiet` (see slash commands). `drift` is the safe companion/guardian/co-architect posture backed by curated Drift-derived concepts.
 - **Layered “cognitive” context** — Prompt assembly combines goals, documents, relationship/values-style signals, and safety rails before calling the model.
 - **Dual-model path** — Primary Gemini generation plus an internal critic pass when configured; optional **Ollama** fallback if the cloud API is unavailable (see config).
 - **Interfaces** — Interactive terminal chat, **Rich** TUI, one-shot `ask`, and a **FastAPI** web UI on `127.0.0.1:8765`.
@@ -46,6 +46,7 @@ python cli.py tui
 python cli.py web    # then open http://127.0.0.1:8765
 python cli.py health [--live]
 python cli.py backup [optional-output.tar.gz]
+python cli.py restore /media/crexs/PortableSSD/infj_bot_backup [target-dir]
 python cli.py path   # print project root
 ```
 
@@ -90,7 +91,7 @@ Common commands (full list in `DELL_HANDOFF.md`):
 - **`main.py`** — Async chat loop, proactive/background behavior, integration with goals, documents, and subsystems (`being`, emotions, etc.).
 - **`api.py`** — FastAPI app for the web UI (served via `uvicorn` in `scripts/run_web.sh`).
 
-Concept seeding versus the separate **Drift** project is documented in `DRIFT_AI_INTEGRATION.md` (Drift’s codebase is **private**; this repo only ships derived cognition seeds, not a submodule).
+Concept seeding versus the separate **Drift** project is documented in `DRIFT_AI_INTEGRATION.md` (Drift’s codebase is **private**; this repo only ships derived cognition seeds, not a submodule). Drift mode pulls those curated concepts into the prompt when relevant.
 
 ## Testing
 

@@ -5,9 +5,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Optional
 
-from config import PROJECT_ROOT
-
-DB_PATH = PROJECT_ROOT / "goals.db"
+from config import GOALS_DB as DB_PATH
 
 
 def _get_db() -> sqlite3.Connection:
