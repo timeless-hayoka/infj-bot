@@ -24,10 +24,10 @@ if new_genai is None:
         legacy_genai = None
 
 
-from config import API_KEY, INFJ_PRIMARY_MODEL, INFJ_CRITIC_MODEL, INFJ_USE_LOCAL_FALLBACK, validate_api_key
-from local_llm import OllamaBridge
-from self_eval import SelfEvaluator
-from tools import build_tool_prompt, extract_tool_calls, execute_tool_call
+from config import API_KEY, INFJ_PRIMARY_MODEL, INFJ_CRITIC_MODEL, INFJ_USE_LOCAL_FALLBACK, validate_api_key  # noqa: E402
+from local_llm import OllamaBridge  # noqa: E402
+from self_eval import SelfEvaluator  # noqa: E402
+from tools import build_tool_prompt, extract_tool_calls, execute_tool_call  # noqa: E402
 
 _key_check = validate_api_key(API_KEY)
 if not _key_check["ok"]:
