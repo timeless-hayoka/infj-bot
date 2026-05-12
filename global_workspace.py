@@ -114,6 +114,19 @@ class GlobalWorkspace:
         self._init_db()
         self._load_state()
 
+    def snapshot(self) -> dict:
+        """Lightweight snapshot for MCP/external tools."""
+        try:
+            contents = [c.content[:80] for c in getattr(self.state, "contents", [])]
+            return {
+                "concepts": contents,
+                "focus": getattr(self.state, "focus", None),
+                "bindings": len(getattr(self.state, "bindings", {})),
+                "capacity": getattr(self.state, "capacity", 5),
+            }
+        except Exception:
+            return {"concepts": [], "focus": None, "bindings": 0}
+
     def _init_db(self):
         with _sqlite_connect(self.db_path) as conn:
             conn.execute("""
@@ -455,17 +468,3 @@ def _register():
 
 
 _register()
-
-
-def snapshot(self) -> dict:
-    """Lightweight snapshot for MCP/external tools."""
-    try:
-        contents = [c.content[:80] for c in getattr(self.state, "contents", [])]
-        return {
-            "concepts": contents,
-            "focus": getattr(self.state, "focus", None),
-            "bindings": len(getattr(self.state, "bindings", {})),
-            "capacity": getattr(self.state, "capacity", 5),
-        }
-    except Exception:
-        return {"concepts": [], "focus": None, "bindings": 0}
