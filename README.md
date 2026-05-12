@@ -70,7 +70,7 @@ See `.env.example` for a minimal template.
 
 ## Chat slash commands (CLI / web)
 
-Common commands (full list in `DELL_HANDOFF.md`):
+Common commands (full list in `docs/DELL_HANDOFF.md`):
 
 | Command | Purpose |
 |---------|---------|
@@ -92,7 +92,7 @@ Common commands (full list in `DELL_HANDOFF.md`):
 - **`main.py`** — Async chat loop, proactive/background behavior, integration with goals, documents, and subsystems (`being`, emotions, etc.).
 - **`api.py`** — FastAPI app for the web UI (served via `uvicorn` in `scripts/run_web.sh`).
 
-Concept seeding versus the separate **Drift** project is documented in `DRIFT_AI_INTEGRATION.md` (Drift’s codebase is **private**; this repo only ships derived cognition seeds, not a submodule). Drift mode pulls those curated concepts into the prompt when relevant.
+Concept seeding versus the separate **Drift** project is documented in `docs/DRIFT_AI_INTEGRATION.md` (Drift’s codebase is **private**; this repo only ships derived cognition seeds, not a submodule). Drift mode pulls those curated concepts into the prompt when relevant.
 
 ## Testing
 
@@ -111,11 +111,11 @@ See `SECURITY.md`. **Never commit `.env`**, API keys, or raw database exports. I
 
 | File | Contents |
 |------|----------|
-| `HOW_INFJ_BOT_WORKS.md` | **Full breakdown** of architecture and behavior — best file to forward to collaborators |
-| `DELL_HANDOFF.md` | Longer handoff: commands, backup, voice notes |
-| `DRIFT_AI_INTEGRATION.md` | How Drift-derived concepts were seeded (Drift repo is private) |
-| `UPGRADE_BACKLOG.md` | Maintainer-facing improvement ideas |
-| `SECURITY.md` | Reporting and secret-handling expectations |
+| [HOW_INFJ_BOT_WORKS.md](docs/HOW_INFJ_BOT_WORKS.md) | **Full breakdown** of architecture and behavior — best file to forward to collaborators |
+| [DELL_HANDOFF.md](docs/DELL_HANDOFF.md) | Longer handoff: commands, backup, voice notes |
+| [DRIFT_AI_INTEGRATION.md](docs/DRIFT_AI_INTEGRATION.md) | How Drift-derived concepts were seeded (Drift repo is private) |
+| [UPGRADE_BACKLOG.md](docs/UPGRADE_BACKLOG.md) | Maintainer-facing improvement ideas |
+| [SECURITY.md](SECURITY.md) | Reporting and secret-handling expectations |
 
 ---
 
