@@ -10,8 +10,10 @@ when and in what order they run.
 
 import json
 import logging
+import sys
 from dataclasses import dataclass, field
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from cognitive_architecture import CognitiveArchitecture, CycleContext
@@ -185,6 +187,8 @@ class CognitiveOrchestrator:
         self.bus = CognitiveEventBus()
         self.conflict_detector = ConflictDetector()
         self.turn_logs: List[TurnLog] = []
+        self._drift_bridge: Optional[Any] = None
+        self._drift_bridge_unavailable = False
         self._wire_event_handlers()
 
     def _wire_event_handlers(self):
@@ -211,6 +215,37 @@ class CognitiveOrchestrator:
     def _on_prediction_made(self, event):
         payload = event.get("payload", {})
         logger.debug("Prediction made: %s", payload.get("prediction", "")[:60])
+
+    def _get_drift_bridge(self) -> Optional[Any]:
+        """Lazy-load hive_mind DriftBridge (local experimental module)."""
+        if self._drift_bridge_unavailable:
+            return None
+        if self._drift_bridge is not None:
+            return self._drift_bridge
+        try:
+            hm = Path(__file__).resolve().parent / "hive_mind"
+            hp = str(hm)
+            if hm.is_dir() and hp not in sys.path:
+                sys.path.insert(0, hp)
+            from drift_bridge import DriftBridge  # noqa: PLC0415 — hive_mind is optional runtime path
+
+            self._drift_bridge = DriftBridge()
+            return self._drift_bridge
+        except Exception:
+            logger.debug("DriftBridge not loaded", exc_info=True)
+            self._drift_bridge_unavailable = True
+            return None
+
+    def get_hive_drift_snapshot(self) -> Optional[Dict[str, Any]]:
+        """Full DRIFT interior snapshot for Hive Mind / observability (optional)."""
+        bridge = self._get_drift_bridge()
+        if bridge is None:
+            return None
+        try:
+            return bridge.full_snapshot()
+        except Exception:
+            logger.debug("get_hive_drift_snapshot failed", exc_info=True)
+            return None
 
     # ── Consciousness Cycle ────────────────────────────────────────
 
@@ -275,6 +310,26 @@ class CognitiveOrchestrator:
         self.turn_logs.append(log)
         if len(self.turn_logs) > 100:
             self.turn_logs = self.turn_logs[-100:]
+
+        bridge = self._get_drift_bridge()
+        if bridge is not None:
+            try:
+                snap = bridge.full_snapshot()
+                being = snap.get("being", {})
+                iit = snap.get("iit", {})
+                self.bus.publish(
+                    "hive_drift_sync",
+                    {
+                        "node_id": snap.get("node_id"),
+                        "mood": being.get("mood"),
+                        "energy": being.get("energy"),
+                        "phi": iit.get("phi"),
+                        "timestamp": snap.get("timestamp"),
+                    },
+                    source="drift_bridge",
+                )
+            except Exception:
+                logger.debug("hive_drift_sync publish failed", exc_info=True)
         return log
 
     # ── Prompt Assembly ────────────────────────────────────────────
@@ -425,6 +480,16 @@ Use this to clarify inner conflict without pathologizing it.
                 lines.append(f"  Conflicts detected: {len(latest.prompt_conflicts)}")
                 for c in latest.prompt_conflicts:
                     lines.append(f"    - {c.conflict_type}")
+            lines.append("")
+
+        bridge_snap = self.get_hive_drift_snapshot()
+        if bridge_snap is not None:
+            b = bridge_snap.get("being", {})
+            iit = bridge_snap.get("iit", {})
+            lines.append("DRIFT ↔ Hive bridge (interior snapshot):")
+            lines.append(
+                f"  mood={b.get('mood')}  energy={b.get('energy', 0):.2f}  Φ={iit.get('phi', 0):.3f}"
+            )
             lines.append("")
 
         # Recent events

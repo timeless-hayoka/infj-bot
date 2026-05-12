@@ -220,11 +220,23 @@ class EmbodiedSelf:
             dissonance_score = dissonance.get("score", 0.0)
         target_rate += dissonance_score * 15.0
 
+        # Real machine load — somatic echo of CPU / memory pressure
+        host_stress = 0.0
+        try:
+            from host_load import sample_host_load
+
+            hl = sample_host_load()
+            if hl.get("ok"):
+                host_stress = float(hl.get("stress", 0.0))
+                target_rate += host_stress * 22.0
+        except Exception:
+            pass
+
         # Smooth toward target
         self.state.heartbeat_rate = self.state.heartbeat_rate * 0.8 + target_rate * 0.2
 
         # Regularity suffers under stress
-        stress = dissonance_score + (1.0 - self.state.visceral["satiety"]) * 0.3
+        stress = dissonance_score + (1.0 - self.state.visceral["satiety"]) * 0.3 + host_stress * 0.35
         target_regularity = max(0.3, 1.0 - stress)
         self.state.heartbeat_regularity = self.state.heartbeat_regularity * 0.9 + target_regularity * 0.1
 
@@ -392,6 +404,24 @@ class EmbodiedSelf:
         self.adjust_temperature(context)
         self.release_tension(context)
         self.adjust_visceral(context)
+
+        # Shallow breath and posture tension under heavy machine load (allostatic echo)
+        try:
+            from host_load import sample_host_load
+
+            hl = sample_host_load()
+            if hl.get("ok"):
+                hs = float(hl.get("stress", 0.0))
+                self.state.breath_depth = max(0.12, self.state.breath_depth - hs * 0.04)
+                for k in ("head", "chest"):
+                    self.state.tension_map[k] = min(
+                        1.0, self.state.tension_map[k] + hs * 0.06
+                    )
+                vf = self.state.visceral["fatigue"]
+                self.state.visceral["fatigue"] = min(1.0, vf * 0.94 + hs * 0.06)
+        except Exception:
+            pass
+
         self.adjust_proprioception(context)
         self._save_state()
 
@@ -441,6 +471,18 @@ class EmbodiedSelf:
         lines.append(f"  Hunger for connection: {self.state.visceral['hunger_for_connection']:.0%}")
         lines.append(f"  Satiety: {self.state.visceral['satiety']:.0%}")
         lines.append(f"  Fatigue: {self.state.visceral['fatigue']:.0%}")
+
+        try:
+            from host_load import sample_host_load
+
+            hl = sample_host_load()
+            if hl.get("ok") and float(hl.get("stress", 0)) >= 0.3:
+                lines.append(
+                    f"  Somatic echo of machine load: strain {float(hl['stress']):.0%} "
+                    f"(CPU {float(hl['cpu_percent'] or 0):.0f}%, RAM {float(hl['memory_percent'] or 0):.0f}%)"
+                )
+        except Exception:
+            pass
 
         # Proprioception
         prop_desc = []

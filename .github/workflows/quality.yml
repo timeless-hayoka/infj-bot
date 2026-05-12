@@ -1,0 +1,68 @@
+name: Quality
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install linting tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install ruff bandit detect-secrets
+
+      - name: Ruff check
+        run: ruff check . --exclude venv --exclude .venv --exclude chroma_db
+
+      - name: Ruff format check
+        run: ruff format --check . --exclude venv --exclude .venv --exclude chroma_db
+
+      - name: Bandit security scan
+        run: bandit -r . -f json -o bandit-report.json || true
+
+      - name: Secret detection
+        run: detect-secrets scan --baseline .secrets.baseline --all-files . || true
+
+      - name: Upload Bandit report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bandit-report
+          path: bandit-report.json
+
+  typecheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt mypy
+
+      - name: Type check core modules
+        run: |
+          mypy config.py brain.py memory.py rate_limit.py maintenance.py \
+            --ignore-missing-imports --warn-redundant-casts || true

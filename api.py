@@ -49,7 +49,8 @@ INDEX_HTML = """<!doctype html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>INFJ Bot</title>
+  <title>DRIFT · Cognitive Companion</title>
+  <link rel="icon" type="image/png" href="/static/logo.png">
   <style>
     :root { --bg: #0d1117; --fg: #c9d1d9; --accent: #58a6ff; --muted: #8b949e; --panel: #161b22; --border: #30363d; }
     body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; background: var(--bg); color: var(--fg); line-height: 1.5; }
@@ -103,9 +104,10 @@ INDEX_HTML = """<!doctype html>
 <body>
 <main>
   <section id="chat">
+    <div style="margin-bottom:12px;"><img src="/static/banner.png" style="width:100%;border-radius:10px;border:1px solid var(--border);" alt="DRIFT banner"></div>
     <div id="messages"></div>
     <form id="form">
-      <input id="input" autocomplete="off" placeholder="Talk to the INFJ bot...">
+      <input id="input" autocomplete="off" placeholder="Speak to DRIFT...">
       <button type="submit">Send</button>
       <button type="button" id="streamBtn" title="Toggle streaming">SSE</button>
     </form>

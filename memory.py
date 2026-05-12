@@ -89,6 +89,23 @@ class InfjMemory:
                     scrubbed = scrubbed[: match.start()] + "[REDACTED]" + scrubbed[match.end() :]
         return scrubbed
 
+    MAX_COLLECTION_SIZE = 10000  # auto-prune trigger threshold
+
+    def _maybe_prune(self):
+        """Auto-prune old low-importance interactions if collection grows too large."""
+        try:
+            count = self.collection.count()
+        except Exception:
+            return 0
+        if count < self.MAX_COLLECTION_SIZE:
+            return 0
+        # Aggressive prune: remove interactions older than 14 days with importance <= 0.5
+        removed = self.prune_interactions(max_age_days=14, max_importance=0.5)
+        if removed == 0 and count >= self.MAX_COLLECTION_SIZE:
+            # If nothing matched the criteria, prune all interactions older than 7 days
+            removed = self.prune_interactions(max_age_days=7, max_importance=1.0)
+        return removed
+
     def save_interaction(self, user_input, bot_output, mode="companion", emotion=None, importance=0.5, dissonance=None):
         timestamp = datetime.datetime.now().isoformat()
         safe_user_input = self.scrub_text(user_input)
@@ -122,6 +139,7 @@ class InfjMemory:
                 }
             ],
         )
+        self._maybe_prune()
 
     def learn_concept(self, concept_name, description, tags=None, importance=0.8):
         timestamp = datetime.datetime.now().isoformat()
@@ -181,6 +199,7 @@ class InfjMemory:
                 }
             ],
         )
+        self._maybe_prune()
 
     def save_bug_record(self, title, document, record_type="bug_note", tags=None, importance=0.85):
         timestamp = datetime.datetime.now().isoformat()
@@ -201,6 +220,7 @@ class InfjMemory:
                 }
             ],
         )
+        self._maybe_prune()
         return record_id
 
     def retrieve_thoughts(self, query="", n_results=None):

@@ -114,3 +114,37 @@ def test_state_persistence(temp_shadow):
     shadow2 = Shadow(db_path=temp_shadow.db_path)
     assert shadow2.get_state().depth == depth
     assert shadow2.get_state().total_suppressed == temp_shadow.get_state().total_suppressed
+
+
+def test_load_state_tolerates_corrupt_strings(temp_shadow):
+    """DB values must not crash Shadow() — invalid numbers fall back to defaults."""
+    import sqlite3
+
+    with sqlite3.connect(temp_shadow.db_path) as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO shadow_state (key, value) VALUES (?, ?)",
+            ("depth", "not-a-float"),
+        )
+        conn.execute(
+            "INSERT OR REPLACE INTO shadow_state (key, value) VALUES (?, ?)",
+            ("total_suppressed", "xx"),
+        )
+        conn.execute(
+            "INSERT OR REPLACE INTO shadow_state (key, value) VALUES (?, ?)",
+            ("last_surface", "not-a-date"),
+        )
+        conn.commit()
+    s = Shadow(db_path=temp_shadow.db_path).get_state()
+    assert s.depth == 0.3
+    assert s.total_suppressed == 0
+    assert s.last_surface is None
+
+
+def test_prompt_snippet_top_k_budget(temp_shadow):
+    """Prompt uses ranked excerpts only—not dialogue_history (see format_prompt_snippet docstring)."""
+    for i in range(5):
+        temp_shadow.suppress(f"content number {i} " * 8, archetype="resentment", intensity=0.5 + i * 0.01)
+    snip = temp_shadow.format_prompt_snippet()
+    assert "[Shadow" in snip
+    # Multiple high-intensity rows can appear when within char budget
+    assert snip.count("[Shadow") >= 2

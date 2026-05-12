@@ -18,6 +18,7 @@ MODES = {
     "bughunter": "Focus on finding bugs, security vulnerabilities, edge cases, and logical errors in code.",
     "quiet": "Short replies and proactive thoughts disabled.",
     "drift": "Companion/guardian/co-architect mode for curious reflection, practical building, and safe Drift continuity.",
+    "mirror": "Shadow work mode — depth psychology, active imagination, projection detection, and integration. Use /mirror to begin a session.",
 }
 
 
@@ -163,6 +164,9 @@ def command_help(command=None):
                 "/shadow imagine — begin active imagination with a shadow figure\n"
                 "/shadow list — list unintegrated shadow content\n"
                 "/shadow integrate <id> — integrate a shadow truth into conscious self")
+    if command == "email":
+        return ("/email to=<addr> subject=<subject> body=<text> — send an email.\n"
+                "Requires SMTP_USER + SMTP_PASS in .env, or Gmail MCP credentials.")
     return """Commands:
 /memory <query> | learn <name>: <description> | forget <name> | count | export [path] | import <path> | compact [days] | edit <name>: <desc>
 /mode companion|engineer|critic|coach|clarity|researcher|bughunter|drift|quiet
@@ -227,6 +231,7 @@ def command_help(command=None):
 /architecture list|enable|disable|propose|proposals|approve|reject
 /shadow | speak | imagine | list | integrate <id>
 /eval consistency | modes | stability | memory | contradictions
+/email to=<addr> subject=<subject> body=<text>
 /help [command]"""
 
 
@@ -1519,6 +1524,122 @@ def handle_architecture_command(args):
     )
 
 
+def handle_mirror_command(args: str, state) -> str:
+    """Handler for /mirror — shadow work mode and 30-day experiment."""
+    try:
+        import sys as _sys
+        from pathlib import Path as _P
+        _hive = str(_P(__file__).resolve().parent / "hive_mind")
+        if _hive not in _sys.path:
+            _sys.path.insert(0, _hive)
+        from mirror.experiment import MirrorExperiment
+        exp = MirrorExperiment()
+    except Exception as exc:
+        return f"Mirror module unavailable: {exc}"
+
+    sub = args.strip().lower()
+
+    if not sub or sub == "enter":
+        # Enter mirror mode + show today's prompt
+        state.mode = "mirror"
+        status = exp.status()
+        if status["status"] == "not_started":
+            return (
+                "Mirror mode activated. The 30-day shadow integration experiment has not started yet.\n\n"
+                "Run /mirror start to begin, or just start reflecting.\n\n"
+                "What part of yourself do you most avoid looking at?"
+            )
+        prompt = status.get("today_prompt", "")
+        day = status.get("current_day", 1)
+        theme = status.get("today_theme", "")
+        return (
+            f"Mirror mode activated — Day {day}/30 [{theme}]\n\n"
+            f"Today's prompt:\n{prompt}\n\n"
+            "Take your time. Reply with whatever surfaces."
+        )
+
+    if sub == "start":
+        result = exp.start()
+        if result["status"] == "already_started":
+            return f"Experiment already running since {result['start_date']}. Use /mirror to get today's prompt."
+        state.mode = "mirror"
+        first = exp.today_prompt()
+        return (
+            f"30-day shadow integration experiment started.\n\n"
+            f"Day 1 prompt:\n{first['prompt']}\n\n"
+            "Set your baseline first: how large is your emotional vocabulary? How clear are your goals? "
+            "Answer honestly. This is your before-picture."
+        )
+
+    if sub == "status":
+        status = exp.status()
+        if status["status"] == "not_started":
+            return "Experiment not started. Run /mirror start."
+        report = exp.progress_report()
+        shadow = report.get("shadow", {})
+        lines = [
+            f"Day {report['current_day']}/30 | Week {report['current_week']}",
+            f"Responses recorded: {report['responses_recorded']}",
+            f"Projections detected: {shadow.get('projection_count', 0)}",
+            f"Denials detected: {shadow.get('denial_count', 0)}",
+        ]
+        if shadow.get("top_archetypes"):
+            top = shadow["top_archetypes"][0]
+            lines.append(f"Dominant archetype: {top['archetype']} ({top['activation_count']} activations)")
+        progress = shadow.get("integration_progress", [])
+        if progress:
+            lines.append(f"Integration work: {len(progress)} figure(s) in process")
+            for p in progress[:3]:
+                lines.append(f"  · {p['shadow_figure']}: {p['stage']}")
+        return "\n".join(lines)
+
+    if sub == "report":
+        report = exp.progress_report()
+        deltas = report.get("deltas", {})
+        lines = [f"Progress Report — Day {report['current_day']}/30"]
+        if deltas:
+            lines.append("\nMetric changes from baseline:")
+            for metric, delta in deltas.items():
+                arrow = "↑" if delta > 0 else "↓" if delta < 0 else "→"
+                lines.append(f"  {arrow} {metric}: {delta:+.2f}")
+        else:
+            lines.append("No weekly assessments recorded yet.")
+        return "\n".join(lines)
+
+    return (
+        "Mirror commands:\n"
+        "  /mirror enter    — enter shadow work mode, show today's prompt\n"
+        "  /mirror start    — begin the 30-day experiment\n"
+        "  /mirror status   — show current day, shadow patterns detected\n"
+        "  /mirror report   — show progress vs baseline\n"
+    )
+
+
+def handle_email_command(args):
+    if not args:
+        return command_help("email")
+    import shlex
+    try:
+        tokens = shlex.split(args)
+    except ValueError:
+        tokens = args.split()
+    kwargs = {}
+    for token in tokens:
+        if "=" in token:
+            key, val = token.split("=", 1)
+            kwargs[key] = val
+    to = kwargs.get("to", "")
+    subject = kwargs.get("subject", "")
+    body = kwargs.get("body", "")
+    if not to or not subject or not body:
+        return "Usage: /email to=someone@example.com subject='Hello' body='Message text'"
+    from emailer import send_email
+    result = send_email(to=to, subject=subject, body=body)
+    if result.get("ok"):
+        return f"Email sent to {to}"
+    return f"Failed to send email: {result.get('error')}"
+
+
 def handle_command(command, args, state, brain, memory, history=None, goals_db=None, doc_store=None):
     if command == "memory":
         return handle_memory_command(args, memory)
@@ -1651,6 +1772,10 @@ def handle_command(command, args, state, brain, memory, history=None, goals_db=N
         return handle_shadow_command(args)
     if command == "eval":
         return handle_eval_command(args)
+    if command == "mirror":
+        return handle_mirror_command(args, state)
+    if command == "email":
+        return handle_email_command(args)
     if command == "help":
         return command_help(args or None)
     return f"Unknown command: /{command}\n{command_help()}"

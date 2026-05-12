@@ -3,7 +3,7 @@ import os
 import time
 try:
     from dotenv import load_dotenv
-except Exception:
+except ImportError:
     def load_dotenv():
         print("Warning: python-dotenv not installed; proceeding without loading .env file.")
         return None
@@ -12,7 +12,7 @@ try:
     import importlib
     new_genai = importlib.import_module("google.genai")
     genai_types = importlib.import_module("google.genai.types")
-except Exception:
+except (ImportError, ModuleNotFoundError):
     new_genai = None
     genai_types = None
 
@@ -24,16 +24,14 @@ if new_genai is None:
         legacy_genai = None
 
 
-from config import API_KEY, INFJ_PRIMARY_MODEL, INFJ_CRITIC_MODEL, INFJ_USE_LOCAL_FALLBACK
+from config import API_KEY, INFJ_PRIMARY_MODEL, INFJ_CRITIC_MODEL, INFJ_USE_LOCAL_FALLBACK, validate_api_key
 from local_llm import OllamaBridge
 from self_eval import SelfEvaluator
 from tools import build_tool_prompt, extract_tool_calls, execute_tool_call
 
-if not API_KEY:
-    print(
-        "Warning: API_KEY not found. Set API_KEY in a .env file or export it in your environment. "
-        "Bot functionality will be limited without a valid API key."
-    )
+_key_check = validate_api_key(API_KEY)
+if not _key_check["ok"]:
+    print(f"Warning: {_key_check['error']} Bot functionality will be limited without a valid API key.")
 
 
 INFJ_SYSTEM_PROMPT = """
@@ -112,13 +110,29 @@ class InfjBrain:
     # ------------------------------------------------------------------
 
     def _generate_new_sdk(self, model_name, system_instruction, prompt):
-        config = genai_types.GenerateContentConfig(system_instruction=system_instruction)
-        response = self.client.models.generate_content(
-            model=model_name,
-            contents=prompt,
-            config=config,
-        )
-        return response.text or ""
+        import signal
+        class _GeminiTimeout(Exception):
+            pass
+        def _timeout_handler(signum, frame):
+            raise _GeminiTimeout("Gemini API call exceeded 15s — likely rate-limited.")
+        prev_handler = signal.signal(signal.SIGALRM, _timeout_handler)
+        signal.alarm(15)
+        try:
+            config = genai_types.GenerateContentConfig(system_instruction=system_instruction)
+            response = self.client.models.generate_content(
+                model=model_name,
+                contents=prompt,
+                config=config,
+            )
+            return response.text or ""
+        except Exception as exc:
+            text = f"{type(exc).__name__}: {exc}".lower()
+            if "429" in text or "resource_exhausted" in text or "quota" in text:
+                raise RuntimeError(f"Gemini quota/rate limit ({exc})")
+            raise
+        finally:
+            signal.alarm(0)
+            signal.signal(signal.SIGALRM, prev_handler)
 
     def _generate_new_sdk_stream(self, model_name, system_instruction, prompt):
         config = genai_types.GenerateContentConfig(system_instruction=system_instruction)
@@ -141,6 +155,40 @@ class InfjBrain:
     def _generate_local(self, system_instruction, prompt):
         return self.local_bridge.generate(prompt=prompt, system=system_instruction)
 
+    def _generate_groq(self, system_instruction, prompt):
+        import requests
+        groq_key = os.environ.get("GROQ_API_KEY")
+        if not groq_key:
+            raise RuntimeError("GROQ_API_KEY not set.")
+        # Bypass critic review when using Groq — smaller models write essays instead of returning cleaned text
+        if "internal critic" in system_instruction.lower() or "primary mind's response" in system_instruction.lower():
+            # Extract the original response text from the critic prompt
+            if "\n\n" in prompt:
+                return prompt.split("\n\n", 1)[1]
+            return prompt
+        # Map any Gemini model name to a fast Groq model
+        groq_model = "llama-3.1-8b-instant"
+        resp = requests.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {groq_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": groq_model,
+                "messages": [
+                    {"role": "system", "content": system_instruction},
+                    {"role": "user", "content": prompt},
+                ],
+                "temperature": 0.7,
+                "max_tokens": 2048,
+            },
+            timeout=30,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        return data["choices"][0]["message"]["content"]
+
     def _generate(self, model_name, system_instruction, prompt):
         if not API_KEY:
             if self._use_local_fallback and self.local_bridge.is_available():
@@ -153,11 +201,20 @@ class InfjBrain:
                     return self._generate_new_sdk(model_name, system_instruction, prompt)
                 model = self.critic_model if model_name == self.critic_model_name else self.primary_model
                 return model.generate_content(prompt).text
-            except Exception as exc:
+            except (ConnectionError, TimeoutError, RuntimeError) as exc:
                 last_exc = exc
                 if not self._is_transient_model_error(exc) or attempt == 2:
                     break
                 time.sleep(0.5 * (attempt + 1))
+            except Exception as exc:
+                last_exc = exc
+                break
+        # Try Groq before falling back to slow local Ollama
+        if os.environ.get("GROQ_API_KEY"):
+            try:
+                return self._generate_groq(system_instruction, prompt)
+            except Exception as groq_exc:
+                last_exc = groq_exc
         if self._use_local_fallback and self.local_bridge.is_available():
             return self._generate_local(system_instruction, prompt)
         raise last_exc
@@ -179,11 +236,14 @@ class InfjBrain:
                     return
                 yield from self._generate_legacy_stream(model_name, system_instruction, prompt)
                 return
-            except Exception as exc:
+            except (ConnectionError, TimeoutError, RuntimeError) as exc:
                 last_exc = exc
                 if not self._is_transient_model_error(exc) or attempt == 2:
                     break
                 time.sleep(0.5 * (attempt + 1))
+            except Exception as exc:
+                last_exc = exc
+                break
         if self._use_local_fallback and self.local_bridge.is_available():
             yield from self._generate_local_stream(system_instruction, prompt)
             return
@@ -242,7 +302,7 @@ class InfjBrain:
             else:
                 response = self.chat.send_message(user_input)
                 primary_text = response.text
-        except Exception as exc:
+        except (ConnectionError, TimeoutError, RuntimeError) as exc:
             return self._offline_fallback(user_input, exc)
 
         try:
@@ -251,7 +311,7 @@ class InfjBrain:
                 CRITIC_SYSTEM_PROMPT,
                 f"Review the following response for hallucinations, errors, or unsafe content:\n\n{primary_text}",
             )
-        except Exception as exc:
+        except (ConnectionError, TimeoutError, RuntimeError) as exc:
             return f"{primary_text}\n\n[critic unavailable: {type(exc).__name__}]"
 
     # ------------------------------------------------------------------
@@ -277,7 +337,7 @@ class InfjBrain:
                     yield chunk
                 # Legacy streaming doesn't give us the full text easily for history, so we skip critic in stream mode
                 return
-        except Exception as exc:
+        except (ConnectionError, TimeoutError, RuntimeError) as exc:
             yield self._offline_fallback(user_input, exc)
 
     # ------------------------------------------------------------------
@@ -297,7 +357,7 @@ class InfjBrain:
                 except concurrent.futures.TimeoutError:
                     result = f"[Error: Tool '{call.get('name')}' timed out after {timeout}s]"
                 except Exception as exc:
-                    result = f"[Error: {exc}]"
+                    result = f"[Error: {type(exc).__name__}: {exc}]"
             results.append(f"Tool '{call.get('name')}' result:\n{result}")
         return results
 
@@ -347,10 +407,10 @@ class InfjBrain:
                     CRITIC_SYSTEM_PROMPT,
                     f"Review the following response for hallucinations, errors, or unsafe content:\n\n{primary_text}",
                 )
-            except Exception as exc:
+            except (ConnectionError, TimeoutError, RuntimeError) as exc:
                 return f"{primary_text}\n\n[critic unavailable: {type(exc).__name__}]"
 
-        except Exception as exc:
+        except (ConnectionError, TimeoutError, RuntimeError) as exc:
             return self._offline_fallback(user_input, exc)
 
     # ------------------------------------------------------------------
@@ -404,10 +464,10 @@ class InfjBrain:
                 critic_prompt = f"Review the following response for hallucinations, errors, or unsafe content:\n\n{primary_text}"
                 for chunk in self._generate_stream(self.critic_model_name, CRITIC_SYSTEM_PROMPT, critic_prompt):
                     yield chunk
-            except Exception:
+            except (ConnectionError, TimeoutError, RuntimeError):
                 yield primary_text
 
-        except Exception as exc:
+        except (ConnectionError, TimeoutError, RuntimeError) as exc:
             yield self._offline_fallback(user_input, exc)
 
     # ------------------------------------------------------------------

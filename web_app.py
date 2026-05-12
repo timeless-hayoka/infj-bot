@@ -1,6 +1,21 @@
 import json
+import sys as _sys
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path as _Path
 import traceback
+
+# Observatory integration — add hive_mind to path
+_hive_path = str(_Path(__file__).resolve().parent / "hive_mind")
+if _hive_path not in _sys.path:
+    _sys.path.insert(0, _hive_path)
+try:
+    from observatory.server import INDEX_HTML as _OBS_HTML, gather_state as _obs_gather
+    from drift_bridge import DriftBridge as _DriftBridge
+    _obs_drift = _DriftBridge()
+    _OBSERVATORY_ENABLED = True
+except Exception:
+    _OBSERVATORY_ENABLED = False
 
 from brain import InfjBrain
 from commands import BotState, handle_command
@@ -107,6 +122,17 @@ INDEX_HTML = """<!doctype html>
         <textarea id="query" rows="3" style="width:100%" placeholder="Search memory"></textarea>
         <button id="search">Search</button>
       </div>
+      <div class="panel">
+        <label>Email</label><br>
+        <input id="emailTo" placeholder="to" style="width:100%;margin-bottom:6px;">
+        <input id="emailSubject" placeholder="subject" style="width:100%;margin-bottom:6px;">
+        <textarea id="emailBody" rows="3" style="width:100%" placeholder="body"></textarea>
+        <button id="sendEmail">Send</button>
+        <pre id="emailResult" class="small"></pre>
+      </div>
+      <div class="panel">
+        <a href="/observatory" target="_blank" style="display:block;text-align:center;padding:8px;background:#101820;border:1px solid #2e3a40;border-radius:6px;color:#66d19e;text-decoration:none;font-size:13px;">&#128302; Observatory — Watch DRIFT think</a>
+      </div>
     </section>
   </aside>
 </main>
@@ -166,6 +192,14 @@ document.querySelector('#search').onclick = async () => {
   const data = await post('/api/command', {command: 'memory', args: document.querySelector('#query').value});
   document.querySelector('#side').textContent = data.reply;
 };
+document.querySelector('#sendEmail').onclick = async () => {
+  const data = await post('/api/email', {
+    to: document.querySelector('#emailTo').value,
+    subject: document.querySelector('#emailSubject').value,
+    body: document.querySelector('#emailBody').value
+  });
+  document.querySelector('#emailResult').textContent = data.sent ? 'Sent.' : 'Error: ' + (data.error || 'unknown');
+};
 refreshGrowth();
 </script>
 </body>
@@ -210,6 +244,36 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, "text/html", INDEX_HTML)
         elif self.path == "/api/growth":
             self._json(growth_profile(memory, state.turns))
+        elif self.path in ("/observatory", "/observatory/"):
+            if not _OBSERVATORY_ENABLED:
+                self._json({"error": "Observatory unavailable"}, 503)
+                return
+            self._send(200, "text/html; charset=utf-8", _OBS_HTML)
+        elif self.path == "/observatory/api/state":
+            if not _OBSERVATORY_ENABLED:
+                self._json({"error": "Observatory unavailable"}, 503)
+                return
+            snap = _obs_gather(_obs_drift)
+            self._send(200, "application/json", json.dumps(snap, default=str))
+        elif self.path == "/observatory/api/stream":
+            if not _OBSERVATORY_ENABLED:
+                self._json({"error": "Observatory unavailable"}, 503)
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.send_header("Cache-Control", "no-cache")
+            self.send_header("Connection", "keep-alive")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            try:
+                while True:
+                    snap = _obs_gather(_obs_drift)
+                    payload = json.dumps(snap, default=str)
+                    self.wfile.write(f"data: {payload}\n\n".encode("utf-8"))
+                    self.wfile.flush()
+                    time.sleep(0.5)
+            except (BrokenPipeError, ConnectionResetError):
+                pass
         else:
             self._json({"error": "not found"}, 404)
 
@@ -247,6 +311,18 @@ class Handler(BaseHTTPRequestHandler):
                     doc_store,
                 )
                 self._json({"reply": reply})
+            elif self.path == "/api/email":
+                from emailer import send_email
+                result = send_email(
+                    to=payload.get("to", ""),
+                    subject=payload.get("subject", ""),
+                    body=payload.get("body", ""),
+                    html_body=payload.get("html_body"),
+                )
+                if result.get("ok"):
+                    self._json({"sent": True})
+                else:
+                    self._json({"sent": False, "error": result.get("error")}, 500)
             else:
                 self._json({"error": "not found"}, 404)
         except json.JSONDecodeError:

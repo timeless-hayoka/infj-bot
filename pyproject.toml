@@ -1,0 +1,65 @@
+[project]
+name = "infj-bot"
+version = "0.1.0"
+description = "INFJ cognitive architecture bot — consciousness, emotion, intuition, shadow, and being"
+readme = "README.md"
+requires-python = ">=3.12"
+license = {text = "AGPL-3.0"}
+authors = [
+    {name = "Julien James", email = "hiimju9@gmail.com"}
+]
+keywords = ["ai", "agents", "cognitive-architecture", "consciousness", "infj", "embodiment"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+    "fastapi>=0.136",
+    "uvicorn>=0.46",
+    "chromadb>=1.5",
+    "torch>=2.11",
+    "transformers>=4.57",
+    "sentence-transformers>=4.1",
+    "ollama>=0.6",
+    "google-genai>=1.73",
+    "google-generativeai>=0.8",
+    "pydantic>=2.13",
+    "httpx>=0.28",
+    "rich>=15.0",
+    "typer>=0.25",
+    "mcp>=1.27",
+    "playwright>=1.59",
+    "numpy>=2.4",
+    "pandas",
+    "matplotlib",
+    "sounddevice",
+    "soundfile",
+    "piper-tts>=1.4",
+    "faster-whisper>=1.2",
+    "python-dotenv>=1.2",
+    "duckduckgo-search>=8.1",
+    "PyYAML>=6.0",
+    "markdown>=3.10",
+    "psutil>=7.1",
+    "tenacity>=9.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=9.0",
+    "pytest-asyncio>=0.24",
+]
+voice = [
+    "piper-tts>=1.4",
+    "sounddevice",
+    "soundfile",
+]
+
+[project.scripts]
+infj-bot = "cli:main"
+
+

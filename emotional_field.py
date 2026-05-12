@@ -165,7 +165,13 @@ class EmotionalField:
                 )
             conn.commit()
 
-    def _choose_stance(self, user_emotion: str, user_intensity: float, context: str) -> str:
+    def _choose_stance(
+        self,
+        user_emotion: str,
+        user_intensity: float,
+        context: str,
+        host_stress: float = 0.0,
+    ) -> str:
         """Choose stance with inertia, learned preferences, and contextual rules."""
         context_lower = context.lower()
 
@@ -180,6 +186,13 @@ class EmotionalField:
             candidates = ["hold_space", "mirror"]
         else:
             candidates = ["mirror", "complement", "hold_space"]
+
+        # Machine under load: emotional counterweight toward steadier, lower-arousal stances
+        if host_stress >= 0.62 and user_intensity < 0.88:
+            if "hold_space" not in candidates:
+                candidates = ["hold_space"] + list(candidates)
+            if "complement" not in candidates[:2]:
+                candidates.insert(min(1, len(candidates)), "complement")
 
         # 2. Learned effectiveness weighting
         effectiveness = self._get_stance_effectiveness(user_emotion)
@@ -208,17 +221,30 @@ class EmotionalField:
 
     def resonate(self, user_emotion: str, user_intensity: float, context: str = ""):
         """The bot feels what Jude feels and chooses a stance — with learning and inertia."""
+        try:
+            from host_load import sample_host_load
+
+            hl = sample_host_load()
+            host_stress = float(hl.get("stress", 0.0)) if hl.get("ok") else 0.0
+        except Exception:
+            host_stress = 0.0
+
         self.state.last_user_emotion = user_emotion
         self.state.last_user_intensity = user_intensity
         self.state.last_update = datetime.now()
 
         # Choose stance
-        self.state.stance = self._choose_stance(user_emotion, user_intensity, context)
+        self.state.stance = self._choose_stance(user_emotion, user_intensity, context, host_stress)
 
         # Map to bot emotion
         mapped = self.RESONANCE_MAP.get(user_emotion, self.RESONANCE_MAP["neutral"])
         self.state.primary = mapped.get(self.state.stance, "curious")
-        self.state.intensity = min(1.0, user_intensity * self.state.resonance + 0.1)
+        # Under host strain, damp resonated intensity (counterweight / conservation)
+        counter = 1.0 - 0.42 * host_stress
+        self.state.intensity = min(
+            1.0,
+            max(0.05, (user_intensity * self.state.resonance + 0.1) * counter),
+        )
 
         # Record event
         self._record_event(user_emotion, user_intensity, self.state.primary, self.state.stance, context)
@@ -262,6 +288,19 @@ class EmotionalField:
             f"  My emotional response: {self.state.primary} (intensity: {self.state.intensity:.0%})",
             f"  My chosen stance: {self.state.stance}",
         ]
+        try:
+            from host_load import sample_host_load
+
+            hl = sample_host_load()
+            if hl.get("ok") and float(hl.get("stress", 0.0)) >= 0.38:
+                cpu = float(hl.get("cpu_percent") or 0)
+                mem = float(hl.get("memory_percent") or 0)
+                lines.append(
+                    f"  Host load (self / machine): strain≈{float(hl['stress']):.0%} "
+                    f"(CPU {cpu:.0f}%, RAM {mem:.0f}% — I soften intensity when the machine is tight.)"
+                )
+        except Exception:
+            pass
         if self.state.stance == "mirror":
             lines.append("  I will meet Jude where they are, feeling alongside them.")
         elif self.state.stance == "complement":

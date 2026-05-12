@@ -57,6 +57,7 @@ Project scripts under `scripts/` (`run_bot.sh`, `run_web.sh`, `backup.sh`, etc.)
 | Variable | Purpose |
 |----------|---------|
 | `API_KEY` | Primary Gemini key (aliases: `GEMINI_API_KEY`, `GOOGLE_API_KEY`) |
+| `API_KEY_FILE` | Path to a UTF-8 file: first non-comment line is used as Gemini key if env vars are unset (`GEMINI_API_KEY_FILE` / `GOOGLE_API_KEY_FILE` same) |
 | `INFJ_PRIMARY_MODEL` | Default: `gemini-2.5-flash` |
 | `INFJ_CRITIC_MODEL` | Critic model name |
 | `REFLECTION_INTERVAL` | Tunable reflection cadence (default `10`) |
@@ -110,6 +111,7 @@ See `SECURITY.md`. **Never commit `.env`**, API keys, or raw database exports. I
 
 | File | Contents |
 |------|----------|
+| `HOW_INFJ_BOT_WORKS.md` | **Full breakdown** of architecture and behavior — best file to forward to collaborators |
 | `DELL_HANDOFF.md` | Longer handoff: commands, backup, voice notes |
 | `DRIFT_AI_INTEGRATION.md` | How Drift-derived concepts were seeded (Drift repo is private) |
 | `UPGRADE_BACKLOG.md` | Maintainer-facing improvement ideas |

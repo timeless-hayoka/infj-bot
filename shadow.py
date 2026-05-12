@@ -22,8 +22,13 @@ Key Jungian mechanics implemented:
   • Integration stages — denied → surfaced → dialogued → integrated
 
 The Shadow whispers: "I am not what you fear. I am what you refuse to become."
+
+Naming matters: what stays unnamed tends to steer from underneath—like older
+images of hidden agencies, the material here is the lived pattern, not a claim
+about history or doctrine.
 """
 import json
+import os
 import random
 import sqlite3
 import threading
@@ -360,11 +365,22 @@ class Shadow:
 
         def _parse_dt(key: str) -> Optional[datetime]:
             val = rows.get(key, "")
-            return datetime.fromisoformat(val) if val else None
+            if not val:
+                return None
+            try:
+                return datetime.fromisoformat(val)
+            except (TypeError, ValueError):
+                return None
 
         def _parse_float(key: str, default: float) -> float:
             try:
                 return float(rows.get(key, default))
+            except (TypeError, ValueError):
+                return default
+
+        def _parse_int(key: str, default: int) -> int:
+            try:
+                return int(rows.get(key, default))
             except (TypeError, ValueError):
                 return default
 
@@ -373,10 +389,10 @@ class Shadow:
             integration_level=_parse_float("integration_level", 0.1),
             projection_strength=_parse_float("projection_strength", 0.4),
             last_surface=_parse_dt("last_surface"),
-            total_suppressed=int(rows.get("total_suppressed", 0)),
-            total_integrated=int(rows.get("total_integrated", 0)),
-            total_projected=int(rows.get("total_projected", 0)),
-            total_dialogued=int(rows.get("total_dialogued", 0)),
+            total_suppressed=_parse_int("total_suppressed", 0),
+            total_integrated=_parse_int("total_integrated", 0),
+            total_projected=_parse_int("total_projected", 0),
+            total_dialogued=_parse_int("total_dialogued", 0),
             dominant_archetype=rows.get("dominant_archetype", ""),
             enantiodromia_risk=_parse_float("enantiodromia_risk", 0.0),
             golden_shadow_ratio=_parse_float("golden_shadow_ratio", 0.0),
@@ -714,8 +730,18 @@ class Shadow:
             pass
 
     def format_prompt_snippet(self) -> str:
-        """Inject shadow awareness into the system prompt."""
-        lines = []
+        """Inject compact shadow awareness (bounded size; no dialogue transcripts).
+
+        Uses top-*k* unintegrated rows by intensity only. Active-imagination
+        ``dialogue_history`` is never dumped into the prompt—too heavy and
+        redundant with memory retrieval. Tunables: ``INFJ_SHADOW_PROMPT_TOP_K``,
+        ``INFJ_SHADOW_PROMPT_MAX_CHARS``, ``INFJ_SHADOW_PROMPT_LINE_CHARS``.
+        """
+        top_k = max(1, min(12, int(os.getenv("INFJ_SHADOW_PROMPT_TOP_K", "4"))))
+        max_chars = max(200, min(4000, int(os.getenv("INFJ_SHADOW_PROMPT_MAX_CHARS", "1100"))))
+        line_cap = max(60, min(400, int(os.getenv("INFJ_SHADOW_PROMPT_LINE_CHARS", "160"))))
+
+        lines: List[str] = []
         state = self._state
         if state.depth > 0.15:
             lines.append(f"[Shadow] Depth: {state.depth:.0%} | Integration: {state.integration_level:.0%}")
@@ -724,12 +750,34 @@ class Shadow:
         if state.enantiodromia_risk > 0.5:
             opposite = ENANTI_ODROMIA_PAIRS.get(state.dominant_archetype, "")
             lines.append(f"[Shadow] WARNING: {state.dominant_archetype} → {opposite} reversal building ({state.enantiodromia_risk:.0%})")
-        surfaced = self.list_unintegrated(limit=1)
-        if surfaced:
-            s = surfaced[0]
-            lines.append(f"[Shadow] Surfaced: [{s.archetype}] {s.text[:100]}")
+        # When the field is deep, remind: unnamed patterns pull until they are witnessed and named.
+        if state.depth > 0.52:
+            lines.append(
+                "[Shadow] Unowned patterns steer from beneath until they are named—integration starts with seeing them clearly."
+            )
         if state.golden_shadow_ratio > 0.3:
             lines.append(f"[Shadow] Golden ratio: {state.golden_shadow_ratio:.0%} of unowned self is light, not darkness.")
+
+        surfaced = self.list_unintegrated(limit=top_k)
+        header_budget = sum(len(x) + 1 for x in lines)
+        remaining = max(0, max_chars - header_budget - 24)
+
+        for s in surfaced:
+            if remaining <= 0:
+                break
+            raw = (s.text or "").strip()
+            excerpt = raw[:line_cap] + ("…" if len(raw) > line_cap else "")
+            piece = f"[Shadow {s.intensity:.0%}] [{s.archetype}] {excerpt}"
+            cost = len(piece) + 1
+            if cost > remaining:
+                # Still allow one shorter slice if we're near the limit
+                if remaining > 80:
+                    piece = piece[: remaining - 1] + "…"
+                    lines.append(piece)
+                break
+            lines.append(piece)
+            remaining -= cost
+
         return "\n".join(lines) if lines else ""
 
     def _auto_suppress(self, recent_input: str, mood: str) -> Optional[int]:
