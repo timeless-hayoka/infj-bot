@@ -397,7 +397,20 @@ def hive_status() -> str:
     try:
         hive = HiveOrchestrator()
         status = hive.get_status()
-        return f"Hive nodes: {status.get('nodes', 0)}\nConsensus: {status.get('consensus', 'unknown')}\nDrift bridge: {status.get('drift_bridge', 'ok')}"
+        # Demo lightweight consensus using the engine
+        demo = hive.consensus.run_simple_consensus(
+            topic="Current hive health check",
+            proposals=[
+                {"node": "spark-0", "role": "PRIMARY", "position": "healthy", "confidence": 0.9},
+                {"node": "seed-1", "role": "CRITIC", "position": "healthy", "confidence": 0.75},
+            ],
+        )
+        return (
+            f"Hive nodes: {status.get('nodes', 0)}\n"
+            f"Consensus: {status.get('consensus', 'idle')}\n"
+            f"Drift bridge: {status.get('drift_bridge', 'ok')}\n"
+            f"Demo consensus: {demo['decision']} (agreement {demo['agreement']})"
+        )
     except Exception as e:
         return f"Hive status unavailable: {e}"
 
