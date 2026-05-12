@@ -21,6 +21,8 @@ from documents import DocumentStore, format_doc_results
 from emotion import detect_emotion
 from goals import GoalsDB
 from memory import InfjMemory
+from global_workspace import GlobalWorkspace
+from hive_mind.orchestrator import HiveOrchestrator
 
 mcp = FastMCP(
     "infj_companion",
@@ -387,6 +389,28 @@ def ingest_document(path: str, tags: str = "") -> str:
         return f"Ingested {count} chunks from {path}."
     except Exception as exc:
         return f"Ingest failed: {exc}"
+
+
+@mcp.tool()
+def hive_status() -> str:
+    """Return current hive mind node status, consensus state, and drift bridge health."""
+    try:
+        hive = HiveOrchestrator()
+        status = hive.get_status()
+        return f"Hive nodes: {status.get('nodes', 0)}\nConsensus: {status.get('consensus', 'unknown')}\nDrift bridge: {status.get('drift_bridge', 'ok')}"
+    except Exception as e:
+        return f"Hive status unavailable: {e}"
+
+
+@mcp.tool()
+def workspace_snapshot() -> str:
+    """Get a snapshot of the current global workspace (active concepts, attention, bindings)."""
+    try:
+        gw = GlobalWorkspace()
+        snap = gw.snapshot()
+        return f"Active concepts: {len(snap.get('concepts', []))}\nAttention focus: {snap.get('focus', 'none')}\nBindings: {snap.get('bindings', 0)}"
+    except Exception as e:
+        return f"Workspace snapshot unavailable: {e}"
 
 
 if __name__ == "__main__":
