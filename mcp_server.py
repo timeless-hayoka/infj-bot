@@ -428,7 +428,8 @@ def workspace_snapshot() -> str:
     try:
         gw = GlobalWorkspace()
         snap = gw.snapshot()
-        return f"Active concepts: {len(snap.get('concepts', []))}\nAttention focus: {snap.get('focus', 'none')}\nBindings: {snap.get('bindings', 0)}"
+        concepts = snap.get("concepts", [])[:3]
+        return f"Concepts: {len(snap.get('concepts', []))} | Focus: {snap.get('focus') or 'none'}\nTop: {' | '.join(concepts) if concepts else 'empty'}"
     except Exception as e:
         return f"Workspace snapshot unavailable: {e}"
 
