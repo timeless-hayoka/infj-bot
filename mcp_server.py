@@ -173,11 +173,18 @@ def create_http_app(token: str | None = None) -> FastAPI:
                 task.add_done_callback(_scheduled_tasks.discard)
             await asyncio.sleep(0.5)
 
-    # start background worker (modern asyncio)
+    # start background worker safely
+    async def _start_worker():
+        try:
+            asyncio.create_task(schedule_worker())
+        except Exception:
+            pass
+
     try:
-        asyncio.create_task(schedule_worker())
+        loop = asyncio.get_running_loop()
+        loop.create_task(_start_worker())
     except RuntimeError:
-        # event loop not running yet; uvicorn will start it later
+        # No running loop yet (e.g. during import or stdio mode)
         pass
 
     @app.get("/health")
