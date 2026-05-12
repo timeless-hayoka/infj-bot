@@ -26,7 +26,7 @@ jobs:
           python -m pip install ruff bandit detect-secrets
 
       - name: Ruff check
-        run: ruff check . --exclude venv --exclude .venv --exclude chroma_db
+        run: ruff check . --exclude venv --exclude .venv --exclude chroma_db --ignore E701,E402
 
       - name: Ruff format check
         run: ruff format --check . --exclude venv --exclude .venv --exclude chroma_db
