@@ -10,9 +10,18 @@ from cognitive_orchestrator import CognitiveOrchestrator
 _orchestrator = CognitiveOrchestrator()
 
 
-def build_chat_prompt(message, state, memory, goals_db=None, doc_store=None,
-                     tools_enabled=True, prefs=None, temporal=None, predictor=None,
-                     debug_dump=False):
+def build_chat_prompt(
+    message,
+    state,
+    memory,
+    goals_db=None,
+    doc_store=None,
+    tools_enabled=True,
+    prefs=None,
+    temporal=None,
+    predictor=None,
+    debug_dump=False,
+):
     """Build the full chat prompt. Delegates to CognitiveOrchestrator."""
     return _orchestrator.assemble_prompt(
         message=message,

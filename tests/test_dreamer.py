@@ -1,4 +1,5 @@
 """Tests for the Dreamer memory consolidation module."""
+
 import sys
 import unittest
 from pathlib import Path
@@ -33,7 +34,11 @@ class TestDreamer(unittest.TestCase):
         self.assertIn("growth", themes)
 
     def test_find_patterns(self):
-        memories = ["I worry about deadlines", "I am anxious about the project", "work is stressful"]
+        memories = [
+            "I worry about deadlines",
+            "I am anxious about the project",
+            "work is stressful",
+        ]
         patterns = self.dreamer._find_patterns(memories)
         self.assertTrue(any("anxiety" in p for p in patterns))
 

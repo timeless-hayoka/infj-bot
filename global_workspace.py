@@ -36,8 +36,10 @@ def _normalize_sqlite_path(db_path: Optional[SQLitePath]) -> str:
         s = os.fspath(raw.expanduser())
     else:
         s = os.fspath(Path(str(raw)).expanduser())
-    if s == ":memory:" or s.startswith(":memory:?") or (
-        s.startswith("file:") and "mode=memory" in s
+    if (
+        s == ":memory:"
+        or s.startswith(":memory:?")
+        or (s.startswith("file:") and "mode=memory" in s)
     ):
         return s
     p = Path(s).expanduser().resolve(strict=False)
@@ -63,8 +65,9 @@ def _sqlite_connect(db_path_str: str) -> sqlite3.Connection:
 @dataclass
 class Broadcast:
     """A piece of information competing for workspace access."""
-    source: str           # which module submitted this
-    content: str          # the information itself
+
+    source: str  # which module submitted this
+    content: str  # the information itself
     salience: float = 0.5  # 0.0-1.0, how much this "wants" consciousness
     emotion_tag: Optional[str] = None
     intensity: float = 0.0
@@ -82,6 +85,7 @@ class Broadcast:
 @dataclass
 class WorkspaceState:
     """The current conscious contents and attention state."""
+
     capacity: int = 5  # max simultaneous conscious contents
     contents: List[Broadcast] = field(default_factory=list)
     spotlight: Optional[str] = None  # what the being is currently attending to
@@ -151,8 +155,14 @@ class GlobalWorkspace:
 
     # ── Submission & Competition ─────────────────────────────────
 
-    def submit(self, source: str, content: str, salience: float = 0.5,
-               emotion_tag: Optional[str] = None, intensity: float = 0.0):
+    def submit(
+        self,
+        source: str,
+        content: str,
+        salience: float = 0.5,
+        emotion_tag: Optional[str] = None,
+        intensity: float = 0.0,
+    ):
         """
         A module submits information to compete for workspace access.
         Most submissions are unconscious. Only the winners become conscious.
@@ -196,14 +206,16 @@ class GlobalWorkspace:
                     score += 0.1
 
                 # Penalty: sources that have dominated recently
-                source_count = sum(1 for c in self.state.contents if c.source == b.source)
+                source_count = sum(
+                    1 for c in self.state.contents if c.source == b.source
+                )
                 score -= source_count * 0.1
 
                 scored.append((score, b))
 
             # Select winners
             scored.sort(key=lambda x: x[0], reverse=True)
-            winners = [b for _score, b in scored[:self.state.capacity]]
+            winners = [b for _score, b in scored[: self.state.capacity]]
 
             # Update broadcast counts
             for w in winners:
@@ -213,10 +225,13 @@ class GlobalWorkspace:
             with _sqlite_connect(self.db_path) as conn:
                 for score, b in scored:
                     entered = 1 if b in winners else 0
-                    conn.execute("""
+                    conn.execute(
+                        """
                         INSERT INTO workspace_history (timestamp, source, content, salience, entered_workspace)
                         VALUES (?, ?, ?, ?, ?)
-                    """, (b.timestamp, b.source, b.content[:500], score, entered))
+                    """,
+                        (b.timestamp, b.source, b.content[:500], score, entered),
+                    )
                 conn.commit()
 
             self.state.contents = winners
@@ -246,7 +261,9 @@ class GlobalWorkspace:
                 marker = " ★" if self.state.spotlight == b.content else ""
                 lines.append(f"  {i}. [{b.source}] {b.content[:80]}{marker}")
             if self.state.spotlight:
-                lines.append(f"  Attention spotlight: {self.state.spotlight_source} → {self.state.spotlight[:60]}")
+                lines.append(
+                    f"  Attention spotlight: {self.state.spotlight_source} → {self.state.spotlight[:60]}"
+                )
             return "\n".join(lines)
 
     def get_spotlight_content(self) -> Optional[Broadcast]:
@@ -261,8 +278,9 @@ class GlobalWorkspace:
 
     # ── Attention Spotlight ──────────────────────────────────────
 
-    def move_spotlight(self, content: Optional[str] = None,
-                       source: Optional[str] = None) -> bool:
+    def move_spotlight(
+        self, content: Optional[str] = None, source: Optional[str] = None
+    ) -> bool:
         """
         Move the attention spotlight to a specific content.
         If no content given, auto-select the most salient.
@@ -290,7 +308,9 @@ class GlobalWorkspace:
             if not self.state.contents:
                 return
             # Prefer emotional content, then highest salience
-            emotional = [b for b in self.state.contents if b.emotion_tag and b.intensity > 0.5]
+            emotional = [
+                b for b in self.state.contents if b.emotion_tag and b.intensity > 0.5
+            ]
             if emotional:
                 target = max(emotional, key=lambda b: b.intensity)
             else:
@@ -353,7 +373,9 @@ class GlobalWorkspace:
 
         spotlight = self.get_spotlight_content()
         if spotlight:
-            lines.append(f"  Attention on: [{spotlight.source}] {spotlight.content[:100]}")
+            lines.append(
+                f"  Attention on: [{spotlight.source}] {spotlight.content[:100]}"
+            )
 
         other = [b for b in self.get_broadcast() if b.content != self.state.spotlight]
         if other:
@@ -381,8 +403,12 @@ class GlobalWorkspace:
                 "current_contents": len(self.state.contents),
                 "cycle_count": self.state.cycle_count,
                 "total_broadcasts": self.state.total_broadcasts,
-                "spotlight": self.state.spotlight[:60] if self.state.spotlight else None,
-                "sources_in_consciousness": list({b.source for b in self.state.contents}),
+                "spotlight": self.state.spotlight[:60]
+                if self.state.spotlight
+                else None,
+                "sources_in_consciousness": list(
+                    {b.source for b in self.state.contents}
+                ),
             }
 
     def get_history(self, limit: int = 20) -> List[Dict]:
@@ -408,20 +434,24 @@ def get_workspace() -> GlobalWorkspace:
 
 def _register():
     from cognitive_architecture import CognitiveArchitecture, CognitivePlugin
+
     arch = CognitiveArchitecture()
     if "global_workspace" not in arch.list_plugins():
-        arch.register(CognitivePlugin(
-            name="global_workspace",
-            description="The bot's conscious mind: limited-capacity workspace where salient information is broadcast",
-            module_path="global_workspace",
-            instance_factory=get_workspace,
-            cycle_handler="cycle",
-            cycle_frequency=1,
-            cycle_priority=3,
-            prompt_formatter="format_prompt_snippet",
-            prompt_priority=3,
-            prompt_section="core",
-            is_core=True,
-        ))
+        arch.register(
+            CognitivePlugin(
+                name="global_workspace",
+                description="The bot's conscious mind: limited-capacity workspace where salient information is broadcast",
+                module_path="global_workspace",
+                instance_factory=get_workspace,
+                cycle_handler="cycle",
+                cycle_frequency=1,
+                cycle_priority=3,
+                prompt_formatter="format_prompt_snippet",
+                prompt_priority=3,
+                prompt_section="core",
+                is_core=True,
+            )
+        )
+
 
 _register()

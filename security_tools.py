@@ -10,7 +10,6 @@ by the model, and require the domain to be in the session authorized set
 when called via slash commands.
 """
 
-
 from tools import (
     tool_enumerate_subdomains,
     tool_fuzz_directories,

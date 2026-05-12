@@ -1,4 +1,5 @@
 """FastAPI web app with SSE streaming, markdown rendering, and modern UI."""
+
 import asyncio
 import json
 import traceback
@@ -327,13 +328,22 @@ async def api_chat(request: Request):
     message = payload.get("message", "").strip()
     if not message:
         return JSONResponse({"error": "message is required"}, status_code=400)
-    prompt, emotion, dissonance = build_chat_prompt(message, state, memory, goals_db=goals_db, doc_store=doc_store, prefs=state.prefs)
+    prompt, emotion, dissonance = build_chat_prompt(
+        message,
+        state,
+        memory,
+        goals_db=goals_db,
+        doc_store=doc_store,
+        prefs=state.prefs,
+    )
     output = await asyncio.to_thread(brain.agent_turn, prompt, tools_enabled=True)
     try:
         await asyncio.to_thread(brain.evaluate_last, prompt, output)
     except Exception:
         pass
-    importance = min(0.95, 0.45 + emotion["intensity"] * 0.3 + dissonance["score"] * 0.15)
+    importance = min(
+        0.95, 0.45 + emotion["intensity"] * 0.3 + dissonance["score"] * 0.15
+    )
     await asyncio.to_thread(
         memory.save_interaction,
         message,
@@ -343,7 +353,9 @@ async def api_chat(request: Request):
         importance=importance,
         dissonance=dissonance,
     )
-    await asyncio.to_thread(history.append, message, output, state.mode, emotion, dissonance)
+    await asyncio.to_thread(
+        history.append, message, output, state.mode, emotion, dissonance
+    )
     state.turns += 1
     return {"reply": output}
 
@@ -363,12 +375,21 @@ async def api_chat_stream(request: Request):
             media_type="text/event-stream",
         )
 
-    prompt, emotion, dissonance = build_chat_prompt(message, state, memory, goals_db=goals_db, doc_store=doc_store, prefs=state.prefs)
+    prompt, emotion, dissonance = build_chat_prompt(
+        message,
+        state,
+        memory,
+        goals_db=goals_db,
+        doc_store=doc_store,
+        prefs=state.prefs,
+    )
 
     async def event_generator():
         try:
             # Run synchronous stream in a thread to avoid blocking the event loop
-            chunks = await asyncio.to_thread(lambda: list(brain.agent_turn_stream(prompt, tools_enabled=True)))
+            chunks = await asyncio.to_thread(
+                lambda: list(brain.agent_turn_stream(prompt, tools_enabled=True))
+            )
             for chunk in chunks:
                 yield f"data: {json.dumps({'chunk': chunk})}\n\n"
             yield "data: [DONE]\n\n"
@@ -378,7 +399,9 @@ async def api_chat_stream(request: Request):
                 await asyncio.to_thread(brain.evaluate_last, prompt, output)
             except Exception:
                 pass
-            importance = min(0.95, 0.45 + emotion["intensity"] * 0.3 + dissonance["score"] * 0.15)
+            importance = min(
+                0.95, 0.45 + emotion["intensity"] * 0.3 + dissonance["score"] * 0.15
+            )
             await asyncio.to_thread(
                 memory.save_interaction,
                 message,
@@ -388,7 +411,9 @@ async def api_chat_stream(request: Request):
                 importance=importance,
                 dissonance=dissonance,
             )
-            await asyncio.to_thread(history.append, message, output, state.mode, emotion, dissonance)
+            await asyncio.to_thread(
+                history.append, message, output, state.mode, emotion, dissonance
+            )
             state.turns += 1
         except Exception as exc:
             traceback.print_exc()
@@ -433,4 +458,5 @@ async def api_health():
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="127.0.0.1", port=8765)

@@ -1,4 +1,5 @@
 """Tests for security reconnaissance tools and authorization layer."""
+
 import sys
 import unittest
 from pathlib import Path
@@ -13,15 +14,25 @@ from tools import (
     tool_fuzz_directories,
     tool_run_nuclei_scan,
 )
-from security_tools import is_authorized, tool_recon_enum, tool_recon_fuzz, tool_recon_summary
+from security_tools import (
+    is_authorized,
+    tool_recon_enum,
+    tool_recon_fuzz,
+    tool_recon_summary,
+)
 
 
 class TestTargetValidation(unittest.TestCase):
     def test_valid_http_url(self):
-        self.assertEqual(_validate_scan_target("http://example.com"), "http://example.com")
+        self.assertEqual(
+            _validate_scan_target("http://example.com"), "http://example.com"
+        )
 
     def test_valid_https_url(self):
-        self.assertEqual(_validate_scan_target("https://example.com/path"), "https://example.com/path")
+        self.assertEqual(
+            _validate_scan_target("https://example.com/path"),
+            "https://example.com/path",
+        )
 
     def test_rejects_ftp(self):
         with self.assertRaises(ValueError):
@@ -59,7 +70,9 @@ class TestScopeHint(unittest.TestCase):
 
 class TestAuthorizationGate(unittest.TestCase):
     def test_fuzz_requires_auth(self):
-        result = tool_fuzz_directories("https://example.com", authorization_confirmed=False)
+        result = tool_fuzz_directories(
+            "https://example.com", authorization_confirmed=False
+        )
         self.assertIn("authorization_confirmed must be true", result)
 
     def test_enum_requires_auth(self):
@@ -67,17 +80,22 @@ class TestAuthorizationGate(unittest.TestCase):
         self.assertIn("authorization_confirmed must be true", result)
 
     def test_nuclei_requires_auth(self):
-        result = tool_run_nuclei_scan("https://example.com", authorization_confirmed=False)
+        result = tool_run_nuclei_scan(
+            "https://example.com", authorization_confirmed=False
+        )
         self.assertIn("authorization_confirmed must be true", result)
 
     def test_nuclei_external_needs_scope_note(self):
-        result = tool_run_nuclei_scan("https://example.com", authorization_confirmed=True, scope_note="")
+        result = tool_run_nuclei_scan(
+            "https://example.com", authorization_confirmed=True, scope_note=""
+        )
         self.assertIn("external targets require a short scope_note", result)
 
     @patch("tools.subprocess.run")
     @patch("tools.shutil.which", return_value="/usr/bin/nuclei")
     def test_nuclei_external_with_note_ok(self, _which_mock, run_mock):
         from unittest.mock import MagicMock
+
         mock_result = MagicMock()
         mock_result.stdout = ""
         mock_result.stderr = ""
@@ -86,9 +104,7 @@ class TestAuthorizationGate(unittest.TestCase):
         result = tool_run_nuclei_scan(
             "https://example.com", authorization_confirmed=True, scope_note="bug bounty"
         )
-        self.assertTrue(
-            "[ok:" in result or "[error:" in result
-        )
+        self.assertTrue("[ok:" in result or "[error:" in result)
 
 
 class TestReconWrappers(unittest.TestCase):
@@ -117,6 +133,7 @@ class TestReconWrappers(unittest.TestCase):
 class TestFuzzWordlistFallback(unittest.TestCase):
     def test_ensure_wordlist_returns_none_when_missing(self):
         from tools import _ensure_wordlist
+
         result = _ensure_wordlist("/nonexistent/wordlist.txt")
         # If no wordlists exist on the system, this returns None
         self.assertTrue(result is None or isinstance(result, str))

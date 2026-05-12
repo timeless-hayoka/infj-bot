@@ -1,4 +1,5 @@
 """Tests for the Value System module."""
+
 import sys
 import tempfile
 import unittest
@@ -39,7 +40,9 @@ class TestValueSystem(unittest.TestCase):
     def test_detect_conflict(self):
         self.vs.observe("honesty is key")
         self.vs.observe("kindness is key")
-        resolution = self.vs.detect_conflict("honesty", "kindness", "white lie situation")
+        resolution = self.vs.detect_conflict(
+            "honesty", "kindness", "white lie situation"
+        )
         self.assertIsNotNone(resolution)
         self.assertIn("honesty", resolution)
 

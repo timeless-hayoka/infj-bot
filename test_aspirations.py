@@ -1,4 +1,5 @@
 """Tests for the aspirational self module."""
+
 import os
 import tempfile
 from pathlib import Path

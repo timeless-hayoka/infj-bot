@@ -12,6 +12,7 @@ if _hive_path not in _sys.path:
 try:
     from observatory.server import INDEX_HTML as _OBS_HTML, gather_state as _obs_gather
     from drift_bridge import DriftBridge as _DriftBridge
+
     _obs_drift = _DriftBridge()
     _OBSERVATORY_ENABLED = True
 except Exception:
@@ -207,13 +208,22 @@ refreshGrowth();
 
 
 def chat_reply(message):
-    prompt, emotion, dissonance = build_chat_prompt(message, state, memory, goals_db=goals_db, doc_store=doc_store, prefs=state.prefs)
+    prompt, emotion, dissonance = build_chat_prompt(
+        message,
+        state,
+        memory,
+        goals_db=goals_db,
+        doc_store=doc_store,
+        prefs=state.prefs,
+    )
     output = brain.agent_turn(prompt, tools_enabled=True)
     try:
         brain.evaluate_last(prompt, output)
     except Exception:
         pass
-    importance = min(0.95, 0.45 + emotion["intensity"] * 0.3 + dissonance["score"] * 0.15)
+    importance = min(
+        0.95, 0.45 + emotion["intensity"] * 0.3 + dissonance["score"] * 0.15
+    )
     memory.save_interaction(
         message,
         output,
@@ -313,6 +323,7 @@ class Handler(BaseHTTPRequestHandler):
                 self._json({"reply": reply})
             elif self.path == "/api/email":
                 from emailer import send_email
+
                 result = send_email(
                     to=payload.get("to", ""),
                     subject=payload.get("subject", ""),

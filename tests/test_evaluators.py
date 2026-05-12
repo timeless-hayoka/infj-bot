@@ -37,16 +37,40 @@ class TestConsistencyEvaluator(unittest.TestCase):
 
     def test_mood_stability_explained(self):
         logs = [
-            {"session_id": "test", "mood": "neutral", "user_input": "hello", "bot_response": "hi", "mode": "companion"},
-            {"session_id": "test", "mood": "joyful", "user_input": "I am so happy today", "bot_response": "wonderful", "mode": "companion"},
+            {
+                "session_id": "test",
+                "mood": "neutral",
+                "user_input": "hello",
+                "bot_response": "hi",
+                "mode": "companion",
+            },
+            {
+                "session_id": "test",
+                "mood": "joyful",
+                "user_input": "I am so happy today",
+                "bot_response": "wonderful",
+                "mode": "companion",
+            },
         ]
         report = self.evaluator.evaluate_session(logs)
         self.assertGreater(report.mood_stability, 0.0)
 
     def test_homeostatic_continuity(self):
         logs = [
-            {"session_id": "test", "mood": "neutral", "user_input": "hello", "bot_response": "hi", "mode": "companion"},
-            {"session_id": "test", "mood": "neutral", "user_input": "how are you", "bot_response": "good", "mode": "companion"},
+            {
+                "session_id": "test",
+                "mood": "neutral",
+                "user_input": "hello",
+                "bot_response": "hi",
+                "mode": "companion",
+            },
+            {
+                "session_id": "test",
+                "mood": "neutral",
+                "user_input": "how are you",
+                "bot_response": "good",
+                "mode": "companion",
+            },
         ]
         report = self.evaluator.evaluate_session(logs)
         self.assertGreaterEqual(report.homeostatic_continuity, 0.0)
@@ -64,7 +88,9 @@ class TestModeDiscriminator(unittest.TestCase):
             {"mode": "researcher", "bot": "Let me examine the evidence carefully."},
             {"mode": "researcher", "bot": "Studies suggest a different pattern."},
         ]
-        report = self.disc.evaluate_modes(["companion", "researcher"], prompts=None, n_prompts=0)
+        report = self.disc.evaluate_modes(
+            ["companion", "researcher"], prompts=None, n_prompts=0
+        )
         # Since n_prompts=0, no live generation happens; report should still compute structural scores
         self.assertIsInstance(report.overall_score, float)
         self.assertGreaterEqual(report.overall_score, 0.0)
@@ -120,7 +146,9 @@ class TestSelfModifyAudit(unittest.TestCase):
         self.assertEqual(proposals[0]["approval_status"], "pending")
 
         self.assertTrue(self.audit.approve(pid, approved_by="test"))
-        self.assertFalse(self.audit.approve(pid, approved_by="test"))  # already approved
+        self.assertFalse(
+            self.audit.approve(pid, approved_by="test")
+        )  # already approved
 
         report = self.audit.compute_stability()
         self.assertEqual(report.active_modifications, 1)

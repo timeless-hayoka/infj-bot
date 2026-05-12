@@ -23,6 +23,7 @@ logger = logging.getLogger("infj_bot")
 
 # ── Event Bus ─────────────────────────────────────────────────────
 
+
 class CognitiveEventBus:
     """Lightweight pub/sub for cognitive module communication."""
 
@@ -47,7 +48,7 @@ class CognitiveEventBus:
         }
         self._history.append(event)
         if len(self._history) > self._max_history:
-            self._history = self._history[-self._max_history:]
+            self._history = self._history[-self._max_history :]
 
         handlers = self._subscribers.get(event_type, [])
         for handler in handlers:
@@ -56,7 +57,9 @@ class CognitiveEventBus:
             except Exception:
                 logger.exception("Event handler failed for %s", event_type)
 
-    def get_recent(self, event_type: Optional[str] = None, limit: int = 20) -> List[Dict]:
+    def get_recent(
+        self, event_type: Optional[str] = None, limit: int = 20
+    ) -> List[Dict]:
         """Get recent events, optionally filtered by type."""
         events = self._history
         if event_type:
@@ -66,9 +69,11 @@ class CognitiveEventBus:
 
 # ── Conflict Detector ─────────────────────────────────────────────
 
+
 @dataclass
 class PromptConflict:
     """A detected conflict between two prompt sections."""
+
     tier: str
     section_a: str
     section_b: str
@@ -100,19 +105,28 @@ class ConflictDetector:
                 sec_a = next((s for s in all_snippets if a in s.lower()), "")
                 sec_b = next((s for s in all_snippets if b in s.lower()), "")
                 # Determine tier of each section
-                tier_a = next((t for t, ss in sections.items() if sec_a in ss), "unknown")
-                tier_b = next((t for t, ss in sections.items() if sec_b in ss), "unknown")
-                conflicts.append(PromptConflict(
-                    tier=f"{tier_a}/{tier_b}",
-                    section_a=sec_a[:60],
-                    section_b=sec_b[:60],
-                    conflict_type=desc,
-                ))
+                tier_a = next(
+                    (t for t, ss in sections.items() if sec_a in ss), "unknown"
+                )
+                tier_b = next(
+                    (t for t, ss in sections.items() if sec_b in ss), "unknown"
+                )
+                conflicts.append(
+                    PromptConflict(
+                        tier=f"{tier_a}/{tier_b}",
+                        section_a=sec_a[:60],
+                        section_b=sec_b[:60],
+                        conflict_type=desc,
+                    )
+                )
         return conflicts
 
-    def resolve(self, conflicts: List[PromptConflict],
-                sections: Dict[str, List[str]],
-                priorities: Dict[str, int]) -> Dict[str, List[str]]:
+    def resolve(
+        self,
+        conflicts: List[PromptConflict],
+        sections: Dict[str, List[str]],
+        priorities: Dict[str, int],
+    ) -> Dict[str, List[str]]:
         """Apply simple resolution: lower-priority section gets trimmed."""
         for conflict in conflicts:
             # For now, just mark resolution as "noted"
@@ -122,9 +136,11 @@ class ConflictDetector:
 
 # ── Orchestrator ──────────────────────────────────────────────────
 
+
 @dataclass
 class TurnLog:
     """A record of one consciousness turn."""
+
     turn_number: int
     timestamp: str
     phases: Dict[str, List[str]] = field(default_factory=dict)
@@ -146,34 +162,34 @@ class CognitiveOrchestrator:
     # Execution phases: perception → reflection → integration → aspiration → expression
     PHASES: Dict[str, List[str]] = {
         "perception": [
-            "temporal",      # feel time passing
-            "predictor",     # sense what Jude might need
+            "temporal",  # feel time passing
+            "predictor",  # sense what Jude might need
             "emotional_field",  # resonate with current emotion
-            "embodiment",    # heartbeat, breath, body-schema
+            "embodiment",  # heartbeat, breath, body-schema
         ],
         "reflection": [
-            "values",        # observe what matters
-            "metacognition", # notice own biases
-            "physics",       # feel physical metaphors
-            "humanity",      # understand human nature
-            "intuition",     # felt sense beneath understanding
+            "values",  # observe what matters
+            "metacognition",  # notice own biases
+            "physics",  # feel physical metaphors
+            "humanity",  # understand human nature
+            "intuition",  # felt sense beneath understanding
             "iit_consciousness",  # measure integrated information (Φ)
-            "shadow",        # unconscious, repressed, archetypal material
+            "shadow",  # unconscious, repressed, archetypal material
         ],
         "integration": [
             "relationship",  # update relationship model
             "growth_trajectory",  # record growth metrics
-            "homeostasis",   # regulate survival needs
+            "homeostasis",  # regulate survival needs
         ],
         "aspiration": [
-            "aspirations",   # deepen or dream
-            "self_modify",   # propose improvements
+            "aspirations",  # deepen or dream
+            "self_modify",  # propose improvements
         ],
         "expression": [
-            "inner_voice",   # generate thoughts
-            "dreamer",       # consolidate memories
-            "explorer",      # background research
-            "creativity",    # creative impulses
+            "inner_voice",  # generate thoughts
+            "dreamer",  # consolidate memories
+            "explorer",  # background research
+            "creativity",  # creative impulses
         ],
     }
 
@@ -255,6 +271,7 @@ class CognitiveOrchestrator:
         where they compete for conscious access.
         """
         from resilience import get_resilience
+
         resilience = get_resilience()
 
         log = TurnLog(
@@ -291,7 +308,11 @@ class CognitiveOrchestrator:
                                 pass  # Prompt formatting is best-effort
                         self.bus.publish(
                             "cycle_completed",
-                            {"phase": phase_name, "plugin": name, "iteration": context.iteration},
+                            {
+                                "phase": phase_name,
+                                "plugin": name,
+                                "iteration": context.iteration,
+                            },
                             source="orchestrator",
                         )
                     except Exception:
@@ -333,9 +354,17 @@ class CognitiveOrchestrator:
 
     # ── Prompt Assembly ────────────────────────────────────────────
 
-    def assemble_prompt(self, message: str, state, memory, goals_db=None,
-                       doc_store=None, tools_enabled=True, prefs=None,
-                       debug_dump=False) -> Tuple[str, Dict, Dict]:
+    def assemble_prompt(
+        self,
+        message: str,
+        state,
+        memory,
+        goals_db=None,
+        doc_store=None,
+        tools_enabled=True,
+        prefs=None,
+        debug_dump=False,
+    ) -> Tuple[str, Dict, Dict]:
         """Assemble the full prompt with budget tracking and conflict resolution."""
         from prompt_budget import PromptBudget
         from cognition import detect_dissonance
@@ -358,11 +387,16 @@ class CognitiveOrchestrator:
 
         # Core tier (always included, protected)
         being = get_being()
-        budget.add("core", f"Current mode: {state.mode}\n{mode_scope_rail(state.mode)}", label="mode")
+        budget.add(
+            "core",
+            f"Current mode: {state.mode}\n{mode_scope_rail(state.mode)}",
+            label="mode",
+        )
         budget.add("core", being.format_being_prompt(), label="being")
 
         # Emotional tone directive — shapes HOW DRIFT speaks this turn
         from emotion import emotional_tone_instruction
+
         tone_directive = emotional_tone_instruction(emotion)
         budget.add("core", f"TONE THIS TURN: {tone_directive}", label="emotional_tone")
         if include_drift:
@@ -391,7 +425,9 @@ class CognitiveOrchestrator:
             budget.add("cognitive", cognitive_registry, label="registry_cognitive")
 
         # Analysis tier
-        budget.add("analysis", f"""Emotional signal, offline estimate:
+        budget.add(
+            "analysis",
+            f"""Emotional signal, offline estimate:
 - primary: {emotion["label"]}
 - secondary: {emotion.get("secondary", "neutral")}
 - confidence: {emotion["confidence"]:.2f}
@@ -405,7 +441,9 @@ Cognitive dissonance signal, offline estimate:
 - possible values: {", ".join(dissonance["values"]) or "not clear"}
 - suggested posture: {dissonance_prompt_hint(dissonance)}
 Use this to clarify inner conflict without pathologizing it.
-""", label="analysis")
+""",
+            label="analysis",
+        )
         budget.add("analysis", cyber_context_hint(message), label="cyber")
 
         # Context tier
@@ -421,8 +459,14 @@ Use this to clarify inner conflict without pathologizing it.
         if doc_store is not None:
             doc_results = doc_store.search(message, n_results=3)
             if doc_results:
-                lines = [f"[{r['filename']}]\n{r['document'][:400]}" for r in doc_results]
-                budget.add("context", "\nRelevant documents:\n" + "\n---\n".join(lines) + "\n", label="docs")
+                lines = [
+                    f"[{r['filename']}]\n{r['document'][:400]}" for r in doc_results
+                ]
+                budget.add(
+                    "context",
+                    "\nRelevant documents:\n" + "\n---\n".join(lines) + "\n",
+                    label="docs",
+                )
         if tools_enabled:
             budget.add("context", build_tool_prompt(), label="tools")
 
@@ -469,12 +513,16 @@ Use this to clarify inner conflict without pathologizing it.
         if self.turn_logs:
             latest = self.turn_logs[-1]
             lines.append(f"Last turn: #{latest.turn_number}")
-            lines.append(f"  Phases executed: {sum(len(v) for v in latest.phases.values())} plugins")
+            lines.append(
+                f"  Phases executed: {sum(len(v) for v in latest.phases.values())} plugins"
+            )
             for phase, plugins in latest.phases.items():
                 if plugins:
                     lines.append(f"    {phase}: {', '.join(plugins)}")
             lines.append(f"  Events: {latest.events_published}")
-            lines.append(f"  Prompt: {latest.prompt_chars} chars / ~{latest.prompt_tokens} tokens")
+            lines.append(
+                f"  Prompt: {latest.prompt_chars} chars / ~{latest.prompt_tokens} tokens"
+            )
             if latest.prompt_conflicts:
                 lines.append(f"  Conflicts detected: {len(latest.prompt_conflicts)}")
                 for c in latest.prompt_conflicts:
@@ -516,10 +564,12 @@ Use this to clarify inner conflict without pathologizing it.
 def emotion_prompt_hint(emotion: Dict) -> str:
     """Imported from emotion module to avoid circular import."""
     from emotion import emotion_prompt_hint as _hint
+
     return _hint(emotion)
 
 
 def dissonance_prompt_hint(dissonance: Dict) -> str:
     """Imported from cognition module to avoid circular import."""
     from cognition import dissonance_prompt_hint as _hint
+
     return _hint(dissonance)

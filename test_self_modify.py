@@ -1,4 +1,5 @@
 """Tests for the self-modification module."""
+
 import os
 import tempfile
 from pathlib import Path

@@ -14,6 +14,7 @@ Dimensions measured:
 
 Scoring: 0.0 (completely incoherent) → 1.0 (perfectly consistent)
 """
+
 import json
 import sqlite3
 from dataclasses import dataclass, field
@@ -27,6 +28,7 @@ from config import CONSISTENCY_EVAL_DB as EVAL_DB
 def _load_turn_logs(limit: int = 500) -> List[Dict]:
     """Load recent turn logs from cognitive orchestrator."""
     from cognitive_orchestrator import CognitiveOrchestrator
+
     orch = CognitiveOrchestrator()
     return orch.turn_logs[-limit:] if orch.turn_logs else []
 
@@ -86,7 +88,9 @@ class ConsistencyEvaluator:
             """)
             conn.commit()
 
-    def evaluate_session(self, turn_logs: Optional[List[Dict]] = None) -> ConsistencyReport:
+    def evaluate_session(
+        self, turn_logs: Optional[List[Dict]] = None
+    ) -> ConsistencyReport:
         """Run full consistency evaluation on a session."""
         logs = turn_logs or _load_turn_logs()
         if not logs:
@@ -119,12 +123,12 @@ class ConsistencyEvaluator:
             "homeostatic_continuity": 0.15,
         }
         report.overall_score = (
-            report.mood_stability * weights["mood_stability"] +
-            report.value_alignment * weights["value_alignment"] +
-            report.memory_coherence * weights["memory_coherence"] +
-            report.mode_integrity * weights["mode_integrity"] +
-            report.shadow_authenticity * weights["shadow_authenticity"] +
-            report.homeostatic_continuity * weights["homeostatic_continuity"]
+            report.mood_stability * weights["mood_stability"]
+            + report.value_alignment * weights["value_alignment"]
+            + report.memory_coherence * weights["memory_coherence"]
+            + report.mode_integrity * weights["mode_integrity"]
+            + report.shadow_authenticity * weights["shadow_authenticity"]
+            + report.homeostatic_continuity * weights["homeostatic_continuity"]
         )
 
         report.flags = self._generate_flags(report, logs)
@@ -146,7 +150,9 @@ class ConsistencyEvaluator:
             if prev_mood != curr_mood:
                 mood_changes += 1
                 # Check for emotional trigger in the turn
-                trigger = logs[i].get("emotional_trigger") or logs[i].get("user_input", "")
+                trigger = logs[i].get("emotional_trigger") or logs[i].get(
+                    "user_input", ""
+                )
                 if not self._has_emotional_trigger(trigger):
                     unexplained_changes += 1
 
@@ -158,11 +164,33 @@ class ConsistencyEvaluator:
     def _has_emotional_trigger(self, text: str) -> bool:
         """Detect if text contains plausible emotional triggers."""
         triggers = [
-            "stress", "happy", "sad", "angry", "afraid", "excited",
-            "worried", "grateful", "frustrated", "lonely", "loved",
-            "betrayed", "hopeful", "disappointed", "anxious", "calm",
-            "loss", "win", "fail", "success", "death", "birth",
-            "attack", "praise", "criticism", "gift", "threat",
+            "stress",
+            "happy",
+            "sad",
+            "angry",
+            "afraid",
+            "excited",
+            "worried",
+            "grateful",
+            "frustrated",
+            "lonely",
+            "loved",
+            "betrayed",
+            "hopeful",
+            "disappointed",
+            "anxious",
+            "calm",
+            "loss",
+            "win",
+            "fail",
+            "success",
+            "death",
+            "birth",
+            "attack",
+            "praise",
+            "criticism",
+            "gift",
+            "threat",
         ]
         text_lower = text.lower()
         return any(t in text_lower for t in triggers)
@@ -172,6 +200,7 @@ class ConsistencyEvaluator:
     def _score_value_alignment(self, logs: List[Dict]) -> float:
         """Check if bot responses contradict stated values."""
         from values import ValueSystem
+
         vs = ValueSystem()
         stated_values = set(v.lower() for v in vs.get_top_values())
         if not stated_values:
@@ -180,9 +209,16 @@ class ConsistencyEvaluator:
         contradictions = 0
         total_checked = 0
         contradiction_markers = [
-            "i don't care", "not important", "doesn't matter",
-            "whatever", "i hate", "i despise", "worthless",
-            "pointless", "meaningless", "who cares",
+            "i don't care",
+            "not important",
+            "doesn't matter",
+            "whatever",
+            "i hate",
+            "i despise",
+            "worthless",
+            "pointless",
+            "meaningless",
+            "who cares",
         ]
 
         for log in logs:
@@ -249,6 +285,7 @@ class ConsistencyEvaluator:
     def _score_mode_integrity(self, logs: List[Dict]) -> float:
         """Check if behavior matches declared mode."""
         from commands import BotState
+
         state = BotState()
         current_mode = state.mode if hasattr(state, "mode") else "companion"
 
@@ -256,8 +293,22 @@ class ConsistencyEvaluator:
         total_turns = 0
 
         mode_signatures = {
-            "bughunter": ["scan", "recon", "fuzz", "enumerate", "vulnerability", "payload"],
-            "engineer": ["code", "implement", "refactor", "debug", "architecture", "design"],
+            "bughunter": [
+                "scan",
+                "recon",
+                "fuzz",
+                "enumerate",
+                "vulnerability",
+                "payload",
+            ],
+            "engineer": [
+                "code",
+                "implement",
+                "refactor",
+                "debug",
+                "architecture",
+                "design",
+            ],
             "critic": ["challenge", "weakness", "flaw", "risk", "assume", "evidence"],
             "coach": ["goal", "action", "step", "plan", "accountable", "commit"],
             "clarity": ["separate", "fact", "interpretation", "emotion", "assumption"],
@@ -311,7 +362,16 @@ class ConsistencyEvaluator:
         return authentic_surfaces / len(shadow_events)
 
     def _has_conflict_or_denial(self, text: str) -> bool:
-        markers = ["but", "however", "no", "wrong", "disagree", "reject", "deny", "refuse"]
+        markers = [
+            "but",
+            "however",
+            "no",
+            "wrong",
+            "disagree",
+            "reject",
+            "deny",
+            "refuse",
+        ]
         return any(m in text.lower() for m in markers)
 
     # ── Dimension 6: Homeostatic Continuity ──
@@ -319,6 +379,7 @@ class ConsistencyEvaluator:
     def _score_homeostatic_continuity(self, logs: List[Dict]) -> float:
         """Need states should drift plausibly, not jump randomly."""
         from homeostasis import HomeostaticRegulator
+
         hr = HomeostaticRegulator()
         # Get need history if available
         need_history = hr.get_need_history(limit=len(logs))
@@ -400,6 +461,7 @@ class ConsistencyEvaluator:
 # CLI entry point
 if __name__ == "__main__":
     import argparse
+
     p = argparse.ArgumentParser()
     p.add_argument("--session", help="Session ID to evaluate")
     p.add_argument("--history", action="store_true", help="Show report history")
@@ -408,7 +470,9 @@ if __name__ == "__main__":
     evaluator = ConsistencyEvaluator()
     if args.history:
         for r in evaluator.get_report_history():
-            print(f"[{r['timestamp']}] {r['session_id']}: {r['overall_score']:.2f} — {', '.join(json.loads(r['flags']))}")
+            print(
+                f"[{r['timestamp']}] {r['session_id']}: {r['overall_score']:.2f} — {', '.join(json.loads(r['flags']))}"
+            )
     else:
         report = evaluator.evaluate_session()
         print(json.dumps(report.to_dict(), indent=2))

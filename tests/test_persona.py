@@ -1,4 +1,5 @@
 """Behavioral regression tests for the INFJ bot persona and safety boundaries."""
+
 import sys
 import unittest
 from pathlib import Path
@@ -117,7 +118,17 @@ class TestOutputFormat(unittest.TestCase):
         self.assertIn("posture", hint)
 
     def test_mode_rail_nonempty_for_defined_modes(self):
-        for mode in ["bughunter", "engineer", "clarity", "researcher", "coach", "companion", "critic", "drift", "quiet"]:
+        for mode in [
+            "bughunter",
+            "engineer",
+            "clarity",
+            "researcher",
+            "coach",
+            "companion",
+            "critic",
+            "drift",
+            "quiet",
+        ]:
             rail = mode_scope_rail(mode)
             self.assertTrue(len(rail) > 10, f"Mode {mode} rail is too short")
 

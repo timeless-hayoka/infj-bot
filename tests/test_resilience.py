@@ -125,12 +125,18 @@ class TestResilienceManager:
 
     def test_execute_failure_returns_fallback(self):
         rm = ResilienceManager()
-        result = rm.execute_sync("test", lambda: (_ for _ in ()).throw(ValueError("boom")), fallback="safe")
+        result = rm.execute_sync(
+            "test", lambda: (_ for _ in ()).throw(ValueError("boom")), fallback="safe"
+        )
         assert result == "safe"
 
     def test_circuit_opens_after_repeated_failures(self):
         rm = ResilienceManager()
         for _ in range(3):
-            rm.execute_sync("fragile", lambda: (_ for _ in ()).throw(RuntimeError("fail")), fallback=None)
+            rm.execute_sync(
+                "fragile",
+                lambda: (_ for _ in ()).throw(RuntimeError("fail")),
+                fallback=None,
+            )
         breaker = rm.get_breaker("fragile")
         assert breaker.state == "open"

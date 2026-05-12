@@ -1,4 +1,5 @@
 """Rate limiter for API calls."""
+
 import time
 from functools import wraps
 
@@ -34,12 +35,15 @@ class TokenBucket:
 
 def rate_limited(bucket: TokenBucket, tokens: int = 1):
     """Decorator that rate-limits a function using a TokenBucket."""
+
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
             bucket.wait_and_acquire(tokens)
             return func(*args, **kwargs)
+
         return wrapper
+
     return decorator
 
 

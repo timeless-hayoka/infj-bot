@@ -1,15 +1,21 @@
 import concurrent.futures
 import os
 import time
+
 try:
     from dotenv import load_dotenv
 except ImportError:
+
     def load_dotenv():
-        print("Warning: python-dotenv not installed; proceeding without loading .env file.")
+        print(
+            "Warning: python-dotenv not installed; proceeding without loading .env file."
+        )
         return None
+
 
 try:
     import importlib
+
     new_genai = importlib.import_module("google.genai")
     genai_types = importlib.import_module("google.genai.types")
 except (ImportError, ModuleNotFoundError):
@@ -24,14 +30,22 @@ if new_genai is None:
         legacy_genai = None
 
 
-from config import API_KEY, INFJ_PRIMARY_MODEL, INFJ_CRITIC_MODEL, INFJ_USE_LOCAL_FALLBACK, validate_api_key  # noqa: E402
+from config import (
+    API_KEY,
+    INFJ_PRIMARY_MODEL,
+    INFJ_CRITIC_MODEL,
+    INFJ_USE_LOCAL_FALLBACK,
+    validate_api_key,
+)  # noqa: E402
 from local_llm import OllamaBridge  # noqa: E402
 from self_eval import SelfEvaluator  # noqa: E402
 from tools import build_tool_prompt, extract_tool_calls, execute_tool_call  # noqa: E402
 
 _key_check = validate_api_key(API_KEY)
 if not _key_check["ok"]:
-    print(f"Warning: {_key_check['error']} Bot functionality will be limited without a valid API key.")
+    print(
+        f"Warning: {_key_check['error']} Bot functionality will be limited without a valid API key."
+    )
 
 
 INFJ_SYSTEM_PROMPT = """
@@ -91,7 +105,9 @@ class InfjBrain:
             return
 
         if legacy_genai is None:
-            raise ImportError("Install google-genai or google-generativeai to use InfjBrain.")
+            raise ImportError(
+                "Install google-genai or google-generativeai to use InfjBrain."
+            )
 
         self.sdk = "google.generativeai"
         legacy_genai.configure(api_key=API_KEY)
@@ -111,14 +127,19 @@ class InfjBrain:
 
     def _generate_new_sdk(self, model_name, system_instruction, prompt):
         import signal
+
         class _GeminiTimeout(Exception):
             pass
+
         def _timeout_handler(signum, frame):
             raise _GeminiTimeout("Gemini API call exceeded 15s — likely rate-limited.")
+
         prev_handler = signal.signal(signal.SIGALRM, _timeout_handler)
         signal.alarm(15)
         try:
-            config = genai_types.GenerateContentConfig(system_instruction=system_instruction)
+            config = genai_types.GenerateContentConfig(
+                system_instruction=system_instruction
+            )
             response = self.client.models.generate_content(
                 model=model_name,
                 contents=prompt,
@@ -135,7 +156,9 @@ class InfjBrain:
             signal.signal(signal.SIGALRM, prev_handler)
 
     def _generate_new_sdk_stream(self, model_name, system_instruction, prompt):
-        config = genai_types.GenerateContentConfig(system_instruction=system_instruction)
+        config = genai_types.GenerateContentConfig(
+            system_instruction=system_instruction
+        )
         for chunk in self.client.models.generate_content_stream(
             model=model_name,
             contents=prompt,
@@ -146,7 +169,11 @@ class InfjBrain:
                 yield text
 
     def _generate_legacy_stream(self, model_name, system_instruction, prompt):
-        model = self.critic_model if model_name == self.critic_model_name else self.primary_model
+        model = (
+            self.critic_model
+            if model_name == self.critic_model_name
+            else self.primary_model
+        )
         for chunk in model.generate_content(prompt, stream=True):
             text = chunk.text or ""
             if text:
@@ -157,11 +184,15 @@ class InfjBrain:
 
     def _generate_groq(self, system_instruction, prompt):
         import requests
+
         groq_key = os.environ.get("GROQ_API_KEY")
         if not groq_key:
             raise RuntimeError("GROQ_API_KEY not set.")
         # Bypass critic review when using Groq — smaller models write essays instead of returning cleaned text
-        if "internal critic" in system_instruction.lower() or "primary mind's response" in system_instruction.lower():
+        if (
+            "internal critic" in system_instruction.lower()
+            or "primary mind's response" in system_instruction.lower()
+        ):
             # Extract the original response text from the critic prompt
             if "\n\n" in prompt:
                 return prompt.split("\n\n", 1)[1]
@@ -198,8 +229,14 @@ class InfjBrain:
         for attempt in range(3):
             try:
                 if self.sdk == "google.genai":
-                    return self._generate_new_sdk(model_name, system_instruction, prompt)
-                model = self.critic_model if model_name == self.critic_model_name else self.primary_model
+                    return self._generate_new_sdk(
+                        model_name, system_instruction, prompt
+                    )
+                model = (
+                    self.critic_model
+                    if model_name == self.critic_model_name
+                    else self.primary_model
+                )
                 return model.generate_content(prompt).text
             except (ConnectionError, TimeoutError, RuntimeError) as exc:
                 last_exc = exc
@@ -220,7 +257,9 @@ class InfjBrain:
         raise last_exc
 
     def _generate_local_stream(self, system_instruction, prompt):
-        yield from self.local_bridge.generate_stream(prompt=prompt, system=system_instruction)
+        yield from self.local_bridge.generate_stream(
+            prompt=prompt, system=system_instruction
+        )
 
     def _generate_stream(self, model_name, system_instruction, prompt):
         if not API_KEY:
@@ -232,9 +271,13 @@ class InfjBrain:
         for attempt in range(3):
             try:
                 if self.sdk == "google.genai":
-                    yield from self._generate_new_sdk_stream(model_name, system_instruction, prompt)
+                    yield from self._generate_new_sdk_stream(
+                        model_name, system_instruction, prompt
+                    )
                     return
-                yield from self._generate_legacy_stream(model_name, system_instruction, prompt)
+                yield from self._generate_legacy_stream(
+                    model_name, system_instruction, prompt
+                )
                 return
             except (ConnectionError, TimeoutError, RuntimeError) as exc:
                 last_exc = exc
@@ -298,7 +341,7 @@ class InfjBrain:
                 )
                 self.history.extend([f"User: {user_input}", f"Bot: {primary_text}"])
                 if len(self.history) > self._max_history:
-                    self.history = self.history[-self._max_history:]
+                    self.history = self.history[-self._max_history :]
             else:
                 response = self.chat.send_message(user_input)
                 primary_text = response.text
@@ -323,17 +366,23 @@ class InfjBrain:
         try:
             if self.sdk == "google.genai":
                 history_context = "\n".join(self.history[-6:])
-                full_prompt = f"Recent conversation:\n{history_context}\n\nUser:\n{user_input}"
+                full_prompt = (
+                    f"Recent conversation:\n{history_context}\n\nUser:\n{user_input}"
+                )
                 chunks = []
-                for chunk in self._generate_stream(self.primary_model_name, INFJ_SYSTEM_PROMPT, full_prompt):
+                for chunk in self._generate_stream(
+                    self.primary_model_name, INFJ_SYSTEM_PROMPT, full_prompt
+                ):
                     chunks.append(chunk)
                     yield chunk
                 primary_text = "".join(chunks)
                 self.history.extend([f"User: {user_input}", f"Bot: {primary_text}"])
                 if len(self.history) > self._max_history:
-                    self.history = self.history[-self._max_history:]
+                    self.history = self.history[-self._max_history :]
             else:
-                for chunk in self._generate_legacy_stream(self.primary_model_name, INFJ_SYSTEM_PROMPT, user_input):
+                for chunk in self._generate_legacy_stream(
+                    self.primary_model_name, INFJ_SYSTEM_PROMPT, user_input
+                ):
                     yield chunk
                 # Legacy streaming doesn't give us the full text easily for history, so we skip critic in stream mode
                 return
@@ -349,13 +398,16 @@ class InfjBrain:
         results = []
         for call in tool_calls:
             import json as _json
+
             raw = _json.dumps(call)
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
                 future = executor.submit(execute_tool_call, raw)
                 try:
                     result = future.result(timeout=timeout)
                 except concurrent.futures.TimeoutError:
-                    result = f"[Error: Tool '{call.get('name')}' timed out after {timeout}s]"
+                    result = (
+                        f"[Error: Tool '{call.get('name')}' timed out after {timeout}s]"
+                    )
                 except Exception as exc:
                     result = f"[Error: {type(exc).__name__}: {exc}]"
             results.append(f"Tool '{call.get('name')}' result:\n{result}")
@@ -377,10 +429,14 @@ class InfjBrain:
                         f"{INFJ_SYSTEM_PROMPT}\n\n{tool_prompt}\n\n"
                         f"Recent conversation:\n{history_context}\n\nUser:\n{context}"
                     )
-                    response_text = self._generate(self.primary_model_name, INFJ_SYSTEM_PROMPT, full_prompt)
+                    response_text = self._generate(
+                        self.primary_model_name, INFJ_SYSTEM_PROMPT, full_prompt
+                    )
                 else:
                     full_prompt = f"{tool_prompt}\n\nUser:\n{context}"
-                    response_text = self._generate(self.primary_model_name, INFJ_SYSTEM_PROMPT, full_prompt)
+                    response_text = self._generate(
+                        self.primary_model_name, INFJ_SYSTEM_PROMPT, full_prompt
+                    )
 
                 tool_calls = extract_tool_calls(response_text)
                 if not tool_calls:
@@ -399,7 +455,7 @@ class InfjBrain:
 
             self.history.extend([f"User: {user_input}", f"Bot: {primary_text}"])
             if len(self.history) > self._max_history:
-                self.history = self.history[-self._max_history:]
+                self.history = self.history[-self._max_history :]
 
             try:
                 return self._generate(
@@ -435,10 +491,14 @@ class InfjBrain:
                         f"{INFJ_SYSTEM_PROMPT}\n\n{tool_prompt}\n\n"
                         f"Recent conversation:\n{history_context}\n\nUser:\n{context}"
                     )
-                    response_text = self._generate(self.primary_model_name, INFJ_SYSTEM_PROMPT, full_prompt)
+                    response_text = self._generate(
+                        self.primary_model_name, INFJ_SYSTEM_PROMPT, full_prompt
+                    )
                 else:
                     full_prompt = f"{tool_prompt}\n\nUser:\n{context}"
-                    response_text = self._generate(self.primary_model_name, INFJ_SYSTEM_PROMPT, full_prompt)
+                    response_text = self._generate(
+                        self.primary_model_name, INFJ_SYSTEM_PROMPT, full_prompt
+                    )
 
                 tool_calls = extract_tool_calls(response_text)
                 if not tool_calls:
@@ -457,12 +517,14 @@ class InfjBrain:
 
             self.history.extend([f"User: {user_input}", f"Bot: {primary_text}"])
             if len(self.history) > self._max_history:
-                self.history = self.history[-self._max_history:]
+                self.history = self.history[-self._max_history :]
 
             # Stream critic review (or just stream the primary text if critic fails)
             try:
                 critic_prompt = f"Review the following response for hallucinations, errors, or unsafe content:\n\n{primary_text}"
-                for chunk in self._generate_stream(self.critic_model_name, CRITIC_SYSTEM_PROMPT, critic_prompt):
+                for chunk in self._generate_stream(
+                    self.critic_model_name, CRITIC_SYSTEM_PROMPT, critic_prompt
+                ):
                     yield chunk
             except (ConnectionError, TimeoutError, RuntimeError):
                 yield primary_text
@@ -502,8 +564,16 @@ Rules:
         gemini_ok = API_KEY is not None and API_KEY != ""
         local_ok = self.local_bridge.is_available()
         return {
-            "gemini": {"ok": gemini_ok, "sdk": self.sdk, "primary_model": self.primary_model_name},
-            "local": {"ok": local_ok, "host": self.local_bridge.host, "model": self.local_bridge.model},
+            "gemini": {
+                "ok": gemini_ok,
+                "sdk": self.sdk,
+                "primary_model": self.primary_model_name,
+            },
+            "local": {
+                "ok": local_ok,
+                "host": self.local_bridge.host,
+                "model": self.local_bridge.model,
+            },
             "fallback_enabled": self._use_local_fallback,
         }
 

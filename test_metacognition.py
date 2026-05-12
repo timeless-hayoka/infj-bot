@@ -1,4 +1,5 @@
 """Tests for the metacognition module."""
+
 import os
 import tempfile
 from pathlib import Path
@@ -34,7 +35,10 @@ class TestMetacognitionEngine:
         response = "A. " * 400  # Very long response
         reflection = meta.reflect_on_response("What is 2+2?", response)
         if reflection:
-            assert any(b in meta.cognitive_biases for b in ["verbosity", "under_exploration", "over_certainty"])
+            assert any(
+                b in meta.cognitive_biases
+                for b in ["verbosity", "under_exploration", "over_certainty"]
+            )
 
     def test_reflect_on_response_no_issue(self, tmp_db):
         meta = MetacognitionEngine(db_path=tmp_db)

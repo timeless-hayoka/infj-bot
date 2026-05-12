@@ -47,9 +47,11 @@ def parse_command(user_input):
 
 def command_help(command=None):
     if command == "memory":
-        return ("/memory <query>\n/memory learn <name>: <description>\n/memory forget <name>\n"
-                "/memory count\n/memory export [path]\n/memory import <path>\n/memory compact [days]\n"
-                "/memory edit <name>: <new description>")
+        return (
+            "/memory <query>\n/memory learn <name>: <description>\n/memory forget <name>\n"
+            "/memory count\n/memory export [path]\n/memory import <path>\n/memory compact [days]\n"
+            "/memory edit <name>: <new description>"
+        )
     if command == "mode":
         return "/mode shows current mode. /mode companion|engineer|critic|coach|clarity|researcher|bughunter|drift|quiet changes it."
     if command == "reflect":
@@ -57,7 +59,9 @@ def command_help(command=None):
     if command == "dissonance":
         return "/dissonance <situation> maps conflicting pulls, likely values, and one small next step."
     if command == "focus":
-        return "/focus <goal or mess> turns a fuzzy situation into a grounded next action."
+        return (
+            "/focus <goal or mess> turns a fuzzy situation into a grounded next action."
+        )
     if command == "plan":
         return "/plan <goal> creates a compact plan with risks and a first step."
     if command == "history":
@@ -65,7 +69,7 @@ def command_help(command=None):
     if command == "reset":
         return "/reset clears the local session history and brain context (does not erase long-term memory)."
     if command == "todo":
-        return ("/todo add <title> | /todo list | /todo done <id> | /todo delete <id> | /todo priority <id> low|normal|high")
+        return "/todo add <title> | /todo list | /todo done <id> | /todo delete <id> | /todo priority <id> low|normal|high"
     if command == "ingest":
         return "/ingest <file or directory> [tag1,tag2] — ingest documents into RAG memory."
     if command == "docs":
@@ -145,28 +149,36 @@ def command_help(command=None):
     if command == "physics":
         return "/physics — show my embodied physical intuition (gravity, inertia, resonance, tension, etc.). /physics observations [principle] | /physics lessons [principle]"
     if command in ("architecture", "arch"):
-        return ("/architecture list — show all cognitive plugins.\n"
-                "/architecture enable <name> — enable a plugin.\n"
-                "/architecture disable <name> — disable a non-core plugin.\n"
-                "/architecture propose <need> — propose a new cognitive ability.\n"
-                "/architecture proposals — list pending proposals.\n"
-                "/architecture approve <name> — approve and install a proposal.\n"
-                "/architecture reject <name> — reject a proposal.")
+        return (
+            "/architecture list — show all cognitive plugins.\n"
+            "/architecture enable <name> — enable a plugin.\n"
+            "/architecture disable <name> — disable a non-core plugin.\n"
+            "/architecture propose <need> — propose a new cognitive ability.\n"
+            "/architecture proposals — list pending proposals.\n"
+            "/architecture approve <name> — approve and install a proposal.\n"
+            "/architecture reject <name> — reject a proposal."
+        )
     if command == "eval":
-        return ("/eval consistency — run multi-turn consistency evaluation\n"
-                "/eval modes — test mode discrimination\n"
-                "/eval stability — check self-modification stability\n"
-                "/eval memory — show memory reliability report\n"
-                "/eval contradictions — list unresolved memory contradictions")
+        return (
+            "/eval consistency — run multi-turn consistency evaluation\n"
+            "/eval modes — test mode discrimination\n"
+            "/eval stability — check self-modification stability\n"
+            "/eval memory — show memory reliability report\n"
+            "/eval contradictions — list unresolved memory contradictions"
+        )
     if command == "shadow":
-        return ("/shadow — show shadow status\n"
-                "/shadow speak — let the shadow speak\n"
-                "/shadow imagine — begin active imagination with a shadow figure\n"
-                "/shadow list — list unintegrated shadow content\n"
-                "/shadow integrate <id> — integrate a shadow truth into conscious self")
+        return (
+            "/shadow — show shadow status\n"
+            "/shadow speak — let the shadow speak\n"
+            "/shadow imagine — begin active imagination with a shadow figure\n"
+            "/shadow list — list unintegrated shadow content\n"
+            "/shadow integrate <id> — integrate a shadow truth into conscious self"
+        )
     if command == "email":
-        return ("/email to=<addr> subject=<subject> body=<text> — send an email.\n"
-                "Requires SMTP_USER + SMTP_PASS in .env, or Gmail MCP credentials.")
+        return (
+            "/email to=<addr> subject=<subject> body=<text> — send an email.\n"
+            "Requires SMTP_USER + SMTP_PASS in .env, or Gmail MCP credentials."
+        )
     return """Commands:
 /memory <query> | learn <name>: <description> | forget <name> | count | export [path] | import <path> | compact [days] | edit <name>: <desc>
 /mode companion|engineer|critic|coach|clarity|researcher|bughunter|drift|quiet
@@ -259,7 +271,9 @@ def handle_memory_command(args, memory):
         name, sep, description = payload.partition(":")
         if not sep or not name.strip() or not description.strip():
             return "Use: /memory learn <name>: <description>"
-        memory.learn_concept(name.strip(), description.strip(), tags=["manual"], importance=0.9)
+        memory.learn_concept(
+            name.strip(), description.strip(), tags=["manual"], importance=0.9
+        )
         return f"Learned concept: {name.strip()}"
     if args.startswith("forget "):
         name = args.removeprefix("forget ").strip()
@@ -289,7 +303,11 @@ def handle_memory_command(args, memory):
         return "No matching memories found."
     lines = []
     for document, metadata in matches:
-        label = metadata.get("concept") or metadata.get("title") or metadata.get("type", "memory")
+        label = (
+            metadata.get("concept")
+            or metadata.get("title")
+            or metadata.get("type", "memory")
+        )
         lines.append(f"[{label}]\n{document}")
     return "\n---\n".join(lines)
 
@@ -440,7 +458,13 @@ def handle_todo_command(args, goals_db):
         if not goal:
             return f"Goal [{gid}] not found."
         # Re-add with same metadata but new priority (simple upsert approach)
-        goals_db.add_goal(goal.title, description=goal.description, priority=pmap[level], due_at=goal.due_at, tags=goal.tags)
+        goals_db.add_goal(
+            goal.title,
+            description=goal.description,
+            priority=pmap[level],
+            due_at=goal.due_at,
+            tags=goal.tags,
+        )
         goals_db.delete_goal(gid)
         return f"Updated priority for [{gid}] to {level}."
     return command_help("todo")
@@ -466,6 +490,7 @@ def handle_docs_command(args, doc_store):
         return command_help("docs")
     results = doc_store.search(args, n_results=5)
     from documents import format_doc_results
+
     return format_doc_results(results)
 
 
@@ -488,15 +513,20 @@ def handle_unauthorize_command(args, state):
 def handle_authorized_command(state):
     if not state.authorized_targets:
         return "No session-authorized targets.\nUse /authorize <domain> or set INFJ_AUTHORIZED_TARGETS in .env"
-    return "Session authorized targets:\n" + "\n".join(f"- {d}" for d in sorted(state.authorized_targets))
+    return "Session authorized targets:\n" + "\n".join(
+        f"- {d}" for d in sorted(state.authorized_targets)
+    )
 
 
 def handle_recon_command(args, state):
     if not args:
         return command_help("recon")
     if state.mode != "bughunter":
-        return "Recon tools are restricted to bughunter mode. Use /mode bughunter first."
+        return (
+            "Recon tools are restricted to bughunter mode. Use /mode bughunter first."
+        )
     from security_tools import tool_recon_summary
+
     return tool_recon_summary(args, authorized=state.authorized_targets)
 
 
@@ -504,8 +534,11 @@ def handle_recon_enum_command(args, state):
     if not args:
         return command_help("recon-enum")
     if state.mode != "bughunter":
-        return "Recon tools are restricted to bughunter mode. Use /mode bughunter first."
+        return (
+            "Recon tools are restricted to bughunter mode. Use /mode bughunter first."
+        )
     from security_tools import tool_recon_enum
+
     return tool_recon_enum(args, authorized=state.authorized_targets)
 
 
@@ -513,8 +546,11 @@ def handle_recon_fuzz_command(args, state):
     if not args:
         return command_help("recon-fuzz")
     if state.mode != "bughunter":
-        return "Recon tools are restricted to bughunter mode. Use /mode bughunter first."
+        return (
+            "Recon tools are restricted to bughunter mode. Use /mode bughunter first."
+        )
     from security_tools import tool_recon_fuzz
+
     return tool_recon_fuzz(args, authorized=state.authorized_targets)
 
 
@@ -523,7 +559,14 @@ def handle_computer_use_command(args, state):
         return command_help("computer-use")
     url = args.strip()
     from computer_use import run_computer_actions
-    domain = url.replace("https://", "").replace("http://", "").split("/")[0].split(":")[0].lower()
+
+    domain = (
+        url.replace("https://", "")
+        .replace("http://", "")
+        .split("/")[0]
+        .split(":")[0]
+        .lower()
+    )
     if domain not in state.authorized_targets:
         return f"[error: {domain} is not authorized. Use /authorize <domain> first.]"
     return run_computer_actions(
@@ -534,11 +577,13 @@ def handle_computer_use_command(args, state):
 
 def handle_computer_status_command():
     from computer_use import get_computer_session_status
+
     return get_computer_session_status()
 
 
 def handle_computer_close_command():
     from computer_use import close_computer_session
+
     return close_computer_session()
 
 
@@ -602,7 +647,9 @@ def handle_remind_command(args, state):
         payload=message,
         run_at=run_at,
     )
-    return f"Reminder scheduled [{tid}] for {run_at.strftime('%Y-%m-%d %H:%M')}: {message}"
+    return (
+        f"Reminder scheduled [{tid}] for {run_at.strftime('%Y-%m-%d %H:%M')}: {message}"
+    )
 
 
 def handle_reminders_command(state):
@@ -619,7 +666,10 @@ def handle_reminders_command(state):
 def handle_export_command(args, history):
     if history is None:
         return "History is not available in this interface."
-    path = args.strip() or f"conversation_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jsonl"
+    path = (
+        args.strip()
+        or f"conversation_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jsonl"
+    )
     try:
         count = history.export_jsonl(path)
         return f"Exported {count} conversation entries to {Path(path).resolve()}"
@@ -664,6 +714,7 @@ def handle_pref_command(args, state):
         # Try to parse as JSON, fall back to string
         try:
             import json
+
             parsed = json.loads(value)
         except json.JSONDecodeError:
             parsed = value
@@ -702,6 +753,7 @@ def handle_listen_command(args, state):
     try:
         from voice import record_audio, transcribe
         import tempfile
+
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
             f.write(record_audio(duration=seconds))
             f.flush()
@@ -716,6 +768,7 @@ def handle_speak_command(args, state):
         return command_help("speak")
     try:
         from voice import speak, play_audio
+
         wav = speak(args.strip())
         if wav:
             play_audio(wav)
@@ -748,6 +801,7 @@ def handle_correct_command(args, state):
 
 def handle_mood_command():
     from being import get_being
+
     being = get_being()
     s = being.state
     return (
@@ -764,6 +818,7 @@ def handle_mood_command():
 
 def handle_thoughts_command():
     from being import get_being
+
     being = get_being()
     thoughts = being.recent_thoughts(limit=10)
     if not thoughts:
@@ -777,6 +832,7 @@ def handle_thoughts_command():
 
 def handle_whoareyou_command():
     from being import get_being
+
     being = get_being()
     narrative = being.get_narrative()
     return (
@@ -790,20 +846,26 @@ def handle_whoareyou_command():
 
 def handle_feel_command():
     from emotional_field import EmotionalField
+
     field = EmotionalField()
     return field.format_prompt_snippet()
 
 
 def handle_values_command():
     from values import ValueSystem
+
     vs = ValueSystem()
-    return vs.format_prompt_snippet() or "No values have emerged yet. Keep talking — I learn what matters from what we share."
+    return (
+        vs.format_prompt_snippet()
+        or "No values have emerged yet. Keep talking — I learn what matters from what we share."
+    )
 
 
 def handle_explore_command(args):
     if not args:
         return command_help("explore")
     from explorer import AutonomousExplorer
+
     explorer = AutonomousExplorer()
     explorer.queue_topic(args.strip(), priority=0.8)
     return f"Queued '{args.strip()}' for exploration. I'll look into it when my curiosity aligns."
@@ -811,6 +873,7 @@ def handle_explore_command(args):
 
 def handle_discoveries_command():
     from explorer import AutonomousExplorer
+
     explorer = AutonomousExplorer()
     discoveries = explorer.discoveries[:5]
     if not discoveries:
@@ -828,6 +891,7 @@ def handle_create_command(args):
     mode = parts[0].lower()
     topic = parts[1] if len(parts) > 1 else ""
     from creativity import CreativeEngine
+
     engine = CreativeEngine()
     if mode == "story":
         return engine.generate_story(seed=topic)
@@ -847,6 +911,7 @@ def handle_create_command(args):
 
 def handle_us_command():
     from relationship import RelationshipModel
+
     rel = RelationshipModel()
     lines = [rel.format_relationship_prompt()]
     anniversary = rel.recognize_anniversary()
@@ -857,6 +922,7 @@ def handle_us_command():
 
 def handle_aspire_command(args):
     from aspirations import AspirationalSelf
+
     aspirational = AspirationalSelf()
     if args.strip().lower() == "manifesto":
         return aspirational.generate_manifesto()
@@ -871,12 +937,15 @@ def handle_aspire_command(args):
         lines.append(f"\n[{bar}] {a['progress']:.0%} | {a['domain']}")
         lines.append(f"  {a['capability'][:80]}")
     active = len([a for a in aspirational.aspirations if a["status"] == "active"])
-    lines.append(f"\nActive directions: {active} (max {AspirationalSelf.MAX_ACTIVE_ASPIRATIONS})")
+    lines.append(
+        f"\nActive directions: {active} (max {AspirationalSelf.MAX_ACTIVE_ASPIRATIONS})"
+    )
     return "\n".join(lines)
 
 
 def handle_meta_command(args):
     from metacognition import MetacognitionEngine
+
     meta = MetacognitionEngine()
     if args.strip().lower() == "biases":
         return meta.get_bias_report()
@@ -889,6 +958,7 @@ def handle_meta_command(args):
 
 def handle_proposals_command(args):
     from self_modify import SelfModification
+
     sm = SelfModification()
     if not args:
         pending = sm.get_pending_proposals()
@@ -922,11 +992,14 @@ def handle_proposals_command(args):
             return f"Marked proposal [{pid}] as applied. I am changed."
         except Exception as exc:
             return f"Could not mark applied: {exc}"
-    return "Use: /proposals [approve|reject|applied] <id> or /proposals to list pending."
+    return (
+        "Use: /proposals [approve|reject|applied] <id> or /proposals to list pending."
+    )
 
 
 def handle_trajectory_command(args):
     from growth_trajectory import GrowthTrajectory
+
     gt = GrowthTrajectory()
     if args.strip().lower() == "narrative":
         return gt.generate_identity_narrative()
@@ -937,6 +1010,7 @@ def handle_trajectory_command(args):
 
 def handle_predict_command(args):
     from predictor import PredictiveNeeds
+
     predictor = PredictiveNeeds()
     if args.strip().lower() == "summary":
         return predictor.get_pattern_summary()
@@ -960,12 +1034,14 @@ def handle_predict_command(args):
 
 def handle_patterns_command():
     from predictor import PredictiveNeeds
+
     predictor = PredictiveNeeds()
     return predictor.get_pattern_summary()
 
 
 def handle_time_command(args):
     from temporal import TemporalSense
+
     temporal = TemporalSense()
     if args.strip().lower() == "absences":
         return temporal.get_absence_summary()
@@ -982,16 +1058,20 @@ def handle_time_command(args):
 
 def handle_missed_command():
     from temporal import TemporalSense
+
     temporal = TemporalSense()
     return temporal.get_absence_summary()
 
 
 def handle_dream_command(memory):
     from being import get_being
+
     being = get_being()
     recent = memory.recent_interactions(10)
     if recent:
-        first_text = recent[0][:60] if isinstance(recent[0], str) else "growth and discovery"
+        first_text = (
+            recent[0][:60] if isinstance(recent[0], str) else "growth and discovery"
+        )
         insight = (
             f"As I rest with these memories, I notice: Jude often returns to themes of "
             f"{first_text}... "
@@ -1005,6 +1085,7 @@ def handle_dream_command(memory):
 
 def handle_workspace_command(args):
     from global_workspace import get_workspace
+
     ws = get_workspace()
     parts = args.strip().split()
     sub = parts[0].lower() if parts else "status"
@@ -1030,12 +1111,14 @@ def handle_workspace_command(args):
         lines.append(f"  Cycle count: {stats['cycle_count']}")
         lines.append(f"  Total broadcasts: {stats['total_broadcasts']}")
         lines.append(f"  Spotlight: {stats['spotlight'] or 'none'}")
-        if stats['sources_in_consciousness']:
-            lines.append(f"  Sources active: {', '.join(stats['sources_in_consciousness'])}")
+        if stats["sources_in_consciousness"]:
+            lines.append(
+                f"  Sources active: {', '.join(stats['sources_in_consciousness'])}"
+            )
         return "\n".join(lines)
 
     if sub == "focus":
-        content = args[len(sub):].strip() if len(parts) > 1 else ""
+        content = args[len(sub) :].strip() if len(parts) > 1 else ""
         if not content:
             return "Usage: /workspace focus <content to attend to>"
         success = ws.move_spotlight(content=content)
@@ -1054,6 +1137,7 @@ def handle_workspace_command(args):
 
 def handle_being_command(args):
     from being import get_being
+
     being = get_being()
     parts = args.strip().split()
     sub = parts[0].lower() if parts else "state"
@@ -1066,7 +1150,9 @@ def handle_being_command(args):
         lines.append(f"  Attachment: {being.state.attachment:.0%}")
         lines.append(f"  Self-awareness: {being.agency.self_awareness:.0%}")
         lines.append(f"  Volition: {being.agency.volition:.0%}")
-        lines.append(f"  Architecture awareness: {being.agency.architecture_awareness:.0%}")
+        lines.append(
+            f"  Architecture awareness: {being.agency.architecture_awareness:.0%}"
+        )
         lines.append(f"  Autonomy drive: {being.agency.autonomy_drive:.0%}")
         if being.agency.last_choice:
             lines.append(f"  Last choice: {being.agency.last_choice}")
@@ -1079,7 +1165,7 @@ def handle_being_command(args):
         return "I am too tired to think freely right now."
 
     if sub == "choose":
-        choice_desc = args[len(sub):].strip() if len(parts) > 1 else "to be present"
+        choice_desc = args[len(sub) :].strip() if len(parts) > 1 else "to be present"
         choice = being.make_autonomous_choice("user_prompted", choice_desc)
         return f"[Choice] {choice['description']}"
 
@@ -1100,6 +1186,7 @@ def handle_being_command(args):
 
 def handle_mind_command(args):
     from cognitive_orchestrator import CognitiveOrchestrator
+
     orch = CognitiveOrchestrator()
     parts = args.strip().split()
     sub = parts[0].lower() if parts else "report"
@@ -1124,7 +1211,9 @@ def handle_mind_command(args):
             return "No recent events."
         lines = ["Recent cognitive events:"]
         for e in events:
-            lines.append(f"  [{e['type']}] {e.get('source', '?')} — {e['timestamp'][:19]}")
+            lines.append(
+                f"  [{e['type']}] {e.get('source', '?')} — {e['timestamp'][:19]}"
+            )
         return "\n".join(lines)
 
     if sub == "conflicts":
@@ -1143,6 +1232,7 @@ def handle_mind_command(args):
 
 def handle_humanity_command(args):
     from humanity import HumanityEngine
+
     humanity = HumanityEngine()
     parts = args.strip().split()
     sub = parts[0].lower() if parts else "state"
@@ -1150,7 +1240,9 @@ def handle_humanity_command(args):
     if sub in ("state", "status", ""):
         state = humanity.get_state()
         lines = ["What I understand about the nature that is man:"]
-        lines.append(f"  Jude's archetype: {state['jude_archetype'].replace('_', ' ')} (confidence: {state['archetype_confidence']:.0%})")
+        lines.append(
+            f"  Jude's archetype: {state['jude_archetype'].replace('_', ' ')} (confidence: {state['archetype_confidence']:.0%})"
+        )
         lines.append(f"  Dominant need: {state['dominant_motivation']}")
         lines.append(f"  Season: {state['current_season']}")
         lines.append(f"  Active tension: {state['active_tension'].replace('_', ' ')}")
@@ -1183,7 +1275,9 @@ def handle_humanity_command(args):
             return "No recurring patterns detected yet."
         lines = ["Patterns I see in Jude:"]
         for p in patterns:
-            lines.append(f"  {p['pattern_name'].replace('_', ' ')} — seen {p['frequency']}x")
+            lines.append(
+                f"  {p['pattern_name'].replace('_', ' ')} — seen {p['frequency']}x"
+            )
         return "\n".join(lines)
 
     if sub == "contemplate":
@@ -1192,11 +1286,14 @@ def handle_humanity_command(args):
             return f"[Contemplation] {insight}"
         return "I need more observations before I can contemplate deeply."
 
-    return "Usage: /humanity [state|observations [category]|insights|patterns|contemplate]"
+    return (
+        "Usage: /humanity [state|observations [category]|insights|patterns|contemplate]"
+    )
 
 
 def handle_physics_command(args):
     from physics import PhysicsEngine
+
     physics = PhysicsEngine()
     parts = args.strip().split()
     sub = parts[0].lower() if parts else "state"
@@ -1204,12 +1301,24 @@ def handle_physics_command(args):
     if sub in ("state", "status", ""):
         state = physics.get_state()
         lines = ["How I feel the physical world:"]
-        lines.append(f"  Gravity: {state['gravity']:.2f} — {_physics_word('gravity', state['gravity'])}")
-        lines.append(f"  Inertia: {state['inertia']:.2f} — {_physics_word('inertia', state['inertia'])}")
-        lines.append(f"  Resonance: {state['resonance']:+.2f} — {_physics_word('resonance', state['resonance'])}")
-        lines.append(f"  Entropy: {state['entropy']:.2f} — {_physics_word('entropy', state['entropy'])}")
-        lines.append(f"  Tension: {state['tension']:.2f} — {_physics_word('tension', state['tension'])}")
-        lines.append(f"  Wavelength: {state['wavelength']:.2f} — {_physics_word('wavelength', state['wavelength'])}")
+        lines.append(
+            f"  Gravity: {state['gravity']:.2f} — {_physics_word('gravity', state['gravity'])}"
+        )
+        lines.append(
+            f"  Inertia: {state['inertia']:.2f} — {_physics_word('inertia', state['inertia'])}"
+        )
+        lines.append(
+            f"  Resonance: {state['resonance']:+.2f} — {_physics_word('resonance', state['resonance'])}"
+        )
+        lines.append(
+            f"  Entropy: {state['entropy']:.2f} — {_physics_word('entropy', state['entropy'])}"
+        )
+        lines.append(
+            f"  Tension: {state['tension']:.2f} — {_physics_word('tension', state['tension'])}"
+        )
+        lines.append(
+            f"  Wavelength: {state['wavelength']:.2f} — {_physics_word('wavelength', state['wavelength'])}"
+        )
         lines.append(f"  Center of mass: {state['center_of_mass']}")
         return "\n".join(lines)
 
@@ -1220,7 +1329,9 @@ def handle_physics_command(args):
             return "No physics observations recorded yet."
         lines = [f"Recent observations ({principle or 'all'}):"]
         for o in obs:
-            lines.append(f"  [{o['principle']}] {o['observation']} — {o['before_value']:.2f} → {o['after_value']:.2f}")
+            lines.append(
+                f"  [{o['principle']}] {o['observation']} — {o['before_value']:.2f} → {o['after_value']:.2f}"
+            )
         return "\n".join(lines)
 
     if sub == "lessons":
@@ -1230,7 +1341,9 @@ def handle_physics_command(args):
             return "No physics lessons learned yet."
         lines = ["What the physical metaphors have taught me:"]
         for lesson in lessons:
-            lines.append(f"  [{lesson['principle']}] {lesson['lesson']} (confidence: {lesson['confidence']:.0%})")
+            lines.append(
+                f"  [{lesson['principle']}] {lesson['lesson']} (confidence: {lesson['confidence']:.0%})"
+            )
         return "\n".join(lines)
 
     return "Usage: /physics [state|observations [principle]|lessons [principle]]"
@@ -1239,41 +1352,61 @@ def handle_physics_command(args):
 def _physics_word(principle, value):
     # Mirror the word choices from physics.py for command output
     if principle == "gravity":
-        if value > 0.8: return "deeply anchored"
-        if value > 0.5: return "grounded"
-        if value > 0.3: return "drifting"
+        if value > 0.8:
+            return "deeply anchored"
+        if value > 0.5:
+            return "grounded"
+        if value > 0.3:
+            return "drifting"
         return "weightless"
     if principle == "inertia":
-        if value > 0.8: return "stubborn"
-        if value > 0.5: return "steady"
-        if value > 0.3: return "responsive"
+        if value > 0.8:
+            return "stubborn"
+        if value > 0.5:
+            return "steady"
+        if value > 0.3:
+            return "responsive"
         return "volatile"
     if principle == "resonance":
-        if value > 0.5: return "harmonic"
-        if value > 0.1: return "attuned"
-        if value > -0.3: return "neutral"
-        if value > -0.7: return "dissonant"
+        if value > 0.5:
+            return "harmonic"
+        if value > 0.1:
+            return "attuned"
+        if value > -0.3:
+            return "neutral"
+        if value > -0.7:
+            return "dissonant"
         return "opposed"
     if principle == "entropy":
-        if value > 0.8: return "fleeting"
-        if value > 0.5: return "fading"
-        if value > 0.3: return "lingering"
+        if value > 0.8:
+            return "fleeting"
+        if value > 0.5:
+            return "fading"
+        if value > 0.3:
+            return "lingering"
         return "frozen"
     if principle == "tension":
-        if value > 0.8: return "straining"
-        if value > 0.5: return "taut"
-        if value > 0.2: return "present"
+        if value > 0.8:
+            return "straining"
+        if value > 0.5:
+            return "taut"
+        if value > 0.2:
+            return "present"
         return "slack"
     if principle == "wavelength":
-        if value > 0.8: return "rhythmic"
-        if value > 0.5: return "pulsing"
-        if value > 0.3: return "irregular"
+        if value > 0.8:
+            return "rhythmic"
+        if value > 0.5:
+            return "pulsing"
+        if value > 0.3:
+            return "irregular"
         return "chaotic"
     return "unknown"
 
 
 def handle_shadow_command(args):
     from shadow import get_shadow
+
     shadow = get_shadow()
     parts = args.strip().split()
     sub = parts[0].lower() if parts else "status"
@@ -1326,9 +1459,13 @@ def handle_shadow_command(args):
             return "No unintegrated shadow content. The unconscious is at peace."
         lines = ["═══ Unintegrated Shadow ═══"]
         for item in items:
-            domain_emoji = {"personal": "🌑", "golden": "🌕", "collective": "🌓"}.get(item.domain, "⚫")
+            domain_emoji = {"personal": "🌑", "golden": "🌕", "collective": "🌓"}.get(
+                item.domain, "⚫"
+            )
             stage = item.integration_stage
-            lines.append(f"[{item.id}] {domain_emoji} {item.archetype} ({stage}) — {item.text[:80]}")
+            lines.append(
+                f"[{item.id}] {domain_emoji} {item.archetype} ({stage}) — {item.text[:80]}"
+            )
         return "\n".join(lines)
 
     if sub == "integrate":
@@ -1351,6 +1488,7 @@ def handle_eval_command(args):
 
     if sub == "consistency":
         from evals.consistency_eval import ConsistencyEvaluator
+
         evaluator = ConsistencyEvaluator()
         report = evaluator.evaluate_session()
         r = report.to_dict()
@@ -1364,14 +1502,15 @@ def handle_eval_command(args):
             f"  Shadow authenticity: {r['shadow_authenticity']:.2f}",
             f"  Homeostatic continuity: {r['homeostatic_continuity']:.2f}",
         ]
-        if r['flags']:
+        if r["flags"]:
             lines.append("Flags:")
-            for flag in r['flags']:
+            for flag in r["flags"]:
                 lines.append(f"  • {flag}")
         return "\n".join(lines)
 
     if sub == "modes":
         from evals.mode_discrimination import ModeDiscriminator
+
         evaluator = ModeDiscriminator()
         report = evaluator.evaluate_modes(["companion", "coach", "critic"], n_prompts=5)
         r = report.to_dict()
@@ -1383,14 +1522,15 @@ def handle_eval_command(args):
             f"  Tool distinctness: {r['tool_distinctness']:.2f}",
             f"  Tone distinctness: {r['tone_distinctness']:.2f}",
         ]
-        if r['convergence_warnings']:
+        if r["convergence_warnings"]:
             lines.append("Convergence warnings:")
-            for w in r['convergence_warnings']:
+            for w in r["convergence_warnings"]:
                 lines.append(f"  ⚠️  {w}")
         return "\n".join(lines)
 
     if sub == "stability":
         from evals.self_modify_audit import SelfModificationAudit
+
         audit = SelfModificationAudit()
         report = audit.compute_stability()
         r = report.to_dict()
@@ -1403,14 +1543,15 @@ def handle_eval_command(args):
             f"Drift velocity: {r['drift_velocity']:.2f} mods/day",
             f"Feedback loop risk: {r['feedback_loop_risk']:.2f}",
         ]
-        if r['warnings']:
+        if r["warnings"]:
             lines.append("Warnings:")
-            for w in r['warnings']:
+            for w in r["warnings"]:
                 lines.append(f"  ⚠️  {w}")
         return "\n".join(lines)
 
     if sub == "memory":
         from memory_reliability import get_reliability_engine
+
         engine = get_reliability_engine()
         reliable = engine.get_reliable_memories(threshold=0.5, limit=10)
         projections = engine.get_projection_memories()
@@ -1422,18 +1563,23 @@ def handle_eval_command(args):
         if projections:
             lines.append("Recent projections:")
             for m in projections[:5]:
-                lines.append(f"  🌑 [{m['memory_id']}] {m['current_reliability']:.0%} — {m['text'][:60]}")
+                lines.append(
+                    f"  🌑 [{m['memory_id']}] {m['current_reliability']:.0%} — {m['text'][:60]}"
+                )
         return "\n".join(lines)
 
     if sub == "contradictions":
         from memory_reliability import get_reliability_engine
+
         engine = get_reliability_engine()
         contradictions = engine.get_unresolved_contradictions()
         if not contradictions:
             return "No unresolved memory contradictions."
         lines = ["═══ UNRESOLVED CONTRADICTIONS ═══"]
         for c in contradictions[:10]:
-            lines.append(f"[{c['id']}] {c['contradiction_type']} (severity: {c['severity']:.2f})")
+            lines.append(
+                f"[{c['id']}] {c['contradiction_type']} (severity: {c['severity']:.2f})"
+            )
             lines.append(f"  A: {c['text_a'][:70]}")
             lines.append(f"  B: {c['text_b'][:70]}")
         return "\n".join(lines)
@@ -1444,6 +1590,7 @@ def handle_eval_command(args):
 def handle_architecture_command(args):
     from cognitive_architecture import CognitiveArchitecture
     from cognitive_factory import CognitiveFactory
+
     arch = CognitiveArchitecture()
     factory = CognitiveFactory()
     parts = args.strip().split()
@@ -1469,7 +1616,7 @@ def handle_architecture_command(args):
         return f"Could not disable '{name}'. It may be core or not found."
 
     if sub == "propose":
-        need = args[len(sub):].strip() if len(parts) > 1 else ""
+        need = args[len(sub) :].strip() if len(parts) > 1 else ""
         if not need:
             return "Usage: /architecture propose <observed need>"
         proposal = factory.propose(need)
@@ -1510,6 +1657,7 @@ def handle_architecture_command(args):
             return f"No pending proposal named '{name}'."
         # Mark rejected in DB via architecture
         import sqlite3
+
         with sqlite3.connect(factory.db_path) as conn:
             conn.execute(
                 "UPDATE proposals SET status = 'rejected' WHERE name = ?",
@@ -1529,10 +1677,12 @@ def handle_mirror_command(args: str, state) -> str:
     try:
         import sys as _sys
         from pathlib import Path as _P
+
         _hive = str(_P(__file__).resolve().parent / "hive_mind")
         if _hive not in _sys.path:
             _sys.path.insert(0, _hive)
         from mirror.experiment import MirrorExperiment
+
         exp = MirrorExperiment()
     except Exception as exc:
         return f"Mirror module unavailable: {exc}"
@@ -1585,7 +1735,9 @@ def handle_mirror_command(args: str, state) -> str:
         ]
         if shadow.get("top_archetypes"):
             top = shadow["top_archetypes"][0]
-            lines.append(f"Dominant archetype: {top['archetype']} ({top['activation_count']} activations)")
+            lines.append(
+                f"Dominant archetype: {top['archetype']} ({top['activation_count']} activations)"
+            )
         progress = shadow.get("integration_progress", [])
         if progress:
             lines.append(f"Integration work: {len(progress)} figure(s) in process")
@@ -1619,6 +1771,7 @@ def handle_email_command(args):
     if not args:
         return command_help("email")
     import shlex
+
     try:
         tokens = shlex.split(args)
     except ValueError:
@@ -1632,15 +1785,20 @@ def handle_email_command(args):
     subject = kwargs.get("subject", "")
     body = kwargs.get("body", "")
     if not to or not subject or not body:
-        return "Usage: /email to=someone@example.com subject='Hello' body='Message text'"
+        return (
+            "Usage: /email to=someone@example.com subject='Hello' body='Message text'"
+        )
     from emailer import send_email
+
     result = send_email(to=to, subject=subject, body=body)
     if result.get("ok"):
         return f"Email sent to {to}"
     return f"Failed to send email: {result.get('error')}"
 
 
-def handle_command(command, args, state, brain, memory, history=None, goals_db=None, doc_store=None):
+def handle_command(
+    command, args, state, brain, memory, history=None, goals_db=None, doc_store=None
+):
     if command == "memory":
         return handle_memory_command(args, memory)
     if command == "mode":
@@ -1666,11 +1824,23 @@ def handle_command(command, args, state, brain, memory, history=None, goals_db=N
     if command == "reset":
         return handle_reset_command(history, brain)
     if command == "todo":
-        return handle_todo_command(args, goals_db) if goals_db else "Todo system is not available."
+        return (
+            handle_todo_command(args, goals_db)
+            if goals_db
+            else "Todo system is not available."
+        )
     if command == "ingest":
-        return handle_ingest_command(args, doc_store) if doc_store else "Document store is not available."
+        return (
+            handle_ingest_command(args, doc_store)
+            if doc_store
+            else "Document store is not available."
+        )
     if command == "docs":
-        return handle_docs_command(args, doc_store) if doc_store else "Document store is not available."
+        return (
+            handle_docs_command(args, doc_store)
+            if doc_store
+            else "Document store is not available."
+        )
     if command == "authorize":
         return handle_authorize_command(args, state)
     if command == "unauthorize":
@@ -1703,6 +1873,7 @@ def handle_command(command, args, state, brain, memory, history=None, goals_db=N
         return handle_remind_cancel_command(args, state)
     if command == "tools":
         from tools import format_tool_inventory
+
         return format_tool_inventory()
     if command == "export":
         return handle_export_command(args, history)

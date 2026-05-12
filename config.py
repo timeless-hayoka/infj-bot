@@ -8,6 +8,7 @@ with INFJ_DATA_DIR.
 Quantified budgets (tunable via env): prompt size and retrieval fan-in cap RAM
 pressure from *context*, not model weights — the LLM still loads in RAM.
 """
+
 import logging
 import os
 from pathlib import Path
@@ -15,8 +16,10 @@ from pathlib import Path
 try:
     from dotenv import load_dotenv
 except ImportError:
+
     def load_dotenv():
         pass
+
 
 load_dotenv()
 
@@ -101,20 +104,32 @@ def _resolve_data_root() -> Path:
     try:
         for forbidden in _FORBIDDEN_ROOTS:
             forbidden_path = Path(forbidden).resolve()
-            if p == forbidden_path or (forbidden_path != Path("/") and p.is_relative_to(forbidden_path)):
-                logger.error(f"INFJ_DATA_DIR '{raw}' resolves to forbidden path '{p}'. Falling back to PROJECT_ROOT.")
+            if p == forbidden_path or (
+                forbidden_path != Path("/") and p.is_relative_to(forbidden_path)
+            ):
+                logger.error(
+                    f"INFJ_DATA_DIR '{raw}' resolves to forbidden path '{p}'. Falling back to PROJECT_ROOT."
+                )
                 return PROJECT_ROOT
     except (ValueError, OSError) as exc:
-        logger.error(f"Path security check failed for '{raw}': {exc}. Falling back to PROJECT_ROOT.")
+        logger.error(
+            f"Path security check failed for '{raw}': {exc}. Falling back to PROJECT_ROOT."
+        )
         return PROJECT_ROOT
 
     # Block excessive depth
     try:
-        depth = len(p.relative_to(Path.home()).parts) if p.is_relative_to(Path.home()) else len(p.parts)
+        depth = (
+            len(p.relative_to(Path.home()).parts)
+            if p.is_relative_to(Path.home())
+            else len(p.parts)
+        )
     except ValueError:
         depth = len(p.parts)
     if depth > _MAX_DATA_ROOT_DEPTH:
-        logger.error(f"INFJ_DATA_DIR '{raw}' exceeds max depth ({depth} > {_MAX_DATA_ROOT_DEPTH}). Falling back to PROJECT_ROOT.")
+        logger.error(
+            f"INFJ_DATA_DIR '{raw}' exceeds max depth ({depth} > {_MAX_DATA_ROOT_DEPTH}). Falling back to PROJECT_ROOT."
+        )
         return PROJECT_ROOT
 
     # Ensure path is either under home, under PROJECT_ROOT, or under /media (removable drives)
@@ -134,13 +149,17 @@ def _resolve_data_root() -> Path:
     except ValueError:
         pass
     if not (under_home or under_project or under_media):
-        logger.error(f"INFJ_DATA_DIR '{raw}' must be under home, PROJECT_ROOT, or /media. Falling back to PROJECT_ROOT.")
+        logger.error(
+            f"INFJ_DATA_DIR '{raw}' must be under home, PROJECT_ROOT, or /media. Falling back to PROJECT_ROOT."
+        )
         return PROJECT_ROOT
 
     try:
         p.mkdir(parents=True, exist_ok=True)
     except (PermissionError, OSError) as exc:
-        logger.error(f"Cannot create INFJ_DATA_DIR '{p}': {exc}. Falling back to PROJECT_ROOT.")
+        logger.error(
+            f"Cannot create INFJ_DATA_DIR '{p}': {exc}. Falling back to PROJECT_ROOT."
+        )
         return PROJECT_ROOT
 
     return p
@@ -217,7 +236,15 @@ def validate_api_key(key: str | None) -> dict:
     if len(key) < 10:
         return {"ok": False, "error": f"API key looks too short ({len(key)} chars)."}
     lower = key.lower()
-    dummies = {"your_api_key_here", "placeholder", "test", "example", "xxxx", "aaaa", "1234567890"}
+    dummies = {
+        "your_api_key_here",
+        "placeholder",
+        "test",
+        "example",
+        "xxxx",
+        "aaaa",
+        "1234567890",
+    }
     if lower in dummies or key.startswith("YOUR_"):
         return {"ok": False, "error": "API key appears to be a placeholder value."}
     return {"ok": True}
@@ -235,9 +262,16 @@ INFJ_CRITIC_MODEL = os.getenv("INFJ_CRITIC_MODEL", "gemini-2.5-flash")
 
 # Security: comma-separated list of domains the bughunter tools are pre-authorized to scan
 _authorized_raw = os.getenv("INFJ_AUTHORIZED_TARGETS", "")
-DEFAULT_AUTHORIZED_TARGETS = set(d.strip().lower() for d in _authorized_raw.split(",") if d.strip())
+DEFAULT_AUTHORIZED_TARGETS = set(
+    d.strip().lower() for d in _authorized_raw.split(",") if d.strip()
+)
 
 # Local LLM fallback via Ollama
 INFJ_LOCAL_MODEL = os.getenv("INFJ_LOCAL_MODEL", "qwen3:4b")
-INFJ_USE_LOCAL_FALLBACK = os.getenv("INFJ_USE_LOCAL_FALLBACK", "true").lower() in ("1", "true", "yes", "on")
+INFJ_USE_LOCAL_FALLBACK = os.getenv("INFJ_USE_LOCAL_FALLBACK", "true").lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
 OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")

@@ -34,12 +34,16 @@ from resilience import CircuitBreaker, ResilienceManager
 
 # ── Helpers ───────────────────────────────────────────────────────
 
+
 def _rand_string(length: int) -> str:
-    return ''.join(random.choices(string.ascii_letters + string.digits + ' ', k=length))
+    return "".join(random.choices(string.ascii_letters + string.digits + " ", k=length))
+
 
 def _heavy_emotion():
     return {
-        "label": random.choice(["joyful", "sad", "anxious", "angry", "calm", "curious"]),
+        "label": random.choice(
+            ["joyful", "sad", "anxious", "angry", "calm", "curious"]
+        ),
         "intensity": random.random(),
         "confidence": random.random(),
         "valence": random.uniform(-1, 1),
@@ -47,15 +51,21 @@ def _heavy_emotion():
         "secondary": "neutral",
     }
 
+
 def _heavy_dissonance():
     return {
         "score": random.random(),
-        "markers": random.sample(["conflict", "avoidance", "pressure", "uncertainty"], k=random.randint(0, 2)),
-        "values": random.sample(["truth", "safety", "belonging", "autonomy"], k=random.randint(0, 2)),
+        "markers": random.sample(
+            ["conflict", "avoidance", "pressure", "uncertainty"], k=random.randint(0, 2)
+        ),
+        "values": random.sample(
+            ["truth", "safety", "belonging", "autonomy"], k=random.randint(0, 2)
+        ),
     }
 
 
 # ── Boundary / Fuzz Tests ─────────────────────────────────────────
+
 
 class TestBoundaryConditions:
     """Test extreme and malformed inputs."""
@@ -68,7 +78,9 @@ class TestBoundaryConditions:
     def test_very_long_input(self, tmp_path):
         memory = InfjMemory(persist_directory=str(tmp_path))
         long_text = _rand_string(5000)
-        memory.save_interaction(long_text, long_text[:1000], emotion={"label": "neutral"})
+        memory.save_interaction(
+            long_text, long_text[:1000], emotion={"label": "neutral"}
+        )
         assert memory.count() >= 1
 
     def test_unicode_and_special_chars(self, tmp_path):
@@ -86,7 +98,9 @@ class TestBoundaryConditions:
         memory = InfjMemory(persist_directory=str(tmp_path))
         # No secrets, just random text
         for _ in range(50):
-            memory.save_interaction(_rand_string(100), _rand_string(50), emotion=_heavy_emotion())
+            memory.save_interaction(
+                _rand_string(100), _rand_string(50), emotion=_heavy_emotion()
+            )
         assert memory.count() >= 50
 
     def test_prompt_budget_empty_sections(self):
@@ -111,6 +125,7 @@ class TestBoundaryConditions:
 
     def test_orchestrator_with_mock_context(self):
         orch = CognitiveOrchestrator()
+
         class MockCtx:
             iteration = 1
             being = None
@@ -119,11 +134,13 @@ class TestBoundaryConditions:
             brain = None
             minutes_since_interaction = 0.0
             last_interaction_time = None
+
         log = orch.run_cycle(MockCtx())
         assert log.turn_number == 1
 
 
 # ── Rapid-Fire / Throughput Tests ─────────────────────────────────
+
 
 class TestRapidFire:
     """Test many operations in quick succession."""
@@ -190,6 +207,7 @@ class TestRapidFire:
 
 
 # ── Concurrent / Threading Tests ──────────────────────────────────
+
 
 class TestConcurrency:
     """Test thread safety of core components."""
@@ -262,6 +280,7 @@ class TestConcurrency:
 
 # ── Failure Injection / Chaos Tests ───────────────────────────────
 
+
 class TestFailureInjection:
     """Test behavior when components fail."""
 
@@ -272,6 +291,7 @@ class TestFailureInjection:
         if plugin:
             original = plugin.instance
             plugin.instance = object()  # broken instance
+
             class MockCtx:
                 iteration = 1
                 being = None
@@ -280,13 +300,18 @@ class TestFailureInjection:
                 brain = None
                 minutes_since_interaction = 0.0
                 last_interaction_time = None
+
             log = orch.run_cycle(MockCtx())
             assert log.turn_number == 1  # survived
             plugin.instance = original  # restore
 
     def test_resilience_fallback_on_crash(self):
         rm = ResilienceManager()
-        result = rm.execute_sync("crash", lambda: (_ for _ in ()).throw(RuntimeError("injected")), fallback="recovered")
+        result = rm.execute_sync(
+            "crash",
+            lambda: (_ for _ in ()).throw(RuntimeError("injected")),
+            fallback="recovered",
+        )
         assert result == "recovered"
 
     def test_health_monitor_survives_bad_checker(self):
@@ -308,6 +333,7 @@ class TestFailureInjection:
 
 
 # ── Resource Exhaustion Tests ─────────────────────────────────────
+
 
 class TestResourceExhaustion:
     """Test behavior under resource pressure."""
@@ -348,6 +374,7 @@ class TestResourceExhaustion:
 
 # ── End-to-End Pipeline Stress ────────────────────────────────────
 
+
 class TestEndToEndStress:
     """Full pipeline stress."""
 
@@ -366,10 +393,18 @@ class TestEndToEndStress:
             dissonance = _heavy_dissonance()
 
             # Simulate chat loop
-            memory.save_interaction(user_input, "bot reply", emotion=emotion, dissonance=dissonance)
+            memory.save_interaction(
+                user_input, "bot reply", emotion=emotion, dissonance=dissonance
+            )
             being.evolve(interaction_happened=True)
             being.update_theory_of_mind(user_input, emotion, dissonance)
-            physics.observe_interaction(emotion["label"], emotion["intensity"], dissonance["score"], user_input, "bot reply")
+            physics.observe_interaction(
+                emotion["label"],
+                emotion["intensity"],
+                dissonance["score"],
+                user_input,
+                "bot reply",
+            )
             humanity.observe_interaction(user_input, emotion, dissonance, "bot reply")
 
             # Simulate prompt build
@@ -410,6 +445,7 @@ class TestEndToEndStress:
 
 
 # ── Deterministic Reproducibility Tests ───────────────────────────
+
 
 class TestDeterminism:
     """Ensure same inputs produce same outputs where expected."""

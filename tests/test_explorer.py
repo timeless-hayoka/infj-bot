@@ -1,4 +1,5 @@
 """Tests for the Autonomous Explorer module."""
+
 import sys
 import tempfile
 import unittest
@@ -28,6 +29,7 @@ class TestAutonomousExplorer(unittest.TestCase):
         class FakeState:
             curiosity = 0.9
             energy = 0.8
+
         # Probabilistic — should return True at least sometimes
         results = [self.explorer.should_explore(FakeState()) for _ in range(50)]
         self.assertTrue(any(results))
@@ -36,10 +38,13 @@ class TestAutonomousExplorer(unittest.TestCase):
         class FakeState:
             curiosity = 0.9
             energy = 0.1
+
         self.assertFalse(self.explorer.should_explore(FakeState()))
 
     def test_pick_topic(self):
-        topic = self.explorer.pick_topic_from_interests(["AI", "security", "philosophy"])
+        topic = self.explorer.pick_topic_from_interests(
+            ["AI", "security", "philosophy"]
+        )
         self.assertIn(topic, ["AI", "security", "philosophy"])
 
     def test_format_discovery(self):

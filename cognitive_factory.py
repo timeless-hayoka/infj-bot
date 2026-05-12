@@ -127,6 +127,7 @@ _register()
 @dataclass
 class AbilityProposal:
     """A proposed new cognitive ability."""
+
     name: str
     description: str
     purpose: str
@@ -189,6 +190,7 @@ class CognitiveFactory:
         """Persist proposals and installed modules."""
         os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
         import sqlite3
+
         with sqlite3.connect(self.db_path) as conn:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS proposals (
@@ -241,6 +243,7 @@ class CognitiveFactory:
     def _save_proposal(self, proposal: AbilityProposal) -> None:
         import json
         import sqlite3
+
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
                 """
@@ -263,6 +266,7 @@ class CognitiveFactory:
         """Return all proposals awaiting Jude's decision."""
         import json
         import sqlite3
+
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
@@ -290,7 +294,9 @@ class CognitiveFactory:
         Generate full module source code from a proposal.
         """
         class_name = "".join(w.capitalize() for w in proposal.name.split("_"))
-        custom_methods = self._build_custom_methods(proposal.proposed_methods, class_name)
+        custom_methods = self._build_custom_methods(
+            proposal.proposed_methods, class_name
+        )
         source = MODULE_TEMPLATE.format(
             name=proposal.name,
             description=proposal.description,
@@ -335,8 +341,15 @@ class CognitiveFactory:
             return result
 
         # Rule 1: no import of os.system, subprocess, or eval/exec
-        dangerous_names = {"os.system", "subprocess.call", "subprocess.run",
-                           "eval", "exec", "compile", "__import__"}
+        dangerous_names = {
+            "os.system",
+            "subprocess.call",
+            "subprocess.run",
+            "eval",
+            "exec",
+            "compile",
+            "__import__",
+        }
         for node in ast.walk(tree):
             if isinstance(node, ast.Call):
                 func = node.func
@@ -367,7 +380,9 @@ class CognitiveFactory:
             result["errors"].append("Module must define _register()")
 
         # Warnings
-        import_count = sum(1 for n in ast.walk(tree) if isinstance(n, (ast.Import, ast.ImportFrom)))
+        import_count = sum(
+            1 for n in ast.walk(tree) if isinstance(n, (ast.Import, ast.ImportFrom))
+        )
         if import_count > 15:
             result["warnings"].append(f"High import count ({import_count})")
 
@@ -378,12 +393,15 @@ class CognitiveFactory:
     #  Installation
     # ------------------------------------------------------------------
 
-    def install(self, proposal: AbilityProposal, source: str, project_root: str = ".") -> Dict:
+    def install(
+        self, proposal: AbilityProposal, source: str, project_root: str = "."
+    ) -> Dict:
         """
         Validate, write, and register a new module.
         Requires that Jude has already approved the proposal.
         """
         import sqlite3
+
         result = self.validate_source(source)
         if not result["valid"]:
             return {"success": False, "reason": "validation_failed", "details": result}
@@ -403,7 +421,12 @@ class CognitiveFactory:
             )
             conn.execute(
                 "INSERT INTO installed_modules (name, description, installed_at, source_path) VALUES (?, ?, ?, ?)",
-                (proposal.name, proposal.description, datetime.now().isoformat(), file_path),
+                (
+                    proposal.name,
+                    proposal.description,
+                    datetime.now().isoformat(),
+                    file_path,
+                ),
             )
 
         # Register in cognitive architecture
@@ -412,15 +435,20 @@ class CognitiveFactory:
             # Dynamic import so the _register() block fires
             try:
                 import importlib
+
                 spec = importlib.util.spec_from_file_location(proposal.name, file_path)
                 if spec and spec.loader:
                     mod = importlib.util.module_from_spec(spec)
                     spec.loader.exec_module(mod)
             except Exception as exc:
-                logger.exception("Failed to import newly created module %s", proposal.name)
+                logger.exception(
+                    "Failed to import newly created module %s", proposal.name
+                )
                 return {"success": False, "reason": "import_failed", "error": str(exc)}
 
-        logger.info("Installed new cognitive module: %s at %s", proposal.name, file_path)
+        logger.info(
+            "Installed new cognitive module: %s at %s", proposal.name, file_path
+        )
         return {"success": True, "path": file_path}
 
     # ------------------------------------------------------------------

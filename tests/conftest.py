@@ -1,4 +1,5 @@
 """Shared test fixtures for the INFJ bot test suite."""
+
 import os
 import sys
 from pathlib import Path

@@ -19,14 +19,15 @@ logger = logging.getLogger("infj_bot")
 
 
 class CircuitState(Enum):
-    CLOSED = "closed"      # Normal operation
-    OPEN = "open"          # Failing fast
+    CLOSED = "closed"  # Normal operation
+    OPEN = "open"  # Failing fast
     HALF_OPEN = "half_open"  # Testing recovery
 
 
 @dataclass
 class CircuitBreaker:
     """Prevents cascading failures by cutting off failing modules."""
+
     name: str
     failure_threshold: int = 3
     recovery_timeout: float = 30.0  # seconds
@@ -43,7 +44,10 @@ class CircuitBreaker:
             if self._state == CircuitState.CLOSED:
                 return True
             if self._state == CircuitState.OPEN:
-                if self._last_failure_time and (time.time() - self._last_failure_time) >= self.recovery_timeout:
+                if (
+                    self._last_failure_time
+                    and (time.time() - self._last_failure_time) >= self.recovery_timeout
+                ):
                     self._state = CircuitState.HALF_OPEN
                     self._successes_during_half_open = 0
                     logger.info("Circuit breaker '%s' entering HALF_OPEN", self.name)
@@ -73,7 +77,11 @@ class CircuitBreaker:
                 logger.warning("Circuit breaker '%s' OPEN (recovery failed)", self.name)
             elif self._failures >= self.failure_threshold:
                 self._state = CircuitState.OPEN
-                logger.warning("Circuit breaker '%s' OPEN after %d failures", self.name, self._failures)
+                logger.warning(
+                    "Circuit breaker '%s' OPEN after %d failures",
+                    self.name,
+                    self._failures,
+                )
 
     @property
     def state(self) -> str:
@@ -83,6 +91,7 @@ class CircuitBreaker:
 @dataclass
 class HealthCheck:
     """Result of a health check."""
+
     name: str
     healthy: bool
     latency_ms: float
@@ -102,6 +111,7 @@ class HealthMonitor:
 
     def _init_db(self):
         import os
+
         os.makedirs(os.path.dirname(self.db_path) or ".", exist_ok=True)
         with sqlite3.connect(self.db_path) as conn:
             conn.execute("""
@@ -142,14 +152,22 @@ class HealthMonitor:
             self._history.append(result)
             # Persist
             with sqlite3.connect(self.db_path) as conn:
-                conn.execute("""
+                conn.execute(
+                    """
                     INSERT INTO health_checks (timestamp, name, healthy, latency_ms, message)
                     VALUES (?, ?, ?, ?, ?)
-                """, (result.timestamp, result.name, int(result.healthy),
-                      result.latency_ms, result.message))
+                """,
+                    (
+                        result.timestamp,
+                        result.name,
+                        int(result.healthy),
+                        result.latency_ms,
+                        result.message,
+                    ),
+                )
                 conn.commit()
         if len(self._history) > self._max_history:
-            self._history = self._history[-self._max_history:]
+            self._history = self._history[-self._max_history :]
         return results
 
     def is_healthy(self) -> bool:
@@ -157,7 +175,9 @@ class HealthMonitor:
         results = self.check()
         return all(r.healthy for r in results)
 
-    def get_history(self, name: Optional[str] = None, limit: int = 20) -> List[HealthCheck]:
+    def get_history(
+        self, name: Optional[str] = None, limit: int = 20
+    ) -> List[HealthCheck]:
         events = self._history
         if name:
             events = [e for e in events if e.name == name]
@@ -194,7 +214,10 @@ class Watchdog:
             elapsed = time.time() - self._last_heartbeat
             alive = elapsed < self.timeout
             if not alive and not self._alerted:
-                logger.error("WATCHDOG: Consciousness loop unresponsive for %.0f seconds", elapsed)
+                logger.error(
+                    "WATCHDOG: Consciousness loop unresponsive for %.0f seconds",
+                    elapsed,
+                )
                 self._alerted = True
             return alive
 

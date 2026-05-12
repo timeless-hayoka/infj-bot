@@ -24,6 +24,7 @@ CHARS_PER_TOKEN = 4.0
 @dataclass
 class BudgetTier:
     """A single tier in the prompt budget."""
+
     name: str
     max_chars: int
     current_chars: int = 0
@@ -33,10 +34,22 @@ class BudgetTier:
         """Add text to this tier. Returns False if it would exceed the budget."""
         chars = len(text)
         if self.current_chars + chars > self.max_chars:
-            logger.debug("Tier '%s' overflow: %d + %d > %d", self.name, self.current_chars, chars, self.max_chars)
+            logger.debug(
+                "Tier '%s' overflow: %d + %d > %d",
+                self.name,
+                self.current_chars,
+                chars,
+                self.max_chars,
+            )
             return False
         self.current_chars += chars
-        self.sections.append({"label": label or f"section-{len(self.sections)}", "text": text, "chars": chars})
+        self.sections.append(
+            {
+                "label": label or f"section-{len(self.sections)}",
+                "text": text,
+                "chars": chars,
+            }
+        )
         return True
 
     def trim_to_fit(self, text: str) -> str:
@@ -131,11 +144,13 @@ class PromptBudget:
         for phrase, locations in all_phrases.items():
             tiers_seen = set(loc[0] for loc in locations)
             if len(tiers_seen) >= 2:
-                self.overlaps.append({
-                    "phrase": phrase,
-                    "count": len(locations),
-                    "tiers": sorted(tiers_seen),
-                })
+                self.overlaps.append(
+                    {
+                        "phrase": phrase,
+                        "count": len(locations),
+                        "tiers": sorted(tiers_seen),
+                    }
+                )
 
         # Sort by count descending
         self.overlaps.sort(key=lambda x: x["count"], reverse=True)
@@ -155,25 +170,37 @@ class PromptBudget:
     def trim_to_budget(self) -> str:
         """Progressively trim tiers until the total fits within max_total_chars."""
         # First, try trimming context tier (docs, tools, memory)
-        while self.total_chars() > self.max_total_chars and self.tiers["context"].sections:
+        while (
+            self.total_chars() > self.max_total_chars and self.tiers["context"].sections
+        ):
             # Remove last section from context
             removed = self.tiers["context"].sections.pop()
             self.tiers["context"].current_chars -= removed["chars"]
 
         # Then trim analysis
-        while self.total_chars() > self.max_total_chars and self.tiers["analysis"].sections:
+        while (
+            self.total_chars() > self.max_total_chars
+            and self.tiers["analysis"].sections
+        ):
             removed = self.tiers["analysis"].sections.pop()
             self.tiers["analysis"].current_chars -= removed["chars"]
 
         # Then trim cognitive
-        while self.total_chars() > self.max_total_chars and self.tiers["cognitive"].sections:
+        while (
+            self.total_chars() > self.max_total_chars
+            and self.tiers["cognitive"].sections
+        ):
             removed = self.tiers["cognitive"].sections.pop()
             self.tiers["cognitive"].current_chars -= removed["chars"]
 
         # Last resort: hard truncate entire prompt
         assembled = self.assemble()
         if len(assembled) > self.max_total_chars:
-            assembled = assembled[: self.max_total_chars - 100] + "\n...[prompt trimmed]\n" + self.footer
+            assembled = (
+                assembled[: self.max_total_chars - 100]
+                + "\n...[prompt trimmed]\n"
+                + self.footer
+            )
 
         return assembled
 
@@ -186,11 +213,15 @@ class PromptBudget:
                 f"  {name:10s}: {tier.current_chars:5d} / {tier.max_chars:5d} chars "
                 f"({tier.utilization:5.1%})  ~{tier.tokens} tokens"
             )
-        lines.append(f"  {'TOTAL':10s}: {self.total_chars():5d} / {self.max_total_chars:5d} chars  ~{self.total_tokens()} tokens")
+        lines.append(
+            f"  {'TOTAL':10s}: {self.total_chars():5d} / {self.max_total_chars:5d} chars  ~{self.total_tokens()} tokens"
+        )
         if self.overlaps:
             lines.append(f"\n  Overlaps detected: {len(self.overlaps)}")
             for ov in self.overlaps[:5]:
-                lines.append(f"    '{ov['phrase']}' in {', '.join(ov['tiers'])} ({ov['count']}x)")
+                lines.append(
+                    f"    '{ov['phrase']}' in {', '.join(ov['tiers'])} ({ov['count']}x)"
+                )
         return "\n".join(lines)
 
     def dump(self, path: Optional[Path] = None) -> Path:
@@ -231,6 +262,8 @@ class PromptBudget:
                 for sec in self.tiers[name].sections
             ],
         }
-        path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+        path.write_text(
+            json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8"
+        )
         logger.info("Prompt debug dump written to %s", path)
         return path

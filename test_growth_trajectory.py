@@ -1,4 +1,5 @@
 """Tests for the growth trajectory module."""
+
 import os
 import tempfile
 from pathlib import Path

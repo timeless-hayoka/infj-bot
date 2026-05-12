@@ -1,8 +1,8 @@
 """Smart proactive trigger system for the INFJ companion."""
+
 import random
 from datetime import datetime
 from typing import Dict, Optional
-
 
 
 class ProactiveState:
@@ -14,7 +14,11 @@ class ProactiveState:
 
     def record_interaction(self, user_input: str, emotion: Dict, dissonance: Dict):
         self.last_user_time = datetime.now()
-        self.last_stress_level = emotion.get("intensity", 0.0) * (1.0 if emotion.get("label") in ("anxious", "angry", "sad", "overwhelmed") else 0.5)
+        self.last_stress_level = emotion.get("intensity", 0.0) * (
+            1.0
+            if emotion.get("label") in ("anxious", "angry", "sad", "overwhelmed")
+            else 0.5
+        )
         self.last_dissonance_score = dissonance.get("score", 0.0)
 
     def should_trigger(self, goals_db=None) -> Optional[str]:

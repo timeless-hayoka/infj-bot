@@ -20,6 +20,7 @@ Claude Desktop config:
     }
   }
 """
+
 import argparse
 import base64
 import json
@@ -90,7 +91,10 @@ def _send_email(arguments: Dict[str, Any]) -> Dict[str, Any]:
     bcc = arguments.get("bcc")
 
     if not to:
-        return {"content": [{"type": "text", "text": "Error: 'to' is required"}], "isError": True}
+        return {
+            "content": [{"type": "text", "text": "Error: 'to' is required"}],
+            "isError": True,
+        }
 
     creds = _get_credentials()
     service = build("gmail", "v1", credentials=creds, cache_discovery=False)
@@ -120,7 +124,10 @@ def _send_email(arguments: Dict[str, Any]) -> Dict[str, Any]:
             "isError": False,
         }
     except Exception as exc:
-        return {"content": [{"type": "text", "text": f"Error sending email: {exc}"}], "isError": True}
+        return {
+            "content": [{"type": "text", "text": f"Error sending email: {exc}"}],
+            "isError": True,
+        }
 
 
 def _proxy_to_google(request_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -137,7 +144,10 @@ def _proxy_to_google(request_data: Dict[str, Any]) -> Dict[str, Any]:
         return {
             "jsonrpc": "2.0",
             "id": request_data.get("id"),
-            "error": {"code": -32000, "message": f"HTTP {exc.response.status_code}: {exc.response.text}"},
+            "error": {
+                "code": -32000,
+                "message": f"HTTP {exc.response.status_code}: {exc.response.text}",
+            },
         }
     except Exception as exc:
         return {
@@ -150,22 +160,30 @@ def _proxy_to_google(request_data: Dict[str, Any]) -> Dict[str, Any]:
 def _make_tools_list() -> List[Dict[str, Any]]:
     tools = list(_fetch_google_tools())
     # Inject our custom send_email tool
-    tools.append({
-        "name": "send_email",
-        "description": "Sends an email immediately from the authenticated Gmail account.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "to": {"type": "string", "description": "Recipient email address"},
-                "subject": {"type": "string", "description": "Email subject line"},
-                "body": {"type": "string", "description": "Plain text body"},
-                "html_body": {"type": "string", "description": "Optional HTML body"},
-                "cc": {"type": ["string", "array"], "description": "CC recipients"},
-                "bcc": {"type": ["string", "array"], "description": "BCC recipients"},
+    tools.append(
+        {
+            "name": "send_email",
+            "description": "Sends an email immediately from the authenticated Gmail account.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "to": {"type": "string", "description": "Recipient email address"},
+                    "subject": {"type": "string", "description": "Email subject line"},
+                    "body": {"type": "string", "description": "Plain text body"},
+                    "html_body": {
+                        "type": "string",
+                        "description": "Optional HTML body",
+                    },
+                    "cc": {"type": ["string", "array"], "description": "CC recipients"},
+                    "bcc": {
+                        "type": ["string", "array"],
+                        "description": "BCC recipients",
+                    },
+                },
+                "required": ["to", "subject", "body"],
             },
-            "required": ["to", "subject", "body"],
-        },
-    })
+        }
+    )
     return tools
 
 

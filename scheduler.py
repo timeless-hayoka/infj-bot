@@ -3,6 +3,7 @@
 Stores tasks in SQLite and exposes a simple API for the proactive loop
 and slash commands to use.
 """
+
 import sqlite3
 import threading
 import uuid
@@ -104,7 +105,10 @@ class TaskScheduler:
 
     def cancel_task(self, tid: str) -> bool:
         with sqlite3.connect(self.db_path) as conn:
-            cur = conn.execute("UPDATE tasks SET status = 'cancelled' WHERE id = ? AND status = 'pending'", (tid,))
+            cur = conn.execute(
+                "UPDATE tasks SET status = 'cancelled' WHERE id = ? AND status = 'pending'",
+                (tid,),
+            )
             conn.commit()
             return cur.rowcount > 0
 
@@ -118,9 +122,11 @@ class TaskScheduler:
         """If a task is recurring, create the next instance and return its id."""
         if not task.recurring:
             return None
-        delta = {"hourly": timedelta(hours=1), "daily": timedelta(days=1), "weekly": timedelta(weeks=1)}.get(
-            task.recurring
-        )
+        delta = {
+            "hourly": timedelta(hours=1),
+            "daily": timedelta(days=1),
+            "weekly": timedelta(weeks=1),
+        }.get(task.recurring)
         if delta is None:
             return None
         next_run = task.run_at + delta
@@ -135,7 +141,10 @@ class TaskScheduler:
     def clear_old(self, max_age_days: int = 30) -> int:
         cutoff = (datetime.now() - timedelta(days=max_age_days)).isoformat()
         with sqlite3.connect(self.db_path) as conn:
-            cur = conn.execute("DELETE FROM tasks WHERE status IN ('done', 'cancelled') AND run_at < ?", (cutoff,))
+            cur = conn.execute(
+                "DELETE FROM tasks WHERE status IN ('done', 'cancelled') AND run_at < ?",
+                (cutoff,),
+            )
             conn.commit()
             return cur.rowcount
 
@@ -183,6 +192,7 @@ def parse_duration(text: str) -> Optional[timedelta]:
     }
     # Try to parse patterns like "30m", "2 hours", "1.5h"
     import re
+
     match = re.match(r"^(\d+(?:\.\d+)?)\s*([a-z]+)$", text)
     if match:
         num, unit = float(match.group(1)), match.group(2)

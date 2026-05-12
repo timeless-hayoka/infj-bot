@@ -2,6 +2,7 @@
 
 Run with: python tui.py
 """
+
 import queue
 import sys
 import threading
@@ -97,12 +98,18 @@ class InfjTUI:
 
     def _make_chat(self) -> Panel:
         if not self.messages:
-            content = Align.center(Text("Start a conversation...", style="dim italic"), vertical="middle")
+            content = Align.center(
+                Text("Start a conversation...", style="dim italic"), vertical="middle"
+            )
         else:
             parts = []
             for role, text in self.messages[-50:]:
                 if role == "user":
-                    parts.append(Text.from_markup(f"[bold blue]Jude[/]  {text[:300]}{'…' if len(text) > 300 else ''}"))
+                    parts.append(
+                        Text.from_markup(
+                            f"[bold blue]Jude[/]  {text[:300]}{'…' if len(text) > 300 else ''}"
+                        )
+                    )
                 elif role == "bot":
                     parts.append(Markdown(text))
                 elif role == "system":
@@ -154,15 +161,25 @@ class InfjTUI:
         if is_command(user_input):
             command, args = parse_command(user_input)
             output = handle_command(
-                command, args, self.state, self.brain, self.memory,
-                self.history, self.goals_db, self.doc_store,
+                command,
+                args,
+                self.state,
+                self.brain,
+                self.memory,
+                self.history,
+                self.goals_db,
+                self.doc_store,
             )
             self.add_message("system", output)
             return
 
         prompt, emotion, dissonance = build_chat_prompt(
-            user_input, self.state, self.memory,
-            goals_db=self.goals_db, doc_store=self.doc_store, prefs=self.state.prefs,
+            user_input,
+            self.state,
+            self.memory,
+            goals_db=self.goals_db,
+            doc_store=self.doc_store,
+            prefs=self.state.prefs,
         )
         output = self.brain.agent_turn(prompt, tools_enabled=True)
         try:
@@ -170,10 +187,16 @@ class InfjTUI:
         except Exception:
             pass
 
-        importance = min(0.95, 0.45 + emotion["intensity"] * 0.3 + dissonance["score"] * 0.15)
+        importance = min(
+            0.95, 0.45 + emotion["intensity"] * 0.3 + dissonance["score"] * 0.15
+        )
         self.memory.save_interaction(
-            user_input, output, mode=self.state.mode,
-            emotion=emotion, importance=importance, dissonance=dissonance,
+            user_input,
+            output,
+            mode=self.state.mode,
+            emotion=emotion,
+            importance=importance,
+            dissonance=dissonance,
         )
         self.history.append(user_input, output, self.state.mode, emotion, dissonance)
         self.state.turns += 1
@@ -190,7 +213,9 @@ class InfjTUI:
         input_thread = threading.Thread(target=self._input_thread, daemon=True)
         input_thread.start()
 
-        with Live(self.render(), console=console, refresh_per_second=4, screen=False) as live:
+        with Live(
+            self.render(), console=console, refresh_per_second=4, screen=False
+        ) as live:
             self._live = live
             while self.running:
                 try:
@@ -206,7 +231,9 @@ class InfjTUI:
                 self._process_input(user_input)
                 live.update(self.render())
 
-        console.print("\n[dim]I'll be here in the quiet if you need me again. Goodbye, Jude.[/]")
+        console.print(
+            "\n[dim]I'll be here in the quiet if you need me again. Goodbye, Jude.[/]"
+        )
 
 
 if __name__ == "__main__":

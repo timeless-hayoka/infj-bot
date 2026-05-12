@@ -2,6 +2,7 @@
 
 Supports stdio transport (default) and a simple HTTP transport for local orchestration.
 """
+
 import asyncio
 import os
 from typing import Any, Dict, List, Optional
@@ -131,9 +132,14 @@ def create_http_app(token: str | None = None) -> FastAPI:
             for tid, t in to_run:
                 t["running"] = True
                 if len(_scheduled_tasks) >= _max_scheduled_tasks:
-                    logger.warning("Max scheduled tasks (%d) reached; dropping task %s", _max_scheduled_tasks, tid)
+                    logger.warning(
+                        "Max scheduled tasks (%d) reached; dropping task %s",
+                        _max_scheduled_tasks,
+                        tid,
+                    )
                     scheduled.pop(tid, None)
                     continue
+
                 async def run_and_cleanup(tid=tid, t=t):
                     try:
                         plan = t["plan"]
@@ -143,7 +149,9 @@ def create_http_app(token: str | None = None) -> FastAPI:
                                 tool_name = step.get("tool")
                                 fn = TOOLS.get(tool_name)
                                 if fn is None:
-                                    results.append({"tool": tool_name, "error": "tool not found"})
+                                    results.append(
+                                        {"tool": tool_name, "error": "tool not found"}
+                                    )
                                     continue
                                 args = step.get("args") or []
                                 kwargs = step.get("kwargs") or {}
@@ -151,10 +159,13 @@ def create_http_app(token: str | None = None) -> FastAPI:
                                     out = fn(*args, **kwargs)
                                     results.append({"tool": tool_name, "result": out})
                                 except Exception as exc:
-                                    results.append({"tool": tool_name, "error": str(exc)})
+                                    results.append(
+                                        {"tool": tool_name, "error": str(exc)}
+                                    )
                             t["result"] = results
                     finally:
                         scheduled.pop(tid, None)
+
                 task = asyncio.create_task(run_and_cleanup())
                 _scheduled_tasks.add(task)
                 task.add_done_callback(_scheduled_tasks.discard)
@@ -314,7 +325,11 @@ def memory_search(query: str, n_results: int = 5) -> str:
         return "No matching memories found."
     lines = []
     for document, metadata in results:
-        label = metadata.get("concept") or metadata.get("title") or metadata.get("type", "memory")
+        label = (
+            metadata.get("concept")
+            or metadata.get("title")
+            or metadata.get("type", "memory")
+        )
         lines.append(f"[{label}]\n{document}")
     return "\n---\n".join(lines)
 

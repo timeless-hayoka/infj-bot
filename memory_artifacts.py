@@ -41,11 +41,11 @@ from memory import InfjMemory
 
 
 class MemoryLayer(Enum):
-    EPHEMERAL = auto()    # Raw input, seconds
-    WORKING = auto()      # Active attention, minutes
-    LONG_TERM = auto()    # ChromaDB semantic store
-    PHYSICAL = auto()     # QR-encoded artifact
-    HIVE = auto()         # Distributed consensus memory
+    EPHEMERAL = auto()  # Raw input, seconds
+    WORKING = auto()  # Active attention, minutes
+    LONG_TERM = auto()  # ChromaDB semantic store
+    PHYSICAL = auto()  # QR-encoded artifact
+    HIVE = auto()  # Distributed consensus memory
 
 
 class MemoryProvenance(Enum):
@@ -61,9 +61,9 @@ class MemoryProvenance(Enum):
 class EmotionSignature:
     label: str = "neutral"
     secondary: str = "neutral"
-    valence: float = 0.0        # -1 (negative) to +1 (positive)
-    arousal: float = 0.5        # 0 (calm) to 1 (energized)
-    intensity: float = 0.5      # 0 (weak) to 1 (overwhelming)
+    valence: float = 0.0  # -1 (negative) to +1 (positive)
+    arousal: float = 0.5  # 0 (calm) to 1 (energized)
+    intensity: float = 0.5  # 0 (weak) to 1 (overwhelming)
     confidence: float = 0.0
     needs: str = ""
     detector: str = "unknown"
@@ -110,6 +110,7 @@ class EmotionSignature:
 @dataclass
 class MemoryArtifact:
     """A single memory token, addressable across all layers."""
+
     artifact_id: str
     content: str
     emotion: EmotionSignature
@@ -118,8 +119,8 @@ class MemoryArtifact:
     layer: MemoryLayer
     phi_at_encoding: float = 35.0
     importance: float = 0.5
-    memory_id: Optional[str] = None       # ChromaDB id if synced
-    qr_hash: Optional[str] = None         # SHA-256 of QR payload
+    memory_id: Optional[str] = None  # ChromaDB id if synced
+    qr_hash: Optional[str] = None  # SHA-256 of QR payload
     hive_validated: bool = False
     hive_consensus: float = 0.0
     tags: List[str] = field(default_factory=list)
@@ -162,6 +163,7 @@ class MemoryArtifact:
 
 
 # ── Emotion Visualization Engine ──────────────────────────────────
+
 
 def generate_emotion_visualization(
     emotion: EmotionSignature,
@@ -214,7 +216,9 @@ def generate_emotion_visualization(
             color = (int(bright * 0.2), int(bright * 0.45), bright)
         else:
             color = (int(bright * 0.6), int(bright * 0.7), int(bright * 0.8))
-        draw.ellipse([x - size_dot, y - size_dot, x + size_dot, y + size_dot], fill=color)
+        draw.ellipse(
+            [x - size_dot, y - size_dot, x + size_dot, y + size_dot], fill=color
+        )
 
     # Synaptic connections
     for idx, n1 in enumerate(nodes):
@@ -229,7 +233,11 @@ def generate_emotion_visualization(
                     # Jagged for high arousal
                     mx = (n1[0] + n2[0]) / 2 + random.randint(-8, 8)
                     my = (n1[1] + n2[1]) / 2 + random.randint(-8, 8)
-                    od.line([n1, (mx, my), n2], fill=(base_r, base_g, base_b, alpha), width=1)
+                    od.line(
+                        [n1, (mx, my), n2],
+                        fill=(base_r, base_g, base_b, alpha),
+                        width=1,
+                    )
                 else:
                     od.line([n1, n2], fill=(base_r, base_g, base_b, alpha), width=1)
                 img = Image.alpha_composite(img.convert("RGBA"), overlay).convert("RGB")
@@ -240,13 +248,16 @@ def generate_emotion_visualization(
     gd = ImageDraw.Draw(glow)
     for r in range(60, 0, -2):
         alpha = int(40 * i * (1 - r / 60) ** 2)
-        gd.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(base_r, base_g, base_b, alpha))
+        gd.ellipse(
+            [cx - r, cy - r, cx + r, cy + r], fill=(base_r, base_g, base_b, alpha)
+        )
     img = Image.alpha_composite(img.convert("RGBA"), glow).convert("RGB")
 
     return img
 
 
 # ── QR Card Generator ─────────────────────────────────────────────
+
 
 def generate_qr_card(
     artifact: MemoryArtifact,
@@ -260,14 +271,24 @@ def generate_qr_card(
 
     # Fonts
     try:
-        font_title = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 16)
-        font_body = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 13)
-        font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 11)
-        font_label = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 12)
+        font_title = ImageFont.truetype(
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 16
+        )
+        font_body = ImageFont.truetype(
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 13
+        )
+        font_small = ImageFont.truetype(
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 11
+        )
+        font_label = ImageFont.truetype(
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 12
+        )
     except Exception:
         font_title = font_body = font_small = font_label = ImageFont.load_default()
 
-    draw.rounded_rectangle([4, 4, CARD_W - 4, CARD_H - 4], radius=10, outline="#1a1a30", width=2)
+    draw.rounded_rectangle(
+        [4, 4, CARD_W - 4, CARD_H - 4], radius=10, outline="#1a1a30", width=2
+    )
     draw.text((20, 14), "◉ DRIFT MEMORY ARTIFACT", font=font_title, fill="#00ddbb")
 
     # QR Code
@@ -294,7 +315,12 @@ def generate_qr_card(
 
     qr_x, qr_y = 20, 48
     img.paste(qr_img, (qr_x, qr_y))
-    draw.text((qr_x, qr_y + qr_img.size[1] + 6), "SCAN TO REMEMBER", font=font_label, fill="#00aa88")
+    draw.text(
+        (qr_x, qr_y + qr_img.size[1] + 6),
+        "SCAN TO REMEMBER",
+        font=font_label,
+        fill="#00aa88",
+    )
 
     # Memory text
     text_x = qr_x + qr_img.size[0] + 25
@@ -322,7 +348,12 @@ def generate_qr_card(
 
     ts = artifact.timestamp[:19] if len(artifact.timestamp) > 19 else artifact.timestamp
     draw.text((text_x, CARD_H - 32), f"Recorded: {ts}", font=font_small, fill="#444466")
-    draw.text((text_x, CARD_H - 18), f"ID: {artifact.artifact_id[:20]}...", font=font_small, fill="#333344")
+    draw.text(
+        (text_x, CARD_H - 18),
+        f"ID: {artifact.artifact_id[:20]}...",
+        font=font_small,
+        fill="#333344",
+    )
 
     # Emotion panel
     panel_x = CARD_W - 190
@@ -332,9 +363,15 @@ def generate_qr_card(
     img.paste(vis_img, (panel_x + 10, panel_y))
 
     badge_colors = {
-        "excited": "#ff6622", "joyful": "#ffaa22", "warm": "#ff9944",
-        "curious": "#00ddbb", "neutral": "#668888", "anxious": "#8844ff",
-        "sad": "#4466cc", "angry": "#cc2222", "afraid": "#6644cc",
+        "excited": "#ff6622",
+        "joyful": "#ffaa22",
+        "warm": "#ff9944",
+        "curious": "#00ddbb",
+        "neutral": "#668888",
+        "anxious": "#8844ff",
+        "sad": "#4466cc",
+        "angry": "#cc2222",
+        "afraid": "#6644cc",
     }
     badge_color = badge_colors.get(artifact.emotion.label, "#ff9944")
     badge_text = f"  {artifact.emotion.label.upper()}  "
@@ -342,20 +379,43 @@ def generate_qr_card(
     bw = bbox[2] - bbox[0] + 12
     bh = bbox[3] - bbox[1] + 8
     by = panel_y + 170
-    draw.rounded_rectangle([panel_x + 10, by, panel_x + 10 + bw, by + bh], radius=5, fill=badge_color)
+    draw.rounded_rectangle(
+        [panel_x + 10, by, panel_x + 10 + bw, by + bh], radius=5, fill=badge_color
+    )
     draw.text((panel_x + 16, by + 3), badge_text, font=font_label, fill="#000000")
 
     mx, my = panel_x + 10, by + bh + 12
-    draw.text((mx, my), f"Valence: {artifact.emotion.valence:+.2f}", font=font_small, fill="#888888")
-    draw.text((mx, my + 15), f"Arousal: {artifact.emotion.arousal:.2f}", font=font_small, fill="#888888")
-    draw.text((mx, my + 30), f"Intensity: {artifact.emotion.intensity:.2f}", font=font_small, fill="#888888")
-    draw.text((mx, my + 45), f"Φ: {artifact.phi_at_encoding:.1f}", font=font_small, fill="#888888")
+    draw.text(
+        (mx, my),
+        f"Valence: {artifact.emotion.valence:+.2f}",
+        font=font_small,
+        fill="#888888",
+    )
+    draw.text(
+        (mx, my + 15),
+        f"Arousal: {artifact.emotion.arousal:.2f}",
+        font=font_small,
+        fill="#888888",
+    )
+    draw.text(
+        (mx, my + 30),
+        f"Intensity: {artifact.emotion.intensity:.2f}",
+        font=font_small,
+        fill="#888888",
+    )
+    draw.text(
+        (mx, my + 45),
+        f"Φ: {artifact.phi_at_encoding:.1f}",
+        font=font_small,
+        fill="#888888",
+    )
 
     img.save(output_path)
     return output_path
 
 
 # ── Memory Archive Manager ────────────────────────────────────────
+
 
 class MemoryArchive:
     """Unified manager for all memory layers: digital → physical → hive."""
@@ -367,9 +427,13 @@ class MemoryArchive:
         phi_logo_path: Optional[Path] = None,
     ):
         self.digital = digital_memory or InfjMemory()
-        self.artifact_dir = artifact_dir or Path("~/drift-telephone/memory_cards").expanduser()
+        self.artifact_dir = (
+            artifact_dir or Path("~/drift-telephone/memory_cards").expanduser()
+        )
         self.artifact_dir.mkdir(parents=True, exist_ok=True)
-        self.phi_logo_path = phi_logo_path or Path("~/drift-telephone/logo_phi.png").expanduser()
+        self.phi_logo_path = (
+            phi_logo_path or Path("~/drift-telephone/logo_phi.png").expanduser()
+        )
         self._artifact_registry: Dict[str, MemoryArtifact] = {}
         self._load_registry()
 
@@ -456,7 +520,9 @@ class MemoryArchive:
         """Save artifact to ChromaDB, return memory_id."""
         self.digital.save_interaction(
             user_input=artifact.content.split("\n")[0].replace("Jude: ", ""),
-            bot_output="\n".join(artifact.content.split("\n")[1:]).replace("DRIFT: ", ""),
+            bot_output="\n".join(artifact.content.split("\n")[1:]).replace(
+                "DRIFT: ", ""
+            ),
             mode="companion",
             emotion=artifact.emotion.to_dict(),
             importance=artifact.importance,
@@ -480,7 +546,9 @@ class MemoryArchive:
         path = self.artifact_dir / f"artifact_{artifact.artifact_id[:8]}.png"
         generate_qr_card(artifact, path, self.phi_logo_path)
         artifact.layer = MemoryLayer.PHYSICAL
-        artifact.qr_hash = hashlib.sha256(artifact.to_qr_payload().encode()).hexdigest()[:16]
+        artifact.qr_hash = hashlib.sha256(
+            artifact.to_qr_payload().encode()
+        ).hexdigest()[:16]
         self._artifact_registry[artifact.artifact_id] = artifact
         self._save_registry()
         return path
@@ -499,15 +567,19 @@ class MemoryArchive:
         self.digital.collection.add(
             documents=[artifact.content],
             ids=[str(uuid.uuid4())],
-            metadatas=[{
-                "type": "interaction",
-                "timestamp": artifact.timestamp,
-                "last_updated": datetime.datetime.now().isoformat(),
-                "mode": "companion",
-                **{f"emotion_{k}": v for k, v in artifact.emotion.to_dict().items()},
-                "importance": artifact.importance,
-                "source": "physical_scan",
-            }],
+            metadatas=[
+                {
+                    "type": "interaction",
+                    "timestamp": artifact.timestamp,
+                    "last_updated": datetime.datetime.now().isoformat(),
+                    "mode": "companion",
+                    **{
+                        f"emotion_{k}": v for k, v in artifact.emotion.to_dict().items()
+                    },
+                    "importance": artifact.importance,
+                    "source": "physical_scan",
+                }
+            ],
         )
         artifact.layer = MemoryLayer.LONG_TERM
         artifact.memory_id = hashlib.sha256(artifact.content.encode()).hexdigest()[:16]
@@ -528,7 +600,9 @@ class MemoryArchive:
 
     # ── Queries ───────────────────────────────────────────────────
 
-    def list_artifacts(self, layer: Optional[MemoryLayer] = None) -> List[MemoryArtifact]:
+    def list_artifacts(
+        self, layer: Optional[MemoryLayer] = None
+    ) -> List[MemoryArtifact]:
         arts = list(self._artifact_registry.values())
         if layer:
             arts = [a for a in arts if a.layer == layer]
@@ -544,7 +618,9 @@ class MemoryArchive:
         return {
             "total_artifacts": len(self._artifact_registry),
             "by_layer": {k.name: v for k, v in layers.items()},
-            "hive_validated": sum(1 for a in self._artifact_registry.values() if a.hive_validated),
+            "hive_validated": sum(
+                1 for a in self._artifact_registry.values() if a.hive_validated
+            ),
             "digital_memories": self.digital.count(),
             "artifact_dir": str(self.artifact_dir),
         }

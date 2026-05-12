@@ -1,4 +1,5 @@
 """Tests for the Creative Engine module."""
+
 import sys
 import unittest
 from pathlib import Path

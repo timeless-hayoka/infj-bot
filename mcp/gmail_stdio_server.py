@@ -15,6 +15,7 @@ Usage (Claude Desktop config):
     }
   }
 """
+
 import json
 import sys
 from pathlib import Path
@@ -64,7 +65,10 @@ def _proxy(request_data: dict) -> dict:
         return {
             "jsonrpc": "2.0",
             "id": request_data.get("id"),
-            "error": {"code": -32000, "message": f"HTTP {exc.response.status_code}: {exc.response.text}"},
+            "error": {
+                "code": -32000,
+                "message": f"HTTP {exc.response.status_code}: {exc.response.text}",
+            },
         }
     except Exception as exc:
         return {

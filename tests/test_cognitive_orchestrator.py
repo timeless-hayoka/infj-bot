@@ -94,6 +94,7 @@ class TestOrchestrator:
         CognitiveArchitecture.reset_instance()
         # Plugin rows are loaded from SQLite; self-registering modules must be imported on a clean DB.
         import temporal  # noqa: F401
+
         orch = CognitiveOrchestrator()
         yield orch
         CognitiveArchitecture.reset_instance()
@@ -114,6 +115,7 @@ class TestOrchestrator:
             brain = None
             minutes_since_interaction = 0.0
             last_interaction_time = None
+
         log = fresh_orch.run_cycle(MockCtx())
         assert log.turn_number == 1
         assert isinstance(log.phases, dict)
@@ -127,9 +129,11 @@ class TestOrchestrator:
         class MockState:
             mode = "companion"
             prefs = None
+
         class MockMemory:
             def retrieve_context(self, query):
                 return []
+
         prompt, emotion, dissonance = fresh_orch.assemble_prompt(
             "hello", MockState(), MockMemory()
         )
@@ -141,9 +145,11 @@ class TestOrchestrator:
         class MockState:
             mode = "drift"
             prefs = None
+
         class MockMemory:
             def retrieve_context(self, query):
                 return []
+
             def search(self, query, n_results=2):
                 return [
                     (
@@ -151,6 +157,7 @@ class TestOrchestrator:
                         {"concept": "Drift Soul Companion Core", "tags": "seed,drift"},
                     )
                 ]
+
         prompt, emotion, dissonance = fresh_orch.assemble_prompt(
             "help me think through this", MockState(), MockMemory()
         )

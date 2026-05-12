@@ -19,6 +19,7 @@ Jungian principle: memories are not facts. They are psychic material that must
 be held lightly. The bot must distinguish "Jude said this" from "I felt this
 about Jude."
 """
+
 import re
 import sqlite3
 from dataclasses import dataclass
@@ -30,12 +31,12 @@ from config import RELIABILITY_DB
 
 # Source types and base confidence
 SOURCE_CONFIDENCE = {
-    "user_explicit": 0.90,      # User directly stated this
-    "user_implied": 0.70,       # User implied but didn't state
-    "bot_observation": 0.60,    # Bot observed and inferred
-    "bot_projection": 0.30,     # Bot projected onto user (suspect)
-    "third_party": 0.50,        # From a document or external source
-    "assumed": 0.25,            # Filled in by pattern matching
+    "user_explicit": 0.90,  # User directly stated this
+    "user_implied": 0.70,  # User implied but didn't state
+    "bot_observation": 0.60,  # Bot observed and inferred
+    "bot_projection": 0.30,  # Bot projected onto user (suspect)
+    "third_party": 0.50,  # From a document or external source
+    "assumed": 0.25,  # Filled in by pattern matching
 }
 
 # Memory decay: unreinforced memories lose reliability over time
@@ -121,7 +122,9 @@ class MemoryReliabilityEngine:
 
     # ── Registration ──
 
-    def register_memory(self, memory_id: str, text: str, source_type: str = "bot_observation") -> None:
+    def register_memory(
+        self, memory_id: str, text: str, source_type: str = "bot_observation"
+    ) -> None:
         """Register a new memory with reliability tracking."""
         base_conf = SOURCE_CONFIDENCE.get(source_type, 0.5)
         now = datetime.now().isoformat()
@@ -131,7 +134,19 @@ class MemoryReliabilityEngine:
                 (memory_id, text, source_type, base_confidence, current_reliability,
                  created_at, last_reinforced, reinforcement_count, contradiction_count, decay_rate, projection_flag)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (memory_id, text, source_type, base_conf, base_conf, now, now, 0, 0, 0.01, 0),
+                (
+                    memory_id,
+                    text,
+                    source_type,
+                    base_conf,
+                    base_conf,
+                    now,
+                    now,
+                    0,
+                    0,
+                    0.01,
+                    0,
+                ),
             )
             conn.commit()
         # Check for contradictions with existing memories
@@ -193,11 +208,17 @@ class MemoryReliabilityEngine:
             existing = cursor.fetchall()
 
         for mem_id, mem_text in existing:
-            contradiction_type, severity = self._detect_contradiction(new_text, mem_text)
+            contradiction_type, severity = self._detect_contradiction(
+                new_text, mem_text
+            )
             if contradiction_type:
-                self._record_contradiction(new_memory_id, mem_id, contradiction_type, severity)
+                self._record_contradiction(
+                    new_memory_id, mem_id, contradiction_type, severity
+                )
 
-    def _detect_contradiction(self, text_a: str, text_b: str) -> Tuple[Optional[str], float]:
+    def _detect_contradiction(
+        self, text_a: str, text_b: str
+    ) -> Tuple[Optional[str], float]:
         """Detect contradiction between two memory texts."""
         a_lower = text_a.lower()
         b_lower = text_b.lower()
@@ -222,14 +243,23 @@ class MemoryReliabilityEngine:
     def _factual_contradiction_score(self, a: str, b: str) -> float:
         """Score factual contradiction: same entity, opposite claim."""
         # Extract subject (simple noun-phrase heuristic)
-        subjects_a = set(re.findall(r'\b(jude|user|i|we|they|he|she)\b', a))
-        subjects_b = set(re.findall(r'\b(jude|user|i|we|they|he|she)\b', b))
+        subjects_a = set(re.findall(r"\b(jude|user|i|we|they|he|she)\b", a))
+        subjects_b = set(re.findall(r"\b(jude|user|i|we|they|he|she)\b", b))
         if not (subjects_a & subjects_b):
             return 0.0
 
         # Check for polarity flip
         pos_words = {"love", "like", "enjoy", "want", "need", "prefer", "good", "happy"}
-        neg_words = {"hate", "dislike", "avoid", "reject", "never", "bad", "sad", "angry"}
+        neg_words = {
+            "hate",
+            "dislike",
+            "avoid",
+            "reject",
+            "never",
+            "bad",
+            "sad",
+            "angry",
+        }
 
         a_pos = any(w in a for w in pos_words)
         a_neg = any(w in a for w in neg_words)
@@ -244,14 +274,28 @@ class MemoryReliabilityEngine:
     def _emotional_contradiction_score(self, a: str, b: str) -> float:
         """Score emotional contradiction."""
         emotion_words = {
-            "happy": 1.0, "joy": 1.0, "excited": 1.0,
-            "sad": -1.0, "depressed": -1.0, "grief": -1.0,
-            "angry": -0.8, "furious": -0.8, "rage": -0.8,
-            "calm": 0.5, "peaceful": 0.5, "content": 0.5,
-            "anxious": -0.6, "worried": -0.6, "afraid": -0.6,
+            "happy": 1.0,
+            "joy": 1.0,
+            "excited": 1.0,
+            "sad": -1.0,
+            "depressed": -1.0,
+            "grief": -1.0,
+            "angry": -0.8,
+            "furious": -0.8,
+            "rage": -0.8,
+            "calm": 0.5,
+            "peaceful": 0.5,
+            "content": 0.5,
+            "anxious": -0.6,
+            "worried": -0.6,
+            "afraid": -0.6,
         }
-        a_valence = sum(emotion_words.get(w, 0) for w in a.split() if w in emotion_words)
-        b_valence = sum(emotion_words.get(w, 0) for w in b.split() if w in emotion_words)
+        a_valence = sum(
+            emotion_words.get(w, 0) for w in a.split() if w in emotion_words
+        )
+        b_valence = sum(
+            emotion_words.get(w, 0) for w in b.split() if w in emotion_words
+        )
 
         if abs(a_valence) > 0.5 and abs(b_valence) > 0.5:
             if (a_valence > 0 and b_valence < 0) or (a_valence < 0 and b_valence > 0):
@@ -260,8 +304,12 @@ class MemoryReliabilityEngine:
 
     def _temporal_contradiction_score(self, a: str, b: str) -> float:
         """Score temporal contradiction (before/after mismatch)."""
-        temporal_a = re.search(r'\b(before|after|during|when|then|first|later|now)\b', a)
-        temporal_b = re.search(r'\b(before|after|during|when|then|first|later|now)\b', b)
+        temporal_a = re.search(
+            r"\b(before|after|during|when|then|first|later|now)\b", a
+        )
+        temporal_b = re.search(
+            r"\b(before|after|during|when|then|first|later|now)\b", b
+        )
         if temporal_a and temporal_b:
             # Very naive: if both mention time but tell different sequences
             if "before" in a and "after" in b:
@@ -270,7 +318,9 @@ class MemoryReliabilityEngine:
                 return 0.5
         return 0.0
 
-    def _record_contradiction(self, a_id: str, b_id: str, ctype: str, severity: float) -> None:
+    def _record_contradiction(
+        self, a_id: str, b_id: str, ctype: str, severity: float
+    ) -> None:
         """Record a detected contradiction."""
         now = datetime.now().isoformat()
         with sqlite3.connect(self.db_path) as conn:
@@ -358,7 +408,9 @@ class MemoryReliabilityEngine:
             conn.commit()
         return True
 
-    def get_reliable_memories(self, threshold: float = 0.5, limit: int = 100) -> List[Dict]:
+    def get_reliable_memories(
+        self, threshold: float = 0.5, limit: int = 100
+    ) -> List[Dict]:
         """Get memories above reliability threshold."""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.execute(
@@ -385,11 +437,18 @@ def get_reliability_engine() -> MemoryReliabilityEngine:
 
 if __name__ == "__main__":
     import argparse
+
     p = argparse.ArgumentParser()
     p.add_argument("--decay", action="store_true", help="Apply memory decay")
-    p.add_argument("--contradictions", action="store_true", help="Show unresolved contradictions")
-    p.add_argument("--projections", action="store_true", help="Show projection-flagged memories")
-    p.add_argument("--reliable", type=float, default=0.5, help="Show memories above threshold")
+    p.add_argument(
+        "--contradictions", action="store_true", help="Show unresolved contradictions"
+    )
+    p.add_argument(
+        "--projections", action="store_true", help="Show projection-flagged memories"
+    )
+    p.add_argument(
+        "--reliable", type=float, default=0.5, help="Show memories above threshold"
+    )
     args = p.parse_args()
 
     engine = MemoryReliabilityEngine()
@@ -398,12 +457,18 @@ if __name__ == "__main__":
         print("Decay applied.")
     elif args.contradictions:
         for c in engine.get_unresolved_contradictions():
-            print(f"[{c['id']}] {c['contradiction_type']} (severity: {c['severity']:.2f})")
+            print(
+                f"[{c['id']}] {c['contradiction_type']} (severity: {c['severity']:.2f})"
+            )
             print(f"  A: {c['text_a'][:80]}")
             print(f"  B: {c['text_b'][:80]}")
     elif args.projections:
         for m in engine.get_projection_memories():
-            print(f"[{m['memory_id']}] reliability={m['current_reliability']:.2f} — {m['text'][:80]}")
+            print(
+                f"[{m['memory_id']}] reliability={m['current_reliability']:.2f} — {m['text'][:80]}"
+            )
     else:
         for m in engine.get_reliable_memories(threshold=args.reliable, limit=20):
-            print(f"[{m['memory_id']}] {m['current_reliability']:.2f} ({m['source_type']}) — {m['text'][:80]}")
+            print(
+                f"[{m['memory_id']}] {m['current_reliability']:.2f} ({m['source_type']}) — {m['text'][:80]}"
+            )

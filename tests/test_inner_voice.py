@@ -1,4 +1,5 @@
 """Tests for the Inner Voice stream of consciousness."""
+
 import sys
 import unittest
 from pathlib import Path
@@ -18,7 +19,9 @@ class TestInnerVoice(unittest.TestCase):
         self.assertGreater(len(thought), 10)
 
     def test_generate_stream_with_memories(self):
-        thought = self.voice.generate_stream(memory_fragments=["Jude likes coffee", "Jude works late"])
+        thought = self.voice.generate_stream(
+            memory_fragments=["Jude likes coffee", "Jude works late"]
+        )
         self.assertIsInstance(thought, str)
 
     def test_generate_question(self):

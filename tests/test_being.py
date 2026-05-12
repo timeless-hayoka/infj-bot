@@ -1,4 +1,5 @@
 """Tests for the Being cognitive architecture."""
+
 import sys
 import tempfile
 import unittest
@@ -52,7 +53,7 @@ class TestBeing(unittest.TestCase):
         self.being.update_theory_of_mind(
             "thank you for being here",
             {"label": "grateful", "intensity": 0.5},
-            {"score": 0.1}
+            {"score": 0.1},
         )
         self.assertGreater(self.being.state.attachment, 0.3)
 

@@ -1,4 +1,5 @@
 """Automated maintenance tasks for the INFJ bot."""
+
 import asyncio
 import logging
 

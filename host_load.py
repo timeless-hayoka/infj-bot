@@ -3,6 +3,7 @@
 Optional dependency: ``psutil``. If missing or disabled via env, callers get
 ``ok: false`` and should behave as if load is zero.
 """
+
 from __future__ import annotations
 
 import os
@@ -36,7 +37,12 @@ def sample_host_load(*, force: bool = False) -> Dict[str, Any]:
     """
     global _cache, _last_mono, _cpu_warmed
 
-    if os.getenv("INFJ_DISABLE_HOST_LOAD", "").strip().lower() in ("1", "true", "yes", "on"):
+    if os.getenv("INFJ_DISABLE_HOST_LOAD", "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    ):
         return {
             "ok": False,
             "stress": 0.0,
@@ -47,11 +53,7 @@ def sample_host_load(*, force: bool = False) -> Dict[str, Any]:
         }
 
     now = time.monotonic()
-    if (
-        not force
-        and _cache is not None
-        and now - _last_mono < _MIN_INTERVAL
-    ):
+    if not force and _cache is not None and now - _last_mono < _MIN_INTERVAL:
         return _cache
 
     try:

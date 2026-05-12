@@ -1,4 +1,5 @@
 """Tests for the local LLM bridge (Ollama)."""
+
 import sys
 import unittest
 from pathlib import Path

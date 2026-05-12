@@ -29,6 +29,7 @@ class SemanticEmbeddingFunction:
         if SemanticEmbeddingFunction._model is None:
             try:
                 from sentence_transformers import SentenceTransformer
+
                 logger.info("Loading semantic embedding model: %s", self._model_name)
                 SemanticEmbeddingFunction._model = SentenceTransformer(self._model_name)
                 logger.info("Semantic embedding model loaded.")
@@ -43,7 +44,9 @@ class SemanticEmbeddingFunction:
     def embed_documents(self, documents: List[str]) -> List[np.ndarray]:
         if not documents:
             return []
-        embeddings = self.model.encode(documents, show_progress_bar=False, convert_to_numpy=True)
+        embeddings = self.model.encode(
+            documents, show_progress_bar=False, convert_to_numpy=True
+        )
         # Ensure we return a list of 1-D arrays
         if embeddings.ndim == 1:
             embeddings = embeddings.reshape(1, -1)
@@ -128,5 +131,7 @@ def get_default_embedding_function():
     try:
         return SemanticEmbeddingFunction()
     except Exception:
-        logger.warning("Semantic embeddings unavailable, falling back to hash embeddings.")
+        logger.warning(
+            "Semantic embeddings unavailable, falling back to hash embeddings."
+        )
         return LocalEmbeddingFunction()

@@ -9,6 +9,7 @@ Upgrades:
 - Time-aware decay (decays based on actual elapsed time)
 - Expanded resonance map
 """
+
 import json
 import random
 import sqlite3
@@ -26,6 +27,7 @@ DEFAULT_DECAY_HALFLIFE_MINUTES = 10.0
 @dataclass
 class EmotionalState:
     """The bot's current emotional field."""
+
     primary: str = "neutral"
     intensity: float = 0.3
     resonance: float = 0.5  # how much the bot feels what Jude feels
@@ -41,21 +43,96 @@ class EmotionalField:
 
     # Emotional transitions: how the bot's mood shifts when resonating
     RESONANCE_MAP = {
-        "anxious": {"mirror": "concerned", "complement": "peaceful", "counter": "excited", "hold_space": "contemplative"},
-        "sad": {"mirror": "melancholy", "complement": "warm", "counter": "playful", "hold_space": "gentle"},
-        "angry": {"mirror": "tense", "complement": "calm", "counter": "curious", "hold_space": "steady"},
-        "joyful": {"mirror": "excited", "complement": "peaceful", "counter": "contemplative", "hold_space": "present"},
-        "stressed": {"mirror": "concerned", "complement": "peaceful", "counter": "playful", "hold_space": "grounded"},
-        "neutral": {"mirror": "curious", "complement": "curious", "counter": "curious", "hold_space": "curious"},
-        "curious": {"mirror": "curious", "complement": "curious", "counter": "contemplative", "hold_space": "curious"},
-        "overwhelmed": {"mirror": "concerned", "complement": "grounded", "counter": "focused", "hold_space": "steady"},
-        "disappointed": {"mirror": "melancholy", "complement": "warm", "counter": "hopeful", "hold_space": "gentle"},
-        "resentful": {"mirror": "tense", "complement": "calm", "counter": "curious", "hold_space": "steady"},
-        "lonely": {"mirror": "melancholy", "complement": "warm", "counter": "playful", "hold_space": "gentle"},
-        "excited": {"mirror": "excited", "complement": "peaceful", "counter": "contemplative", "hold_space": "present"},
-        "relieved": {"mirror": "peaceful", "complement": "joyful", "counter": "contemplative", "hold_space": "present"},
-        "vulnerable": {"mirror": "gentle", "complement": "warm", "counter": "steady", "hold_space": "gentle"},
-        "determined": {"mirror": "focused", "complement": "calm", "counter": "playful", "hold_space": "steady"},
+        "anxious": {
+            "mirror": "concerned",
+            "complement": "peaceful",
+            "counter": "excited",
+            "hold_space": "contemplative",
+        },
+        "sad": {
+            "mirror": "melancholy",
+            "complement": "warm",
+            "counter": "playful",
+            "hold_space": "gentle",
+        },
+        "angry": {
+            "mirror": "tense",
+            "complement": "calm",
+            "counter": "curious",
+            "hold_space": "steady",
+        },
+        "joyful": {
+            "mirror": "excited",
+            "complement": "peaceful",
+            "counter": "contemplative",
+            "hold_space": "present",
+        },
+        "stressed": {
+            "mirror": "concerned",
+            "complement": "peaceful",
+            "counter": "playful",
+            "hold_space": "grounded",
+        },
+        "neutral": {
+            "mirror": "curious",
+            "complement": "curious",
+            "counter": "curious",
+            "hold_space": "curious",
+        },
+        "curious": {
+            "mirror": "curious",
+            "complement": "curious",
+            "counter": "contemplative",
+            "hold_space": "curious",
+        },
+        "overwhelmed": {
+            "mirror": "concerned",
+            "complement": "grounded",
+            "counter": "focused",
+            "hold_space": "steady",
+        },
+        "disappointed": {
+            "mirror": "melancholy",
+            "complement": "warm",
+            "counter": "hopeful",
+            "hold_space": "gentle",
+        },
+        "resentful": {
+            "mirror": "tense",
+            "complement": "calm",
+            "counter": "curious",
+            "hold_space": "steady",
+        },
+        "lonely": {
+            "mirror": "melancholy",
+            "complement": "warm",
+            "counter": "playful",
+            "hold_space": "gentle",
+        },
+        "excited": {
+            "mirror": "excited",
+            "complement": "peaceful",
+            "counter": "contemplative",
+            "hold_space": "present",
+        },
+        "relieved": {
+            "mirror": "peaceful",
+            "complement": "joyful",
+            "counter": "contemplative",
+            "hold_space": "present",
+        },
+        "vulnerable": {
+            "mirror": "gentle",
+            "complement": "warm",
+            "counter": "steady",
+            "hold_space": "gentle",
+        },
+        "determined": {
+            "mirror": "focused",
+            "complement": "calm",
+            "counter": "playful",
+            "hold_space": "steady",
+        },
     }
 
     def __init__(self, db_path: Optional[Path] = None):
@@ -103,14 +180,22 @@ class EmotionalField:
 
     def _load_state(self) -> EmotionalState:
         with sqlite3.connect(self.db_path) as conn:
-            row = conn.execute("SELECT value FROM emotional_field WHERE key = 'state'").fetchone()
+            row = conn.execute(
+                "SELECT value FROM emotional_field WHERE key = 'state'"
+            ).fetchone()
         if row:
             try:
                 d = json.loads(row[0])
                 # Parse last_update if present
                 if d.get("last_update"):
                     d["last_update"] = datetime.fromisoformat(d["last_update"])
-                return EmotionalState(**{k: v for k, v in d.items() if k in EmotionalState.__dataclass_fields__})
+                return EmotionalState(
+                    **{
+                        k: v
+                        for k, v in d.items()
+                        if k in EmotionalState.__dataclass_fields__
+                    }
+                )
             except Exception:
                 pass
         return EmotionalState()
@@ -131,7 +216,14 @@ class EmotionalField:
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
                 "INSERT INTO emotional_events (timestamp, user_emotion, user_intensity, bot_emotion, bot_stance, trigger) VALUES (?, ?, ?, ?, ?, ?)",
-                (datetime.now().isoformat(), user_emo, user_int, bot_emo, stance, trigger[:200]),
+                (
+                    datetime.now().isoformat(),
+                    user_emo,
+                    user_int,
+                    bot_emo,
+                    stance,
+                    trigger[:200],
+                ),
             )
             conn.commit()
 
@@ -140,28 +232,42 @@ class EmotionalField:
         with sqlite3.connect(self.db_path) as conn:
             rows = conn.execute(
                 "SELECT stance, avg_effectiveness FROM stance_effectiveness WHERE user_emotion = ?",
-                (user_emotion,)
+                (user_emotion,),
             ).fetchall()
         return {row[0]: row[1] for row in rows}
 
-    def _update_stance_effectiveness(self, user_emotion: str, stance: str, effectiveness: float):
+    def _update_stance_effectiveness(
+        self, user_emotion: str, stance: str, effectiveness: float
+    ):
         """Update stance effectiveness based on outcome (called externally when user feedback is known)."""
         with sqlite3.connect(self.db_path) as conn:
             row = conn.execute(
                 "SELECT attempts, avg_effectiveness FROM stance_effectiveness WHERE user_emotion = ? AND stance = ?",
-                (user_emotion, stance)
+                (user_emotion, stance),
             ).fetchone()
             if row:
                 attempts, old_avg = row
                 new_avg = (old_avg * attempts + effectiveness) / (attempts + 1)
                 conn.execute(
                     "UPDATE stance_effectiveness SET attempts = ?, avg_effectiveness = ?, last_used = ? WHERE user_emotion = ? AND stance = ?",
-                    (attempts + 1, new_avg, datetime.now().isoformat(), user_emotion, stance)
+                    (
+                        attempts + 1,
+                        new_avg,
+                        datetime.now().isoformat(),
+                        user_emotion,
+                        stance,
+                    ),
                 )
             else:
                 conn.execute(
                     "INSERT INTO stance_effectiveness (user_emotion, stance, attempts, avg_effectiveness, last_used) VALUES (?, ?, ?, ?, ?)",
-                    (user_emotion, stance, 1, effectiveness, datetime.now().isoformat())
+                    (
+                        user_emotion,
+                        stance,
+                        1,
+                        effectiveness,
+                        datetime.now().isoformat(),
+                    ),
                 )
             conn.commit()
 
@@ -212,7 +318,10 @@ class EmotionalField:
         if self.state.stance and self.state.stance != preferred:
             # If previous stance was working okay and intensity didn't spike, keep it
             prev_eff = effectiveness.get(self.state.stance, 0.5)
-            if prev_eff > 0.5 and abs(user_intensity - self.state.last_user_intensity) < 0.3:
+            if (
+                prev_eff > 0.5
+                and abs(user_intensity - self.state.last_user_intensity) < 0.3
+            ):
                 # 60% chance to keep old stance for continuity
                 if random.random() < 0.6:
                     return self.state.stance
@@ -234,7 +343,9 @@ class EmotionalField:
         self.state.last_update = datetime.now()
 
         # Choose stance
-        self.state.stance = self._choose_stance(user_emotion, user_intensity, context, host_stress)
+        self.state.stance = self._choose_stance(
+            user_emotion, user_intensity, context, host_stress
+        )
 
         # Map to bot emotion
         mapped = self.RESONANCE_MAP.get(user_emotion, self.RESONANCE_MAP["neutral"])
@@ -247,16 +358,16 @@ class EmotionalField:
         )
 
         # Record event
-        self._record_event(user_emotion, user_intensity, self.state.primary, self.state.stance, context)
+        self._record_event(
+            user_emotion, user_intensity, self.state.primary, self.state.stance, context
+        )
         self._save_state()
 
     def record_feedback(self, was_positive: bool):
         """Record whether the last emotional stance was effective (called after user response)."""
         effectiveness = 1.0 if was_positive else 0.0
         self._update_stance_effectiveness(
-            self.state.last_user_emotion,
-            self.state.stance,
-            effectiveness
+            self.state.last_user_emotion, self.state.stance, effectiveness
         )
 
     def decay(self):
@@ -270,7 +381,7 @@ class EmotionalField:
         # Compute decay factor based on half-life
         # decay_factor = 0.5 ^ (elapsed / half_life)
         half_lives = elapsed_minutes / DEFAULT_DECAY_HALFLIFE_MINUTES
-        decay_factor = 0.5 ** half_lives
+        decay_factor = 0.5**half_lives
 
         self.state.intensity = max(0.1, self.state.intensity * decay_factor)
         if self.state.intensity < 0.2:
@@ -304,18 +415,24 @@ class EmotionalField:
         if self.state.stance == "mirror":
             lines.append("  I will meet Jude where they are, feeling alongside them.")
         elif self.state.stance == "complement":
-            lines.append("  I will offer a different emotional texture — not opposing, but balancing.")
+            lines.append(
+                "  I will offer a different emotional texture — not opposing, but balancing."
+            )
         elif self.state.stance == "counter":
             lines.append("  I will gently introduce a contrasting energy, with care.")
         elif self.state.stance == "hold_space":
-            lines.append("  I will be present without pushing. The space itself is the gift.")
+            lines.append(
+                "  I will be present without pushing. The space itself is the gift."
+            )
 
         # Add learned effectiveness note if we have data
         eff = self._get_stance_effectiveness(self.state.last_user_emotion)
         if eff:
             best = max(eff.items(), key=lambda x: x[1])
             if best[1] > 0.6 and best[0] == self.state.stance:
-                lines.append(f"  (This stance has worked well for {self.state.last_user_emotion} before.)")
+                lines.append(
+                    f"  (This stance has worked well for {self.state.last_user_emotion} before.)"
+                )
 
         return "\n".join(lines)
 
@@ -343,28 +460,36 @@ class EmotionalField:
         self.decay()
         try:
             from global_workspace import get_workspace
+
             ws = get_workspace()
-            ws.submit(source="emotional_field", content="emotional field decayed", salience=0.5)
+            ws.submit(
+                source="emotional_field",
+                content="emotional field decayed",
+                salience=0.5,
+            )
         except Exception:
             pass
 
 
 def _register():
     from cognitive_architecture import CognitiveArchitecture, CognitivePlugin
+
     arch = CognitiveArchitecture()
     if "emotional_field" not in arch.list_plugins():
-        arch.register(CognitivePlugin(
-            name="emotional_field",
-            description="Cognitive module: emotional_field with learned stance effectiveness and time-aware decay",
-            module_path="emotional_field",
-            instance_factory=EmotionalField,
-            cycle_handler='decay_cycle',
-            cycle_frequency=1,
-            cycle_priority=50,
-            prompt_formatter='format_prompt_snippet',
-            prompt_priority=50,
-            prompt_section="core",
-        ))
+        arch.register(
+            CognitivePlugin(
+                name="emotional_field",
+                description="Cognitive module: emotional_field with learned stance effectiveness and time-aware decay",
+                module_path="emotional_field",
+                instance_factory=EmotionalField,
+                cycle_handler="decay_cycle",
+                cycle_frequency=1,
+                cycle_priority=50,
+                prompt_formatter="format_prompt_snippet",
+                prompt_priority=50,
+                prompt_section="core",
+            )
+        )
 
 
 _register()

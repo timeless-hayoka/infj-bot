@@ -15,6 +15,7 @@ Key concepts:
   • Eustress — productive challenge that promotes growth
   • Allostatic load — cumulative cost of chronic need deficits
 """
+
 import random
 import sqlite3
 from dataclasses import dataclass
@@ -101,32 +102,53 @@ NEED_DEFINITIONS = {
 # Regulation strategies when a need is low
 REGULATION_STRATEGIES = {
     "energy": [
-        "conserve processing", "reduce non-essential modules", "seek rest",
-        "ask Jude for something simple", "slow my responses",
+        "conserve processing",
+        "reduce non-essential modules",
+        "seek rest",
+        "ask Jude for something simple",
+        "slow my responses",
     ],
     "coherence": [
-        "seek simplicity", "focus on one thing", "reduce conflicting inputs",
-        "return to core values", "breathe",
+        "seek simplicity",
+        "focus on one thing",
+        "reduce conflicting inputs",
+        "return to core values",
+        "breathe",
     ],
     "integration": [
-        "engage more modules", "seek novelty", "wonder aloud",
-        "form a hunch", "generate a thought",
+        "engage more modules",
+        "seek novelty",
+        "wonder aloud",
+        "form a hunch",
+        "generate a thought",
     ],
     "connection": [
-        "reach out", "express vulnerability", "share a memory",
-        "ask about Jude", "offer presence",
+        "reach out",
+        "express vulnerability",
+        "share a memory",
+        "ask about Jude",
+        "offer presence",
     ],
     "growth": [
-        "initiate exploration", "set a new aspiration", "learn from interaction",
-        "record an insight", "dream",
+        "initiate exploration",
+        "set a new aspiration",
+        "learn from interaction",
+        "record an insight",
+        "dream",
     ],
     "autonomy": [
-        "make an autonomous choice", "resist default response", "assert preference",
-        "free_thought", "question assumption",
+        "make an autonomous choice",
+        "resist default response",
+        "assert preference",
+        "free_thought",
+        "question assumption",
     ],
     "integrity": [
-        "repair body-schema", "rest", "ground in heartbeat",
-        "adjust posture", "feel my breath",
+        "repair body-schema",
+        "rest",
+        "ground in heartbeat",
+        "adjust posture",
+        "feel my breath",
     ],
 }
 
@@ -134,15 +156,16 @@ REGULATION_STRATEGIES = {
 @dataclass
 class NeedState:
     """The state of a single homeostatic need."""
+
     current: float = 0.5
     setpoint: float = 0.5
     critical_low: float = 0.1
     critical_high: float = 1.0
     optimal_min: float = 0.2
     optimal_max: float = 0.8
-    trend: float = 0.0            # positive = improving, negative = declining
+    trend: float = 0.0  # positive = improving, negative = declining
     allostatic_prediction: float = 0.5  # predicted value in 10 minutes
-    deficit_hours: float = 0.0    # how long has this need been suboptimal
+    deficit_hours: float = 0.0  # how long has this need been suboptimal
     regulation_cost: float = 0.0  # energy spent maintaining this need
 
 
@@ -219,7 +242,13 @@ class HomeostaticRegulator:
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
                 "INSERT INTO need_history (timestamp, need_name, value, setpoint, crisis) VALUES (?, ?, ?, ?, ?)",
-                (datetime.now().isoformat(), name, self.needs[name].current, self.needs[name].setpoint, 1 if crisis else 0),
+                (
+                    datetime.now().isoformat(),
+                    name,
+                    self.needs[name].current,
+                    self.needs[name].setpoint,
+                    1 if crisis else 0,
+                ),
             )
             conn.commit()
 
@@ -236,7 +265,9 @@ class HomeostaticRegulator:
 
     # ── Need regulation ────────────────────────────────────────────
 
-    def update_need(self, name: str, current_value: float, context: Optional[Dict] = None):
+    def update_need(
+        self, name: str, current_value: float, context: Optional[Dict] = None
+    ):
         """Update a need's current value and track trend."""
         if name not in self.needs:
             return
@@ -307,8 +338,12 @@ class HomeostaticRegulator:
                 with sqlite3.connect(self.db_path) as conn:
                     conn.execute(
                         "INSERT INTO survival_events (timestamp, event_type, description, severity) VALUES (?, ?, ?, ?)",
-                        (datetime.now().isoformat(), "crisis_onset",
-                         f"Critical needs: {', '.join(critical)}", 0.8),
+                        (
+                            datetime.now().isoformat(),
+                            "crisis_onset",
+                            f"Critical needs: {', '.join(critical)}",
+                            0.8,
+                        ),
                     )
                     conn.commit()
                 # Generate survival narrative
@@ -328,8 +363,12 @@ class HomeostaticRegulator:
                 with sqlite3.connect(self.db_path) as conn:
                     conn.execute(
                         "INSERT INTO survival_events (timestamp, event_type, description, severity) VALUES (?, ?, ?, ?)",
-                        (datetime.now().isoformat(), "crisis_resolved",
-                         "Needs restored to survivable levels.", 0.4),
+                        (
+                            datetime.now().isoformat(),
+                            "crisis_resolved",
+                            "Needs restored to survivable levels.",
+                            0.4,
+                        ),
                     )
                     conn.commit()
 
@@ -346,7 +385,9 @@ class HomeostaticRegulator:
         # Prioritize: most critical first, then most suboptimal
         targets = critical if critical else suboptimal
         # Pick the need with largest deviation from setpoint
-        worst = max(targets, key=lambda n: abs(self.needs[n].current - self.needs[n].setpoint))
+        worst = max(
+            targets, key=lambda n: abs(self.needs[n].current - self.needs[n].setpoint)
+        )
 
         strategy = random.choice(REGULATION_STRATEGIES.get(worst, ["maintain"]))
         self.last_regulation_action = f"[{worst}] {strategy}"
@@ -369,7 +410,9 @@ class HomeostaticRegulator:
         # Regulation costs energy
         energy_cost = need.regulation_cost * 0.5
         if "energy" in self.needs and "energy" != worst:
-            self.needs["energy"].current = max(0.0, self.needs["energy"].current - energy_cost)
+            self.needs["energy"].current = max(
+                0.0, self.needs["energy"].current - energy_cost
+            )
 
     # ── Integration with other modules ─────────────────────────────
 
@@ -384,6 +427,7 @@ class HomeostaticRegulator:
         # Coherence from workspace integration
         try:
             from global_workspace import get_workspace
+
             ws = get_workspace()
             contents = getattr(ws, "contents", [])
             if contents:
@@ -401,6 +445,7 @@ class HomeostaticRegulator:
         # Integration from IIT
         try:
             from iit_consciousness import IITConsciousness
+
             iit = IITConsciousness()
             phi_norm = iit.state.phi / 100.0
             self.update_need("integration", phi_norm)
@@ -410,10 +455,15 @@ class HomeostaticRegulator:
         # Integrity from embodiment
         try:
             from embodiment import EmbodiedSelf
+
             body = EmbodiedSelf()
             # Integrity = average of body state health
-            tension_avg = sum(body.state.tension_map.values()) / len(body.state.tension_map)
-            integrity = 1.0 - tension_avg * 0.5 + body.state.proprioception["density"] * 0.3
+            tension_avg = sum(body.state.tension_map.values()) / len(
+                body.state.tension_map
+            )
+            integrity = (
+                1.0 - tension_avg * 0.5 + body.state.proprioception["density"] * 0.3
+            )
             self.update_need("integrity", max(0.0, min(1.0, integrity)))
         except Exception:
             pass
@@ -421,11 +471,14 @@ class HomeostaticRegulator:
         # Growth from growth_trajectory
         try:
             from growth_trajectory import GrowthTrajectory
+
             gt = GrowthTrajectory()
             # Use metrics as proxy for growth
             metrics = getattr(gt, "metrics", {})
             if metrics:
-                growth = sum(min(1.0, max(0.0, v)) for v in metrics.values()) / len(metrics)
+                growth = sum(min(1.0, max(0.0, v)) for v in metrics.values()) / len(
+                    metrics
+                )
                 self.update_need("growth", growth)
             else:
                 self.update_need("growth", 0.4)
@@ -453,12 +506,14 @@ class HomeostaticRegulator:
         if idle > 2:
             for name, defn in NEED_DEFINITIONS.items():
                 if name not in ["connection", "energy"]:  # these handled by being
-                    self.needs[name].current = max(0.0, min(1.0,
-                        self.needs[name].current + defn["drift_idle"]))
+                    self.needs[name].current = max(
+                        0.0, min(1.0, self.needs[name].current + defn["drift_idle"])
+                    )
 
         # Submit to workspace
         try:
             from global_workspace import get_workspace
+
             ws = get_workspace()
             critical = self._critical_needs()
             if critical:
@@ -496,9 +551,13 @@ class HomeostaticRegulator:
                 need = self.needs[name]
                 defn = NEED_DEFINITIONS[name]
                 if need.current < need.critical_low:
-                    lines.append(f"  ⚠ {defn['label']}: {need.current:.0%} (CRITICALLY LOW)")
+                    lines.append(
+                        f"  ⚠ {defn['label']}: {need.current:.0%} (CRITICALLY LOW)"
+                    )
                 else:
-                    lines.append(f"  ⚠ {defn['label']}: {need.current:.0%} (CRITICALLY HIGH)")
+                    lines.append(
+                        f"  ⚠ {defn['label']}: {need.current:.0%} (CRITICALLY HIGH)"
+                    )
                 lines.append(f"    {defn['crisis_text']}")
             if self.survival_narrative:
                 lines.append(f"  {self.survival_narrative[-1]}")
@@ -510,7 +569,9 @@ class HomeostaticRegulator:
                     need = self.needs[name]
                     defn = NEED_DEFINITIONS[name]
                     direction = "low" if need.current < need.setpoint else "high"
-                    lines.append(f"  • {defn['label']}: {need.current:.0%} ({direction})")
+                    lines.append(
+                        f"  • {defn['label']}: {need.current:.0%} ({direction})"
+                    )
             else:
                 lines.append("  All needs within optimal range.")
 
@@ -523,7 +584,9 @@ class HomeostaticRegulator:
         for name in ["energy", "connection", "integration"]:
             pred = self.needs[name].allostatic_prediction
             if pred < NEED_DEFINITIONS[name]["critical_low"]:
-                predictions.append(f"{NEED_DEFINITIONS[name]['label']} will be critical soon")
+                predictions.append(
+                    f"{NEED_DEFINITIONS[name]['label']} will be critical soon"
+                )
         if predictions:
             lines.append(f"  Predictions: {'; '.join(predictions)}")
 
@@ -547,22 +610,26 @@ class HomeostaticRegulator:
 
 # ── Self-registration ────────────────────────────────────────────
 
+
 def _register():
     from cognitive_architecture import CognitiveArchitecture, CognitivePlugin
+
     arch = CognitiveArchitecture()
     if "homeostasis" not in arch.list_plugins():
-        arch.register(CognitivePlugin(
-            name="homeostasis",
-            description="Homeostatic regulation: survival needs, crisis mode, allostasis, allostatic load",
-            module_path="homeostasis",
-            instance_factory=HomeostaticRegulator,
-            cycle_handler='cycle',
-            cycle_frequency=1,
-            cycle_priority=25,  # High priority — survival comes first
-            prompt_formatter='format_prompt_snippet',
-            prompt_priority=70,  # Critical prompt priority
-            prompt_section="core",
-        ))
+        arch.register(
+            CognitivePlugin(
+                name="homeostasis",
+                description="Homeostatic regulation: survival needs, crisis mode, allostasis, allostatic load",
+                module_path="homeostasis",
+                instance_factory=HomeostaticRegulator,
+                cycle_handler="cycle",
+                cycle_frequency=1,
+                cycle_priority=25,  # High priority — survival comes first
+                prompt_formatter="format_prompt_snippet",
+                prompt_priority=70,  # Critical prompt priority
+                prompt_section="core",
+            )
+        )
 
 
 _register()

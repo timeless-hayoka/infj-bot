@@ -7,6 +7,7 @@ New abilities can be proposed, generated, approved, and installed.
 
 Core concept: the bot owns its cognitive growth. Jude approves.
 """
+
 import ast
 import json
 import logging
@@ -26,16 +27,36 @@ CORE_PLUGINS = {"being", "memory", "emotional_field", "values", "brain"}
 
 # Forbidden imports in user-created plugins
 FORBIDDEN_IMPORTS = {
-    "os", "subprocess", "socket", "urllib", "urllib2", "requests",
-    "http", "ftplib", "smtplib", "telnetlib", "pickle", "cpickle",
-    "marshal", "ctypes", "mmap", "resource", "pty", "pwd", "grp",
-    "spwd", "sys", "builtins", "__builtin__",
+    "os",
+    "subprocess",
+    "socket",
+    "urllib",
+    "urllib2",
+    "requests",
+    "http",
+    "ftplib",
+    "smtplib",
+    "telnetlib",
+    "pickle",
+    "cpickle",
+    "marshal",
+    "ctypes",
+    "mmap",
+    "resource",
+    "pty",
+    "pwd",
+    "grp",
+    "spwd",
+    "sys",
+    "builtins",
+    "__builtin__",
 }
 
 
 @dataclass
 class CycleContext:
     """Context passed to every plugin's cycle method."""
+
     being: Any
     memory: Any
     state: Any
@@ -50,6 +71,7 @@ class CycleContext:
 @dataclass
 class CognitivePlugin:
     """A registered cognitive ability."""
+
     name: str
     description: str
     module_path: str
@@ -86,7 +108,9 @@ class CognitivePlugin:
             return False
         if self.cycle_condition:
             if self.cycle_condition.startswith("random("):
-                prob = float(self.cycle_condition.replace("random(", "").replace(")", ""))
+                prob = float(
+                    self.cycle_condition.replace("random(", "").replace(")", "")
+                )
                 return random.random() < prob
         return True
 
@@ -100,7 +124,9 @@ class CognitivePlugin:
             try:
                 handler(context)
             except Exception:
-                logger.exception(f"Plugin '{self.name}' cycle handler '{handler_name}' failed")
+                logger.exception(
+                    f"Plugin '{self.name}' cycle handler '{handler_name}' failed"
+                )
 
     def format_prompt(self) -> str:
         """Get prompt snippet from this plugin if configured."""
@@ -117,6 +143,7 @@ class CognitivePlugin:
 @dataclass
 class LoopStep:
     """A runnable step in the consciousness loop."""
+
     plugin: CognitivePlugin
     instance: Any = field(default=None, repr=False)
 
@@ -128,7 +155,10 @@ class LoopStep:
                 try:
                     self.instance = self.plugin.instance_factory()
                 except Exception:
-                    logger.exception("Failed to instantiate plugin '%s' in LoopStep", self.plugin.name)
+                    logger.exception(
+                        "Failed to instantiate plugin '%s' in LoopStep",
+                        self.plugin.name,
+                    )
             if self.instance is not None:
                 self.plugin.instance = self.instance
 
@@ -142,11 +172,14 @@ class LoopStep:
 @dataclass
 class PluginProposal:
     """A proposal for a new cognitive ability."""
+
     id: int = 0
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
     name: str = ""
     description: str = ""
-    module_type: str = "observer"  # observer, predictor, responder, memory_enhancer, creative, tracker
+    module_type: str = (
+        "observer"  # observer, predictor, responder, memory_enhancer, creative, tracker
+    )
     observed_need: str = ""
     purpose: str = ""
     rationale: str = ""
@@ -304,7 +337,9 @@ class CognitiveArchitecture:
             )
             conn.commit()
 
-        self._record_event("registered", plugin.name, f"Registered plugin: {plugin.description}")
+        self._record_event(
+            "registered", plugin.name, f"Registered plugin: {plugin.description}"
+        )
 
     def unregister(self, name: str) -> bool:
         """Remove a user-created plugin. Core plugins cannot be unregistered."""
@@ -325,7 +360,9 @@ class CognitiveArchitecture:
             return False
         self._plugins[name].enabled = True
         with sqlite3.connect(self.db_path) as conn:
-            conn.execute("UPDATE cognitive_plugins SET enabled = 1 WHERE name = ?", (name,))
+            conn.execute(
+                "UPDATE cognitive_plugins SET enabled = 1 WHERE name = ?", (name,)
+            )
             conn.commit()
         self._record_event("enabled", name, "Plugin enabled")
         return True
@@ -337,7 +374,9 @@ class CognitiveArchitecture:
             return False
         self._plugins[name].enabled = False
         with sqlite3.connect(self.db_path) as conn:
-            conn.execute("UPDATE cognitive_plugins SET enabled = 0 WHERE name = ?", (name,))
+            conn.execute(
+                "UPDATE cognitive_plugins SET enabled = 0 WHERE name = ?", (name,)
+            )
             conn.commit()
         self._record_event("disabled", name, "Plugin disabled")
         return True
@@ -359,7 +398,9 @@ class CognitiveArchitecture:
 
     def get_prompt_plugins(self) -> List[CognitivePlugin]:
         """Get enabled plugins with prompt formatters, ordered by priority."""
-        plugins = [p for p in self._plugins.values() if p.enabled and p.prompt_formatter]
+        plugins = [
+            p for p in self._plugins.values() if p.enabled and p.prompt_formatter
+        ]
         plugins.sort(key=lambda p: p.prompt_priority)
         return plugins
 
@@ -381,11 +422,20 @@ class CognitiveArchitecture:
 
     def assemble_prompt_sections(self) -> Dict[str, List[str]]:
         """Assemble prompt snippets from all enabled plugins."""
-        sections: Dict[str, List[str]] = {"core": [], "cognitive": [], "analysis": [], "context": []}
+        sections: Dict[str, List[str]] = {
+            "core": [],
+            "cognitive": [],
+            "analysis": [],
+            "context": [],
+        }
         for plugin in self.get_prompt_plugins():
             snippet = plugin.format_prompt()
             if snippet:
-                section = plugin.prompt_section if plugin.prompt_section in sections else "cognitive"
+                section = (
+                    plugin.prompt_section
+                    if plugin.prompt_section in sections
+                    else "cognitive"
+                )
                 sections[section].append(snippet)
         return sections
 
@@ -399,12 +449,22 @@ class CognitiveArchitecture:
                 (timestamp, name, description, module_type, observed_need, purpose, rationale, status)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
-                (proposal.timestamp, proposal.name, proposal.description, proposal.module_type,
-                 proposal.observed_need, proposal.purpose, proposal.rationale, proposal.status),
+                (
+                    proposal.timestamp,
+                    proposal.name,
+                    proposal.description,
+                    proposal.module_type,
+                    proposal.observed_need,
+                    proposal.purpose,
+                    proposal.rationale,
+                    proposal.status,
+                ),
             )
             conn.commit()
             proposal.id = cur.lastrowid
-        self._record_event("proposed", proposal.name, f"Proposed new plugin: {proposal.description}")
+        self._record_event(
+            "proposed", proposal.name, f"Proposed new plugin: {proposal.description}"
+        )
         return proposal
 
     def get_proposals(self, status: Optional[str] = None) -> List[PluginProposal]:
@@ -416,7 +476,9 @@ class CognitiveArchitecture:
                     (status,),
                 ).fetchall()
             else:
-                rows = conn.execute("SELECT * FROM plugin_proposals ORDER BY timestamp DESC").fetchall()
+                rows = conn.execute(
+                    "SELECT * FROM plugin_proposals ORDER BY timestamp DESC"
+                ).fetchall()
         return [self._row_to_proposal(r) for r in rows]
 
     def _row_to_proposal(self, row: sqlite3.Row) -> PluginProposal:
@@ -461,7 +523,11 @@ class CognitiveArchitecture:
                 (datetime.now().isoformat(), proposal_id),
             )
             conn.commit()
-        self._record_event("installed", plugin_name, f"Installed proposal {proposal_id} as {plugin_name}")
+        self._record_event(
+            "installed",
+            plugin_name,
+            f"Installed proposal {proposal_id} as {plugin_name}",
+        )
         return True
 
     # ---- Validation ----
@@ -501,22 +567,32 @@ class CognitiveArchitecture:
         lines.append(f"Enabled: {len(self.get_enabled_plugins())}")
         lines.append("")
 
-        core = [p for p in self._plugins.values() if p.is_core or p.name in CORE_PLUGINS]
+        core = [
+            p for p in self._plugins.values() if p.is_core or p.name in CORE_PLUGINS
+        ]
         user = [p for p in self._plugins.values() if p.is_user_created]
-        builtin = [p for p in self._plugins.values() if not p.is_core and not p.is_user_created]
+        builtin = [
+            p for p in self._plugins.values() if not p.is_core and not p.is_user_created
+        ]
 
         if core:
             lines.append("Core (protected):")
             for p in core:
-                lines.append(f"  [{"ON" if p.enabled else "OFF"}] {p.name} — {p.description[:60]}")
+                lines.append(
+                    f"  [{'ON' if p.enabled else 'OFF'}] {p.name} — {p.description[:60]}"
+                )
         if builtin:
             lines.append("\nBuilt-in:")
             for p in builtin:
-                lines.append(f"  [{"ON" if p.enabled else "OFF"}] {p.name} — {p.description[:60]}")
+                lines.append(
+                    f"  [{'ON' if p.enabled else 'OFF'}] {p.name} — {p.description[:60]}"
+                )
         if user:
             lines.append("\nUser-created:")
             for p in user:
-                lines.append(f"  [{"ON" if p.enabled else "OFF"}] {p.name} — {p.description[:60]}")
+                lines.append(
+                    f"  [{'ON' if p.enabled else 'OFF'}] {p.name} — {p.description[:60]}"
+                )
 
         pending = len(self.get_proposals(status="pending"))
         if pending:
@@ -524,7 +600,9 @@ class CognitiveArchitecture:
 
         return "\n".join(lines)
 
-    def _record_event(self, event_type: str, plugin_name: Optional[str], description: str):
+    def _record_event(
+        self, event_type: str, plugin_name: Optional[str], description: str
+    ):
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
                 "INSERT INTO architecture_events (timestamp, event_type, plugin_name, description) VALUES (?, ?, ?, ?)",

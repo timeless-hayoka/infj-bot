@@ -1,4 +1,5 @@
 """Tests for the Relationship Model module."""
+
 import sys
 import tempfile
 import unittest
@@ -36,7 +37,9 @@ class TestRelationshipModel(unittest.TestCase):
         self.assertTrue(any(t["theme"] == "technology" for t in themes))
 
     def test_inside_joke(self):
-        self.rel.add_inside_joke("the great router incident", "from networking discussion")
+        self.rel.add_inside_joke(
+            "the great router incident", "from networking discussion"
+        )
         jokes = self.rel.get_inside_jokes()
         self.assertEqual(len(jokes), 1)
 

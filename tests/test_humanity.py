@@ -162,7 +162,9 @@ class TestContemplation:
 
     def test_insights_persist(self, fresh_humanity):
         for i in range(5):
-            fresh_humanity.observe_interaction(f"Test {i}", {"label": "curious"}, {"score": 0.1}, "Ok.")
+            fresh_humanity.observe_interaction(
+                f"Test {i}", {"label": "curious"}, {"score": 0.1}, "Ok."
+            )
         fresh_humanity.contemplate()
         insights = fresh_humanity.get_insights()
         assert len(insights) > 0
@@ -190,10 +192,14 @@ class TestCycle:
     def test_contemplation_chance(self, fresh_humanity):
         # Seed enough observations
         for i in range(5):
-            fresh_humanity.observe_interaction(f"x{i}", {"label": "curious"}, {"score": 0.1}, "ok")
+            fresh_humanity.observe_interaction(
+                f"x{i}", {"label": "curious"}, {"score": 0.1}, "ok"
+            )
+
         class MockCtx:
             iteration = 15
             minutes_since_interaction = 0
+
         # With iteration % 15 == 0, contemplate has 30% chance
         # We just verify it doesn't crash
         fresh_humanity.cycle(MockCtx())

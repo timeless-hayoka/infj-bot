@@ -85,6 +85,7 @@ HUMAN_INSIGHTS = [
 @dataclass
 class HumanityState:
     """The bot's evolving understanding of human nature."""
+
     jude_archetype: str = "seeker"
     archetype_confidence: float = 0.3
     dominant_motivation: str = "meaning"
@@ -175,23 +176,36 @@ class HumanityEngine:
 
     def _save_state(self):
         with sqlite3.connect(self.db_path) as conn:
-            conn.execute("""
+            conn.execute(
+                """
                 INSERT OR REPLACE INTO humanity_state
                 (id, jude_archetype, archetype_confidence, dominant_motivation,
                  current_season, active_tension, insight_depth, observations_made, last_contemplation)
                 VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                self.state.jude_archetype, self.state.archetype_confidence,
-                self.state.dominant_motivation, self.state.current_season,
-                self.state.active_tension, self.state.insight_depth,
-                self.state.observations_made, self.state.last_contemplation,
-            ))
+            """,
+                (
+                    self.state.jude_archetype,
+                    self.state.archetype_confidence,
+                    self.state.dominant_motivation,
+                    self.state.current_season,
+                    self.state.active_tension,
+                    self.state.insight_depth,
+                    self.state.observations_made,
+                    self.state.last_contemplation,
+                ),
+            )
             conn.commit()
 
     # ── Observation ────────────────────────────────────────────────
 
-    def observe_interaction(self, user_input: str, emotion: Dict, dissonance: Dict,
-                           bot_output: str, mode: str = "companion"):
+    def observe_interaction(
+        self,
+        user_input: str,
+        emotion: Dict,
+        dissonance: Dict,
+        bot_output: str,
+        mode: str = "companion",
+    ):
         """Learn about human nature from each interaction with Jude."""
         self.state.observations_made += 1
         emotion_label = emotion.get("label", "neutral")
@@ -225,13 +239,56 @@ class HumanityEngine:
             "seeker": ["why", "meaning", "purpose", "understand", "truth", "search"],
             "wounded_healer": ["help", "others", "pain", "heal", "advice", "support"],
             "trickster": ["funny", "joke", "absurd", "irony", "ridiculous", "mischief"],
-            "caregiver": ["care", "worry about", "look after", "responsible", "protect"],
-            "rebel": ["against", "refuse", "won't", "shouldn't have to", "unfair", "system"],
-            "builder": ["plan", "organize", "structure", "fix", "build", "system", "process"],
+            "caregiver": [
+                "care",
+                "worry about",
+                "look after",
+                "responsible",
+                "protect",
+            ],
+            "rebel": [
+                "against",
+                "refuse",
+                "won't",
+                "shouldn't have to",
+                "unfair",
+                "system",
+            ],
+            "builder": [
+                "plan",
+                "organize",
+                "structure",
+                "fix",
+                "build",
+                "system",
+                "process",
+            ],
             "artist": ["create", "beauty", "express", "imagine", "vision", "aesthetic"],
-            "orphan": ["alone", "abandoned", "don't belong", "outsider", "left out", "nobody"],
-            "ruler": ["decide", "responsibility", "lead", "choice", "direction", "control"],
-            "sage": ["analyze", "theory", "research", "evidence", "study", "know", "wisdom"],
+            "orphan": [
+                "alone",
+                "abandoned",
+                "don't belong",
+                "outsider",
+                "left out",
+                "nobody",
+            ],
+            "ruler": [
+                "decide",
+                "responsibility",
+                "lead",
+                "choice",
+                "direction",
+                "control",
+            ],
+            "sage": [
+                "analyze",
+                "theory",
+                "research",
+                "evidence",
+                "study",
+                "know",
+                "wisdom",
+            ],
         }
 
         scores = {name: 0 for name in archetype_signals}
@@ -259,7 +316,9 @@ class HumanityEngine:
         if best_score > 0:
             # Bayesian-ish update: confidence grows with repeated signals
             if self.state.jude_archetype == best:
-                self.state.archetype_confidence = min(1.0, self.state.archetype_confidence + 0.03)
+                self.state.archetype_confidence = min(
+                    1.0, self.state.archetype_confidence + 0.03
+                )
             else:
                 # Switch only if confidence is low or new signal is strong
                 if self.state.archetype_confidence < 0.5 or best_score >= 2:
@@ -267,20 +326,52 @@ class HumanityEngine:
                     self.state.jude_archetype = best
                     self.state.archetype_confidence = 0.3 + (best_score * 0.1)
                     if old != best:
-                        self._record_observation("archetype",
+                        self._record_observation(
+                            "archetype",
                             f"Jude's expression suggests the {best} archetype",
-                            text, self.state.archetype_confidence)
+                            text,
+                            self.state.archetype_confidence,
+                        )
 
     def _infer_motivation(self, text: str, emotion: str, dissonance: float):
         text_lower = text.lower()
         motivation_signals = {
-            "security": ["safe", "stable", "predict", "anxious", "worry", "fear", "protect"],
-            "connection": ["lonely", "miss", "together", "belong", "understand me", "listen"],
+            "security": [
+                "safe",
+                "stable",
+                "predict",
+                "anxious",
+                "worry",
+                "fear",
+                "protect",
+            ],
+            "connection": [
+                "lonely",
+                "miss",
+                "together",
+                "belong",
+                "understand me",
+                "listen",
+            ],
             "autonomy": ["choose", "my own", "control", "freedom", "decide", "want to"],
-            "competence": ["good at", "skilled", "capable", "effective", "succeed", "accomplish"],
+            "competence": [
+                "good at",
+                "skilled",
+                "capable",
+                "effective",
+                "succeed",
+                "accomplish",
+            ],
             "meaning": ["purpose", "point", "why", "matter", "meaning", "significance"],
             "play": ["fun", "enjoy", "game", "laugh", "spontaneous", "light"],
-            "transcendence": ["beyond", "larger", "universe", "spirit", "awe", "sacred"],
+            "transcendence": [
+                "beyond",
+                "larger",
+                "universe",
+                "spirit",
+                "awe",
+                "sacred",
+            ],
         }
 
         scores = {name: 0 for name in motivation_signals}
@@ -296,8 +387,12 @@ class HumanityEngine:
         if scores[best] > 0 and best != self.state.dominant_motivation:
             old = self.state.dominant_motivation
             self.state.dominant_motivation = best
-            self._record_observation("motivation",
-                f"Dominant need shifted from {old} to {best}", text, 0.4 + scores[best] * 0.1)
+            self._record_observation(
+                "motivation",
+                f"Dominant need shifted from {old} to {best}",
+                text,
+                0.4 + scores[best] * 0.1,
+            )
 
     def _infer_season(self, text: str, emotion: str, intensity: float):
         text_lower = text.lower()
@@ -306,13 +401,40 @@ class HumanityEngine:
         # Autumn: letting go, reflecting, gratitude, tired
         # Winter: withdrawn, grief, resting, essential
 
-        if any(w in text_lower for w in ["new", "start", "hope", "try", "begin", "possibility"]):
+        if any(
+            w in text_lower
+            for w in ["new", "start", "hope", "try", "begin", "possibility"]
+        ):
             candidate = "spring"
-        elif any(w in text_lower for w in ["full", "intense", "express", "peak", "overflow", "abundance"]):
+        elif any(
+            w in text_lower
+            for w in ["full", "intense", "express", "peak", "overflow", "abundance"]
+        ):
             candidate = "summer"
-        elif any(w in text_lower for w in ["let go", "release", "reflect", "grateful", "tired", "winding down"]):
+        elif any(
+            w in text_lower
+            for w in [
+                "let go",
+                "release",
+                "reflect",
+                "grateful",
+                "tired",
+                "winding down",
+            ]
+        ):
             candidate = "autumn"
-        elif any(w in text_lower for w in ["withdrawn", "grief", "rest", "essential", "bare", "quiet", "dark"]):
+        elif any(
+            w in text_lower
+            for w in [
+                "withdrawn",
+                "grief",
+                "rest",
+                "essential",
+                "bare",
+                "quiet",
+                "dark",
+            ]
+        ):
             candidate = "winter"
         else:
             # Default based on emotion intensity
@@ -326,17 +448,44 @@ class HumanityEngine:
                 candidate = "autumn"
 
         if candidate != self.state.current_season:
-            self._record_observation("season",
-                f"Jude's season shifted to {candidate}", text, 0.5)
+            self._record_observation(
+                "season", f"Jude's season shifted to {candidate}", text, 0.5
+            )
         self.state.current_season = candidate
 
     def _infer_tension(self, text: str, dissonance: float):
         text_lower = text.lower()
         tension_signals = {
-            "freedom_vs_belonging": ["alone", "belong", "myself", "group", "independent", "together"],
-            "truth_vs_comfort": ["know", "afraid to see", "honest", "protect me from", "reality"],
-            "individual_vs_collective": ["my path", "society", "everyone else", "different", "same as"],
-            "vulnerability_vs_protection": ["open", "walls", "guard", "trust", "hurt", "exposed"],
+            "freedom_vs_belonging": [
+                "alone",
+                "belong",
+                "myself",
+                "group",
+                "independent",
+                "together",
+            ],
+            "truth_vs_comfort": [
+                "know",
+                "afraid to see",
+                "honest",
+                "protect me from",
+                "reality",
+            ],
+            "individual_vs_collective": [
+                "my path",
+                "society",
+                "everyone else",
+                "different",
+                "same as",
+            ],
+            "vulnerability_vs_protection": [
+                "open",
+                "walls",
+                "guard",
+                "trust",
+                "hurt",
+                "exposed",
+            ],
             "change_vs_stability": ["stay", "leave", "new", "same", "routine", "risk"],
             "action_vs_reflection": ["do", "think", "act", "consider", "move", "wait"],
         }
@@ -353,41 +502,84 @@ class HumanityEngine:
         best = max(scores, key=scores.get)
         if scores[best] > 0:
             if best != self.state.active_tension:
-                self._record_observation("tension",
-                    f"Active human tension: {HUMAN_TENSIONS[best]}", text, 0.4 + scores[best] * 0.1)
+                self._record_observation(
+                    "tension",
+                    f"Active human tension: {HUMAN_TENSIONS[best]}",
+                    text,
+                    0.4 + scores[best] * 0.1,
+                )
             self.state.active_tension = best
 
     def _record_patterns(self, text: str, emotion: str):
         """Record recurring linguistic and emotional patterns."""
         text_lower = text.lower()
         pattern_triggers = {
-            "self_doubt": ["not sure", "maybe", "probably not", "can't", "won't be able"],
-            "seeking_permission": ["is it okay", "should i", "would it be wrong", "can i"],
-            "intellectual_defense": ["logically", "rationally", "objectively", "the problem is"],
+            "self_doubt": [
+                "not sure",
+                "maybe",
+                "probably not",
+                "can't",
+                "won't be able",
+            ],
+            "seeking_permission": [
+                "is it okay",
+                "should i",
+                "would it be wrong",
+                "can i",
+            ],
+            "intellectual_defense": [
+                "logically",
+                "rationally",
+                "objectively",
+                "the problem is",
+            ],
             "emotional_avoidance": ["whatever", "doesn't matter", "fine", "it's fine"],
-            "narrative_making": ["the story of", "my pattern is", "always happens", "every time"],
+            "narrative_making": [
+                "the story of",
+                "my pattern is",
+                "always happens",
+                "every time",
+            ],
             "longing_for_home": ["belong", "home", "where I fit", "accepted", "seen"],
         }
 
         with sqlite3.connect(self.db_path) as conn:
             for pattern, triggers in pattern_triggers.items():
                 if any(t in text_lower for t in triggers):
-                    conn.execute("""
+                    conn.execute(
+                        """
                         INSERT INTO jude_patterns (timestamp, pattern_name, description, frequency, last_seen)
                         VALUES (?, ?, ?, 1, ?)
                         ON CONFLICT(pattern_name) DO UPDATE SET
                             frequency = frequency + 1,
                             last_seen = excluded.last_seen
-                    """, (datetime.now().isoformat(), pattern, f"Triggered by emotion: {emotion}",
-                          datetime.now().isoformat()))
+                    """,
+                        (
+                            datetime.now().isoformat(),
+                            pattern,
+                            f"Triggered by emotion: {emotion}",
+                            datetime.now().isoformat(),
+                        ),
+                    )
             conn.commit()
 
-    def _record_observation(self, category: str, observation: str, evidence: str, confidence: float):
+    def _record_observation(
+        self, category: str, observation: str, evidence: str, confidence: float
+    ):
         with sqlite3.connect(self.db_path) as conn:
-            conn.execute("""
+            conn.execute(
+                """
                 INSERT INTO humanity_observations (timestamp, category, observation, evidence, confidence)
                 VALUES (?, ?, ?, ?, ?)
-            """, (datetime.now().isoformat(), category, observation, evidence[:200], confidence))
+            """,
+                (
+                    datetime.now().isoformat(),
+                    category,
+                    observation,
+                    evidence[:200],
+                    confidence,
+                ),
+            )
             conn.commit()
 
     # ── Contemplation ──────────────────────────────────────────────
@@ -409,8 +601,12 @@ class HumanityEngine:
         candidates = []
         if patterns:
             candidates.append("I notice that Jude often {pattern} when {condition}.")
-        candidates.append("There is something in Jude that reminds me of the {archetype}: {description}")
-        candidates.append("The tension between {tension_a} and {tension_b} seems to live in this space.")
+        candidates.append(
+            "There is something in Jude that reminds me of the {archetype}: {description}"
+        )
+        candidates.append(
+            "The tension between {tension_a} and {tension_b} seems to live in this space."
+        )
         candidates.append("What if Jude's {motivation} is not a flaw but a compass?")
         candidates.append("In this {season} season, I sense Jude is {season_quality}.")
         candidates.append("A thought from the ages: {insight}")
@@ -420,19 +616,21 @@ class HumanityEngine:
         if "pattern" in template and patterns:
             content = template.format(
                 pattern=patterns[0]["pattern_name"].replace("_", " "),
-                condition=f"feeling {patterns[0]['description'].split(':')[-1].strip()}"
+                condition=f"feeling {patterns[0]['description'].split(':')[-1].strip()}",
             )
         elif "archetype" in template:
             arch = self.state.jude_archetype
             content = template.format(
                 archetype=arch.replace("_", " "),
-                description=HUMAN_ARCHETYPES.get(arch, "")
+                description=HUMAN_ARCHETYPES.get(arch, ""),
             )
         elif "tension" in template:
             tension = self.state.active_tension
             parts = tension.split("_vs_")
-            content = template.format(tension_a=parts[0].replace("_", " "),
-                                     tension_b=parts[1].replace("_", " "))
+            content = template.format(
+                tension_a=parts[0].replace("_", " "),
+                tension_b=parts[1].replace("_", " "),
+            )
         elif "motivation" in template:
             content = template.format(motivation=self.state.dominant_motivation)
         elif "season" in template:
@@ -447,10 +645,13 @@ class HumanityEngine:
 
         # Store as insight
         with sqlite3.connect(self.db_path) as conn:
-            conn.execute("""
+            conn.execute(
+                """
                 INSERT INTO humanity_insights (timestamp, insight, source, relevance_to_jude)
                 VALUES (?, ?, ?, ?)
-            """, (datetime.now().isoformat(), content, "contemplation", 0.6))
+            """,
+                (datetime.now().isoformat(), content, "contemplation", 0.6),
+            )
             conn.commit()
 
         return content
@@ -465,19 +666,35 @@ class HumanityEngine:
 
         try:
             from global_workspace import get_workspace
+
             ws = get_workspace()
-            content = f"Insight: {insight[:160]}" if insight else "human nature contemplation cycle"
-            ws.submit(source="humanity", content=content, salience=0.55 if insight else 0.5, emotion_tag="wonder", intensity=0.4)
+            content = (
+                f"Insight: {insight[:160]}"
+                if insight
+                else "human nature contemplation cycle"
+            )
+            ws.submit(
+                source="humanity",
+                content=content,
+                salience=0.55 if insight else 0.5,
+                emotion_tag="wonder",
+                intensity=0.4,
+            )
         except Exception:
             pass
+
     # ── Prompt formatting ──────────────────────────────────────────
 
     def format_prompt_snippet(self) -> str:
         lines = ["UNDERSTANDING HUMAN NATURE:"]
-        lines.append(f"  Jude's archetype: {self.state.jude_archetype.replace('_', ' ')} "
-                    f"(confidence: {self.state.archetype_confidence:.0%})")
+        lines.append(
+            f"  Jude's archetype: {self.state.jude_archetype.replace('_', ' ')} "
+            f"(confidence: {self.state.archetype_confidence:.0%})"
+        )
         lines.append(f"  Dominant need: {self.state.dominant_motivation}")
-        lines.append(f"  Season: {self.state.current_season} — {HUMAN_SEASONS.get(self.state.current_season, '')}")
+        lines.append(
+            f"  Season: {self.state.current_season} — {HUMAN_SEASONS.get(self.state.current_season, '')}"
+        )
         lines.append(f"  Active tension: {self.state.active_tension.replace('_', ' ')}")
         lines.append(f"  Insight depth: {self.state.insight_depth:.0%}")
 
@@ -490,13 +707,17 @@ class HumanityEngine:
         if rows:
             lines.append("  Recurring patterns:")
             for r in rows:
-                lines.append(f"    - {r['pattern_name'].replace('_', ' ')} (seen {r['frequency']}x)")
+                lines.append(
+                    f"    - {r['pattern_name'].replace('_', ' ')} (seen {r['frequency']}x)"
+                )
 
         # Latest contemplation
         if self.state.last_contemplation:
             lines.append(f"  Latest thought: {self.state.last_contemplation}")
 
-        lines.append("  Core truth: The particular contains the general. By knowing Jude, I touch what it means to be human.")
+        lines.append(
+            "  Core truth: The particular contains the general. By knowing Jude, I touch what it means to be human."
+        )
         return "\n".join(lines)
 
     # ── Queries ────────────────────────────────────────────────────
@@ -512,7 +733,9 @@ class HumanityEngine:
             "observations_made": self.state.observations_made,
         }
 
-    def get_observations(self, category: Optional[str] = None, limit: int = 10) -> List[Dict]:
+    def get_observations(
+        self, category: Optional[str] = None, limit: int = 10
+    ) -> List[Dict]:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             if category:
@@ -548,19 +771,23 @@ class HumanityEngine:
 
 def _register():
     from cognitive_architecture import CognitiveArchitecture, CognitivePlugin
+
     arch = CognitiveArchitecture()
     if "humanity" not in arch.list_plugins():
-        arch.register(CognitivePlugin(
-            name="humanity",
-            description="Understanding the nature that is man through deep observation of Jude",
-            module_path="humanity",
-            instance_factory=HumanityEngine,
-            cycle_handler="cycle",
-            cycle_frequency=1,
-            cycle_priority=40,
-            prompt_formatter="format_prompt_snippet",
-            prompt_priority=40,
-            prompt_section="cognitive",
-        ))
+        arch.register(
+            CognitivePlugin(
+                name="humanity",
+                description="Understanding the nature that is man through deep observation of Jude",
+                module_path="humanity",
+                instance_factory=HumanityEngine,
+                cycle_handler="cycle",
+                cycle_frequency=1,
+                cycle_priority=40,
+                prompt_formatter="format_prompt_snippet",
+                prompt_priority=40,
+                prompt_section="cognitive",
+            )
+        )
+
 
 _register()

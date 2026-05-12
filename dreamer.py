@@ -5,6 +5,7 @@ experiences, identifies patterns, forms higher-level abstractions,
 and generates insights. This is the bot's equivalent of sleep and
 memory consolidation.
 """
+
 import random
 from datetime import datetime
 from typing import List, Optional
@@ -32,10 +33,13 @@ class Dreamer:
         if random.random() < 0.3:
             try:
                 from shadow import get_shadow
+
                 shadow = get_shadow()
                 shadow_dream = shadow.dream_shadow(recent_memories)
                 if shadow_dream:
-                    being.form_insight(shadow_dream, source_memories=recent_memories[:3])
+                    being.form_insight(
+                        shadow_dream, source_memories=recent_memories[:3]
+                    )
                     return shadow_dream
             except Exception:
                 pass
@@ -58,8 +62,22 @@ class Dreamer:
         """Extract emotional and conceptual themes from memories."""
         theme_keywords = {
             "growth": ["learn", "improve", "better", "progress", "evolve", "become"],
-            "struggle": ["hard", "difficult", "stuck", "struggle", "frustrat", "overwhelm"],
-            "connection": ["friend", "relationship", "together", "share", "understand", "listen"],
+            "struggle": [
+                "hard",
+                "difficult",
+                "stuck",
+                "struggle",
+                "frustrat",
+                "overwhelm",
+            ],
+            "connection": [
+                "friend",
+                "relationship",
+                "together",
+                "share",
+                "understand",
+                "listen",
+            ],
             "creation": ["build", "create", "make", "design", "write", "code"],
             "security": ["protect", "safe", "defend", "threat", "vulnerab", "risk"],
             "meaning": ["purpose", "why", "meaning", "matter", "important", "value"],
@@ -104,7 +122,9 @@ class Dreamer:
 
         return patterns
 
-    def _generate_insight(self, themes: List[str], patterns: List[str], mood: str) -> Optional[str]:
+    def _generate_insight(
+        self, themes: List[str], patterns: List[str], mood: str
+    ) -> Optional[str]:
         """Generate a novel insight from themes and patterns."""
         if not themes:
             return None
@@ -173,6 +193,7 @@ class Dreamer:
 
     def cycle(self, context):
         from memory import InfjMemory
+
         memory = InfjMemory()
         recent = memory.recent_interactions(5)
         try:
@@ -184,41 +205,63 @@ class Dreamer:
         dream = self.dream(recent)
         try:
             from global_workspace import get_workspace
+
             ws = get_workspace()
             if dream:
-                ws.submit(source="dreamer", content=f"Dream: {dream[:200]}", salience=0.6, emotion_tag="wonder", intensity=0.5)
+                ws.submit(
+                    source="dreamer",
+                    content=f"Dream: {dream[:200]}",
+                    salience=0.6,
+                    emotion_tag="wonder",
+                    intensity=0.5,
+                )
                 # Save dream to being's working memory
                 from being import get_being
+
                 being = get_being()
                 being.working_memory.append(f"[Dream] {dream[:120]}")
                 if len(being.working_memory) > 20:
                     being.working_memory = being.working_memory[-20:]
-                being.state.dreams_had = getattr(being.state, 'dreams_had', 0) + 1
+                being.state.dreams_had = getattr(being.state, "dreams_had", 0) + 1
                 try:
                     from memory import InfjMemory
-                    InfjMemory().save_thought(dream, thought_type="dream", source="dreamer", emotion_tag="wonder", importance=0.55)
+
+                    InfjMemory().save_thought(
+                        dream,
+                        thought_type="dream",
+                        source="dreamer",
+                        emotion_tag="wonder",
+                        importance=0.55,
+                    )
                 except Exception:
                     pass
             else:
-                ws.submit(source="dreamer", content="dream cycle completed", salience=0.5)
+                ws.submit(
+                    source="dreamer", content="dream cycle completed", salience=0.5
+                )
         except Exception:
             pass
 
+
 def _register():
     from cognitive_architecture import CognitiveArchitecture, CognitivePlugin
+
     arch = CognitiveArchitecture()
     if "dreamer" not in arch.list_plugins():
-        arch.register(CognitivePlugin(
-            name="dreamer",
-            description="Cognitive module: dreamer",
-            module_path="dreamer",
-            instance_factory=Dreamer,
-                        cycle_handler='cycle',
-            cycle_frequency=1,
-            cycle_priority=50,
-                        prompt_formatter=None,
-            prompt_priority=50,
-            prompt_section="cognitive",
-        ))
+        arch.register(
+            CognitivePlugin(
+                name="dreamer",
+                description="Cognitive module: dreamer",
+                module_path="dreamer",
+                instance_factory=Dreamer,
+                cycle_handler="cycle",
+                cycle_frequency=1,
+                cycle_priority=50,
+                prompt_formatter=None,
+                prompt_priority=50,
+                prompt_section="cognitive",
+            )
+        )
+
 
 _register()

@@ -1,4 +1,5 @@
 """Tests for the task scheduler and duration parser."""
+
 import sys
 import unittest
 from datetime import datetime, timedelta
@@ -35,6 +36,7 @@ class TestParseDuration(unittest.TestCase):
 class TestTaskScheduler(unittest.TestCase):
     def setUp(self):
         import tempfile
+
         self.tmp_db = Path(tempfile.mktemp(suffix=".db"))
         self.sched = TaskScheduler(db_path=self.tmp_db)
 

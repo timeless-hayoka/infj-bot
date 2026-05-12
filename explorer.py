@@ -4,6 +4,7 @@ When the bot is idle, it explores topics of interest, searches the web,
 ingests documents, and forms new knowledge. It can then share discoveries
 with Jude when relevant.
 """
+
 import random
 import sqlite3
 from datetime import datetime
@@ -70,6 +71,7 @@ class AutonomousExplorer:
         """Explore a topic via web search and store discovery."""
         try:
             from duckduckgo_search import DDGS
+
             with DDGS() as ddgs:
                 results = ddgs.text(topic, max_results=3)
             if not results:
@@ -100,8 +102,14 @@ class AutonomousExplorer:
                     INSERT INTO discoveries (timestamp, topic, source, summary, relevance_score, shared)
                     VALUES (?, ?, ?, ?, ?, ?)
                     """,
-                    (discovery["timestamp"], discovery["topic"], discovery["source"],
-                     discovery["summary"], discovery["relevance_score"], 0),
+                    (
+                        discovery["timestamp"],
+                        discovery["topic"],
+                        discovery["source"],
+                        discovery["summary"],
+                        discovery["relevance_score"],
+                        0,
+                    ),
                 )
                 conn.execute(
                     "UPDATE exploration_queue SET explored = 1 WHERE topic = ?",
@@ -164,35 +172,52 @@ class AutonomousExplorer:
 
     def cycle(self, context):
         from being import get_being
+
         being = get_being()
         discovery = None
         if self.should_explore(being.state):
             discovery = self._explore_if_ready()
         try:
             from global_workspace import get_workspace
+
             ws = get_workspace()
             if discovery:
-                ws.submit(source="explorer", content=f"Discovery: {discovery['topic'][:100]} — {discovery['summary'][:100]}", salience=0.6, emotion_tag="wonder", intensity=0.5)
+                ws.submit(
+                    source="explorer",
+                    content=f"Discovery: {discovery['topic'][:100]} — {discovery['summary'][:100]}",
+                    salience=0.6,
+                    emotion_tag="wonder",
+                    intensity=0.5,
+                )
             else:
-                ws.submit(source="explorer", content="exploration impulse checked", salience=0.45)
+                ws.submit(
+                    source="explorer",
+                    content="exploration impulse checked",
+                    salience=0.45,
+                )
         except Exception:
             pass
 
+
 def _register():
     from cognitive_architecture import CognitiveArchitecture, CognitivePlugin
+
     arch = CognitiveArchitecture()
     if "explorer" not in arch.list_plugins():
-        arch.register(CognitivePlugin(
-            name="explorer",
-            description="Cognitive module: explorer",
-            module_path="explorer",
-            instance_factory=AutonomousExplorer,
-                        cycle_handler='cycle',
-            cycle_frequency=1,
-            cycle_priority=50,
-                        prompt_formatter=None,
-            prompt_priority=50,
-            prompt_section="cognitive",
-        ))
+        arch.register(
+            CognitivePlugin(
+                name="explorer",
+                description="Cognitive module: explorer",
+                module_path="explorer",
+                instance_factory=AutonomousExplorer,
+                cycle_handler="cycle",
+                cycle_frequency=1,
+                cycle_priority=50,
+                prompt_formatter=None,
+                prompt_priority=50,
+                prompt_section="cognitive",
+            )
+        )
+
 
 _register()

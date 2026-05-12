@@ -1,4 +1,5 @@
 """Tests for the Emotional Field module."""
+
 import sys
 import tempfile
 import unittest
@@ -20,7 +21,9 @@ class TestEmotionalField(unittest.TestCase):
 
     def test_resonate_anxious(self):
         self.field.resonate("anxious", 0.8, "I'm worried about work")
-        self.assertIn(self.field.state.primary, ["concerned", "peaceful", "contemplative"])
+        self.assertIn(
+            self.field.state.primary, ["concerned", "peaceful", "contemplative"]
+        )
         self.assertEqual(self.field.state.last_user_emotion, "anxious")
 
     def test_resonate_joyful(self):

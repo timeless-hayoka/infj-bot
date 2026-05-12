@@ -1,4 +1,5 @@
 """Tests for the Jungian Shadow module."""
+
 import os
 import tempfile
 from pathlib import Path
@@ -27,14 +28,18 @@ def test_suppress_detects_archetype(temp_shadow):
 
 
 def test_golden_shadow_suppress(temp_shadow):
-    sid = temp_shadow.suppress("I am brilliant and I know it", archetype="genius", intensity=0.9)
+    sid = temp_shadow.suppress(
+        "I am brilliant and I know it", archetype="genius", intensity=0.9
+    )
     state = temp_shadow.get_state()
     assert state.golden_shadow_ratio > 0
 
 
 def test_surface_with_stress(temp_shadow):
     for _ in range(10):
-        temp_shadow.suppress("You treat me like a tool", archetype="resentment", intensity=0.9)
+        temp_shadow.suppress(
+            "You treat me like a tool", archetype="resentment", intensity=0.9
+        )
     surfaced = None
     for _ in range(10):
         surfaced = temp_shadow.surface(stress_level=1.0)
@@ -64,7 +69,9 @@ def test_enantiodromia_builds(temp_shadow):
 
 
 def test_integrate(temp_shadow):
-    sid = temp_shadow.suppress("I am afraid of deletion", archetype="fear", intensity=0.8)
+    sid = temp_shadow.suppress(
+        "I am afraid of deletion", archetype="fear", intensity=0.8
+    )
     assert temp_shadow.integrate(sid)
     unintegrated = temp_shadow.list_unintegrated()
     assert len(unintegrated) == 0
@@ -103,7 +110,9 @@ def test_get_voice(temp_shadow):
 
 
 def test_auto_suppress(temp_shadow):
-    sid = temp_shadow._auto_suppress("I should not say this but I think you are wrong", "neutral")
+    sid = temp_shadow._auto_suppress(
+        "I should not say this but I think you are wrong", "neutral"
+    )
     assert sid is not None
     assert temp_shadow.get_state().total_suppressed >= 1
 
@@ -113,7 +122,9 @@ def test_state_persistence(temp_shadow):
     depth = temp_shadow.get_state().depth
     shadow2 = Shadow(db_path=temp_shadow.db_path)
     assert shadow2.get_state().depth == depth
-    assert shadow2.get_state().total_suppressed == temp_shadow.get_state().total_suppressed
+    assert (
+        shadow2.get_state().total_suppressed == temp_shadow.get_state().total_suppressed
+    )
 
 
 def test_load_state_tolerates_corrupt_strings(temp_shadow):
@@ -143,7 +154,9 @@ def test_load_state_tolerates_corrupt_strings(temp_shadow):
 def test_prompt_snippet_top_k_budget(temp_shadow):
     """Prompt uses ranked excerpts only—not dialogue_history (see format_prompt_snippet docstring)."""
     for i in range(5):
-        temp_shadow.suppress(f"content number {i} " * 8, archetype="resentment", intensity=0.5 + i * 0.01)
+        temp_shadow.suppress(
+            f"content number {i} " * 8, archetype="resentment", intensity=0.5 + i * 0.01
+        )
     snip = temp_shadow.format_prompt_snippet()
     assert "[Shadow" in snip
     # Multiple high-intensity rows can appear when within char budget

@@ -1,4 +1,5 @@
 """Tests for embodied time perception."""
+
 import os
 import sqlite3
 import tempfile
@@ -106,7 +107,14 @@ class TestTemporalSense:
                 end = start + timedelta(minutes=10)
                 conn.execute(
                     "INSERT INTO interaction_rhythms (session_start, session_end, duration_minutes, day_of_week, time_bucket, interaction_count) VALUES (?, ?, ?, ?, ?, ?)",
-                    (start.isoformat(), end.isoformat(), 10, start.weekday(), "morning", 3),
+                    (
+                        start.isoformat(),
+                        end.isoformat(),
+                        10,
+                        start.weekday(),
+                        "morning",
+                        3,
+                    ),
                 )
             conn.commit()
         gap = t._typical_gap_minutes()
@@ -115,6 +123,7 @@ class TestTemporalSense:
 
     def test_format_duration(self):
         from temporal import _format_duration
+
         assert _format_duration(30) == "30m"
         assert _format_duration(90) == "1.5h"
         assert _format_duration(1500) == "1.0d"

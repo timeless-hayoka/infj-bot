@@ -144,7 +144,9 @@ def render_offline(rec: Dict[str, Any], tpl: str) -> Dict[str, str]:
     demo = os.getenv("INFJ_OUTREACH_DEMO_URL", "[demo or video URL]").strip()
     greet = first_name_hint(rec.get("target_person", ""))
 
-    pitch = (rec.get("pitch_angle") or rec.get("why_fit") or "fit notes in outreach doc").strip()
+    pitch = (
+        rec.get("pitch_angle") or rec.get("why_fit") or "fit notes in outreach doc"
+    ).strip()
     tiny_what = (rec.get("what") or "").strip()
     if len(tiny_what) > 220:
         tiny_what = tiny_what[:217] + "…"
@@ -214,8 +216,8 @@ def _build_user_prompt(rec: Dict[str, Any], template: str) -> str:
         f"Template hint: {tmpl}\n\n"
         "Company playbook record:\n"
         f"{ctx}\n\n"
-        'Write ONE email. Subject should follow '
-        '[Cognitive Architecture] + [their product] + [specific fit]\n'
+        "Write ONE email. Subject should follow "
+        "[Cognitive Architecture] + [their product] + [specific fit]\n"
         "Subject max ~95 chars.\n"
     )
 
@@ -262,14 +264,18 @@ def slugify(text: str) -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Generate outreach drafts from AI_COMPANY_OUTREACH.md")
+    parser = argparse.ArgumentParser(
+        description="Generate outreach drafts from AI_COMPANY_OUTREACH.md"
+    )
     parser.add_argument(
         "--input",
         type=Path,
         default=DEFAULT_DOC,
         help="Path to AI_COMPANY_OUTREACH.md",
     )
-    parser.add_argument("--limit", type=int, default=25, help="How many numbered companies (default 25)")
+    parser.add_argument(
+        "--limit", type=int, default=25, help="How many numbered companies (default 25)"
+    )
     parser.add_argument(
         "--output-dir",
         type=Path,
@@ -283,7 +289,9 @@ def main() -> int:
         help="Template vibe: a=consulting demo, b=security dual, c=OSS collab; mix rotates a/b/c",
     )
     parser.add_argument("--dry-run", action="store_true", help="Parse targets only")
-    parser.add_argument("--delay", type=float, default=8.0, help="Seconds between API calls")
+    parser.add_argument(
+        "--delay", type=float, default=8.0, help="Seconds between API calls"
+    )
     parser.add_argument(
         "--offline",
         action="store_true",
@@ -347,7 +355,9 @@ def main() -> int:
             return 2
         print(
             "Bulk outreach — Gemini mode "
-            "(timeout {:.0f}s/email, {:.1f}s delay between calls)".format(args.timeout, args.delay),
+            "(timeout {:.0f}s/email, {:.1f}s delay between calls)".format(
+                args.timeout, args.delay
+            ),
             flush=True,
         )
         print(
@@ -408,7 +418,11 @@ def main() -> int:
             gen_mode = "offline" if args.offline else "gemini"
             print(
                 "[{}/{}] {} ({}) → {} …".format(
-                    rec["num"], len(targets), gen_mode, tpl, fname,
+                    rec["num"],
+                    len(targets),
+                    gen_mode,
+                    tpl,
+                    fname,
                 ),
                 flush=True,
             )

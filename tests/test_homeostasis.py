@@ -1,4 +1,5 @@
 """Tests for the Homeostasis module."""
+
 import sys
 import tempfile
 import unittest
@@ -52,8 +53,10 @@ class TestHomeostaticRegulator(unittest.TestCase):
 
     def test_regulate(self):
         self.reg.update_need("energy", 0.05)
+
         class FakeCtx:
             pass
+
         self.reg.regulate(FakeCtx())
         # Regulation should move energy toward setpoint
         self.assertGreater(self.reg.needs["energy"].current, 0.05)
@@ -72,6 +75,7 @@ class TestHomeostaticRegulator(unittest.TestCase):
 
     def test_self_registration(self):
         from cognitive_architecture import CognitiveArchitecture
+
         arch = CognitiveArchitecture()
         self.assertIn("homeostasis", arch.list_plugins())
 

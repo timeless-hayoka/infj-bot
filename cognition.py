@@ -39,7 +39,9 @@ def _tokens(text):
 def detect_dissonance(text):
     words = set(_tokens(text))
     marker_hits = sorted(words & DISSONANCE_MARKERS)
-    contrast_hits = len(re.findall(r"\b(but|however|although|yet|on the other hand)\b", text.lower()))
+    contrast_hits = len(
+        re.findall(r"\b(but|however|although|yet|on the other hand)\b", text.lower())
+    )
     question_pressure = text.count("?")
 
     value_hits = []
@@ -54,7 +56,10 @@ def detect_dissonance(text):
         + 0.08 * min(question_pressure, 3)
         + 0.06 * len(value_hits),
     )
-    if any(phrase in text.lower() for phrase in ("part of me", "i want to but", "i know i should")):
+    if any(
+        phrase in text.lower()
+        for phrase in ("part of me", "i want to but", "i know i should")
+    ):
         score = min(1.0, score + 0.25)
 
     return {

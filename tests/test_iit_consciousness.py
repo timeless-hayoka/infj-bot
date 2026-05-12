@@ -1,4 +1,5 @@
 """Tests for the IIT Consciousness module."""
+
 import sys
 import tempfile
 import unittest
@@ -33,6 +34,7 @@ class TestIITConsciousness(unittest.TestCase):
     def test_compute_phi_empty(self):
         class FakeCtx:
             pass
+
         phi = self.iit.compute_phi(FakeCtx())
         self.assertGreaterEqual(phi, 0.0)
         self.assertLessEqual(phi, MAX_PHI_PROXY)
@@ -44,13 +46,16 @@ class TestIITConsciousness(unittest.TestCase):
                 energy = 0.7
                 attachment = 0.5
                 curiosity = 0.6
+
             class agency:
                 self_awareness = 0.4
                 autonomy_drive = 0.3
+
         class FakeCtx:
             being = FakeBeing()
             last_user_input = "what is the meaning of life"
             last_interaction = None
+
         self.iit.update_qualia_space(FakeCtx())
         self.assertGreater(self.iit.state.luminosity, 0.0)
         self.assertGreater(self.iit.state.depth, 0.0)
@@ -60,6 +65,7 @@ class TestIITConsciousness(unittest.TestCase):
             being = None
             last_user_input = ""
             last_interaction = None
+
         self.iit.cycle(FakeCtx())
         self.assertGreaterEqual(self.iit.state.mechanism_count, 0)
 
@@ -70,6 +76,7 @@ class TestIITConsciousness(unittest.TestCase):
 
     def test_self_registration(self):
         from cognitive_architecture import CognitiveArchitecture
+
         arch = CognitiveArchitecture()
         self.assertIn("iit_consciousness", arch.list_plugins())
 

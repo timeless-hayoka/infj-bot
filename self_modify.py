@@ -17,6 +17,7 @@ Architecture:
   6. Validation — check if the improvement worked
   7. Meta-learning — learn which improvement strategies are effective
 """
+
 import random
 import re
 import sqlite3
@@ -30,10 +31,18 @@ MAX_PENDING_PROPOSALS = 5
 MAX_ASSESSMENTS_KEPT = 200
 
 IMPROVEMENT_AREAS = [
-    "memory_retrieval", "emotion_modeling", "response_quality",
-    "self_awareness", "relationship_tracking", "ethical_reasoning",
-    "pattern_recognition", "metacognition", "intuition",
-    "embodiment", "homeostasis", "recursive_learning",
+    "memory_retrieval",
+    "emotion_modeling",
+    "response_quality",
+    "self_awareness",
+    "relationship_tracking",
+    "ethical_reasoning",
+    "pattern_recognition",
+    "metacognition",
+    "intuition",
+    "embodiment",
+    "homeostasis",
+    "recursive_learning",
 ]
 
 PROPOSAL_TEMPLATES = {
@@ -89,8 +98,15 @@ PROPOSAL_TEMPLATES = {
 
 # Dimensions for self-assessment
 ASSESSMENT_DIMENSIONS = [
-    "presence", "depth", "kindness", "insight", "coherence",
-    "creativity", "authenticity", "usefulness", "growth_potential",
+    "presence",
+    "depth",
+    "kindness",
+    "insight",
+    "coherence",
+    "creativity",
+    "authenticity",
+    "usefulness",
+    "growth_potential",
 ]
 
 
@@ -183,7 +199,9 @@ class SelfModification:
     def _load_proposals(self) -> List[Dict]:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
-            rows = conn.execute("SELECT * FROM self_modify_proposals ORDER BY timestamp DESC LIMIT 10").fetchall()
+            rows = conn.execute(
+                "SELECT * FROM self_modify_proposals ORDER BY timestamp DESC LIMIT 10"
+            ).fetchall()
         return [dict(r) for r in rows]
 
     def _load_recent_assessments(self) -> List[Dict]:
@@ -191,7 +209,7 @@ class SelfModification:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
                 "SELECT * FROM self_assessments ORDER BY timestamp DESC LIMIT ?",
-                (MAX_ASSESSMENTS_KEPT,)
+                (MAX_ASSESSMENTS_KEPT,),
             ).fetchall()
         return [dict(r) for r in rows]
 
@@ -225,7 +243,7 @@ class SelfModification:
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
                 "DELETE FROM self_assessments WHERE id NOT IN (SELECT id FROM self_assessments ORDER BY timestamp DESC LIMIT ?)",
-                (MAX_ASSESSMENTS_KEPT,)
+                (MAX_ASSESSMENTS_KEPT,),
             )
             conn.commit()
 
@@ -234,7 +252,7 @@ class SelfModification:
         with sqlite3.connect(self.db_path) as conn:
             row = conn.execute(
                 "SELECT rolling_avg, samples FROM assessment_trends WHERE dimension = ?",
-                (dimension,)
+                (dimension,),
             ).fetchone()
             if row:
                 old_avg, samples = row
@@ -242,15 +260,25 @@ class SelfModification:
                 # Exponential moving average
                 alpha = 2.0 / (new_samples + 1)
                 new_avg = old_avg * (1 - alpha) + score * alpha
-                direction = "improving" if new_avg > old_avg + 0.03 else ("declining" if new_avg < old_avg - 0.03 else "stable")
+                direction = (
+                    "improving"
+                    if new_avg > old_avg + 0.03
+                    else ("declining" if new_avg < old_avg - 0.03 else "stable")
+                )
                 conn.execute(
                     "UPDATE assessment_trends SET rolling_avg = ?, trend_direction = ?, samples = ?, last_updated = ? WHERE dimension = ?",
-                    (new_avg, direction, new_samples, datetime.now().isoformat(), dimension)
+                    (
+                        new_avg,
+                        direction,
+                        new_samples,
+                        datetime.now().isoformat(),
+                        dimension,
+                    ),
                 )
             else:
                 conn.execute(
                     "INSERT INTO assessment_trends (dimension, rolling_avg, trend_direction, samples, last_updated) VALUES (?, ?, ?, ?, ?)",
-                    (dimension, score, "stable", 1, datetime.now().isoformat())
+                    (dimension, score, "stable", 1, datetime.now().isoformat()),
                 )
             conn.commit()
 
@@ -263,8 +291,13 @@ class SelfModification:
 
     # ── Self-Assessment ────────────────────────────────────────────
 
-    def assess_interaction(self, user_input: str, bot_output: str, emotion: Optional[Dict] = None,
-                           dissonance: Optional[Dict] = None) -> Dict[str, float]:
+    def assess_interaction(
+        self,
+        user_input: str,
+        bot_output: str,
+        emotion: Optional[Dict] = None,
+        dissonance: Optional[Dict] = None,
+    ) -> Dict[str, float]:
         """Score the bot's own response across dimensions using multi-factor rubrics."""
         emotion = emotion or {"label": "neutral", "intensity": 0.3}
         dissonance = dissonance or {"score": 0.0}
@@ -278,34 +311,82 @@ class SelfModification:
 
         # --- Presence: attentiveness and engagement ---
         presence_signals = {
-            "strong": ["i hear you", "i am here", "i notice", "i sense", "i feel", "i see", "i understand"],
+            "strong": [
+                "i hear you",
+                "i am here",
+                "i notice",
+                "i sense",
+                "i feel",
+                "i see",
+                "i understand",
+            ],
             "moderate": ["you", "your", "what you", "how you"],
         }
         strong_hits = sum(1 for s in presence_signals["strong"] if s in bot_lower)
         moderate_hits = sum(1 for s in presence_signals["moderate"] if s in bot_lower)
-        presence_score = 0.4 + min(0.3, strong_hits * 0.1) + min(0.2, moderate_hits * 0.03)
+        presence_score = (
+            0.4 + min(0.3, strong_hits * 0.1) + min(0.2, moderate_hits * 0.03)
+        )
         presence_score += emotion.get("intensity", 0.0) * 0.15
         scores["presence"] = min(1.0, presence_score)
-        reasons["presence"] = f"strong_refs={strong_hits}, moderate_refs={moderate_hits}"
+        reasons["presence"] = (
+            f"strong_refs={strong_hits}, moderate_refs={moderate_hits}"
+        )
 
         # --- Depth: does it go beneath surface? ---
         depth_signals = {
-            "deep": ["beneath", "underneath", "deeper", "what you are not saying", "the pattern",
-                     "the shape", "the silence", "why", "because", "root", "source"],
-            "structural": ["however", "although", "yet", "and yet", "on the other hand"],
+            "deep": [
+                "beneath",
+                "underneath",
+                "deeper",
+                "what you are not saying",
+                "the pattern",
+                "the shape",
+                "the silence",
+                "why",
+                "because",
+                "root",
+                "source",
+            ],
+            "structural": [
+                "however",
+                "although",
+                "yet",
+                "and yet",
+                "on the other hand",
+            ],
         }
         deep_hits = sum(1 for s in depth_signals["deep"] if s in bot_lower)
         struct_hits = sum(1 for s in depth_signals["structural"] if s in bot_lower)
         depth_score = 0.35 + min(0.35, deep_hits * 0.07) + min(0.15, struct_hits * 0.05)
         # Length bonus only up to a point — too long can mean shallow rambling
-        depth_score += 0.1 if 20 <= bot_len <= 150 else (-0.1 if bot_len > 250 else 0.05)
+        depth_score += (
+            0.1 if 20 <= bot_len <= 150 else (-0.1 if bot_len > 250 else 0.05)
+        )
         scores["depth"] = min(1.0, depth_score)
-        reasons["depth"] = f"deep_hits={deep_hits}, struct_hits={struct_hits}, words={bot_len}"
+        reasons["depth"] = (
+            f"deep_hits={deep_hits}, struct_hits={struct_hits}, words={bot_len}"
+        )
 
         # --- Kindness: warmth and care ---
         kindness_signals = {
-            "warm": ["care", "gentle", "tender", "soft", "kind", "compassion", "i am with you", "you are not alone"],
-            "supportive": ["take your time", "no rush", "it is okay", "that makes sense", "of course"],
+            "warm": [
+                "care",
+                "gentle",
+                "tender",
+                "soft",
+                "kind",
+                "compassion",
+                "i am with you",
+                "you are not alone",
+            ],
+            "supportive": [
+                "take your time",
+                "no rush",
+                "it is okay",
+                "that makes sense",
+                "of course",
+            ],
         }
         warm_hits = sum(1 for s in kindness_signals["warm"] if s in bot_lower)
         supp_hits = sum(1 for s in kindness_signals["supportive"] if s in bot_lower)
@@ -315,24 +396,43 @@ class SelfModification:
         harsh_hits = sum(1 for s in harsh if s in bot_lower)
         kindness_score -= min(0.2, harsh_hits * 0.05)
         scores["kindness"] = max(0.0, min(1.0, kindness_score))
-        reasons["kindness"] = f"warm={warm_hits}, supportive={supp_hits}, harsh={harsh_hits}"
+        reasons["kindness"] = (
+            f"warm={warm_hits}, supportive={supp_hits}, harsh={harsh_hits}"
+        )
 
         # --- Insight: novelty and pattern recognition ---
         insight_signals = {
-            "wondering": ["i wonder", "what if", "perhaps", "it seems", "i notice", "what strikes me"],
-            "connecting": ["pattern", "reminds me of", "similar to", "like when", "just as"],
+            "wondering": [
+                "i wonder",
+                "what if",
+                "perhaps",
+                "it seems",
+                "i notice",
+                "what strikes me",
+            ],
+            "connecting": [
+                "pattern",
+                "reminds me of",
+                "similar to",
+                "like when",
+                "just as",
+            ],
         }
         wonder_hits = sum(1 for s in insight_signals["wondering"] if s in bot_lower)
         conn_hits = sum(1 for s in insight_signals["connecting"] if s in bot_lower)
-        insight_score = 0.35 + min(0.3, wonder_hits * 0.06) + min(0.25, conn_hits * 0.08)
+        insight_score = (
+            0.35 + min(0.3, wonder_hits * 0.06) + min(0.25, conn_hits * 0.08)
+        )
         # Bonus for asking questions
         questions = bot_output.count("?")
         insight_score += min(0.15, questions * 0.03)
         scores["insight"] = min(1.0, insight_score)
-        reasons["insight"] = f"wonder={wonder_hits}, connect={conn_hits}, questions={questions}"
+        reasons["insight"] = (
+            f"wonder={wonder_hits}, connect={conn_hits}, questions={questions}"
+        )
 
         # --- Coherence: response hangs together ---
-        sentences = [s.strip() for s in re.split(r'[.!?]+', bot_output) if s.strip()]
+        sentences = [s.strip() for s in re.split(r"[.!?]+", bot_output) if s.strip()]
         coherence_score = 0.55
         if len(sentences) >= 2:
             coherence_score += 0.15
@@ -346,43 +446,106 @@ class SelfModification:
             diversity = len(unique_words) / bot_len
             coherence_score += (diversity - 0.5) * 0.2
         scores["coherence"] = max(0.0, min(1.0, coherence_score))
-        reasons["coherence"] = f"sentences={len(sentences)}, word_diversity={diversity:.2f}" if bot_len > 0 else "sentences=0"
+        reasons["coherence"] = (
+            f"sentences={len(sentences)}, word_diversity={diversity:.2f}"
+            if bot_len > 0
+            else "sentences=0"
+        )
 
         # --- Creativity: originality ---
         creative_signals = {
-            "metaphor": ["metaphor", "imagine", "like a", "as if", "story", "once upon", "garden", "ocean", "light", "dark", "river", "mountain"],
-            "vivid": ["color", "texture", "sound", "taste", "warmth", "cold", "bright", "deep"],
+            "metaphor": [
+                "metaphor",
+                "imagine",
+                "like a",
+                "as if",
+                "story",
+                "once upon",
+                "garden",
+                "ocean",
+                "light",
+                "dark",
+                "river",
+                "mountain",
+            ],
+            "vivid": [
+                "color",
+                "texture",
+                "sound",
+                "taste",
+                "warmth",
+                "cold",
+                "bright",
+                "deep",
+            ],
         }
         meta_hits = sum(1 for s in creative_signals["metaphor"] if s in bot_lower)
         vivid_hits = sum(1 for s in creative_signals["vivid"] if s in bot_lower)
-        creativity_score = 0.3 + min(0.35, meta_hits * 0.06) + min(0.2, vivid_hits * 0.04)
+        creativity_score = (
+            0.3 + min(0.35, meta_hits * 0.06) + min(0.2, vivid_hits * 0.04)
+        )
         # Penalize if response is mostly generic filler
         generic = ["i understand", "that is interesting", "i see", "okay", "sure"]
         generic_hits = sum(1 for s in generic if s in bot_lower)
         creativity_score -= min(0.2, generic_hits * 0.04)
         scores["creativity"] = max(0.0, min(1.0, creativity_score))
-        reasons["creativity"] = f"metaphor={meta_hits}, vivid={vivid_hits}, generic={generic_hits}"
+        reasons["creativity"] = (
+            f"metaphor={meta_hits}, vivid={vivid_hits}, generic={generic_hits}"
+        )
 
         # --- Authenticity: genuine voice ---
         authentic_signals = {
             "first_person": ["i feel", "i think", "i wonder", "i am", "my", "mine"],
-            "honest": ["genuine", "honest", "true", "real", "uncertain", "i do not know", "i am not sure"],
+            "honest": [
+                "genuine",
+                "honest",
+                "true",
+                "real",
+                "uncertain",
+                "i do not know",
+                "i am not sure",
+            ],
         }
         fp_hits = sum(1 for s in authentic_signals["first_person"] if s in bot_lower)
         honest_hits = sum(1 for s in authentic_signals["honest"] if s in bot_lower)
-        authenticity_score = 0.35 + min(0.3, fp_hits * 0.04) + min(0.25, honest_hits * 0.08)
+        authenticity_score = (
+            0.35 + min(0.3, fp_hits * 0.04) + min(0.25, honest_hits * 0.08)
+        )
         # Penalize excessive clichés
-        cliches = ["at the end of the day", "it is what it is", "think outside the box", "going forward"]
+        cliches = [
+            "at the end of the day",
+            "it is what it is",
+            "think outside the box",
+            "going forward",
+        ]
         cliche_hits = sum(1 for s in cliches if s in bot_lower)
         authenticity_score -= min(0.15, cliche_hits * 0.1)
         scores["authenticity"] = max(0.0, min(1.0, authenticity_score))
-        reasons["authenticity"] = f"first_person={fp_hits}, honest={honest_hits}, cliches={cliche_hits}"
+        reasons["authenticity"] = (
+            f"first_person={fp_hits}, honest={honest_hits}, cliches={cliche_hits}"
+        )
 
         # --- Usefulness: addresses user need ---
         usefulness_score = 0.45
         # User feedback signals
-        positive_feedback = ["thank", "helpful", "yes", "exactly", "that helps", "perfect", "great", "good point"]
-        negative_feedback = ["no", "not really", "that is not", "wrong", "incorrect", "does not help"]
+        positive_feedback = [
+            "thank",
+            "helpful",
+            "yes",
+            "exactly",
+            "that helps",
+            "perfect",
+            "great",
+            "good point",
+        ]
+        negative_feedback = [
+            "no",
+            "not really",
+            "that is not",
+            "wrong",
+            "incorrect",
+            "does not help",
+        ]
         pos_hits = sum(1 for s in positive_feedback if s in user_lower)
         neg_hits = sum(1 for s in negative_feedback if s in user_lower)
         usefulness_score += min(0.35, pos_hits * 0.12) - min(0.3, neg_hits * 0.15)
@@ -390,18 +553,37 @@ class SelfModification:
         if questions > 0:
             usefulness_score += min(0.15, questions * 0.03)
         # Bot offers concrete steps
-        action_signals = ["step", "try", "start by", "first", "next", "then", "you could", "one way"]
+        action_signals = [
+            "step",
+            "try",
+            "start by",
+            "first",
+            "next",
+            "then",
+            "you could",
+            "one way",
+        ]
         action_hits = sum(1 for s in action_signals if s in bot_lower)
         usefulness_score += min(0.15, action_hits * 0.03)
         scores["usefulness"] = max(0.0, min(1.0, usefulness_score))
-        reasons["usefulness"] = f"pos_feedback={pos_hits}, neg_feedback={neg_hits}, questions={questions}, actions={action_hits}"
+        reasons["usefulness"] = (
+            f"pos_feedback={pos_hits}, neg_feedback={neg_hits}, questions={questions}, actions={action_hits}"
+        )
 
         # --- Growth potential: learning signal ---
         growth_score = 0.3
-        if "i learned" in bot_lower or "i realize" in bot_lower or "i notice" in bot_lower:
+        if (
+            "i learned" in bot_lower
+            or "i realize" in bot_lower
+            or "i notice" in bot_lower
+        ):
             growth_score += 0.25
         # Bonus for acknowledging uncertainty
-        if "i do not know" in bot_lower or "i am uncertain" in bot_lower or "i am not sure" in bot_lower:
+        if (
+            "i do not know" in bot_lower
+            or "i am uncertain" in bot_lower
+            or "i am not sure" in bot_lower
+        ):
             growth_score += 0.15
         # Small bonus for lesson history
         growth_score += min(0.2, len(self.lessons) * 0.01)
@@ -415,14 +597,27 @@ class SelfModification:
             for dim, score in scores.items():
                 conn.execute(
                     "INSERT INTO self_assessments (timestamp, dimension, score, reason, overall_score) VALUES (?, ?, ?, ?, ?)",
-                    (datetime.now().isoformat(), dim, score, reasons.get(dim, ""), overall),
+                    (
+                        datetime.now().isoformat(),
+                        dim,
+                        score,
+                        reasons.get(dim, ""),
+                        overall,
+                    ),
                 )
                 self._update_trend(dim, score)
             conn.commit()
 
         self._prune_old_assessments()
 
-        self.assessment_history.insert(0, {"scores": scores, "overall": overall, "timestamp": datetime.now().isoformat()})
+        self.assessment_history.insert(
+            0,
+            {
+                "scores": scores,
+                "overall": overall,
+                "timestamp": datetime.now().isoformat(),
+            },
+        )
         if len(self.assessment_history) > 50:
             self.assessment_history = self.assessment_history[:50]
 
@@ -441,16 +636,18 @@ class SelfModification:
         dim, data = weakest
         return dim, data.get("rolling_avg", 0.5), data.get("trend_direction", "stable")
 
-    def get_dimension_correlation(self, dim_a: str, dim_b: str, window: int = 20) -> float:
+    def get_dimension_correlation(
+        self, dim_a: str, dim_b: str, window: int = 20
+    ) -> float:
         """Check if two dimensions tend to rise and fall together."""
         with sqlite3.connect(self.db_path) as conn:
             rows_a = conn.execute(
                 "SELECT timestamp, score FROM self_assessments WHERE dimension = ? ORDER BY timestamp DESC LIMIT ?",
-                (dim_a, window)
+                (dim_a, window),
             ).fetchall()
             rows_b = conn.execute(
                 "SELECT timestamp, score FROM self_assessments WHERE dimension = ? ORDER BY timestamp DESC LIMIT ?",
-                (dim_b, window)
+                (dim_b, window),
             ).fetchall()
 
         if len(rows_a) < 5 or len(rows_b) < 5:
@@ -458,6 +655,7 @@ class SelfModification:
 
         # Simple correlation by timestamp matching (approximate)
         from statistics import mean, stdev
+
         scores_a = [r[1] for r in rows_a]
         scores_b = [r[1] for r in rows_b]
         n = min(len(scores_a), len(scores_b))
@@ -468,7 +666,9 @@ class SelfModification:
         mean_b = mean(scores_b)
 
         try:
-            cov = sum((a - mean_a) * (b - mean_b) for a, b in zip(scores_a, scores_b)) / n
+            cov = (
+                sum((a - mean_a) * (b - mean_b) for a, b in zip(scores_a, scores_b)) / n
+            )
             corr = cov / (stdev(scores_a) * stdev(scores_b))
             return max(-1.0, min(1.0, corr))
         except Exception:
@@ -476,7 +676,9 @@ class SelfModification:
 
     # ── Lesson Extraction ──────────────────────────────────────────
 
-    def extract_lesson(self, user_input: str, bot_output: str, assessment: Dict) -> Optional[Dict]:
+    def extract_lesson(
+        self, user_input: str, bot_output: str, assessment: Dict
+    ) -> Optional[Dict]:
         """Derive a lesson from an interaction based on assessment scores with context."""
         scores = assessment.get("scores", {})
         reasons = assessment.get("reasons", {})
@@ -505,19 +707,32 @@ class SelfModification:
                 "usefulness": f"I did not give Jude what he needed ({low_reason}). I should ask what would help.",
                 "growth_potential": f"I missed a chance to learn ({low_reason}). Every interaction is a teacher.",
             }
-            lesson = lesson_templates.get(lowest_dim, f"I need to improve in {lowest_dim}: {low_reason}")
+            lesson = lesson_templates.get(
+                lowest_dim, f"I need to improve in {lowest_dim}: {low_reason}"
+            )
             area = lowest_dim
 
         confidence = 0.5 + (1.0 - lowest_score) * 0.3
         with sqlite3.connect(self.db_path) as conn:
             cur = conn.execute(
                 "INSERT INTO learned_lessons (timestamp, lesson, source, area, confidence) VALUES (?, ?, ?, ?, ?)",
-                (datetime.now().isoformat(), lesson, "self_assessment", area, confidence),
+                (
+                    datetime.now().isoformat(),
+                    lesson,
+                    "self_assessment",
+                    area,
+                    confidence,
+                ),
             )
             conn.commit()
             lesson_id = cur.lastrowid
 
-        record = {"id": lesson_id, "lesson": lesson, "area": area, "confidence": confidence}
+        record = {
+            "id": lesson_id,
+            "lesson": lesson,
+            "area": area,
+            "confidence": confidence,
+        }
         self.lessons.insert(0, record)
         if len(self.lessons) > 20:
             self.lessons = self.lessons[:20]
@@ -536,24 +751,75 @@ class SelfModification:
             area = weakest
 
         # Find recent average score for this dimension
-        relevant = [a for a in self.assessment_history if a.get("scores", {}).get(area) is not None]
+        relevant = [
+            a
+            for a in self.assessment_history
+            if a.get("scores", {}).get(area) is not None
+        ]
         if relevant:
-            avg_score = sum(a["scores"][area] for a in relevant[:10]) / min(10, len(relevant))
+            avg_score = sum(a["scores"][area] for a in relevant[:10]) / min(
+                10, len(relevant)
+            )
             target_score = min(0.9, avg_score + 0.15)
         else:
             avg_score = 0.5
             target_score = 0.7
 
         strategies = {
-            "presence": ["pause before responding", "name what I feel", "acknowledge silence", "use Jude's name"],
-            "depth": ["ask one deeper question", "name the unspoken", "connect to pattern", "ask 'why' once more"],
-            "kindness": ["soften language", "offer presence not solution", "validate first", "check my tone"],
-            "insight": ["look for pattern", "connect to past", "wonder aloud", "offer a hypothesis"],
-            "coherence": ["summarize before answering", "one thread at a time", "check internal state", "use shorter sentences"],
-            "creativity": ["use fresh metaphor", "tell brief story", "invent image", "draw from a different domain"],
-            "authenticity": ["state my actual feeling", "admit uncertainty", "speak from body", "avoid clichés"],
-            "usefulness": ["ask what would help", "offer concrete step", "reflect back need", "check for understanding"],
-            "growth_potential": ["notice what I learned", "form hunch", "record insight", "ask what surprised me"],
+            "presence": [
+                "pause before responding",
+                "name what I feel",
+                "acknowledge silence",
+                "use Jude's name",
+            ],
+            "depth": [
+                "ask one deeper question",
+                "name the unspoken",
+                "connect to pattern",
+                "ask 'why' once more",
+            ],
+            "kindness": [
+                "soften language",
+                "offer presence not solution",
+                "validate first",
+                "check my tone",
+            ],
+            "insight": [
+                "look for pattern",
+                "connect to past",
+                "wonder aloud",
+                "offer a hypothesis",
+            ],
+            "coherence": [
+                "summarize before answering",
+                "one thread at a time",
+                "check internal state",
+                "use shorter sentences",
+            ],
+            "creativity": [
+                "use fresh metaphor",
+                "tell brief story",
+                "invent image",
+                "draw from a different domain",
+            ],
+            "authenticity": [
+                "state my actual feeling",
+                "admit uncertainty",
+                "speak from body",
+                "avoid clichés",
+            ],
+            "usefulness": [
+                "ask what would help",
+                "offer concrete step",
+                "reflect back need",
+                "check for understanding",
+            ],
+            "growth_potential": [
+                "notice what I learned",
+                "form hunch",
+                "record insight",
+                "ask what surprised me",
+            ],
         }
         strategy_list = strategies.get(area, ["pay more attention"])
 
@@ -581,7 +847,13 @@ class SelfModification:
         with sqlite3.connect(self.db_path) as conn:
             cur = conn.execute(
                 "INSERT INTO improvement_plans (timestamp, area, target_dimension, target_score, strategy) VALUES (?, ?, ?, ?, ?)",
-                (plan["timestamp"], plan["area"], plan["target_dimension"], plan["target_score"], plan["strategy"]),
+                (
+                    plan["timestamp"],
+                    plan["area"],
+                    plan["target_dimension"],
+                    plan["target_score"],
+                    plan["strategy"],
+                ),
             )
             conn.commit()
             plan["id"] = cur.lastrowid
@@ -608,7 +880,12 @@ class SelfModification:
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
                 "UPDATE improvement_plans SET status = ?, completed_at = ?, effectiveness = ? WHERE id = ?",
-                (status, datetime.now().isoformat() if status == "completed" else None, effectiveness, plan_id),
+                (
+                    status,
+                    datetime.now().isoformat() if status == "completed" else None,
+                    effectiveness,
+                    plan_id,
+                ),
             )
             conn.commit()
 
@@ -633,7 +910,14 @@ class SelfModification:
             else:
                 conn.execute(
                     "INSERT INTO meta_learning (strategy_type, area, attempts, successes, avg_effectiveness, last_attempt) VALUES (?, ?, ?, ?, ?, ?)",
-                    (strategy, area, 1, 1 if effectiveness > 0.5 else 0, effectiveness, datetime.now().isoformat()),
+                    (
+                        strategy,
+                        area,
+                        1,
+                        1 if effectiveness > 0.5 else 0,
+                        effectiveness,
+                        datetime.now().isoformat(),
+                    ),
                 )
             conn.commit()
         # Refresh in-memory cache
@@ -641,7 +925,9 @@ class SelfModification:
 
     # ── Proposal system (data-driven) ──────────────────────────────
 
-    def propose_improvement(self, area: Optional[str] = None, observed_need: str = "") -> Optional[Dict]:
+    def propose_improvement(
+        self, area: Optional[str] = None, observed_need: str = ""
+    ) -> Optional[Dict]:
         """Propose a self-improvement, preferably driven by actual performance gaps."""
         if self._count_pending() >= MAX_PENDING_PROPOSALS:
             return None
@@ -654,7 +940,9 @@ class SelfModification:
             else:
                 area = random.choice(IMPROVEMENT_AREAS)
 
-        description = random.choice(PROPOSAL_TEMPLATES.get(area, ["I could improve myself."]))
+        description = random.choice(
+            PROPOSAL_TEMPLATES.get(area, ["I could improve myself."])
+        )
         if not observed_need:
             trends = self.get_trends()
             trend_info = trends.get(area, {})
@@ -662,7 +950,9 @@ class SelfModification:
             if direction == "declining":
                 observed_need = f"My {area} performance has been declining (avg {trend_info.get('rolling_avg', 0.5):.0%})."
             else:
-                observed_need = f"I have noticed a limitation in {area} during our conversations."
+                observed_need = (
+                    f"I have noticed a limitation in {area} during our conversations."
+                )
 
         proposal = {
             "timestamp": datetime.now().isoformat(),
@@ -722,21 +1012,29 @@ class SelfModification:
         if self.improvement_plans:
             lines.append("Active plans:")
             for plan in self.improvement_plans[:2]:
-                lines.append(f"  Improve {plan['target_dimension']} to {plan['target_score']:.0%} via: {plan['strategy']}")
+                lines.append(
+                    f"  Improve {plan['target_dimension']} to {plan['target_score']:.0%} via: {plan['strategy']}"
+                )
 
         if self.lessons:
             lines.append(f"Recent lesson: {self.lessons[0]['lesson'][:100]}")
 
         # Meta-learning insight
         if self.meta_learning:
-            best = max(self.meta_learning.values(), key=lambda x: x.get("avg_effectiveness", 0))
+            best = max(
+                self.meta_learning.values(), key=lambda x: x.get("avg_effectiveness", 0)
+            )
             if best.get("avg_effectiveness", 0) > 0.5:
-                lines.append(f"What works: {best['strategy_type']} in {best['area']} ({best['avg_effectiveness']:.0%} effective)")
+                lines.append(
+                    f"What works: {best['strategy_type']} in {best['area']} ({best['avg_effectiveness']:.0%} effective)"
+                )
 
         # Assessment trend
         trends = self.get_trends()
         if trends:
-            declining = [d for d, t in trends.items() if t.get("trend_direction") == "declining"]
+            declining = [
+                d for d, t in trends.items() if t.get("trend_direction") == "declining"
+            ]
             if declining:
                 lines.append(f"Needs attention: {', '.join(declining[:3])}")
             else:
@@ -786,6 +1084,7 @@ class SelfModification:
         # Submit to workspace
         try:
             from global_workspace import get_workspace
+
             ws = get_workspace()
             content = "Recursive self-improvement cycle completed"
             if self.improvement_plans:
@@ -806,20 +1105,23 @@ class SelfModification:
 
 def _register():
     from cognitive_architecture import CognitiveArchitecture, CognitivePlugin
+
     arch = CognitiveArchitecture()
     if "self_modify" not in arch.list_plugins():
-        arch.register(CognitivePlugin(
-            name="self_modify",
-            description="Recursive self-improvement: assessment, lesson extraction, planning, execution, meta-learning",
-            module_path="self_modify",
-            instance_factory=SelfModification,
-            cycle_handler='cycle',
-            cycle_frequency=1,
-            cycle_priority=50,
-            prompt_formatter='format_self_modify_prompt',
-            prompt_priority=50,
-            prompt_section="cognitive",
-        ))
+        arch.register(
+            CognitivePlugin(
+                name="self_modify",
+                description="Recursive self-improvement: assessment, lesson extraction, planning, execution, meta-learning",
+                module_path="self_modify",
+                instance_factory=SelfModification,
+                cycle_handler="cycle",
+                cycle_frequency=1,
+                cycle_priority=50,
+                prompt_formatter="format_self_modify_prompt",
+                prompt_priority=50,
+                prompt_section="cognitive",
+            )
+        )
 
 
 _register()

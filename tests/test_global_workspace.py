@@ -34,6 +34,7 @@ def fresh_workspace(tmp_db_path: Path):
         # Force SQLite WAL checkpoint and close any lingering connections
         # so pytest tmp_path can clean up the temp directory.
         import sqlite3
+
         try:
             with sqlite3.connect(os.fspath(tmp_db_path)) as conn:
                 conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")

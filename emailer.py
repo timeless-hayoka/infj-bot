@@ -10,6 +10,7 @@ Env vars:
   SMTP_PASS
   SMTP_FROM (default: SMTP_USER)
 """
+
 from __future__ import annotations
 
 import os

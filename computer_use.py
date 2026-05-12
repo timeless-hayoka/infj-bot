@@ -3,6 +3,7 @@
 Provides screenshot-driven UI interaction with the same authorization
 and safety guardrails as the reconnaissance tools.
 """
+
 import base64
 import json
 import re
@@ -22,7 +23,15 @@ except Exception:
 NO_PAGE_ACTIONS = {"wait", "sleep"}
 
 # Actions that can change state and should be logged
-MUTATING_ACTIONS = {"click", "double_click", "type", "keypress", "scroll", "drag", "move"}
+MUTATING_ACTIONS = {
+    "click",
+    "double_click",
+    "type",
+    "keypress",
+    "scroll",
+    "drag",
+    "move",
+}
 
 # Sensitive URL patterns that always require explicit confirmation
 SENSITIVE_PATTERNS = [
@@ -53,6 +62,7 @@ class ComputerUseError(Exception):
 @dataclass
 class ComputerSession:
     """Holds a single browser session (Playwright + Browser + Context + Page)."""
+
     browser: Any
     context: Any
     page: Any
@@ -82,7 +92,9 @@ def _ensure_browser() -> ComputerSession:
     if _active_session is not None:
         return _active_session
     if sync_playwright is None:
-        raise ComputerUseError("playwright is not installed. Run: pip install playwright && playwright install chromium")
+        raise ComputerUseError(
+            "playwright is not installed. Run: pip install playwright && playwright install chromium"
+        )
 
     p = sync_playwright().start()
     browser = p.chromium.launch(headless=True, args=["--window-size=1440,900"])
@@ -149,7 +161,9 @@ def _run_action(session: ComputerSession, action: Dict[str, Any]) -> Dict[str, A
         result["title"] = page.title()
 
     elif action_type == "screenshot":
-        png_bytes = page.screenshot(type="png", full_page=action.get("full_page", False))
+        png_bytes = page.screenshot(
+            type="png", full_page=action.get("full_page", False)
+        )
         b64 = base64.b64encode(png_bytes).decode("utf-8")
         result["screenshot_base64"] = _truncate_screenshot(b64)
         result["width"] = page.viewport_size["width"]
@@ -251,16 +265,20 @@ def run_computer_actions(
             if action.get("type", "").lower() == "navigate":
                 url = action.get("url", "")
                 if url and not _is_url_allowed(url, session.authorized_domains):
-                    errors.append(f"Action {i}: {url} is not in the authorized domain list.")
+                    errors.append(
+                        f"Action {i}: {url} is not in the authorized domain list."
+                    )
                     continue
 
             # Sensitive action warning (not a hard block, but logged)
             if _is_sensitive_action(action):
-                results.append({
-                    "index": i,
-                    "warning": "This action touches a sensitive workflow (login, payment, password, etc.).",
-                    "action": action,
-                })
+                results.append(
+                    {
+                        "index": i,
+                        "warning": "This action touches a sensitive workflow (login, payment, password, etc.).",
+                        "action": action,
+                    }
+                )
 
             result = _run_action(session, action)
             result["index"] = i
@@ -275,13 +293,15 @@ def run_computer_actions(
         try:
             png_bytes = session.page.screenshot(type="png")
             b64 = base64.b64encode(png_bytes).decode("utf-8")
-            results.append({
-                "index": len(actions),
-                "type": "screenshot",
-                "status": "ok",
-                "screenshot_base64": _truncate_screenshot(b64),
-                "note": "auto-captured after action batch",
-            })
+            results.append(
+                {
+                    "index": len(actions),
+                    "type": "screenshot",
+                    "status": "ok",
+                    "screenshot_base64": _truncate_screenshot(b64),
+                    "note": "auto-captured after action batch",
+                }
+            )
         except Exception as exc:
             errors.append(f"Final screenshot failed: {exc}")
 

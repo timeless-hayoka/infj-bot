@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Demo client to submit an autonomous plan to the INFJ Companion HTTP bridge."""
+
 import json
 import sys
 from typing import Any, Dict
@@ -24,12 +25,23 @@ def main() -> int:
     token = None
     # allow token via env var
     import os
+
     token = os.getenv("MCP_HTTP_TOKEN", token)
     # example plan: small sequence of useful tools
     plan = [
-        {"tool": "emotional_clarity", "args": ["I'm exhausted and uncertain about next steps"]},
-        {"tool": "dissonance_map", "args": ["I want to start a business but fear instability"]},
-        {"tool": "todo_add", "args": ["Research part-time business ideas"], "kwargs": {"priority": "normal"}},
+        {
+            "tool": "emotional_clarity",
+            "args": ["I'm exhausted and uncertain about next steps"],
+        },
+        {
+            "tool": "dissonance_map",
+            "args": ["I want to start a business but fear instability"],
+        },
+        {
+            "tool": "todo_add",
+            "args": ["Research part-time business ideas"],
+            "kwargs": {"priority": "normal"},
+        },
         {"tool": "todo_list", "kwargs": {"status": "active"}},
     ]
     try:

@@ -11,6 +11,7 @@ Then curl it:
     -H 'content-type: application/json' \
     -d '{"method":"tools/list","jsonrpc":"2.0","id":1}'
 """
+
 import argparse
 import json
 from pathlib import Path

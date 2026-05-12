@@ -4,6 +4,7 @@ Stores structured preferences in SQLite and injects them into prompts
 so the bot remembers how Jude likes to communicate, what matters to
 him, and what to avoid.
 """
+
 import json
 import sqlite3
 from pathlib import Path
@@ -61,6 +62,7 @@ class PreferenceStore:
 
     def set(self, key: str, value: Any) -> None:
         from datetime import datetime
+
         json_value = json.dumps(value, ensure_ascii=True)
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
@@ -134,7 +136,9 @@ class PreferenceStore:
 
         facts = prefs.get("known_facts", {})
         if facts:
-            lines.append(f"- Known facts: {', '.join(f'{k}={v}' for k, v in facts.items())}")
+            lines.append(
+                f"- Known facts: {', '.join(f'{k}={v}' for k, v in facts.items())}"
+            )
 
         corrections = prefs.get("corrections", [])
         if corrections:
@@ -150,11 +154,22 @@ class PreferenceStore:
         lowered = memory_text.lower()
         # Simple keyword heuristics
         if any(w in lowered for w in ["hate", "don't like", "annoying", "frustrating"]):
-            suggestions.append("Consider adding an avoid_topic based on negative sentiment.")
-        if any(w in lowered for w in ["love", "passionate about", "obsessed with", "favorite"]):
-            suggestions.append("Consider adding an interest based on positive sentiment.")
+            suggestions.append(
+                "Consider adding an avoid_topic based on negative sentiment."
+            )
+        if any(
+            w in lowered
+            for w in ["love", "passionate about", "obsessed with", "favorite"]
+        ):
+            suggestions.append(
+                "Consider adding an interest based on positive sentiment."
+            )
         if "too long" in lowered or "shorter" in lowered:
-            suggestions.append("User prefers shorter responses; set response_length to 'short'.")
+            suggestions.append(
+                "User prefers shorter responses; set response_length to 'short'."
+            )
         if "too brief" in lowered or "more detail" in lowered:
-            suggestions.append("User prefers detailed responses; set response_length to 'long'.")
+            suggestions.append(
+                "User prefers detailed responses; set response_length to 'long'."
+            )
         return suggestions

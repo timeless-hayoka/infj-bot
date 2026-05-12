@@ -38,7 +38,9 @@ class TestPhysicsState:
 
 class TestObservation:
     def test_gravity_increases_with_intense_negative(self, fresh_physics):
-        fresh_physics.observe_interaction("sad", 0.8, 0.2, "I feel lost", "I'm here with you.")
+        fresh_physics.observe_interaction(
+            "sad", 0.8, 0.2, "I feel lost", "I'm here with you."
+        )
         assert fresh_physics.state.gravity > 0.5
 
     def test_gravity_decreases_with_calm(self, fresh_physics):
@@ -47,11 +49,15 @@ class TestObservation:
         assert fresh_physics.state.gravity < 0.9
 
     def test_resonance_rises_on_acknowledgment(self, fresh_physics):
-        fresh_physics.observe_interaction("sad", 0.6, 0.1, "I'm sad", "I can feel that you're sad.")
+        fresh_physics.observe_interaction(
+            "sad", 0.6, 0.1, "I'm sad", "I can feel that you're sad."
+        )
         assert fresh_physics.state.resonance > 0.0
 
     def test_tension_rises_on_unresolved(self, fresh_physics):
-        fresh_physics.observe_interaction("confused", 0.5, 0.4, "I'm not sure yet", "Take your time.")
+        fresh_physics.observe_interaction(
+            "confused", 0.5, 0.4, "I'm not sure yet", "Take your time."
+        )
         assert fresh_physics.state.tension > 0.0
 
     def test_observations_recorded(self, fresh_physics):
@@ -63,7 +69,9 @@ class TestObservation:
 
 class TestLessons:
     def test_learn_and_retrieve(self, fresh_physics):
-        fresh_physics.learn_lesson("gravity", "Grounding matters most when Jude is overwhelmed.", 0.8)
+        fresh_physics.learn_lesson(
+            "gravity", "Grounding matters most when Jude is overwhelmed.", 0.8
+        )
         lessons = fresh_physics.get_lessons(principle="gravity")
         assert len(lessons) == 1
         assert "Grounding" in lessons[0]["lesson"]
@@ -94,16 +102,20 @@ class TestPromptFormatting:
 class TestCycle:
     def test_gravity_decays_during_idle(self, fresh_physics):
         fresh_physics.state.gravity = 0.9
+
         # Create a mock context with minutes_since_interaction
         class MockCtx:
             minutes_since_interaction = 10.0
+
         fresh_physics.cycle(MockCtx())
         assert fresh_physics.state.gravity < 0.9
 
     def test_tension_releases_over_time(self, fresh_physics):
         fresh_physics.state.tension = 0.8
+
         class MockCtx:
             minutes_since_interaction = 1.0
+
         fresh_physics.cycle(MockCtx())
         assert fresh_physics.state.tension < 0.8
 

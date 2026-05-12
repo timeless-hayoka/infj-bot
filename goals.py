@@ -1,4 +1,5 @@
 """Todo and goal tracker with SQLite backend."""
+
 import sqlite3
 import uuid
 from datetime import datetime, timedelta
@@ -72,13 +73,28 @@ class GoalsDB:
     # ------------------------------------------------------------------
     # Goals
     # ------------------------------------------------------------------
-    def add_goal(self, title: str, description: str = "", priority: int = 1, due_at: Optional[str] = None, tags: str = "") -> str:
+    def add_goal(
+        self,
+        title: str,
+        description: str = "",
+        priority: int = 1,
+        due_at: Optional[str] = None,
+        tags: str = "",
+    ) -> str:
         gid = str(uuid.uuid4())[:8]
         with _get_db() as conn:
             conn.execute(
                 """INSERT INTO goals (id, title, description, priority, created_at, due_at, tags)
                    VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                (gid, title, description, priority, datetime.now().isoformat(), due_at, tags),
+                (
+                    gid,
+                    title,
+                    description,
+                    priority,
+                    datetime.now().isoformat(),
+                    due_at,
+                    tags,
+                ),
             )
         return gid
 
@@ -143,7 +159,9 @@ class GoalsDB:
 
     def dismiss_reminder(self, rid: str) -> bool:
         with _get_db() as conn:
-            cur = conn.execute("UPDATE reminders SET status = 'dismissed' WHERE id = ?", (rid,))
+            cur = conn.execute(
+                "UPDATE reminders SET status = 'dismissed' WHERE id = ?", (rid,)
+            )
             return cur.rowcount > 0
 
     def all_reminders(self, limit: int = 20) -> List[sqlite3.Row]:

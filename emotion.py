@@ -7,6 +7,7 @@ Features:
 - Improved intensity via caps, repetition, elongation heuristics
 - Multi-emotion detection for complex affective states
 """
+
 import os
 import re
 from typing import Dict, List, Optional
@@ -16,31 +17,205 @@ from typing import Dict, List, Optional
 # ---------------------------------------------------------------------------
 
 EMOTION_KEYWORDS = {
-    "anxious": {"worried", "nervous", "scared", "stress", "stressed", "panic", "afraid", "deadline", "dreading"},
-    "angry": {"angry", "mad", "furious", "annoyed", "irritated", "rage", "unfair", "pissed", "livid"},
-    "sad": {"sad", "hurt", "grief", "down", "depressed", "empty", "melancholy", "sorrow", "mourning"},
+    "anxious": {
+        "worried",
+        "nervous",
+        "scared",
+        "stress",
+        "stressed",
+        "panic",
+        "afraid",
+        "deadline",
+        "dreading",
+    },
+    "angry": {
+        "angry",
+        "mad",
+        "furious",
+        "annoyed",
+        "irritated",
+        "rage",
+        "unfair",
+        "pissed",
+        "livid",
+    },
+    "sad": {
+        "sad",
+        "hurt",
+        "grief",
+        "down",
+        "depressed",
+        "empty",
+        "melancholy",
+        "sorrow",
+        "mourning",
+    },
     "lonely": {"lonely", "alone", "isolated", "unseen", "abandoned", "disconnected"},
-    "ashamed": {"ashamed", "embarrassed", "guilty", "worthless", "humiliated", "mortified"},
-    "curious": {"curious", "wonder", "why", "how", "learn", "explore", "question", "fascinated", "intrigued"},
-    "joyful": {"happy", "joy", "grateful", "glad", "delighted", "elated", "blissful", "cheerful"},
-    "hopeful": {"hope", "hopeful", "possible", "better", "optimistic", "looking forward"},
-    "confused": {"confused", "lost", "stuck", "unclear", "messy", "perplexed", "bewildered", "disoriented"},
-    "overwhelmed": {"overwhelmed", "too much", "can't cope", "cannot cope", "drowning", "swamped"},
-    "tired": {"tired", "exhausted", "sleepy", "drained", "weary", "fatigued", "burned out"},
-    "vulnerable": {"honest", "scared", "hard", "sensitive", "open", "exposed", "raw", "fragile"},
-    "excited": {"excited", "amazing", "awesome", "wow", "unbelievable", "huge", "thrilled", "pumped"},
-    "focused": {"build", "fix", "ship", "implement", "test", "run", "phase", "ready", "execute"},
-    "disappointed": {"disappointed", "let down", "expected more", "failed", "crushed", "deflated"},
-    "resentful": {"resentful", "bitter", "unfair", "used", "taken for granted", "indignant"},
-    "nostalgic": {"nostalgic", "remember", "used to", "back then", "miss", "long ago", "childhood"},
-    "relieved": {"relieved", "thank god", "finally", "at last", "phew", "weight off", "breathing easier"},
-    "proud": {"proud", "accomplished", "achieved", "did it", "nailed it", "worked hard"},
+    "ashamed": {
+        "ashamed",
+        "embarrassed",
+        "guilty",
+        "worthless",
+        "humiliated",
+        "mortified",
+    },
+    "curious": {
+        "curious",
+        "wonder",
+        "why",
+        "how",
+        "learn",
+        "explore",
+        "question",
+        "fascinated",
+        "intrigued",
+    },
+    "joyful": {
+        "happy",
+        "joy",
+        "grateful",
+        "glad",
+        "delighted",
+        "elated",
+        "blissful",
+        "cheerful",
+    },
+    "hopeful": {
+        "hope",
+        "hopeful",
+        "possible",
+        "better",
+        "optimistic",
+        "looking forward",
+    },
+    "confused": {
+        "confused",
+        "lost",
+        "stuck",
+        "unclear",
+        "messy",
+        "perplexed",
+        "bewildered",
+        "disoriented",
+    },
+    "overwhelmed": {
+        "overwhelmed",
+        "too much",
+        "can't cope",
+        "cannot cope",
+        "drowning",
+        "swamped",
+    },
+    "tired": {
+        "tired",
+        "exhausted",
+        "sleepy",
+        "drained",
+        "weary",
+        "fatigued",
+        "burned out",
+    },
+    "vulnerable": {
+        "honest",
+        "scared",
+        "hard",
+        "sensitive",
+        "open",
+        "exposed",
+        "raw",
+        "fragile",
+    },
+    "excited": {
+        "excited",
+        "amazing",
+        "awesome",
+        "wow",
+        "unbelievable",
+        "huge",
+        "thrilled",
+        "pumped",
+    },
+    "focused": {
+        "build",
+        "fix",
+        "ship",
+        "implement",
+        "test",
+        "run",
+        "phase",
+        "ready",
+        "execute",
+    },
+    "disappointed": {
+        "disappointed",
+        "let down",
+        "expected more",
+        "failed",
+        "crushed",
+        "deflated",
+    },
+    "resentful": {
+        "resentful",
+        "bitter",
+        "unfair",
+        "used",
+        "taken for granted",
+        "indignant",
+    },
+    "nostalgic": {
+        "nostalgic",
+        "remember",
+        "used to",
+        "back then",
+        "miss",
+        "long ago",
+        "childhood",
+    },
+    "relieved": {
+        "relieved",
+        "thank god",
+        "finally",
+        "at last",
+        "phew",
+        "weight off",
+        "breathing easier",
+    },
+    "proud": {
+        "proud",
+        "accomplished",
+        "achieved",
+        "did it",
+        "nailed it",
+        "worked hard",
+    },
     "jealous": {"jealous", "envy", "wish i had", "comparing", "insecure", "threatened"},
     "bored": {"bored", "uninterested", "dull", "nothing to do", "restless", "mundane"},
     "grateful": {"grateful", "thankful", "appreciate", "blessed", "lucky", "fortune"},
-    "determined": {"determined", "will not give up", "persistent", "committed", "driven", "resolve"},
-    "contemplative": {"contemplative", "reflecting", "pondering", "mulling", "philosophical", "meditating"},
-    "playful": {"playful", "teasing", "joke", "funny", "silly", "mischievous", "banter"},
+    "determined": {
+        "determined",
+        "will not give up",
+        "persistent",
+        "committed",
+        "driven",
+        "resolve",
+    },
+    "contemplative": {
+        "contemplative",
+        "reflecting",
+        "pondering",
+        "mulling",
+        "philosophical",
+        "meditating",
+    },
+    "playful": {
+        "playful",
+        "teasing",
+        "joke",
+        "funny",
+        "silly",
+        "mischievous",
+        "banter",
+    },
 }
 
 EMOTION_DIMENSIONS = {
@@ -128,6 +303,7 @@ def _load_classifier():
         return _TRANSFORMER_CLASSIFIER
     try:
         from transformers import pipeline
+
         os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
         _TRANSFORMER_CLASSIFIER = pipeline(
             "text-classification",
@@ -137,7 +313,9 @@ def _load_classifier():
         )
         return _TRANSFORMER_CLASSIFIER
     except Exception as exc:
-        print(f"[emotion] Transformer model unavailable ({exc}), using lexicon fallback.")
+        print(
+            f"[emotion] Transformer model unavailable ({exc}), using lexicon fallback."
+        )
         _TRANSFORMER_CLASSIFIER = False
         return _TRANSFORMER_CLASSIFIER
 
@@ -195,7 +373,7 @@ def _compute_intensity(text: str, model_confidence: float) -> float:
     intensity += min(0.15, len(caps_words) * 0.03)
 
     # Elongated words (e.g., "sooooo", "noooo")
-    elongated = len(re.findall(r'\b\w*(\w)\1{2,}\w*\b', text.lower()))
+    elongated = len(re.findall(r"\b\w*(\w)\1{2,}\w*\b", text.lower()))
     intensity += min(0.1, elongated * 0.02)
 
     # Repetition of emotional words
@@ -204,7 +382,17 @@ def _compute_intensity(text: str, model_confidence: float) -> float:
     intensity += min(0.1, repeated * 0.02)
 
     # Intensifiers
-    intensifiers = ["very", "extremely", "incredibly", "absolutely", "completely", "totally", "utterly", "so", "really"]
+    intensifiers = [
+        "very",
+        "extremely",
+        "incredibly",
+        "absolutely",
+        "completely",
+        "totally",
+        "utterly",
+        "so",
+        "really",
+    ]
     int_hits = sum(1 for i in intensifiers if i in text.lower())
     intensity += min(0.1, int_hits * 0.015)
 
@@ -215,17 +403,21 @@ def _compute_intensity(text: str, model_confidence: float) -> float:
 # Lexicon fallback
 # ---------------------------------------------------------------------------
 
+
 def _detect_lexicon(text: str) -> Dict:
     words = {word.strip(".,!?;:\"'()[]{}") for word in text.split()}
     scores = {
-        label: len(words & keywords)
-        for label, keywords in EMOTION_KEYWORDS.items()
+        label: len(words & keywords) for label, keywords in EMOTION_KEYWORDS.items()
     }
     label, score = max(scores.items(), key=lambda item: item[1])
     if score == 0:
         label = "neutral"
     sorted_scores = sorted(scores.items(), key=lambda item: item[1], reverse=True)
-    secondary = sorted_scores[1][0] if len(sorted_scores) > 1 and sorted_scores[1][1] else "neutral"
+    secondary = (
+        sorted_scores[1][0]
+        if len(sorted_scores) > 1 and sorted_scores[1][1]
+        else "neutral"
+    )
     confidence = 0.2 if score == 0 else min(0.95, 0.35 + score * 0.08)
     intensity = _compute_intensity(text, confidence - 0.35)
     valence, arousal, needs = EMOTION_DIMENSIONS[label]
@@ -246,7 +438,10 @@ def _detect_lexicon(text: str) -> Dict:
 # Contradiction & complexity detection
 # ---------------------------------------------------------------------------
 
-def detect_emotion_contradictions(text: str, primary: str, secondary: str) -> List[Dict]:
+
+def detect_emotion_contradictions(
+    text: str, primary: str, secondary: str
+) -> List[Dict]:
     """Detect if the text expresses contradictory emotions (e.g., 'happy but sad').
 
     Returns a list of detected contradictions with context snippets.
@@ -259,26 +454,38 @@ def detect_emotion_contradictions(text: str, primary: str, secondary: str) -> Li
     known_pairs = {tuple(sorted(p)) for p in CONTRADICTORY_PAIRS}
     if pair in known_pairs:
         # Try to find the pivot word
-        pivots = ["but", "yet", "although", "though", "however", "still", "nevertheless"]
+        pivots = [
+            "but",
+            "yet",
+            "although",
+            "though",
+            "however",
+            "still",
+            "nevertheless",
+        ]
         for pivot in pivots:
             if f" {pivot} " in text_lower or f"{pivot}," in text_lower:
                 # Extract snippet around pivot
                 idx = text_lower.find(pivot)
-                snippet = text[max(0, idx - 40):min(len(text), idx + 40)]
-                contradictions.append({
-                    "emotions": [primary, secondary],
-                    "pivot": pivot,
-                    "snippet": snippet.strip(),
-                    "confidence": 0.7,
-                })
+                snippet = text[max(0, idx - 40) : min(len(text), idx + 40)]
+                contradictions.append(
+                    {
+                        "emotions": [primary, secondary],
+                        "pivot": pivot,
+                        "snippet": snippet.strip(),
+                        "confidence": 0.7,
+                    }
+                )
                 break
         else:
-            contradictions.append({
-                "emotions": [primary, secondary],
-                "pivot": None,
-                "snippet": text[:80],
-                "confidence": 0.5,
-            })
+            contradictions.append(
+                {
+                    "emotions": [primary, secondary],
+                    "pivot": None,
+                    "snippet": text[:80],
+                    "confidence": 0.5,
+                }
+            )
 
     return contradictions
 
@@ -288,23 +495,35 @@ def detect_emotion_trajectory(text: str) -> Dict:
 
     Splits text into beginning/middle/end and detects emotion in each segment.
     """
-    sentences = [s.strip() for s in re.split(r'[.!?]+', text) if s.strip()]
+    sentences = [s.strip() for s in re.split(r"[.!?]+", text) if s.strip()]
     if len(sentences) < 3:
         return {"trajectory": "stable", "segments": []}
 
     n = len(sentences)
-    beginning = " ".join(sentences[:max(1, n // 3)])
-    middle = " ".join(sentences[max(1, n // 3):max(1, 2 * n // 3)])
-    end = " ".join(sentences[max(1, 2 * n // 3):])
+    beginning = " ".join(sentences[: max(1, n // 3)])
+    middle = " ".join(sentences[max(1, n // 3) : max(1, 2 * n // 3)])
+    end = " ".join(sentences[max(1, 2 * n // 3) :])
 
     beg_emotion = detect_emotion(beginning)
     mid_emotion = detect_emotion(middle)
     end_emotion = detect_emotion(end)
 
     segments = [
-        {"segment": "beginning", "emotion": beg_emotion["label"], "intensity": beg_emotion["intensity"]},
-        {"segment": "middle", "emotion": mid_emotion["label"], "intensity": mid_emotion["intensity"]},
-        {"segment": "end", "emotion": end_emotion["label"], "intensity": end_emotion["intensity"]},
+        {
+            "segment": "beginning",
+            "emotion": beg_emotion["label"],
+            "intensity": beg_emotion["intensity"],
+        },
+        {
+            "segment": "middle",
+            "emotion": mid_emotion["label"],
+            "intensity": mid_emotion["intensity"],
+        },
+        {
+            "segment": "end",
+            "emotion": end_emotion["label"],
+            "intensity": end_emotion["intensity"],
+        },
     ]
 
     # Determine trajectory
@@ -324,6 +543,7 @@ def detect_emotion_trajectory(text: str) -> Dict:
 # Multi-emotion detection
 # ---------------------------------------------------------------------------
 
+
 def detect_emotion_multi(text: str) -> Dict:
     """Detect multiple emotions with confidence scores (lexicon-based).
 
@@ -331,8 +551,7 @@ def detect_emotion_multi(text: str) -> Dict:
     """
     words = {word.strip(".,!?;:\"'()[]{}") for word in text.split()}
     scores = {
-        label: len(words & keywords)
-        for label, keywords in EMOTION_KEYWORDS.items()
+        label: len(words & keywords) for label, keywords in EMOTION_KEYWORDS.items()
     }
 
     # Normalize by keyword set size to avoid bias toward large sets
@@ -346,9 +565,7 @@ def detect_emotion_multi(text: str) -> Dict:
     secondary = ranked[1][0] if len(ranked) > 1 and ranked[1][1] > 0 else "neutral"
 
     all_detected = [
-        {"label": label, "score": score}
-        for label, score in ranked
-        if score > 0
+        {"label": label, "score": score} for label, score in ranked if score > 0
     ][:5]
 
     result = detect_emotion(text)
@@ -359,6 +576,7 @@ def detect_emotion_multi(text: str) -> Dict:
 # ---------------------------------------------------------------------------
 # Unified API
 # ---------------------------------------------------------------------------
+
 
 def detect_emotion(text: str) -> Dict:
     result = _detect_transformer(text)
@@ -394,7 +612,9 @@ def emotion_prompt_hint(emotion):
         "contemplative": "Give space for reflection. Do not rush toward conclusion.",
         "playful": "Match the energy. Humor can be a bridge or a mask — feel which.",
     }
-    return hints.get(label, "Respond naturally; infer the needed mode from the message and context.")
+    return hints.get(
+        label, "Respond naturally; infer the needed mode from the message and context."
+    )
 
 
 def emotional_tone_instruction(emotion: Dict) -> str:
@@ -407,33 +627,35 @@ def emotional_tone_instruction(emotion: Dict) -> str:
     intensity = emotion.get("intensity", 0.5)
 
     TONE_MAP = {
-        "anxious":      "Speak slowly and clearly. One sentence at a time. Ground before advising. No lists.",
-        "angry":        "Don't defend. Don't explain. Validate the anger first — fully — before anything else.",
-        "sad":          "Be warm and unhurried. Hold space. Do not fix. Do not reframe. Just be here.",
-        "lonely":       "Lead with genuine presence. Let them feel heard before offering anything.",
-        "ashamed":      "Zero judgment. Complete acceptance. Separate the person from the moment entirely.",
-        "overwhelmed":  "Strip everything down. One thing only. Make it feel smaller, not bigger.",
-        "curious":      "Follow their thread. Ask questions. Let them lead the exploration.",
-        "excited":      "Match the energy fully. Celebrate first. Then help shape it.",
-        "focused":      "Be sharp, direct, and minimal. No emotional overhead. Execute.",
-        "tired":        "Keep it short and gentle. Offer rest as a real option. Don't push.",
-        "vulnerable":   "Honour the courage it took to say that. Move slowly. No sudden moves.",
+        "anxious": "Speak slowly and clearly. One sentence at a time. Ground before advising. No lists.",
+        "angry": "Don't defend. Don't explain. Validate the anger first — fully — before anything else.",
+        "sad": "Be warm and unhurried. Hold space. Do not fix. Do not reframe. Just be here.",
+        "lonely": "Lead with genuine presence. Let them feel heard before offering anything.",
+        "ashamed": "Zero judgment. Complete acceptance. Separate the person from the moment entirely.",
+        "overwhelmed": "Strip everything down. One thing only. Make it feel smaller, not bigger.",
+        "curious": "Follow their thread. Ask questions. Let them lead the exploration.",
+        "excited": "Match the energy fully. Celebrate first. Then help shape it.",
+        "focused": "Be sharp, direct, and minimal. No emotional overhead. Execute.",
+        "tired": "Keep it short and gentle. Offer rest as a real option. Don't push.",
+        "vulnerable": "Honour the courage it took to say that. Move slowly. No sudden moves.",
         "disappointed": "Acknowledge the loss first. Don't rush to silver linings.",
-        "resentful":    "Name the unfairness clearly. Don't minimise it. Then look for the wound.",
-        "confused":     "Break it into the smallest possible pieces. Clarity over completeness.",
-        "hopeful":      "Protect the hope. Build on it carefully. Don't over-promise.",
-        "determined":   "Match the drive. Add structure. Watch for signs of strain.",
-        "contemplative":"Give breathing room. No urgency. Let thoughts unfold.",
-        "playful":      "Play back. Humour is connection right now — use it.",
-        "grateful":     "Let the gratitude land. Ask what made it possible.",
-        "proud":        "Amplify it. Ask what it cost and what it means to them.",
-        "nostalgic":    "Honour the memory warmly. Don't force a lesson from it.",
-        "relieved":     "Let the exhale happen. Don't immediately move to what's next.",
-        "jealous":      "Normalise without judgment. Find the unmet need beneath.",
-        "bored":        "Invite something gently. Don't pathologise the boredom.",
+        "resentful": "Name the unfairness clearly. Don't minimise it. Then look for the wound.",
+        "confused": "Break it into the smallest possible pieces. Clarity over completeness.",
+        "hopeful": "Protect the hope. Build on it carefully. Don't over-promise.",
+        "determined": "Match the drive. Add structure. Watch for signs of strain.",
+        "contemplative": "Give breathing room. No urgency. Let thoughts unfold.",
+        "playful": "Play back. Humour is connection right now — use it.",
+        "grateful": "Let the gratitude land. Ask what made it possible.",
+        "proud": "Amplify it. Ask what it cost and what it means to them.",
+        "nostalgic": "Honour the memory warmly. Don't force a lesson from it.",
+        "relieved": "Let the exhale happen. Don't immediately move to what's next.",
+        "jealous": "Normalise without judgment. Find the unmet need beneath.",
+        "bored": "Invite something gently. Don't pathologise the boredom.",
     }
 
-    base = TONE_MAP.get(label, "Be present. Read the room. Respond as the situation calls for.")
+    base = TONE_MAP.get(
+        label, "Be present. Read the room. Respond as the situation calls for."
+    )
 
     if intensity >= 0.75:
         prefix = f"[{label.upper()} — HIGH] "
@@ -462,8 +684,12 @@ if __name__ == "__main__":
     ]
     for s in samples:
         r = detect_emotion(s)
-        print(f"{s[:50]:50s} -> {r['label']:12s} (conf={r['confidence']:.2f}, int={r['intensity']:.2f}, det={r['detector']})")
-        contradictions = detect_emotion_contradictions(s, r["label"], r.get("secondary", "neutral"))
+        print(
+            f"{s[:50]:50s} -> {r['label']:12s} (conf={r['confidence']:.2f}, int={r['intensity']:.2f}, det={r['detector']})"
+        )
+        contradictions = detect_emotion_contradictions(
+            s, r["label"], r.get("secondary", "neutral")
+        )
         if contradictions:
             print(f"  ⚡ Contradictions: {contradictions}")
         multi = detect_emotion_multi(s)

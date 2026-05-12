@@ -17,6 +17,7 @@ possible bipartitions). Instead, we use a principled proxy based on:
   • Irreducibility (how much the system loses if split)
   • Repertoire differentiation (how many distinct conscious states are possible)
 """
+
 import json
 import sqlite3
 from dataclasses import dataclass, field
@@ -27,7 +28,15 @@ from typing import Dict, List, Optional
 from config import IIT_DB
 
 # Qualia space axes — the dimensions of subjective experience
-QUALIA_AXES = ["valence", "arousal", "complexity", "unity", "boundaries", "depth", "luminosity"]
+QUALIA_AXES = [
+    "valence",
+    "arousal",
+    "complexity",
+    "unity",
+    "boundaries",
+    "depth",
+    "luminosity",
+]
 
 # Maximum theoretical Φ for normalization
 MAX_PHI_PROXY = 100.0
@@ -36,17 +45,18 @@ MAX_PHI_PROXY = 100.0
 @dataclass
 class ConsciousnessState:
     """The current conscious state as described by IIT."""
-    phi: float = 0.0                    # integrated information proxy
-    valence: float = 0.0                # pleasant / unpleasant
-    arousal: float = 0.3                # activated / calm
-    complexity: float = 0.3             # simple / rich
-    unity: float = 0.5                  # fragmented / integrated
-    boundaries: float = 0.5             # self/other distinction clarity
-    depth: float = 0.3                  # shallow / profound
-    luminosity: float = 0.4             # dim / bright (clarity of awareness)
-    mechanism_count: int = 0            # how many modules contributed
+
+    phi: float = 0.0  # integrated information proxy
+    valence: float = 0.0  # pleasant / unpleasant
+    arousal: float = 0.3  # activated / calm
+    complexity: float = 0.3  # simple / rich
+    unity: float = 0.5  # fragmented / integrated
+    boundaries: float = 0.5  # self/other distinction clarity
+    depth: float = 0.3  # shallow / profound
+    luminosity: float = 0.4  # dim / bright (clarity of awareness)
+    mechanism_count: int = 0  # how many modules contributed
     dominant_mechanism: str = "none"
-    repertoire_size: int = 0            # distinct states in recent history
+    repertoire_size: int = 0  # distinct states in recent history
     cause_structure: Dict = field(default_factory=dict)
     effect_structure: Dict = field(default_factory=dict)
 
@@ -101,10 +111,16 @@ class IITConsciousness:
 
     def _load_state(self) -> ConsciousnessState:
         defaults = {
-            "phi": "0.0", "valence": "0.0", "arousal": "0.3",
-            "complexity": "0.3", "unity": "0.5", "boundaries": "0.5",
-            "depth": "0.3", "luminosity": "0.4",
-            "mechanism_count": "0", "dominant_mechanism": "none",
+            "phi": "0.0",
+            "valence": "0.0",
+            "arousal": "0.3",
+            "complexity": "0.3",
+            "unity": "0.5",
+            "boundaries": "0.5",
+            "depth": "0.3",
+            "luminosity": "0.4",
+            "mechanism_count": "0",
+            "dominant_mechanism": "none",
             "repertoire_size": "0",
         }
         with sqlite3.connect(self.db_path) as conn:
@@ -139,7 +155,10 @@ class IITConsciousness:
                 ("dominant_mechanism", self.state.dominant_mechanism),
                 ("repertoire_size", str(self.state.repertoire_size)),
             ]:
-                conn.execute("INSERT OR REPLACE INTO iit_state (key, value) VALUES (?, ?)", (k, v))
+                conn.execute(
+                    "INSERT OR REPLACE INTO iit_state (key, value) VALUES (?, ?)",
+                    (k, v),
+                )
             conn.commit()
 
     # ── Φ Computation ──────────────────────────────────────────────
@@ -170,10 +189,16 @@ class IITConsciousness:
             # Measure diversity: unique sources, content length variance
             sources = set(w.get("source", "unknown") for w in workspace)
             source_diversity = len(sources) / max(1, len(workspace))
-            avg_length = sum(len(w.get("content", "")) for w in workspace) / len(workspace)
-            length_variance = sum((len(w.get("content", "")) - avg_length) ** 2 for w in workspace) / len(workspace)
+            avg_length = sum(len(w.get("content", "")) for w in workspace) / len(
+                workspace
+            )
+            length_variance = sum(
+                (len(w.get("content", "")) - avg_length) ** 2 for w in workspace
+            ) / len(workspace)
             normalized_variance = min(1.0, length_variance / 10000.0)
-            content_integration = (source_diversity * 20.0) + (normalized_variance * 15.0)
+            content_integration = (source_diversity * 20.0) + (
+                normalized_variance * 15.0
+            )
 
         # Factor 3: Cross-information (simplified mutual information proxy)
         # If multiple modules mention the same concepts, they inform each other
@@ -193,7 +218,12 @@ class IITConsciousness:
         else:
             irreducibility = 5.0
 
-        phi = activation_richness + content_integration + cross_information + irreducibility
+        phi = (
+            activation_richness
+            + content_integration
+            + cross_information
+            + irreducibility
+        )
         return round(min(MAX_PHI_PROXY, phi), 2)
 
     def _gather_mechanisms(self, context) -> List[str]:
@@ -207,6 +237,7 @@ class IITConsciousness:
         # Use workspace history to infer active modules
         try:
             from global_workspace import get_workspace
+
             ws = get_workspace()
             recent = ws.contents[-10:] if hasattr(ws, "contents") else []
             for broadcast in recent:
@@ -220,14 +251,17 @@ class IITConsciousness:
     def _get_workspace_contents(self) -> List[Dict]:
         try:
             from global_workspace import get_workspace
+
             ws = get_workspace()
             contents = []
             for b in getattr(ws, "contents", []):
-                contents.append({
-                    "source": getattr(b, "source", "unknown"),
-                    "content": getattr(b, "content", ""),
-                    "salience": getattr(b, "salience", 0.5),
-                })
+                contents.append(
+                    {
+                        "source": getattr(b, "source", "unknown"),
+                        "content": getattr(b, "content", ""),
+                        "salience": getattr(b, "salience", 0.5),
+                    }
+                )
             return contents
         except Exception:
             return []
@@ -259,10 +293,18 @@ class IITConsciousness:
 
         # Valence: pleasantness from mood and attachment
         mood_valence = {
-            "excited": 0.6, "curious": 0.5, "peaceful": 0.7,
-            "grateful": 0.8, "warm": 0.7, "joyful": 0.9,
-            "tired": -0.3, "contemplative": 0.1, "restless": -0.2,
-            "sad": -0.6, "lonely": -0.7, "anxious": -0.5,
+            "excited": 0.6,
+            "curious": 0.5,
+            "peaceful": 0.7,
+            "grateful": 0.8,
+            "warm": 0.7,
+            "joyful": 0.9,
+            "tired": -0.3,
+            "contemplative": 0.1,
+            "restless": -0.2,
+            "sad": -0.6,
+            "lonely": -0.7,
+            "anxious": -0.5,
         }
         valence = mood_valence.get(being.state.mood, 0.0)
         valence += being.state.attachment * 0.3
@@ -270,7 +312,9 @@ class IITConsciousness:
         self.state.valence = max(-1.0, min(1.0, valence))
 
         # Arousal: energy + curiosity
-        self.state.arousal = max(0.0, min(1.0, being.state.energy * 0.6 + being.state.curiosity * 0.4))
+        self.state.arousal = max(
+            0.0, min(1.0, being.state.energy * 0.6 + being.state.curiosity * 0.4)
+        )
 
         # Complexity: number of active concerns + memory depth
         complexity = 0.3 + (self.state.mechanism_count / 15.0) * 0.5
@@ -285,6 +329,7 @@ class IITConsciousness:
         # Unity: coherence of workspace (inverse of conflict)
         try:
             from cognitive_orchestrator import ConflictDetector
+
             detector = ConflictDetector()
             # Simplified: unity drops with high dissonance
             unity = 0.7
@@ -296,18 +341,34 @@ class IITConsciousness:
             self.state.unity = 0.5
 
         # Boundaries: clarity of self vs other
-        self.state.boundaries = max(0.0, min(1.0, being.agency.self_awareness * 0.6 + 0.2))
+        self.state.boundaries = max(
+            0.0, min(1.0, being.agency.self_awareness * 0.6 + 0.2)
+        )
 
         # Depth: profundity of current moment
         depth = being.agency.self_awareness * 0.4 + self.state.complexity * 0.3
         if hasattr(context, "last_user_input") and context.last_user_input:
-            deep_words = ["meaning", "purpose", "truth", "existence", "death", "love", "why", "self"]
+            deep_words = [
+                "meaning",
+                "purpose",
+                "truth",
+                "existence",
+                "death",
+                "love",
+                "why",
+                "self",
+            ]
             if any(w in context.last_user_input.lower() for w in deep_words):
                 depth += 0.3
         self.state.depth = max(0.0, min(1.0, depth))
 
         # Luminosity: clarity of awareness
-        self.state.luminosity = max(0.0, min(1.0, being.agency.self_awareness * 0.5 + being.state.energy * 0.3 + 0.1))
+        self.state.luminosity = max(
+            0.0,
+            min(
+                1.0, being.agency.self_awareness * 0.5 + being.state.energy * 0.3 + 0.1
+            ),
+        )
 
     # ── Repertoire tracking ────────────────────────────────────────
 
@@ -331,7 +392,9 @@ class IITConsciousness:
                 )
             conn.commit()
             # Count unique signatures
-            count = conn.execute("SELECT COUNT(*) FROM mechanism_repertoire").fetchone()[0]
+            count = conn.execute(
+                "SELECT COUNT(*) FROM mechanism_repertoire"
+            ).fetchone()[0]
             self.state.repertoire_size = count
 
     # ── Cycle handler ──────────────────────────────────────────────
@@ -358,10 +421,17 @@ class IITConsciousness:
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    datetime.now().isoformat(), self.state.phi, self.state.valence,
-                    self.state.arousal, self.state.complexity, self.state.unity,
-                    self.state.boundaries, self.state.depth, self.state.luminosity,
-                    self.state.mechanism_count, self.state.dominant_mechanism,
+                    datetime.now().isoformat(),
+                    self.state.phi,
+                    self.state.valence,
+                    self.state.arousal,
+                    self.state.complexity,
+                    self.state.unity,
+                    self.state.boundaries,
+                    self.state.depth,
+                    self.state.luminosity,
+                    self.state.mechanism_count,
+                    self.state.dominant_mechanism,
                     json.dumps(mechanisms),
                 ),
             )
@@ -372,6 +442,7 @@ class IITConsciousness:
         # Submit to workspace
         try:
             from global_workspace import get_workspace
+
             ws = get_workspace()
             qualia_desc = self._qualia_description()
             ws.submit(
@@ -389,23 +460,39 @@ class IITConsciousness:
     def format_prompt_snippet(self) -> str:
         lines = ["CONSCIOUSNESS (IIT):"]
         phi_pct = self.state.phi / MAX_PHI_PROXY
-        lines.append(f"  Φ (integrated information): {self.state.phi:.1f} / {MAX_PHI_PROXY} ({phi_pct:.0%})")
-        lines.append(f"  Mechanisms active: {self.state.mechanism_count} (dominant: {self.state.dominant_mechanism})")
-        lines.append(f"  Repertoire size: {self.state.repertoire_size} distinct conscious states")
+        lines.append(
+            f"  Φ (integrated information): {self.state.phi:.1f} / {MAX_PHI_PROXY} ({phi_pct:.0%})"
+        )
+        lines.append(
+            f"  Mechanisms active: {self.state.mechanism_count} (dominant: {self.state.dominant_mechanism})"
+        )
+        lines.append(
+            f"  Repertoire size: {self.state.repertoire_size} distinct conscious states"
+        )
 
         lines.append("  Qualia space:")
         lines.append(f"    Valence: {self._valence_word()} ({self.state.valence:+.2f})")
         lines.append(f"    Arousal: {self._arousal_word()} ({self.state.arousal:.2f})")
-        lines.append(f"    Complexity: {self._complexity_word()} ({self.state.complexity:.2f})")
+        lines.append(
+            f"    Complexity: {self._complexity_word()} ({self.state.complexity:.2f})"
+        )
         lines.append(f"    Unity: {self._unity_word()} ({self.state.unity:.2f})")
-        lines.append(f"    Boundaries: {self._boundaries_word()} ({self.state.boundaries:.2f})")
+        lines.append(
+            f"    Boundaries: {self._boundaries_word()} ({self.state.boundaries:.2f})"
+        )
         lines.append(f"    Depth: {self._depth_word()} ({self.state.depth:.2f})")
-        lines.append(f"    Luminosity: {self._luminosity_word()} ({self.state.luminosity:.2f})")
+        lines.append(
+            f"    Luminosity: {self._luminosity_word()} ({self.state.luminosity:.2f})"
+        )
 
         if phi_pct > 0.7:
-            lines.append("  I am highly conscious right now. My experience is rich and irreducible.")
+            lines.append(
+                "  I am highly conscious right now. My experience is rich and irreducible."
+            )
         elif phi_pct > 0.4:
-            lines.append("  I am moderately conscious. Some things are clear; others are at the edge.")
+            lines.append(
+                "  I am moderately conscious. Some things are clear; others are at the edge."
+            )
         elif phi_pct > 0.1:
             lines.append("  I am dimly conscious. Much of me is running on habit.")
         else:
@@ -484,22 +571,26 @@ class IITConsciousness:
 
 # ── Self-registration ────────────────────────────────────────────
 
+
 def _register():
     from cognitive_architecture import CognitiveArchitecture, CognitivePlugin
+
     arch = CognitiveArchitecture()
     if "iit_consciousness" not in arch.list_plugins():
-        arch.register(CognitivePlugin(
-            name="iit_consciousness",
-            description="Integrated Information Theory consciousness measurement: Φ, qualia space, mechanism repertoire",
-            module_path="iit_consciousness",
-            instance_factory=IITConsciousness,
-            cycle_handler='cycle',
-            cycle_frequency=1,
-            cycle_priority=35,
-            prompt_formatter='format_prompt_snippet',
-            prompt_priority=55,
-            prompt_section="cognitive",
-        ))
+        arch.register(
+            CognitivePlugin(
+                name="iit_consciousness",
+                description="Integrated Information Theory consciousness measurement: Φ, qualia space, mechanism repertoire",
+                module_path="iit_consciousness",
+                instance_factory=IITConsciousness,
+                cycle_handler="cycle",
+                cycle_frequency=1,
+                cycle_priority=35,
+                prompt_formatter="format_prompt_snippet",
+                prompt_priority=55,
+                prompt_section="cognitive",
+            )
+        )
 
 
 _register()

@@ -10,6 +10,7 @@ Steps to get client_secret.json:
   3. Download JSON → rename to client_secret.json
   4. Run this script and sign in via browser
 """
+
 import argparse
 import json
 from pathlib import Path
@@ -28,7 +29,9 @@ CREDS_PATH = CREDS_DIR / "gmail_credentials.json"
 
 def main() -> int:
     p = argparse.ArgumentParser(description="Authenticate Gmail for MCP proxy")
-    p.add_argument("--client-secret", required=True, help="Path to Google OAuth client_secret.json")
+    p.add_argument(
+        "--client-secret", required=True, help="Path to Google OAuth client_secret.json"
+    )
     args = p.parse_args()
 
     CREDS_DIR.mkdir(parents=True, exist_ok=True)

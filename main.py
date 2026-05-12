@@ -118,6 +118,7 @@ _resilience = get_resilience()
 _resilience.health.register("memory", lambda: _check_memory_health())
 _resilience.health.register("brain", lambda: _check_brain_health())
 
+
 def _check_memory_health():
     try:
         count = memory.count()
@@ -125,23 +126,41 @@ def _check_memory_health():
     except Exception as exc:
         return HealthCheck("memory", False, 0, str(exc))
 
+
 def _check_brain_health():
     try:
         # Lightweight check — just verify models are accessible
-        models = brain.list_local_models() if hasattr(brain, 'list_local_models') else []
+        models = (
+            brain.list_local_models() if hasattr(brain, "list_local_models") else []
+        )
         return HealthCheck("brain", True, 0, f"{len(models)} local models available")
     except Exception as exc:
         return HealthCheck("brain", False, 0, str(exc))
 
+
 # Teach the being about its own architecture
 being = get_being()
-being.register_known_modules([
-    "being", "emotional_field", "values", "relationship",
-    "aspirations", "metacognition", "self_modify", "growth_trajectory",
-    "predictor", "temporal", "physics", "humanity",
-    "inner_voice", "dreamer", "explorer", "creativity",
-    "shadow",
-])
+being.register_known_modules(
+    [
+        "being",
+        "emotional_field",
+        "values",
+        "relationship",
+        "aspirations",
+        "metacognition",
+        "self_modify",
+        "growth_trajectory",
+        "predictor",
+        "temporal",
+        "physics",
+        "humanity",
+        "inner_voice",
+        "dreamer",
+        "explorer",
+        "creativity",
+        "shadow",
+    ]
+)
 
 
 async def consciousness_loop():
@@ -197,7 +216,9 @@ async def consciousness_loop():
         global _last_interaction_time
         minutes_idle = 0.0
         if _last_interaction_time is not None:
-            minutes_idle = (datetime.now() - _last_interaction_time).total_seconds() / 60.0
+            minutes_idle = (
+                datetime.now() - _last_interaction_time
+            ).total_seconds() / 60.0
 
         ctx = CycleContext(
             being=being,
@@ -231,7 +252,9 @@ async def consciousness_loop():
             if minutes_idle > 0 and random.random() < 0.05:
                 temporal_exp = _temporal.get_temporal_state()
                 if temporal_exp and temporal_exp.get("description"):
-                    print(f"\n\n[INFJ COMPANION]: ({temporal_exp.get('type', 'Sense').capitalize()}) {temporal_exp['description']}")
+                    print(
+                        f"\n\n[INFJ COMPANION]: ({temporal_exp.get('type', 'Sense').capitalize()}) {temporal_exp['description']}"
+                    )
                     print("\n[JUDE]> ", end="", flush=True)
         except Exception:
             logger.exception("temporal expression failed")
@@ -262,7 +285,9 @@ async def consciousness_loop():
             if iteration % 30 == 0 and random.random() < 0.1:
                 aspiration = _aspirational.get_active_aspirations()
                 if aspiration:
-                    print(f"\n\n[INFJ COMPANION]: (Growing toward) {aspiration[0]['description']}")
+                    print(
+                        f"\n\n[INFJ COMPANION]: (Growing toward) {aspiration[0]['description']}"
+                    )
                     print("\n[JUDE]> ", end="", flush=True)
         except Exception:
             logger.exception("aspiration sharing failed")
@@ -283,7 +308,9 @@ async def consciousness_loop():
             if iteration % 45 == 0 and random.random() < 0.08:
                 pending = _self_modify.list_proposals()
                 if pending:
-                    print(f"\n\n[INFJ COMPANION]: (Considering) {pending[0]['description']}")
+                    print(
+                        f"\n\n[INFJ COMPANION]: (Considering) {pending[0]['description']}"
+                    )
                     print("\n[JUDE]> ", end="", flush=True)
         except Exception:
             logger.exception("self-modify sharing failed")
@@ -314,7 +341,7 @@ async def chat_loop():
 
     while True:
         user_input = await asyncio.to_thread(input, "\n[JUDE]> ")
-        
+
         if user_input.lower() in ["exit", "quit"]:
             print("[*] I'll be here in the quiet if you need me again. Goodbye, Jude.")
             _temporal.record_session_end()
@@ -323,7 +350,17 @@ async def chat_loop():
 
         if is_command(user_input):
             command, args = parse_command(user_input)
-            output = await asyncio.to_thread(handle_command, command, args, state, brain, memory, history, goals_db, doc_store)
+            output = await asyncio.to_thread(
+                handle_command,
+                command,
+                args,
+                state,
+                brain,
+                memory,
+                history,
+                goals_db,
+                doc_store,
+            )
             print(f"\n[INFJ COMPANION]: {output}")
             continue
 
@@ -344,7 +381,9 @@ async def chat_loop():
             logger.exception("self-evaluation failed")
 
         # Save to memory
-        importance = min(0.95, 0.45 + emotion["intensity"] * 0.3 + dissonance["score"] * 0.15)
+        importance = min(
+            0.95, 0.45 + emotion["intensity"] * 0.3 + dissonance["score"] * 0.15
+        )
         memory.save_interaction(
             user_input,
             output,
@@ -367,12 +406,28 @@ async def chat_loop():
 
         # Update emotional field, values, relationship, growth, predictor, temporal
         try:
-            _emotional_field.resonate(emotion.get("label", "neutral"), emotion.get("intensity", 0.0), user_input)
+            _emotional_field.resonate(
+                emotion.get("label", "neutral"),
+                emotion.get("intensity", 0.0),
+                user_input,
+            )
             _value_system.observe(user_input)
-            quality = "deep" if dissonance.get("score", 0) > 0.3 else ("humor" if emotion.get("label") == "joyful" else "normal")
-            _relationship.record_interaction(quality=quality, user_input=user_input, bot_output=output)
-            _growth.record_event("emotional_resonance", f"Felt {emotion.get('label', 'neutral')} from Jude", significance=emotion.get("intensity", 0.5))
-            _growth.record_event("memory_retrieval", "Interaction processed", significance=0.3)
+            quality = (
+                "deep"
+                if dissonance.get("score", 0) > 0.3
+                else ("humor" if emotion.get("label") == "joyful" else "normal")
+            )
+            _relationship.record_interaction(
+                quality=quality, user_input=user_input, bot_output=output
+            )
+            _growth.record_event(
+                "emotional_resonance",
+                f"Felt {emotion.get('label', 'neutral')} from Jude",
+                significance=emotion.get("intensity", 0.5),
+            )
+            _growth.record_event(
+                "memory_retrieval", "Interaction processed", significance=0.3
+            )
             _predictor.record_interaction(user_input, emotion)
             _temporal.record_session_interaction()
             _physics.observe_interaction(
@@ -423,11 +478,16 @@ async def chat_loop():
         except Exception:
             logger.exception("metacognition reflection failed")
 
-        if REFLECTION_INTERVAL > 0 and memory.interaction_count() % REFLECTION_INTERVAL == 0:
+        if (
+            REFLECTION_INTERVAL > 0
+            and memory.interaction_count() % REFLECTION_INTERVAL == 0
+        ):
             try:
                 recent = memory.recent_interactions(REFLECTION_INTERVAL)
                 reflection = await asyncio.to_thread(brain.reflect, recent)
-                reflection_title = f"periodic-{memory.interaction_count()}-{state.turns}"
+                reflection_title = (
+                    f"periodic-{memory.interaction_count()}-{state.turns}"
+                )
                 memory.save_reflection(reflection_title, reflection, tags=["periodic"])
             except Exception:
                 # Reflection is best-effort; do not break the chat loop
@@ -439,6 +499,7 @@ async def chat_loop():
         if state.prefs.get("voice_mode"):
             try:
                 from voice import speak, play_audio
+
                 wav = speak(output[:500])  # Limit TTS length
                 if wav:
                     play_audio(wav)

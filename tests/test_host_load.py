@@ -1,4 +1,5 @@
 """Tests for host_load sampling and stress mapping."""
+
 import os
 import sys
 

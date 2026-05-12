@@ -7,7 +7,11 @@ from pathlib import Path
 from typing import List, Tuple
 
 from config import INFJ_MEMORY_SEARCH_TOP_K, PERSIST_DIRECTORY
-from embeddings import get_default_embedding_function, LocalEmbeddingFunction, SemanticEmbeddingFunction
+from embeddings import (
+    get_default_embedding_function,
+    LocalEmbeddingFunction,
+    SemanticEmbeddingFunction,
+)
 
 
 # ── Secret scrubbing ──────────────────────────────────────────────
@@ -16,7 +20,9 @@ from embeddings import get_default_embedding_function, LocalEmbeddingFunction, S
 
 SECRET_PATTERNS = [
     # PEM private keys (most specific)
-    re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----", re.S),
+    re.compile(
+        r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----", re.S
+    ),
     # API key / token / password with common prefixes (highly specific)
     re.compile(
         r"(?i)(api[_-]?key|auth[_-]?token|access[_-]?token|bearer\s+|password|secret|private[_-]?key)\s*[=:]\s*['\"]?[A-Za-z0-9_\-/+=]{8,}['\"]?"
@@ -32,7 +38,9 @@ SECRET_PATTERNS = [
 
 # Patterns that look like secrets but are actually normal content
 LEGIT_HEX_ALLOWLIST = [
-    re.compile(r"^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$"),  # UUID
+    re.compile(
+        r"^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$"
+    ),  # UUID
     re.compile(r"^[a-f0-9]{7,40}$"),  # short git hashes
     re.compile(r"^0x[a-f0-9]+$"),  # Ethereum / hex addresses
     re.compile(r"^[a-f0-9]{32}$"),  # MD5
@@ -53,7 +61,9 @@ class InfjMemory:
     LEGACY_COLLECTION = "infj_companion_memories"
     SEMANTIC_COLLECTION = "infj_semantic_memories"
 
-    def __init__(self, persist_directory=None, embedding_function=None, use_semantic=True):
+    def __init__(
+        self, persist_directory=None, embedding_function=None, use_semantic=True
+    ):
         if persist_directory is None:
             persist_directory = str(PERSIST_DIRECTORY)
 
@@ -85,7 +95,11 @@ class InfjMemory:
             for match in pattern.finditer(scrubbed):
                 matched_text = match.group()
                 if _looks_like_secret(matched_text):
-                    scrubbed = scrubbed[: match.start()] + "[REDACTED]" + scrubbed[match.end() :]
+                    scrubbed = (
+                        scrubbed[: match.start()]
+                        + "[REDACTED]"
+                        + scrubbed[match.end() :]
+                    )
         return scrubbed
 
     MAX_COLLECTION_SIZE = 10000  # auto-prune trigger threshold
@@ -105,7 +119,15 @@ class InfjMemory:
             removed = self.prune_interactions(max_age_days=7, max_importance=1.0)
         return removed
 
-    def save_interaction(self, user_input, bot_output, mode="companion", emotion=None, importance=0.5, dissonance=None):
+    def save_interaction(
+        self,
+        user_input,
+        bot_output,
+        mode="companion",
+        emotion=None,
+        importance=0.5,
+        dissonance=None,
+    ):
         timestamp = datetime.datetime.now().isoformat()
         safe_user_input = self.scrub_text(user_input)
         safe_bot_output = self.scrub_text(bot_output)
@@ -178,7 +200,14 @@ class InfjMemory:
             ],
         )
 
-    def save_thought(self, thought_text, thought_type="autonomous", source="being", emotion_tag=None, importance=0.6):
+    def save_thought(
+        self,
+        thought_text,
+        thought_type="autonomous",
+        source="being",
+        emotion_tag=None,
+        importance=0.6,
+    ):
         """Save a bot thought to semantic memory so it can be retrieved later."""
         timestamp = datetime.datetime.now().isoformat()
         safe_text = self.scrub_text(thought_text)
@@ -200,11 +229,17 @@ class InfjMemory:
         )
         self._maybe_prune()
 
-    def save_bug_record(self, title, document, record_type="bug_note", tags=None, importance=0.85):
+    def save_bug_record(
+        self, title, document, record_type="bug_note", tags=None, importance=0.85
+    ):
         timestamp = datetime.datetime.now().isoformat()
         safe_title = title.strip() or f"{record_type}-{timestamp}"
         safe_document = self.scrub_text(document)
-        record_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"infj-{record_type}:{safe_title}:{timestamp}"))
+        record_id = str(
+            uuid.uuid5(
+                uuid.NAMESPACE_DNS, f"infj-{record_type}:{safe_title}:{timestamp}"
+            )
+        )
         self.collection.add(
             documents=[safe_document],
             ids=[record_id],
@@ -257,7 +292,9 @@ class InfjMemory:
         records.sort(key=lambda record: record[1].get("timestamp", ""), reverse=True)
         return records[:limit]
 
-    def retrieve_context(self, query, n_results=None, include_metadata=False, rerank=True):
+    def retrieve_context(
+        self, query, n_results=None, include_metadata=False, rerank=True
+    ):
         """Retrieve memory with hybrid reranking (semantic + importance + recency)."""
         if n_results is None:
             n_results = INFJ_MEMORY_SEARCH_TOP_K
@@ -266,17 +303,23 @@ class InfjMemory:
             n_results=n_results * 3 if rerank else n_results,
         )
         documents = [doc for sublist in results["documents"] for doc in sublist]
-        metadatas = [meta for sublist in results.get("metadatas", []) for meta in sublist]
+        metadatas = [
+            meta for sublist in results.get("metadatas", []) for meta in sublist
+        ]
         distances = [d for sublist in results.get("distances", []) for d in sublist]
 
         if rerank and documents:
-            documents, metadatas = self._rerank(documents, metadatas, distances, top_k=n_results)
+            documents, metadatas = self._rerank(
+                documents, metadatas, distances, top_k=n_results
+            )
 
         if not include_metadata:
             return "\n---\n".join(documents)
         return list(zip(documents, metadatas))
 
-    def _rerank(self, documents, metadatas, distances, top_k=5) -> Tuple[List[str], List[dict]]:
+    def _rerank(
+        self, documents, metadatas, distances, top_k=5
+    ) -> Tuple[List[str], List[dict]]:
         now = datetime.datetime.now()
         scored = []
         for doc, meta, dist in zip(documents, metadatas, distances):
@@ -361,7 +404,9 @@ class InfjMemory:
                 )
             ],
         }
-        Path(path).write_text(json.dumps(payload, indent=2, ensure_ascii=True), encoding="utf-8")
+        Path(path).write_text(
+            json.dumps(payload, indent=2, ensure_ascii=True), encoding="utf-8"
+        )
         return len(payload["records"])
 
     def import_json(self, path):
@@ -371,7 +416,9 @@ class InfjMemory:
             return 0
         bad = [r for r in records if not all(k in r for k in ("id", "document"))]
         if bad:
-            raise ValueError(f"Import failed: {len(bad)} records missing required fields.")
+            raise ValueError(
+                f"Import failed: {len(bad)} records missing required fields."
+            )
         self.collection.upsert(
             ids=[record["id"] for record in records],
             documents=[record["document"] for record in records],
@@ -390,7 +437,9 @@ class InfjMemory:
             include=["metadatas"],
         )
         ids_to_delete = []
-        for item_id, metadata in zip(results.get("ids", []), results.get("metadatas", [])):
+        for item_id, metadata in zip(
+            results.get("ids", []), results.get("metadatas", [])
+        ):
             try:
                 ts = datetime.datetime.fromisoformat(metadata.get("timestamp", ""))
             except (ValueError, TypeError):
@@ -408,7 +457,9 @@ class InfjMemory:
         Returns the number of records migrated.
         """
         if not isinstance(self.embedding_function, SemanticEmbeddingFunction):
-            raise RuntimeError("Migration only meaningful when using semantic embeddings.")
+            raise RuntimeError(
+                "Migration only meaningful when using semantic embeddings."
+            )
 
         try:
             legacy = self.client.get_collection(

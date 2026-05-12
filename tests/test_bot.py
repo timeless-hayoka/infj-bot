@@ -1,4 +1,5 @@
 """Unit tests for the INFJ bot core modules."""
+
 import json
 import sys
 import tempfile
@@ -81,7 +82,9 @@ class TestCommands(unittest.TestCase):
 
     def test_parse(self):
         self.assertEqual(parse_command("/mode engineer"), ("mode", "engineer"))
-        self.assertEqual(parse_command("/memory learn foo: bar"), ("memory", "learn foo: bar"))
+        self.assertEqual(
+            parse_command("/memory learn foo: bar"), ("memory", "learn foo: bar")
+        )
 
     def test_mode_command(self):
         state = BotState()
@@ -122,7 +125,9 @@ class TestCommands(unittest.TestCase):
         state = BotState()
         db = MagicMock()
         db.add_goal.return_value = "abc123"
-        result = handle_command("todo", "add Build the agent", state, None, None, goals_db=db)
+        result = handle_command(
+            "todo", "add Build the agent", state, None, None, goals_db=db
+        )
         self.assertIn("abc123", result)
         db.add_goal.assert_called_once_with("Build the agent")
 
@@ -205,6 +210,7 @@ class TestTools(unittest.TestCase):
         self._orig_cold_storage_dir = None
         self._orig_tool_audit_path = None
         import tools
+
         self._orig_safe_home = tools.SAFE_HOME
         self._orig_cold_storage_dir = tools.COLD_STORAGE_DIR
         self._orig_tool_audit_path = tools.TOOL_AUDIT_PATH
@@ -215,6 +221,7 @@ class TestTools(unittest.TestCase):
 
     def tearDown(self):
         import tools
+
         if self._orig_safe_home is not None:
             tools.SAFE_HOME = self._orig_safe_home
         if self._orig_cold_storage_dir is not None:
@@ -222,6 +229,7 @@ class TestTools(unittest.TestCase):
         if self._orig_tool_audit_path is not None:
             tools.TOOL_AUDIT_PATH = self._orig_tool_audit_path
         import shutil
+
         shutil.rmtree(self.tmp_home, ignore_errors=True)
 
     def test_get_datetime(self):
@@ -256,14 +264,19 @@ class TestTools(unittest.TestCase):
     def test_write_to_cold_storage(self):
         result = tool_write_to_cold_storage("notes/test.txt", "durable note")
         self.assertIn("wrote", result)
-        self.assertEqual((self.tmp_home / "BLKKNIGHT_RECOVERY" / "notes" / "test.txt").read_text(), "durable note")
+        self.assertEqual(
+            (self.tmp_home / "BLKKNIGHT_RECOVERY" / "notes" / "test.txt").read_text(),
+            "durable note",
+        )
 
     def test_write_to_cold_storage_blocks_escape(self):
         result = tool_write_to_cold_storage("../escape.txt", "nope")
         self.assertIn("cannot contain", result)
 
     def test_nuclei_requires_authorization(self):
-        result = tool_run_nuclei_scan("https://example.com", authorization_confirmed=False)
+        result = tool_run_nuclei_scan(
+            "https://example.com", authorization_confirmed=False
+        )
         self.assertIn("authorization_confirmed", result)
 
     def test_nuclei_validates_url(self):
@@ -271,7 +284,9 @@ class TestTools(unittest.TestCase):
         self.assertIn("target_url", result)
 
     def test_nuclei_external_requires_scope_note(self):
-        result = tool_run_nuclei_scan("https://example.com", authorization_confirmed=True)
+        result = tool_run_nuclei_scan(
+            "https://example.com", authorization_confirmed=True
+        )
         self.assertIn("scope_note", result)
 
     def test_run_python_blocks_shell_escape(self):
@@ -309,11 +324,13 @@ class TestGoals(unittest.TestCase):
         self.tmp_db = Path(tempfile.mkdtemp()) / "goals_test.db"
         self._orig_path = DB_PATH
         import goals
+
         goals.DB_PATH = self.tmp_db
         init_db()
 
     def tearDown(self):
         import goals
+
         goals.DB_PATH = self._orig_path
         if self.tmp_db.exists():
             self.tmp_db.unlink()
@@ -364,7 +381,9 @@ class TestGrowth(unittest.TestCase):
 class TestProactive(unittest.TestCase):
     def test_stress_trigger(self):
         p = ProactiveState()
-        p.record_interaction("I am so worried", {"label": "anxious", "intensity": 0.8}, {"score": 0.1})
+        p.record_interaction(
+            "I am so worried", {"label": "anxious", "intensity": 0.8}, {"score": 0.1}
+        )
         p.last_user_time = datetime.now() - timedelta(minutes=25)
         prompt = p.should_trigger()
         self.assertIsNotNone(prompt)
@@ -372,21 +391,29 @@ class TestProactive(unittest.TestCase):
 
     def test_no_trigger_calm(self):
         p = ProactiveState()
-        p.record_interaction("ok", {"label": "neutral", "intensity": 0.1}, {"score": 0.0})
+        p.record_interaction(
+            "ok", {"label": "neutral", "intensity": 0.1}, {"score": 0.0}
+        )
         p.last_user_time = datetime.now() - timedelta(minutes=5)
         prompt = p.should_trigger()
         self.assertIsNone(prompt)
 
     def test_dissonance_trigger(self):
         p = ProactiveState()
-        p.record_interaction("I want to but I should not", {"label": "confused", "intensity": 0.4}, {"score": 0.7})
+        p.record_interaction(
+            "I want to but I should not",
+            {"label": "confused", "intensity": 0.4},
+            {"score": 0.7},
+        )
         prompt = p.should_trigger()
         self.assertIsNotNone(prompt)
         self.assertIn("conflict", prompt.lower())
 
     def test_next_wait_stress(self):
         p = ProactiveState()
-        p.record_interaction("panic", {"label": "anxious", "intensity": 0.9}, {"score": 0.0})
+        p.record_interaction(
+            "panic", {"label": "anxious", "intensity": 0.9}, {"score": 0.0}
+        )
         wait = p.next_wait_seconds()
         self.assertLess(wait, 500)
 
@@ -441,6 +468,7 @@ class TestHistory(unittest.TestCase):
     def test_export_and_import(self):
         import tempfile
         from history import ChatHistory
+
         with tempfile.TemporaryDirectory() as tmp:
             hist = ChatHistory(path=Path(tmp) / "hist.jsonl")
             hist.append("hello", "hi", "companion", {"label": "neutral"})
@@ -458,9 +486,12 @@ class TestHistory(unittest.TestCase):
     def test_import_skips_bad_lines(self):
         import tempfile
         from history import ChatHistory
+
         with tempfile.TemporaryDirectory() as tmp:
             bad_file = Path(tmp) / "bad.jsonl"
-            bad_file.write_text('{"timestamp":"2024-01-01","user":"x","bot":"y"}\nnot json\n{"bad":"record"}\n')
+            bad_file.write_text(
+                '{"timestamp":"2024-01-01","user":"x","bot":"y"}\nnot json\n{"bad":"record"}\n'
+            )
             hist = ChatHistory(path=Path(tmp) / "hist.jsonl")
             imported = hist.import_jsonl(str(bad_file))
             self.assertEqual(imported, 1)
@@ -485,7 +516,9 @@ class TestApi(unittest.TestCase):
         from api import app
 
         client = TestClient(app)
-        response = client.post("/api/chat", data="{bad json", headers={"Content-Type": "application/json"})
+        response = client.post(
+            "/api/chat", data="{bad json", headers={"Content-Type": "application/json"}
+        )
         self.assertEqual(response.status_code, 400)
         self.assertIn("invalid JSON", response.json()["error"])
 

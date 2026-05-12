@@ -1,4 +1,5 @@
 """Tests for the persistent user preferences system."""
+
 import sys
 import tempfile
 import unittest

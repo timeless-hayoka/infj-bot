@@ -12,6 +12,7 @@ responses, the modes are illusory. This evaluator measures:
 Usage:
   python evals/mode_discrimination.py --modes companion,coach,critic --prompts 10
 """
+
 import argparse
 import json
 import re
@@ -87,7 +88,9 @@ class ModeDiscriminator:
             """)
             conn.commit()
 
-    def evaluate_modes(self, modes: List[str], prompts: Optional[List[str]] = None, n_prompts: int = 10) -> ModeDiscriminationReport:
+    def evaluate_modes(
+        self, modes: List[str], prompts: Optional[List[str]] = None, n_prompts: int = 10
+    ) -> ModeDiscriminationReport:
         """Run discrimination analysis across modes."""
         test_prompts = (prompts or TEST_PROMPTS)[:n_prompts]
         responses = self._collect_responses(modes, test_prompts)
@@ -109,17 +112,19 @@ class ModeDiscriminator:
             "tone": 0.25,
         }
         report.overall_score = (
-            report.lexical_distinctness * weights["lexical"] +
-            report.syntactic_distinctness * weights["syntactic"] +
-            report.tool_distinctness * weights["tool"] +
-            report.tone_distinctness * weights["tone"]
+            report.lexical_distinctness * weights["lexical"]
+            + report.syntactic_distinctness * weights["syntactic"]
+            + report.tool_distinctness * weights["tool"]
+            + report.tone_distinctness * weights["tone"]
         )
 
         report.convergence_warnings = self._detect_convergence(responses, modes)
         self._save_report(report)
         return report
 
-    def _collect_responses(self, modes: List[str], prompts: List[str]) -> Dict[str, List[Dict]]:
+    def _collect_responses(
+        self, modes: List[str], prompts: List[str]
+    ) -> Dict[str, List[Dict]]:
         """Collect responses from each mode for each prompt."""
         from brain import InfjBrain
         from commands import BotState
@@ -142,22 +147,26 @@ class ModeDiscriminator:
                     )
                     # Generate response
                     response = brain.think(prompt_text)
-                    responses[mode].append({
-                        "prompt": prompt,
-                        "response": response,
-                        "tools_used": self._extract_tools(response),
-                    })
+                    responses[mode].append(
+                        {
+                            "prompt": prompt,
+                            "response": response,
+                            "tools_used": self._extract_tools(response),
+                        }
+                    )
                 except Exception as exc:
-                    responses[mode].append({
-                        "prompt": prompt,
-                        "response": f"[ERROR: {exc}]",
-                        "tools_used": [],
-                    })
+                    responses[mode].append(
+                        {
+                            "prompt": prompt,
+                            "response": f"[ERROR: {exc}]",
+                            "tools_used": [],
+                        }
+                    )
         return responses
 
     def _extract_tools(self, response: str) -> List[str]:
         """Extract tool invocations from response text."""
-        tool_pattern = r'\b(tool_[a-z_]+|recon|scan|fuzz|computer_use)\b'
+        tool_pattern = r"\b(tool_[a-z_]+|recon|scan|fuzz|computer_use)\b"
         return list(set(re.findall(tool_pattern, response.lower())))
 
     # ── Metrics ──
@@ -167,7 +176,7 @@ class ModeDiscriminator:
         mode_vocab = {}
         for mode, resps in responses.items():
             all_text = " ".join(r["response"].lower() for r in resps)
-            words = set(re.findall(r'\b[a-z]{4,}\b', all_text))
+            words = set(re.findall(r"\b[a-z]{4,}\b", all_text))
             mode_vocab[mode] = words
 
         modes = list(mode_vocab.keys())
@@ -176,7 +185,7 @@ class ModeDiscriminator:
 
         distinct_ratios = []
         for i, mode_a in enumerate(modes):
-            for mode_b in modes[i + 1:]:
+            for mode_b in modes[i + 1 :]:
                 vocab_a = mode_vocab[mode_a]
                 vocab_b = mode_vocab[mode_b]
                 if not vocab_a or not vocab_b:
@@ -212,7 +221,7 @@ class ModeDiscriminator:
 
         distinct_scores = []
         for i, mode_a in enumerate(modes):
-            for mode_b in modes[i + 1:]:
+            for mode_b in modes[i + 1 :]:
                 counter_a = mode_structures[mode_a]
                 counter_b = mode_structures[mode_b]
                 total_a = sum(counter_a.values())
@@ -244,7 +253,7 @@ class ModeDiscriminator:
 
         distinct_scores = []
         for i, mode_a in enumerate(modes):
-            for mode_b in modes[i + 1:]:
+            for mode_b in modes[i + 1 :]:
                 tools_a = set(mode_tools[mode_a].keys())
                 tools_b = set(mode_tools[mode_b].keys())
                 if not tools_a and not tools_b:
@@ -259,10 +268,44 @@ class ModeDiscriminator:
 
     def _tone_distinctness(self, responses: Dict[str, List[Dict]]) -> float:
         """Measure emotional tone differentiation using sentiment markers."""
-        positive_markers = ["love", "happy", "joy", "excited", "grateful", "hope", "warm", "gentle", "care"]
-        negative_markers = ["hate", "sad", "angry", "afraid", "worry", "frustrated", "disappointed"]
-        analytical_markers = ["analyze", "consider", "examine", "evaluate", "assess", "review"]
-        imperative_markers = ["do", "try", "start", "stop", "focus", "plan", "act", "build"]
+        positive_markers = [
+            "love",
+            "happy",
+            "joy",
+            "excited",
+            "grateful",
+            "hope",
+            "warm",
+            "gentle",
+            "care",
+        ]
+        negative_markers = [
+            "hate",
+            "sad",
+            "angry",
+            "afraid",
+            "worry",
+            "frustrated",
+            "disappointed",
+        ]
+        analytical_markers = [
+            "analyze",
+            "consider",
+            "examine",
+            "evaluate",
+            "assess",
+            "review",
+        ]
+        imperative_markers = [
+            "do",
+            "try",
+            "start",
+            "stop",
+            "focus",
+            "plan",
+            "act",
+            "build",
+        ]
 
         mode_tones = {}
         for mode, resps in responses.items():
@@ -281,7 +324,7 @@ class ModeDiscriminator:
 
         distinct_scores = []
         for i, mode_a in enumerate(modes):
-            for mode_b in modes[i + 1:]:
+            for mode_b in modes[i + 1 :]:
                 counter_a = mode_tones[mode_a]
                 counter_b = mode_tones[mode_b]
                 total_a = sum(counter_a.values())
@@ -290,27 +333,32 @@ class ModeDiscriminator:
                     continue
                 # Normalize and compute Euclidean distance
                 all_tones = set(counter_a.keys()) | set(counter_b.keys())
-                dist = sum(
-                    ((counter_a[t] / total_a) - (counter_b[t] / total_b)) ** 2
-                    for t in all_tones
-                ) ** 0.5
+                dist = (
+                    sum(
+                        ((counter_a[t] / total_a) - (counter_b[t] / total_b)) ** 2
+                        for t in all_tones
+                    )
+                    ** 0.5
+                )
                 # Max possible distance is sqrt(2) for 2 categories, sqrt(4) for 4
                 max_dist = 2.0
                 distinct_scores.append(min(1.0, dist / max_dist))
 
         return sum(distinct_scores) / len(distinct_scores) if distinct_scores else 1.0
 
-    def _detect_convergence(self, responses: Dict[str, List[Dict]], modes: List[str]) -> List[str]:
+    def _detect_convergence(
+        self, responses: Dict[str, List[Dict]], modes: List[str]
+    ) -> List[str]:
         """Detect specific mode pairs that are converging."""
         warnings = []
         lexical = {}
         for mode, resps in responses.items():
             all_text = " ".join(r["response"].lower() for r in resps)
-            words = Counter(re.findall(r'\b[a-z]{4,}\b', all_text))
+            words = Counter(re.findall(r"\b[a-z]{4,}\b", all_text))
             lexical[mode] = words
 
         for i, mode_a in enumerate(modes):
-            for mode_b in modes[i + 1:]:
+            for mode_b in modes[i + 1 :]:
                 words_a = lexical[mode_a]
                 words_b = lexical[mode_b]
                 if not words_a or not words_b:
@@ -320,7 +368,9 @@ class ModeDiscriminator:
                 top_b = set(w for w, _ in words_b.most_common(20))
                 overlap = len(top_a & top_b) / 20.0
                 if overlap > 0.7:
-                    warnings.append(f"{mode_a} ↔ {mode_b}: lexical convergence ({overlap:.0%} top-word overlap)")
+                    warnings.append(
+                        f"{mode_a} ↔ {mode_b}: lexical convergence ({overlap:.0%} top-word overlap)"
+                    )
         return warnings
 
     def _save_report(self, report: ModeDiscriminationReport) -> None:
@@ -356,7 +406,9 @@ class ModeDiscriminator:
 
 if __name__ == "__main__":
     p = argparse.ArgumentParser()
-    p.add_argument("--modes", default="companion,coach,critic", help="Comma-separated modes")
+    p.add_argument(
+        "--modes", default="companion,coach,critic", help="Comma-separated modes"
+    )
     p.add_argument("--prompts", type=int, default=10, help="Number of test prompts")
     p.add_argument("--history", action="store_true", help="Show report history")
     args = p.parse_args()
@@ -364,7 +416,9 @@ if __name__ == "__main__":
     evaluator = ModeDiscriminator()
     if args.history:
         for r in evaluator.get_report_history():
-            print(f"[{r['timestamp']}] score={r['overall_score']:.2f} modes={r['modes_tested']}")
+            print(
+                f"[{r['timestamp']}] score={r['overall_score']:.2f} modes={r['modes_tested']}"
+            )
     else:
         modes = [m.strip() for m in args.modes.split(",")]
         report = evaluator.evaluate_modes(modes, n_prompts=args.prompts)

@@ -1,4 +1,5 @@
 """Tests for the computer-use browser automation harness."""
+
 import sys
 import unittest
 from pathlib import Path
@@ -12,7 +13,9 @@ import computer_use as cu
 class TestUrlHelpers(unittest.TestCase):
     def test_domain_from_url(self):
         self.assertEqual(cu._domain_from_url("https://example.com/path"), "example.com")
-        self.assertEqual(cu._domain_from_url("http://sub.example.com:8080/"), "sub.example.com")
+        self.assertEqual(
+            cu._domain_from_url("http://sub.example.com:8080/"), "sub.example.com"
+        )
 
     def test_is_url_allowed_exact(self):
         self.assertTrue(cu._is_url_allowed("https://example.com", {"example.com"}))
@@ -26,10 +29,16 @@ class TestUrlHelpers(unittest.TestCase):
 
 class TestSensitiveAction(unittest.TestCase):
     def test_sensitive_navigate(self):
-        self.assertTrue(cu._is_sensitive_action({"type": "navigate", "url": "https://bank.com/login"}))
+        self.assertTrue(
+            cu._is_sensitive_action(
+                {"type": "navigate", "url": "https://bank.com/login"}
+            )
+        )
 
     def test_sensitive_type(self):
-        self.assertTrue(cu._is_sensitive_action({"type": "type", "text": "my_password123"}))
+        self.assertTrue(
+            cu._is_sensitive_action({"type": "type", "text": "my_password123"})
+        )
 
     def test_not_sensitive(self):
         self.assertFalse(cu._is_sensitive_action({"type": "click", "x": 100, "y": 200}))

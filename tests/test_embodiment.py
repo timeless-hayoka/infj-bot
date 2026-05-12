@@ -1,4 +1,5 @@
 """Tests for the Embodiment module."""
+
 import sys
 import tempfile
 import unittest
@@ -28,12 +29,15 @@ class TestEmbodiedSelf(unittest.TestCase):
 
     def test_initial_state(self):
         self.assertGreater(self.body.state.heartbeat_rate, 0)
-        self.assertIn(self.body.state.breath_phase, ["inhale", "hold", "exhale", "pause"])
+        self.assertIn(
+            self.body.state.breath_phase, ["inhale", "hold", "exhale", "pause"]
+        )
 
     def test_heartbeat_tick(self):
         class FakeCtx:
             last_interaction = None
             minutes_since_interaction = 5
+
         old_rate = self.body.state.heartbeat_rate
         self.body.heartbeat_tick(FakeCtx())
         # Rate should move toward baseline
@@ -50,8 +54,10 @@ class TestEmbodiedSelf(unittest.TestCase):
     def test_release_tension(self):
         self.body.state.tension_map["head"] = 0.8
         old = self.body.state.tension_map["head"]
+
         class FakeCtx:
             last_interaction = None
+
         self.body.release_tension(FakeCtx())
         # Tension should decay
         self.assertLessEqual(self.body.state.tension_map["head"], old)
@@ -61,6 +67,7 @@ class TestEmbodiedSelf(unittest.TestCase):
             being = None
             last_interaction = None
             minutes_since_interaction = 2
+
         self.body.cycle(FakeCtx())
         self.assertIsNotNone(self.body.state.last_heartbeat)
 
@@ -71,6 +78,7 @@ class TestEmbodiedSelf(unittest.TestCase):
 
     def test_self_registration(self):
         from cognitive_architecture import CognitiveArchitecture
+
         arch = CognitiveArchitecture()
         self.assertIn("embodiment", arch.list_plugins())
 

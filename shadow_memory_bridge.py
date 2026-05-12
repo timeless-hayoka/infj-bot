@@ -15,6 +15,7 @@ This bridge:
 
 Usage: wrap memory.save() calls with bridge.validate_before_save()
 """
+
 from typing import Dict, Optional
 
 from shadow import get_shadow
@@ -31,7 +32,9 @@ PROJECTION_MARKERS = {
 }
 
 
-def validate_before_save(memory_text: str, user_input: str = "", bot_response: str = "") -> Dict:
+def validate_before_save(
+    memory_text: str, user_input: str = "", bot_response: str = ""
+) -> Dict:
     """Validate a memory before saving. Returns validation result with flags."""
     shadow = get_shadow()
     reliability = get_reliability_engine()
@@ -76,7 +79,11 @@ def validate_before_save(memory_text: str, user_input: str = "", bot_response: s
     if bot_response:
         bot_emotion = _extract_emotion(bot_response.lower())
         user_attributed_emotion = _extract_user_emotion(memory_text.lower())
-        if bot_emotion and user_attributed_emotion and bot_emotion == user_attributed_emotion:
+        if (
+            bot_emotion
+            and user_attributed_emotion
+            and bot_emotion == user_attributed_emotion
+        ):
             result["projection_flag"] = True
             result["confidence_adjustment"] -= 0.2
             result["notes"].append(
@@ -108,7 +115,10 @@ def _extract_emotion(text: str) -> Optional[str]:
         "joy": ["happy", "joy", "excited", "elated", "thrilled"],
         "shame": ["ashamed", "embarrassed", "guilty", "humiliated"],
     }
-    scores = {emotion: sum(1 for w in words if w in text) for emotion, words in emotions.items()}
+    scores = {
+        emotion: sum(1 for w in words if w in text)
+        for emotion, words in emotions.items()
+    }
     if max(scores.values(), default=0) > 0:
         return max(scores, key=scores.get)
     return None
@@ -118,15 +128,25 @@ def _extract_user_emotion(text: str) -> Optional[str]:
     """Extract emotion attributed to user in memory text."""
     # Patterns like "Jude is angry", "user seems sad", "he feels afraid"
     patterns = [
-        r'\b(jude|user|he|she)\b.*\b(is|seems|feels|looks|appears)\b.*\b(angry|mad|afraid|sad|happy|anxious|worried|excited)\b',
-        r'\b(angry|mad|afraid|sad|happy|anxious|worried|excited)\b.*\b(jude|user|he|she)\b',
+        r"\b(jude|user|he|she)\b.*\b(is|seems|feels|looks|appears)\b.*\b(angry|mad|afraid|sad|happy|anxious|worried|excited)\b",
+        r"\b(angry|mad|afraid|sad|happy|anxious|worried|excited)\b.*\b(jude|user|he|she)\b",
     ]
     import re
+
     for pattern in patterns:
         match = re.search(pattern, text)
         if match:
             # Extract the emotion word from the match
-            emotion_words = ["angry", "mad", "afraid", "sad", "happy", "anxious", "worried", "excited"]
+            emotion_words = [
+                "angry",
+                "mad",
+                "afraid",
+                "sad",
+                "happy",
+                "anxious",
+                "worried",
+                "excited",
+            ]
             for word in emotion_words:
                 if word in match.group(0):
                     return word
@@ -135,7 +155,16 @@ def _extract_user_emotion(text: str) -> Optional[str]:
 
 def _is_unsubstantiated_negative_judgment(memory_text: str, user_input: str) -> bool:
     """Check if memory is a negative judgment not directly stated by user."""
-    negative_judgments = ["lazy", "stupid", "selfish", "cruel", "mean", "bad", "toxic", "manipulative"]
+    negative_judgments = [
+        "lazy",
+        "stupid",
+        "selfish",
+        "cruel",
+        "mean",
+        "bad",
+        "toxic",
+        "manipulative",
+    ]
     text_lower = memory_text.lower()
     has_negative = any(j in text_lower for j in negative_judgments)
 
@@ -151,6 +180,7 @@ def _is_unsubstantiated_negative_judgment(memory_text: str, user_input: str) -> 
 
 # ── Wrapper for memory.save() ──
 
+
 def save_memory_with_validation(memory, text: str, **kwargs) -> str:
     """Wrapper around memory.save() that validates for projection before saving.
 
@@ -164,6 +194,7 @@ def save_memory_with_validation(memory, text: str, **kwargs) -> str:
     # Log validation notes
     if validation["notes"]:
         import logging
+
         logger = logging.getLogger("infj_bot")
         for note in validation["notes"]:
             logger.debug("[Shadow-Memory Bridge] %s", note)

@@ -1,4 +1,5 @@
 """Tests for the self-evaluation system."""
+
 import sys
 import tempfile
 import unittest
@@ -41,10 +42,14 @@ class TestSelfEvaluator(unittest.TestCase):
     def test_suggest_labels_high_hallucination(self):
         response = "I definitely know that everyone always does this."
         labels = self.eval.suggest_uncertainty_labels(response)
-        self.assertTrue(any("speculative" in l or "high confidence" in l for l in labels))
+        self.assertTrue(
+            any("speculative" in l or "high confidence" in l for l in labels)
+        )
 
     def test_suggest_labels_uncertain(self):
-        response = "I think maybe this could work. Perhaps it seems likely, but I'm not sure."
+        response = (
+            "I think maybe this could work. Perhaps it seems likely, but I'm not sure."
+        )
         labels = self.eval.suggest_uncertainty_labels(response)
         self.assertTrue(any("well-calibrated" in l for l in labels))
 

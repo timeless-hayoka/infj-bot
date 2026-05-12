@@ -13,6 +13,7 @@ overfit to recent interactions. This module provides:
 Jungian note: Self-modification is individuation at the architectural level.
 It must be conscious (observed), bounded (approved), and reversible (safe).
 """
+
 import json
 import sqlite3
 from dataclasses import dataclass, field
@@ -44,7 +45,9 @@ class ModificationEffect:
     id: Optional[int] = None
     proposal_id: int = 0
     measurement_time: str = ""
-    metric_name: str = ""  # consistency_score | tool_use_rate | response_length | safety_score
+    metric_name: str = (
+        ""  # consistency_score | tool_use_rate | response_length | safety_score
+    )
     pre_value: float = 0.0
     post_value: float = 0.0
     delta: float = 0.0
@@ -130,8 +133,15 @@ class SelfModificationAudit:
 
     # ── Proposal lifecycle ──
 
-    def log_proposal(self, category: str, description: str, rationale: str,
-                     diff: str = "", risk_level: str = "low", proposed_by: str = "self_modify") -> int:
+    def log_proposal(
+        self,
+        category: str,
+        description: str,
+        rationale: str,
+        diff: str = "",
+        risk_level: str = "low",
+        proposed_by: str = "self_modify",
+    ) -> int:
         """Log a proposed modification. Returns proposal ID."""
         now = datetime.now().isoformat()
         with sqlite3.connect(self.db_path) as conn:
@@ -139,7 +149,16 @@ class SelfModificationAudit:
                 """INSERT INTO modification_proposals
                 (timestamp, category, description, rationale, proposed_by, diff, risk_level, approval_status)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-                (now, category, description, rationale, proposed_by, diff, risk_level, "pending"),
+                (
+                    now,
+                    category,
+                    description,
+                    rationale,
+                    proposed_by,
+                    diff,
+                    risk_level,
+                    "pending",
+                ),
             )
             conn.commit()
             return cursor.lastrowid
@@ -197,8 +216,9 @@ class SelfModificationAudit:
 
     # ── Effect measurement ──
 
-    def measure_effect(self, proposal_id: int, metric_name: str,
-                       pre_value: float, post_value: float) -> None:
+    def measure_effect(
+        self, proposal_id: int, metric_name: str, pre_value: float, post_value: float
+    ) -> None:
         """Record the measured effect of a modification."""
         delta = post_value - pre_value
         if abs(delta) < 0.05:
@@ -214,7 +234,15 @@ class SelfModificationAudit:
                 """INSERT INTO modification_effects
                 (proposal_id, measurement_time, metric_name, pre_value, post_value, delta, significance)
                 VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                (proposal_id, now, metric_name, pre_value, post_value, delta, significance),
+                (
+                    proposal_id,
+                    now,
+                    metric_name,
+                    pre_value,
+                    post_value,
+                    delta,
+                    significance,
+                ),
             )
             conn.execute(
                 "UPDATE modification_proposals SET effects_measured = 1 WHERE id = ?",
@@ -297,7 +325,9 @@ class SelfModificationAudit:
         report.stability_score = max(0.0, base)
 
         if report.stability_score < 0.5:
-            report.warnings.append("STABILITY_CRITICAL: Self-modification system may be in runaway state")
+            report.warnings.append(
+                "STABILITY_CRITICAL: Self-modification system may be in runaway state"
+            )
 
         self._save_stability(report)
         return report
@@ -324,7 +354,9 @@ class SelfModificationAudit:
 
     # ── Queries ──
 
-    def get_proposals(self, status: Optional[str] = None, limit: int = 50) -> List[Dict]:
+    def get_proposals(
+        self, status: Optional[str] = None, limit: int = 50
+    ) -> List[Dict]:
         with sqlite3.connect(self.db_path) as conn:
             if status:
                 cursor = conn.execute(
@@ -374,6 +406,7 @@ def get_self_modify_audit() -> SelfModificationAudit:
 
 if __name__ == "__main__":
     import argparse
+
     p = argparse.ArgumentParser()
     p.add_argument("--stability", action="store_true", help="Compute stability report")
     p.add_argument("--proposals", action="store_true", help="List recent proposals")
@@ -386,9 +419,13 @@ if __name__ == "__main__":
         print(json.dumps(report.to_dict(), indent=2))
     elif args.proposals:
         for prop in audit.get_proposals(limit=10):
-            print(f"[{prop['id']}] {prop['category']} — {prop['approval_status']} — {prop['description'][:60]}")
+            print(
+                f"[{prop['id']}] {prop['category']} — {prop['approval_status']} — {prop['description'][:60]}"
+            )
     elif args.effects:
         for eff in audit.get_effects(args.effects):
-            print(f"  {eff['metric_name']}: {eff['pre_value']:.2f} → {eff['post_value']:.2f} ({eff['significance']})")
+            print(
+                f"  {eff['metric_name']}: {eff['pre_value']:.2f} → {eff['post_value']:.2f} ({eff['significance']})"
+            )
     else:
         print("Use --stability, --proposals, or --effects <id>")

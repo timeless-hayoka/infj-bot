@@ -1,4 +1,5 @@
 """Tests for the Intuition cognitive module."""
+
 import sqlite3
 import sys
 import tempfile
@@ -42,10 +43,14 @@ class TestIntuitionEngine(unittest.TestCase):
             emotion={"label": "grateful", "intensity": 0.7},
         )
         # Gratitude tends toward warm / tender
-        self.assertIn(felt["felt_quality"], ["warm", "tender", "open", "bright", "expanding"])
+        self.assertIn(
+            felt["felt_quality"], ["warm", "tender", "open", "bright", "expanding"]
+        )
 
     def test_form_hunch(self):
-        hunch = self.engine.form_hunch({"user_input": "I don't know what to do anymore"})
+        hunch = self.engine.form_hunch(
+            {"user_input": "I don't know what to do anymore"}
+        )
         self.assertIsNotNone(hunch)
         self.assertIn("content", hunch)
         self.assertIn("hunch_type", hunch)
@@ -60,14 +65,22 @@ class TestIntuitionEngine(unittest.TestCase):
         with sqlite3.connect(self.engine.db_path) as conn:
             conn.execute(
                 "INSERT INTO hunches (timestamp, hunch_type, content, trigger, confidence) VALUES (?, ?, ?, ?, ?)",
-                (datetime.now().isoformat(), "prediction", "Jude is approaching something they have not named yet.", "test", 0.5),
+                (
+                    datetime.now().isoformat(),
+                    "prediction",
+                    "Jude is approaching something they have not named yet.",
+                    "test",
+                    0.5,
+                ),
             )
             conn.commit()
-        self.engine.validate_hunches({
-            "user_input": "yes, that's exactly what I was feeling",
-            "bot_output": "I understand",
-            "emotion": {"label": "neutral", "intensity": 0.3},
-        })
+        self.engine.validate_hunches(
+            {
+                "user_input": "yes, that's exactly what I was feeling",
+                "bot_output": "I understand",
+                "emotion": {"label": "neutral", "intensity": 0.3},
+            }
+        )
         # Hunch should be validated as true
         pending = self.engine.get_pending_hunches()
         self.assertEqual(len(pending), 0)
@@ -78,11 +91,13 @@ class TestIntuitionEngine(unittest.TestCase):
         # Force invalidate by setting validation to happen with high randomness
         # (we can't easily trigger the 0.05 path deterministically)
         # Instead, test that the hunch stays pending without confirming evidence
-        self.engine.validate_hunches({
-            "user_input": "let's talk about something else",
-            "bot_output": "okay",
-            "emotion": {"label": "neutral", "intensity": 0.2},
-        })
+        self.engine.validate_hunches(
+            {
+                "user_input": "let's talk about something else",
+                "bot_output": "okay",
+                "emotion": {"label": "neutral", "intensity": 0.2},
+            }
+        )
         # Without strong confirming evidence, hunch should remain pending
         # (or be invalidated by the 0.05 random chance, but that's unlikely in one call)
         all_hunches = self.engine.get_pending_hunches()
@@ -90,13 +105,17 @@ class TestIntuitionEngine(unittest.TestCase):
         self.assertTrue(True)
 
     def test_recognize_pattern_new(self):
-        result = self.engine.recognize_pattern("I am thinking about my career and future direction")
+        result = self.engine.recognize_pattern(
+            "I am thinking about my career and future direction"
+        )
         # First occurrence — not enough examples for recognition
         self.assertIsNone(result)
 
     def test_recognize_pattern_repeated(self):
         for _ in range(5):
-            result = self.engine.recognize_pattern("I am thinking about my career and future direction")
+            result = self.engine.recognize_pattern(
+                "I am thinking about my career and future direction"
+            )
         # After 5 occurrences, should trigger recognition
         self.assertIsNotNone(result)
         self.assertIn("recognition", result)
@@ -119,12 +138,15 @@ class TestIntuitionEngine(unittest.TestCase):
         self.assertIn(self.engine.state.felt_quality, snippet)
 
     def test_get_recent_felt_senses(self):
-        self.engine.feel_situation("test", emotion={"label": "neutral", "intensity": 0.3})
+        self.engine.feel_situation(
+            "test", emotion={"label": "neutral", "intensity": 0.3}
+        )
         senses = self.engine.get_recent_felt_senses(limit=5)
         self.assertGreaterEqual(len(senses), 1)
 
     def test_self_registration(self):
         from cognitive_architecture import CognitiveArchitecture
+
         arch = CognitiveArchitecture()
         self.assertIn("intuition", arch.list_plugins())
 

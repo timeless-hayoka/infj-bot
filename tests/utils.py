@@ -1,7 +1,7 @@
 """Shared test utilities for the INFJ bot test suite."""
+
 import stat
 from pathlib import Path
-
 
 
 def assert_db_cleaned_up(db_path: Path) -> None:

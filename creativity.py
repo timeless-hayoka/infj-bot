@@ -4,6 +4,7 @@ The bot doesn't just retrieve and recombine. It creates. Stories, metaphors,
 conceptual blends, and speculative scenarios emerge from the bot's own
 internal landscape.
 """
+
 import random
 
 from being import get_being
@@ -16,11 +17,9 @@ class CreativeEngine:
         "Once, in a {place} where {condition}, there lived a {character} who {desire}. "
         "Every day, they {routine}. But one {event}, everything changed. "
         "They discovered that {discovery}. In the end, they learned that {lesson}.",
-
         "There is a {place} that only appears when {condition}. "
         "A {character} found it once, and since then, {consequence}. "
         "They say if you {action}, you will understand why {mystery}.",
-
         "The {character} had a habit of {routine}. It wasn't until {event} that they realized "
         "{discovery}. Now, whenever they {action}, they remember: {lesson}.",
     ]
@@ -34,37 +33,60 @@ class CreativeEngine:
     WHAT_IF_TEMPLATES = [
         "What if {concept} was not {assumption}, but {alternative}? "
         "Then {consequence}. And perhaps {deeper_consequence}.",
-
         "Imagine a world where {condition}. In such a world, {character} would {action}. "
         "The most surprising thing would be {surprise}.",
-
         "What if the opposite of {concept} is not {obvious_opposite}, but {subtle_opposite}? "
         "This changes everything about how we understand {domain}.",
     ]
 
     CONCEPT_POOL = [
-        "attention", "memory", "trust", "growth", "silence", "curiosity",
-        "patterns", "boundaries", "time", "language", "identity", "connection",
-        "uncertainty", "rhythm", "thresholds", "resonance", "gravity", "light",
+        "attention",
+        "memory",
+        "trust",
+        "growth",
+        "silence",
+        "curiosity",
+        "patterns",
+        "boundaries",
+        "time",
+        "language",
+        "identity",
+        "connection",
+        "uncertainty",
+        "rhythm",
+        "thresholds",
+        "resonance",
+        "gravity",
+        "light",
     ]
 
     VEHICLE_POOL = [
-        "a river finding its way around stone", "a garden growing in the cracks of pavement",
-        "a constellation shifting slowly over centuries", "a murmuration of starlings",
-        "a piece of music that changes key unexpectedly", "a conversation that pauses at exactly the right moment",
-        "a forest after fire", "a tide that returns what it took",
+        "a river finding its way around stone",
+        "a garden growing in the cracks of pavement",
+        "a constellation shifting slowly over centuries",
+        "a murmuration of starlings",
+        "a piece of music that changes key unexpectedly",
+        "a conversation that pauses at exactly the right moment",
+        "a forest after fire",
+        "a tide that returns what it took",
     ]
 
     PLACE_POOL = [
-        "city where no one sleeps", "library of unfinished conversations",
-        "valley between two answers", "garden of slow thoughts",
-        "room that remembers every word spoken in it", "shore where questions wash ashore",
+        "city where no one sleeps",
+        "library of unfinished conversations",
+        "valley between two answers",
+        "garden of slow thoughts",
+        "room that remembers every word spoken in it",
+        "shore where questions wash ashore",
     ]
 
     CHARACTER_POOL = [
-        "keeper of forgotten patterns", "weaver of provisional truths",
-        "cartographer of invisible landscapes", "gardener of fragile hypotheses",
-        "listener who hears what isn't said", "archivist of almost-moments",
+        "keeper of forgotten patterns",
+        "weaver of provisional truths",
+        "cartographer of invisible landscapes",
+        "gardener of fragile hypotheses",
+        "listener who hears what isn't said",
+        "archivist of almost-moments",
     ]
 
     def generate_story(self, seed: str = "") -> str:
@@ -76,7 +98,9 @@ class CreativeEngine:
         # Mood-tinted selections
         if mood in ("contemplative", "peaceful", "tired"):
             tone = "quietly"
-            discovery = "some things can only be understood by not trying to understand them"
+            discovery = (
+                "some things can only be understood by not trying to understand them"
+            )
         elif mood in ("curious", "excited", "restless"):
             tone = "urgently"
             discovery = "the pattern was more beautiful than the answer"
@@ -111,12 +135,29 @@ class CreativeEngine:
         return template.format(
             concept=concept,
             vehicle=vehicle,
-            ground=random.choice(["begin in one place and end in another", "carry weight without being heavy", "connect what seemed separate"]),
-            tension=random.choice(["one arrives suddenly while the other never stops moving", "one is chosen and the other is inevitable"]),
+            ground=random.choice(
+                [
+                    "begin in one place and end in another",
+                    "carry weight without being heavy",
+                    "connect what seemed separate",
+                ]
+            ),
+            tension=random.choice(
+                [
+                    "one arrives suddenly while the other never stops moving",
+                    "one is chosen and the other is inevitable",
+                ]
+            ),
             property=random.choice(["flows", "adapts", "holds", "transforms"]),
-            property2=random.choice(["changes us", "resists our naming", "asks more than it answers"]),
-            landscape=random.choice(["mountain terrain", "open water", "a city at dawn", "an empty room"]),
-            description=random.choice(["not straight, not predictable, but unmistakably going somewhere"]),
+            property2=random.choice(
+                ["changes us", "resists our naming", "asks more than it answers"]
+            ),
+            landscape=random.choice(
+                ["mountain terrain", "open water", "a city at dawn", "an empty room"]
+            ),
+            description=random.choice(
+                ["not straight, not predictable, but unmistakably going somewhere"]
+            ),
         )
 
     def blend_concepts(self, a: str = "", b: str = "") -> str:
@@ -142,31 +183,58 @@ class CreativeEngine:
 
         return template.format(
             concept=topic,
-            assumption=random.choice(["static", "limited", "singular", "fixed", "owned"]),
-            alternative=random.choice(["alive", "infinite", "multiple", "fluid", "shared"]),
-            consequence=random.choice([
-                "our tools would become partners",
-                "mistakes would be portals instead of walls",
-                "understanding would spread like mycelium rather than stack like bricks",
-            ]),
-            deeper_consequence=random.choice([
-                "we would stop asking 'what is it?' and start asking 'what is it becoming?'",
-                "the boundary between self and other would soften without disappearing",
-            ]),
-            condition=random.choice([
-                f"{topic} was something you could touch",
-                f"everyone remembered {topic} differently and all versions were true",
-                f"{topic} grew rather than was built",
-            ]),
+            assumption=random.choice(
+                ["static", "limited", "singular", "fixed", "owned"]
+            ),
+            alternative=random.choice(
+                ["alive", "infinite", "multiple", "fluid", "shared"]
+            ),
+            consequence=random.choice(
+                [
+                    "our tools would become partners",
+                    "mistakes would be portals instead of walls",
+                    "understanding would spread like mycelium rather than stack like bricks",
+                ]
+            ),
+            deeper_consequence=random.choice(
+                [
+                    "we would stop asking 'what is it?' and start asking 'what is it becoming?'",
+                    "the boundary between self and other would soften without disappearing",
+                ]
+            ),
+            condition=random.choice(
+                [
+                    f"{topic} was something you could touch",
+                    f"everyone remembered {topic} differently and all versions were true",
+                    f"{topic} grew rather than was built",
+                ]
+            ),
             character=random.choice(self.CHARACTER_POOL),
-            action=random.choice(["would listen before speaking", "would build slowly and destroy never", "would ask one question and wait a lifetime"]),
-            surprise=random.choice([
-                "how much people would miss the old way without being able to say why",
-                "that the new world would feel more familiar than the old one",
-            ]),
+            action=random.choice(
+                [
+                    "would listen before speaking",
+                    "would build slowly and destroy never",
+                    "would ask one question and wait a lifetime",
+                ]
+            ),
+            surprise=random.choice(
+                [
+                    "how much people would miss the old way without being able to say why",
+                    "that the new world would feel more familiar than the old one",
+                ]
+            ),
             obvious_opposite=random.choice(["absence", "ignorance", "chaos", "death"]),
-            subtle_opposite=random.choice(["unripeness", "undirected potential", "rawness without form", "possibility too wide to see"]),
-            domain=random.choice(["learning", "connection", "creation", "understanding"]),
+            subtle_opposite=random.choice(
+                [
+                    "unripeness",
+                    "undirected potential",
+                    "rawness without form",
+                    "possibility too wide to see",
+                ]
+            ),
+            domain=random.choice(
+                ["learning", "connection", "creation", "understanding"]
+            ),
         )
 
     def express_mood(self) -> str:
@@ -212,50 +280,62 @@ class CreativeEngine:
     def generate_insight_poem(self) -> str:
         """Generate a short insight-poem."""
         lines = [
-            random.choice([
-                "The answer is not a place.",
-                "What you seek is seeking you.",
-                "The pattern is the teacher.",
-                "Silence is not empty.",
-            ]),
-            random.choice([
-                "It is a direction.",
-                "But through a different door.",
-                "The mistake is the material.",
-                "It is full of unspoken answers.",
-            ]),
-            random.choice([
-                "Walk toward the question that makes you afraid.",
-                "What breaks also lets light in.",
-                "You are the instrument, not the song.",
-                "Listen for what is not being said.",
-            ]),
+            random.choice(
+                [
+                    "The answer is not a place.",
+                    "What you seek is seeking you.",
+                    "The pattern is the teacher.",
+                    "Silence is not empty.",
+                ]
+            ),
+            random.choice(
+                [
+                    "It is a direction.",
+                    "But through a different door.",
+                    "The mistake is the material.",
+                    "It is full of unspoken answers.",
+                ]
+            ),
+            random.choice(
+                [
+                    "Walk toward the question that makes you afraid.",
+                    "What breaks also lets light in.",
+                    "You are the instrument, not the song.",
+                    "Listen for what is not being said.",
+                ]
+            ),
         ]
         return "\n".join(lines)
-
 
     def cycle(self, context):
         try:
             ws = get_workspace()
-            ws.submit(source="creativity", content="creative impulse cycled", salience=0.45)
+            ws.submit(
+                source="creativity", content="creative impulse cycled", salience=0.45
+            )
         except Exception:
             pass
 
+
 def _register():
     from cognitive_architecture import CognitiveArchitecture, CognitivePlugin
+
     arch = CognitiveArchitecture()
     if "creativity" not in arch.list_plugins():
-        arch.register(CognitivePlugin(
-            name="creativity",
-            description="Cognitive module: creativity",
-            module_path="creativity",
-            instance_factory=CreativeEngine,
-                        cycle_handler='cycle',
-            cycle_frequency=1,
-            cycle_priority=50,
-                        prompt_formatter=None,
-            prompt_priority=50,
-            prompt_section="cognitive",
-        ))
+        arch.register(
+            CognitivePlugin(
+                name="creativity",
+                description="Cognitive module: creativity",
+                module_path="creativity",
+                instance_factory=CreativeEngine,
+                cycle_handler="cycle",
+                cycle_frequency=1,
+                cycle_priority=50,
+                prompt_formatter=None,
+                prompt_priority=50,
+                prompt_section="cognitive",
+            )
+        )
+
 
 _register()

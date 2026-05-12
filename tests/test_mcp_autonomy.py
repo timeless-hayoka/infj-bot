@@ -8,9 +8,14 @@ def test_autonomy_plan():
     client = TestClient(create_http_app(token=token))
     plan = [
         {"tool": "emotional_clarity", "args": ["I'm nervous about an interview."]},
-        {"tool": "dissonance_map", "args": ["I want the promotion but worry about time."]},
+        {
+            "tool": "dissonance_map",
+            "args": ["I want the promotion but worry about time."],
+        },
     ]
-    r = client.post("/autonomy", json={"plan": plan}, headers={"Authorization": f"Bearer {token}"})
+    r = client.post(
+        "/autonomy", json={"plan": plan}, headers={"Authorization": f"Bearer {token}"}
+    )
     assert r.status_code == 200
     data = r.json()
     assert "results" in data
