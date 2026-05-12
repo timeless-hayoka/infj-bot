@@ -406,7 +406,7 @@ def hive_status() -> str:
             ],
         )
         return (
-            f"Hive nodes: {status.get('nodes', 0)}\n"
+            f"Hive nodes: {status.get('nodes', 0)} ({status.get('alive', 0)} alive)\n"
             f"Consensus: {status.get('consensus', 'idle')}\n"
             f"Drift bridge: {status.get('drift_bridge', 'ok')}\n"
             f"Demo consensus: {demo['decision']} (agreement {demo['agreement']})"
