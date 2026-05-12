@@ -269,7 +269,6 @@ class AspirationalSelf:
         return "\n".join(lines)
 
     def cycle(self, context):
-        from random import random
         deepened = self.deepen_existing()
         dreamed = None
         if not deepened:

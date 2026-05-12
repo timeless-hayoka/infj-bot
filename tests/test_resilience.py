@@ -7,11 +7,9 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import pytest
 
 from resilience import (
     CircuitBreaker,
-    CircuitState,
     HealthCheck,
     HealthMonitor,
     ResilienceManager,
@@ -68,7 +66,6 @@ class TestCircuitBreaker:
 
 class TestHealthMonitor:
     def test_register_and_check(self):
-        import tempfile
         db = tempfile.mktemp(suffix=".db")
         hm = HealthMonitor(db_path=db)
         hm.register("test", lambda: HealthCheck("test", True, 5, "ok"))
@@ -78,7 +75,6 @@ class TestHealthMonitor:
         assert results[0].name == "test"
 
     def test_check_catches_exceptions(self):
-        import tempfile
         db = tempfile.mktemp(suffix=".db")
         hm = HealthMonitor(db_path=db)
         hm.register("bad", lambda: (_ for _ in ()).throw(ValueError("boom")))
@@ -88,7 +84,6 @@ class TestHealthMonitor:
         assert "boom" in results[0].message
 
     def test_is_healthy(self):
-        import tempfile
         db = tempfile.mktemp(suffix=".db")
         hm = HealthMonitor(db_path=db)
         hm.register("a", lambda: HealthCheck("a", True, 1, "ok"))
@@ -96,7 +91,6 @@ class TestHealthMonitor:
         assert hm.is_healthy()
 
     def test_is_not_healthy(self):
-        import tempfile
         db = tempfile.mktemp(suffix=".db")
         hm = HealthMonitor(db_path=db)
         hm.register("a", lambda: HealthCheck("a", True, 1, "ok"))

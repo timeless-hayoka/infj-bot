@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import pytest
 
 from cognitive_architecture import CognitiveArchitecture
-from cognitive_factory import AbilityProposal, CognitiveFactory
+from cognitive_factory import CognitiveFactory
 
 
 @pytest.fixture

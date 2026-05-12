@@ -19,13 +19,12 @@ Jungian principle: memories are not facts. They are psychic material that must
 be held lightly. The bot must distinguish "Jude said this" from "I felt this
 about Jude."
 """
-import json
 import re
 import sqlite3
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from config import RELIABILITY_DB
 

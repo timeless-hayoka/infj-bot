@@ -1,11 +1,10 @@
 import chromadb
 import uuid
 import datetime
-import hashlib
 import json
 import re
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 from config import INFJ_MEMORY_SEARCH_TOP_K, PERSIST_DIRECTORY
 from embeddings import get_default_embedding_function, LocalEmbeddingFunction, SemanticEmbeddingFunction

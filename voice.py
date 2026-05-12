@@ -2,7 +2,7 @@
 import io
 import wave
 from pathlib import Path
-from typing import Iterator, Optional
+from typing import Optional
 
 from config import PROJECT_ROOT
 
@@ -54,8 +54,6 @@ def _resolve_audio_path(path: str, must_exist: bool = True) -> Path:
 def record_audio(duration: float = 5.0, sample_rate: int = 16000, channels: int = 1) -> bytes:
     """Record audio from the microphone and return WAV bytes."""
     import sounddevice as sd
-    import soundfile as sf
-    import numpy as np
 
     frames = int(duration * sample_rate)
     recording = sd.rec(frames, samplerate=sample_rate, channels=channels, dtype="int16")
@@ -128,7 +126,6 @@ def play_audio(wav_bytes: bytes):
     """Play WAV bytes through the default audio output."""
     import sounddevice as sd
     import soundfile as sf
-    import numpy as np
 
     buffer = io.BytesIO(wav_bytes)
     data, sr = sf.read(buffer, dtype="int16")
@@ -138,5 +135,5 @@ def play_audio(wav_bytes: bytes):
 
 if __name__ == "__main__":
     print("Voice module ready.")
-    print(f"Whisper model: base (CPU, int8)")
+    print("Whisper model: base (CPU, int8)")
     print(f"Piper voice: {DEFAULT_VOICE}")

@@ -12,7 +12,6 @@ from cognitive_architecture import (
     CognitiveArchitecture,
     CognitivePlugin,
     CycleContext,
-    LoopStep,
 )
 
 

@@ -8,7 +8,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pytest
 
-from humanity import HumanityEngine, HumanityState, HUMAN_ARCHETYPES, HUMAN_SEASONS
+from humanity import HumanityEngine, HumanityState
 
 
 @pytest.fixture

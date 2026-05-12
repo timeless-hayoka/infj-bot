@@ -5,7 +5,6 @@ wondering → aspiring → reflecting → questioning → creating →
 transcending → becoming. Each stage is earned, not claimed. The
 narrative emphasizes the direction of growth, not mere accumulation.
 """
-import random
 import sqlite3
 from datetime import datetime
 from pathlib import Path

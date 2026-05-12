@@ -1,10 +1,8 @@
 """Smart proactive trigger system for the INFJ companion."""
 import random
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional
+from datetime import datetime
+from typing import Dict, Optional
 
-from emotion import detect_emotion
-from cognition import detect_dissonance
 
 
 class ProactiveState:

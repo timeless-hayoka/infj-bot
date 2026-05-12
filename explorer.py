@@ -4,10 +4,9 @@ When the bot is idle, it explores topics of interest, searches the web,
 ingests documents, and forms new knowledge. It can then share discoveries
 with Jude when relevant.
 """
-import json
 import random
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 

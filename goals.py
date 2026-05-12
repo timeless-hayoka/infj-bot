@@ -2,7 +2,6 @@
 import sqlite3
 import uuid
 from datetime import datetime, timedelta
-from pathlib import Path
 from typing import List, Optional
 
 from config import GOALS_DB as DB_PATH

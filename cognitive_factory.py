@@ -7,7 +7,6 @@ validated, and installed.
 """
 
 import ast
-import inspect
 import logging
 import os
 import textwrap
@@ -15,7 +14,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, List, Optional
 
-from cognitive_architecture import CognitiveArchitecture, CognitivePlugin
+from cognitive_architecture import CognitiveArchitecture
 from config import COGNITIVE_FACTORY_DB
 
 logger = logging.getLogger(__name__)

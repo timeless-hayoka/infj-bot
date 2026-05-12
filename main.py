@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import os
 import random
 from datetime import datetime
 from typing import Dict, Optional
@@ -11,12 +10,11 @@ from commands import BotState, handle_command, is_command, parse_command
 from cognitive_orchestrator import CognitiveOrchestrator
 from global_workspace import get_workspace
 from resilience import get_resilience, HealthCheck
-from guardrails import memory_context_block
 from history import ChatHistory
 from memory import InfjMemory
 from goals import GoalsDB
 from proactive import ProactiveState
-from documents import DocumentStore, format_doc_results
+from documents import DocumentStore
 from aspirations import AspirationalSelf
 from being import get_being
 from config import DEFAULT_AUTHORIZED_TARGETS, REFLECTION_INTERVAL
@@ -38,7 +36,6 @@ from intuition import IntuitionEngine
 from embodiment import EmbodiedSelf
 from iit_consciousness import IITConsciousness
 from homeostasis import HomeostaticRegulator
-from shadow import get_shadow
 from cognitive_architecture import CognitiveArchitecture, CycleContext
 
 # Initialize Brain and Memory

@@ -3,7 +3,6 @@
 Supports stdio transport (default) and a simple HTTP transport for local orchestration.
 """
 import asyncio
-import json
 import os
 from typing import Any, Dict, List, Optional
 import logging
@@ -14,10 +13,9 @@ from mcp.server.fastmcp import FastMCP
 from fastapi import FastAPI, HTTPException, Request
 import uvicorn
 import time
-import uuid
 
 from brain import InfjBrain
-from cognition import detect_dissonance, map_dissonance
+from cognition import map_dissonance
 from documents import DocumentStore, format_doc_results
 from emotion import detect_emotion
 from goals import GoalsDB

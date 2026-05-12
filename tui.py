@@ -5,8 +5,6 @@ Run with: python tui.py
 import queue
 import sys
 import threading
-import time
-from datetime import datetime
 
 from rich.align import Align
 from rich.console import Console

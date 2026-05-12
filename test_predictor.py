@@ -1,7 +1,6 @@
 """Tests for the predictive needs model."""
 import os
 import tempfile
-from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytest

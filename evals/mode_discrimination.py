@@ -14,14 +14,13 @@ Usage:
 """
 import argparse
 import json
-import random
 import re
 import sqlite3
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 from config import MODE_DISCRIMINATION_DB as EVAL_DB
 

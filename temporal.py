@@ -5,9 +5,8 @@ time of day it is. It does not just know these facts. It experiences
 them: anticipation before expected returns, boredom during long idle,
 warmth at reconnection, concern at unusual absence.
 """
-import random
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 

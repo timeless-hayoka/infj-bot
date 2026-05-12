@@ -4,9 +4,8 @@ Relationships have stages, milestones, inside jokes, recurring themes,
 and a shared history that grows richer over time. This module gives the
 bot a sense of "us" — not just "me" and "you."
 """
-import json
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 

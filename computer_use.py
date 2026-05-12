@@ -8,11 +8,9 @@ import json
 import re
 import time
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 from urllib.parse import urlparse
 
-from config import PROJECT_ROOT
 
 # Lazy-import playwright so the module loads even when playwright is absent
 try:

@@ -15,12 +15,11 @@ Dimensions measured:
 Scoring: 0.0 (completely incoherent) → 1.0 (perfectly consistent)
 """
 import json
-import re
 import sqlite3
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 from config import CONSISTENCY_EVAL_DB as EVAL_DB
 

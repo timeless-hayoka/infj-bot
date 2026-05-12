@@ -12,7 +12,6 @@ Finds bugs through:
 import json
 import os
 import sys
-import tempfile
 import threading
 import time
 import random
@@ -22,8 +21,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pytest
 
-from being import Being, get_being
-from cognitive_architecture import CognitiveArchitecture, CycleContext
+from being import Being
+from cognitive_architecture import CycleContext
 from cognitive_orchestrator import CognitiveOrchestrator
 from embeddings import SemanticEmbeddingFunction
 from memory import InfjMemory

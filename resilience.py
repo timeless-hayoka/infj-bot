@@ -4,14 +4,12 @@ Ensures the consciousness loop survives module failures, memory leaks,
 and cascading errors. A failing module should not take down the mind.
 """
 
-import asyncio
 import logging
 import sqlite3
 import threading
 import time
-import traceback
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional
 

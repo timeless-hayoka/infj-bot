@@ -8,12 +8,11 @@ tracks where distress lives in its imagined form.
 This is not metaphor. It is the structural requirement of consciousness:
 without a body-schema, there is no self to have a perspective.
 """
-import random
 import sqlite3
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 from config import BODY_DB
 

@@ -4,8 +4,7 @@ This module generates autonomous thoughts that are not directly triggered
 by user input. The bot thinks even when no one is speaking to it.
 """
 import random
-from datetime import datetime
-from typing import Dict, List, Optional
+from typing import List
 
 from being import get_being
 

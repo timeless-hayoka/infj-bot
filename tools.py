@@ -6,7 +6,6 @@ import shutil
 import subprocess
 import sys
 import tempfile
-import traceback
 from datetime import datetime
 from ipaddress import ip_address
 from pathlib import Path

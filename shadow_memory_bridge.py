@@ -15,9 +15,9 @@ This bridge:
 
 Usage: wrap memory.save() calls with bridge.validate_before_save()
 """
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
-from shadow import get_shadow, SHADOW_ARCHETYPES
+from shadow import get_shadow
 from memory_reliability import get_reliability_engine
 
 # Shadow markers that indicate projection when stored as user memories

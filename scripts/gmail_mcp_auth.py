@@ -12,12 +12,9 @@ Steps to get client_secret.json:
 """
 import argparse
 import json
-import os
 from pathlib import Path
 
 from google_auth_oauthlib.flow import InstalledAppFlow
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
 
 SCOPES = [
     "https://www.googleapis.com/auth/gmail.modify",

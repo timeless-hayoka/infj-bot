@@ -9,7 +9,7 @@ Features:
 """
 import os
 import re
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 # ---------------------------------------------------------------------------
 # Expanded lexicon fallback (offline, zero-dependency)

@@ -17,11 +17,10 @@ Architecture:
   6. Validation — check if the improvement worked
   7. Meta-learning — learn which improvement strategies are effective
 """
-import json
 import random
 import re
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 

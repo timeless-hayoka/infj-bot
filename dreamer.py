@@ -6,9 +6,8 @@ and generates insights. This is the bot's equivalent of sleep and
 memory consolidation.
 """
 import random
-import re
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 from being import get_being
 

@@ -9,11 +9,10 @@ Every principle is learned from observation, not imposed.
 """
 
 import logging
-import math
 import sqlite3
 from dataclasses import dataclass
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
+from datetime import datetime
+from typing import Dict, List, Optional
 
 from config import PHYSICS_DB
 

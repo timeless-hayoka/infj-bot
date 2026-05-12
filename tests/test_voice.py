@@ -1,6 +1,5 @@
 """Tests for the voice module (mocked, since mic/speakers may not be available)."""
 import sys
-import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -38,7 +37,6 @@ class TestVoiceHelpers(unittest.TestCase):
         mock_voice = MagicMock()
         # Mock synthesize_wav to write valid WAV data
         def fake_synthesize(text, wav_file):
-            import wave
             wav_file.setnchannels(1)
             wav_file.setsampwidth(2)
             wav_file.setframerate(22050)

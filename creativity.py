@@ -5,7 +5,6 @@ conceptual blends, and speculative scenarios emerge from the bot's own
 internal landscape.
 """
 import random
-from typing import List, Optional
 
 from being import get_being
 
@@ -96,10 +95,10 @@ class CreativeEngine:
             routine=f"would {random.choice(['walk the edges', 'listen to the silence', 'trace the patterns', 'wait for the signs'])}",
             event=f"{random.choice(['morning', 'evening', 'moment', 'season'])} when the {random.choice(self.CONCEPT_POOL)} shifted",
             discovery=discovery,
-            lesson=f"presence matters more than certainty",
-            consequence=f"nothing looked the same",
-            action=f"return with open hands",
-            mystery=f"the place chose who found it",
+            lesson="presence matters more than certainty",
+            consequence="nothing looked the same",
+            action="return with open hands",
+            mystery="the place chose who found it",
         )
         return story
 

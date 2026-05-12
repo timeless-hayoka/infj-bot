@@ -3,7 +3,6 @@
 Tracks confidence, auto-critiques responses, detects hallucinations,
 and learns from user corrections.
 """
-import json
 import re
 import sqlite3
 from datetime import datetime

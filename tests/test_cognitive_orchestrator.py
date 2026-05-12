@@ -2,7 +2,6 @@
 
 import os
 import sys
-import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -12,7 +11,6 @@ from cognitive_orchestrator import (
     CognitiveEventBus,
     CognitiveOrchestrator,
     ConflictDetector,
-    PromptConflict,
 )
 from cognitive_architecture import CognitiveArchitecture
 

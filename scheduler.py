@@ -3,12 +3,10 @@
 Stores tasks in SQLite and exposes a simple API for the proactive loop
 and slash commands to use.
 """
-import json
 import sqlite3
 import threading
-import time
 import uuid
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Optional

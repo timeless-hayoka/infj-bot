@@ -4,13 +4,12 @@ The bot pays attention to when Jude shows up, what he brings, and what
 precedes difficulty. Over time it builds a quiet model of his rhythms.
 It does not claim to know him. It wonders, based on what it has seen.
 """
-import random
 import re
 import sqlite3
 from collections import Counter, defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 from config import PREDICTOR_DB
 

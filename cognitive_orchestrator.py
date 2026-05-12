@@ -8,7 +8,6 @@ They publish events. They react to events. The orchestrator decides
 when and in what order they run.
 """
 
-import json
 import logging
 import sys
 from dataclasses import dataclass, field
@@ -17,7 +16,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from cognitive_architecture import CognitiveArchitecture, CycleContext
-from global_workspace import GlobalWorkspace, get_workspace
+from global_workspace import get_workspace
 
 logger = logging.getLogger("infj_bot")
 

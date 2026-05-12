@@ -11,13 +11,12 @@ This module tracks:
   • Implicit patterns — cross-domain resonances that never become explicit insights
   • Validation history — whether hunches proved true, sharpening future intuition
 """
-import json
 import random
 import sqlite3
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 from config import INTUITION_DB
 

@@ -18,13 +18,11 @@ possible bipartitions). Instead, we use a principled proxy based on:
   • Repertoire differentiation (how many distinct conscious states are possible)
 """
 import json
-import math
-import random
 import sqlite3
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional
 
 from config import IIT_DB
 

@@ -8,12 +8,11 @@ New abilities can be proposed, generated, approved, and installed.
 Core concept: the bot owns its cognitive growth. Jude approves.
 """
 import ast
-import importlib
 import json
 import logging
 import random
 import sqlite3
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional

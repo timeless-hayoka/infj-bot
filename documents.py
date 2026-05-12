@@ -1,5 +1,4 @@
 """Document ingestion and retrieval for the INFJ companion."""
-import json
 import re
 import uuid
 from pathlib import Path
