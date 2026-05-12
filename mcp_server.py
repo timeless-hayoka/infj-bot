@@ -171,9 +171,9 @@ def create_http_app(token: str | None = None) -> FastAPI:
                 task.add_done_callback(_scheduled_tasks.discard)
             await asyncio.sleep(0.5)
 
-    # start background worker
+    # start background worker (modern asyncio)
     try:
-        asyncio.get_event_loop().create_task(schedule_worker())
+        asyncio.create_task(schedule_worker())
     except RuntimeError:
         # event loop not running yet; uvicorn will start it later
         pass
