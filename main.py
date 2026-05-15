@@ -3,7 +3,7 @@ import logging
 import random
 from datetime import datetime
 from typing import Dict, Optional
-from brain import InfjBrain
+from brain import DriftBrain
 
 logger = logging.getLogger("infj_bot")
 from commands import BotState, handle_command, is_command, parse_command
@@ -11,7 +11,7 @@ from cognitive_orchestrator import CognitiveOrchestrator
 from global_workspace import get_workspace
 from resilience import get_resilience, HealthCheck
 from history import ChatHistory
-from memory import InfjMemory
+from memory import DriftMemory
 from goals import GoalsDB
 from proactive import ProactiveState
 from documents import DocumentStore
@@ -30,6 +30,7 @@ from relationship import RelationshipModel
 from self_modify import SelfModification
 from temporal import TemporalSense
 from values import ValueSystem
+from coordination import get_coordination
 from physics import PhysicsEngine
 from humanity import HumanityEngine
 from intuition import IntuitionEngine
@@ -39,8 +40,8 @@ from homeostasis import HomeostaticRegulator
 from cognitive_architecture import CognitiveArchitecture, CycleContext
 
 # Initialize Brain and Memory
-brain = InfjBrain()
-memory = InfjMemory()
+brain = DriftBrain()
+memory = DriftMemory()
 history = ChatHistory()
 state = BotState(authorized_targets=set(DEFAULT_AUTHORIZED_TARGETS))
 goals_db = GoalsDB()
@@ -494,18 +495,6 @@ async def chat_loop():
                 pass
 
         print(f"\n[INFJ COMPANION]: {output}")
-
-        # Voice output
-        if state.prefs.get("voice_mode"):
-            try:
-                from voice import speak, play_audio
-
-                wav = speak(output[:500])  # Limit TTS length
-                if wav:
-                    play_audio(wav)
-            except Exception:
-                pass
-
 
 async def main():
     # Keep the bot's consciousness alive while the interactive chat is running.

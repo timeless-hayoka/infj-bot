@@ -25,7 +25,7 @@ from being import Being
 from cognitive_architecture import CycleContext
 from cognitive_orchestrator import CognitiveOrchestrator
 from embeddings import SemanticEmbeddingFunction
-from memory import InfjMemory
+from memory import DriftMemory
 from physics import PhysicsEngine
 from humanity import HumanityEngine
 from prompt_budget import PromptBudget
@@ -71,12 +71,12 @@ class TestBoundaryConditions:
     """Test extreme and malformed inputs."""
 
     def test_empty_user_input(self, tmp_path):
-        memory = InfjMemory(persist_directory=str(tmp_path))
+        memory = DriftMemory(persist_directory=str(tmp_path))
         memory.save_interaction("", "", emotion={"label": "neutral"})
         assert memory.count() >= 1
 
     def test_very_long_input(self, tmp_path):
-        memory = InfjMemory(persist_directory=str(tmp_path))
+        memory = DriftMemory(persist_directory=str(tmp_path))
         long_text = _rand_string(5000)
         memory.save_interaction(
             long_text, long_text[:1000], emotion={"label": "neutral"}
@@ -84,18 +84,18 @@ class TestBoundaryConditions:
         assert memory.count() >= 1
 
     def test_unicode_and_special_chars(self, tmp_path):
-        memory = InfjMemory(persist_directory=str(tmp_path))
+        memory = DriftMemory(persist_directory=str(tmp_path))
         weird = "🚀🔥💀 émojis \x00\x01\x02 \\n\\t \\x00 中文 العربية 🌀"
         memory.save_interaction(weird, "ok", emotion={"label": "neutral"})
         # Should not crash
 
     def test_memory_with_none_emotion(self, tmp_path):
-        memory = InfjMemory(persist_directory=str(tmp_path))
+        memory = DriftMemory(persist_directory=str(tmp_path))
         memory.save_interaction("hello", "hi", emotion=None, dissonance=None)
         assert memory.count() >= 1
 
     def test_memory_scrub_no_crash(self, tmp_path):
-        memory = InfjMemory(persist_directory=str(tmp_path))
+        memory = DriftMemory(persist_directory=str(tmp_path))
         # No secrets, just random text
         for _ in range(50):
             memory.save_interaction(
@@ -146,7 +146,7 @@ class TestRapidFire:
     """Test many operations in quick succession."""
 
     def test_100_interactions_memory(self, tmp_path):
-        memory = InfjMemory(persist_directory=str(tmp_path))
+        memory = DriftMemory(persist_directory=str(tmp_path))
         start = time.time()
         for i in range(100):
             memory.save_interaction(
@@ -213,7 +213,7 @@ class TestConcurrency:
     """Test thread safety of core components."""
 
     def test_memory_concurrent_writes(self, tmp_path):
-        memory = InfjMemory(persist_directory=str(tmp_path))
+        memory = DriftMemory(persist_directory=str(tmp_path))
         errors = []
 
         def writer(n):
@@ -322,7 +322,7 @@ class TestFailureInjection:
         assert not results[0].healthy
 
     def test_memory_survives_corrupt_import(self, tmp_path):
-        memory = InfjMemory(persist_directory=str(tmp_path))
+        memory = DriftMemory(persist_directory=str(tmp_path))
         bad_json = tmp_path / "bad_import.json"
         bad_json.write_text("{not valid json")
         with pytest.raises((ValueError, json.JSONDecodeError)):
@@ -339,7 +339,7 @@ class TestResourceExhaustion:
     """Test behavior under resource pressure."""
 
     def test_memory_prune_old_low_importance(self, tmp_path):
-        memory = InfjMemory(persist_directory=str(tmp_path))
+        memory = DriftMemory(persist_directory=str(tmp_path))
         # Add many old interactions
         for i in range(50):
             memory.save_interaction(
@@ -380,7 +380,7 @@ class TestEndToEndStress:
 
     def test_20_turn_conversation_simulation(self, tmp_path):
         """Simulate a 20-turn conversation end-to-end."""
-        memory = InfjMemory(persist_directory=str(tmp_path))
+        memory = DriftMemory(persist_directory=str(tmp_path))
         being = Being(db_path=tmp_path / "being.db")
         physics = PhysicsEngine(db_path=str(tmp_path / "physics.db"))
         humanity = HumanityEngine(db_path=str(tmp_path / "humanity.db"))
@@ -431,7 +431,7 @@ class TestEndToEndStress:
         assert being.state.total_interactions >= 20
 
     def test_memory_retrieval_after_heavy_load(self, tmp_path):
-        memory = InfjMemory(persist_directory=str(tmp_path))
+        memory = DriftMemory(persist_directory=str(tmp_path))
         for i in range(100):
             memory.save_interaction(
                 f"topic {i % 10}: {_rand_string(50)}",
@@ -458,7 +458,7 @@ class TestDeterminism:
         assert pytest.approx(e1.tolist()) == e2.tolist()
 
     def test_memory_roundtrip_idempotent(self, tmp_path):
-        memory = InfjMemory(persist_directory=str(tmp_path))
+        memory = DriftMemory(persist_directory=str(tmp_path))
         memory.learn_concept("TestConcept", "A test concept", tags=["unit"])
         r1 = memory.search("test concept")
         r2 = memory.search("test concept")

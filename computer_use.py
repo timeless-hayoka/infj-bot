@@ -1,17 +1,18 @@
-"""Browser automation harness for the INFJ bot using Playwright.
+"""Browser automation harness for the DRIFT bot using Playwright.
 
 Provides screenshot-driven UI interaction with the same authorization
 and safety guardrails as the reconnaissance tools.
 """
-
 import base64
 import json
 import re
 import time
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 from urllib.parse import urlparse
 
+from config import PROJECT_ROOT
 
 # Lazy-import playwright so the module loads even when playwright is absent
 try:
@@ -23,15 +24,7 @@ except Exception:
 NO_PAGE_ACTIONS = {"wait", "sleep"}
 
 # Actions that can change state and should be logged
-MUTATING_ACTIONS = {
-    "click",
-    "double_click",
-    "type",
-    "keypress",
-    "scroll",
-    "drag",
-    "move",
-}
+MUTATING_ACTIONS = {"click", "double_click", "type", "keypress", "scroll", "drag", "move"}
 
 # Sensitive URL patterns that always require explicit confirmation
 SENSITIVE_PATTERNS = [
@@ -55,14 +48,80 @@ MAX_SCREENSHOT_BYTES = 5_242_880
 DEFAULT_VIEWPORT = {"width": 1440, "height": 900}
 
 
-class ComputerUseError(Exception):
-    pass
+@dataclass
+class ComputerUseState:
+    """Runtime state for ComputerUse."""
+    active: bool = True
+    last_run: Optional[str] = None
+    session_active: bool = False
+    current_url: Optional[str] = None
+
+
+class ComputerUse:
+    """
+    Browser automation harness for the DRIFT bot using Playwright.
+    Provides screenshot-driven UI interaction with authorization
+    and safety guardrails.
+    """
+
+    def __init__(self, db_path: Optional[str] = None):
+        self.state = ComputerUseState()
+
+    def cycle(self, context) -> None:
+        """
+        Called by the consciousness loop. Updates state based on active session.
+        """
+        global _active_session
+        self.state.last_run = datetime.now().isoformat()
+        self.state.session_active = _active_session is not None
+        if _active_session:
+            self.state.current_url = _active_session.page.url
+
+    def format_prompt_snippet(self) -> str:
+        """Return a string to inject into the chat prompt."""
+        if not self.state.session_active:
+            return "COMPUTER USE: No active browser session. I can launch a browser if needed to research or interact with web UIs."
+        
+        return (
+            f"COMPUTER USE: Active browser session at {self.state.current_url}.\n"
+            f"I can click, type, and scroll to interact with this page."
+        )
+
+    # --- Interaction methods ---
+
+    def run_actions(self, actions: List[Dict[str, Any]], authorized_domains: Optional[Set[str]] = None) -> str:
+        return run_computer_actions(actions, authorized_domains)
+
+    def get_status(self) -> str:
+        return get_computer_session_status()
+
+    def close(self) -> str:
+        return close_computer_session()
+
+
+def _register():
+    from cognitive_architecture import CognitiveArchitecture, CognitivePlugin
+    arch = CognitiveArchitecture()
+    if "computer_use" not in arch.list_plugins():
+        arch.register(CognitivePlugin(
+            name="computer_use",
+            description="Browser automation and UI interaction via Playwright",
+            module_path="plugins.computer_use",
+            instance_factory=ComputerUse,
+            cycle_handler="cycle",
+            cycle_frequency=5,  # Less frequent than core modules
+            cycle_priority=60,
+            prompt_formatter="format_prompt_snippet",
+            prompt_priority=60,
+            prompt_section="context",
+        ))
+
+_register()
 
 
 @dataclass
 class ComputerSession:
     """Holds a single browser session (Playwright + Browser + Context + Page)."""
-
     browser: Any
     context: Any
     page: Any
@@ -92,9 +151,7 @@ def _ensure_browser() -> ComputerSession:
     if _active_session is not None:
         return _active_session
     if sync_playwright is None:
-        raise ComputerUseError(
-            "playwright is not installed. Run: pip install playwright && playwright install chromium"
-        )
+        raise ComputerUseError("playwright is not installed. Run: pip install playwright && playwright install chromium")
 
     p = sync_playwright().start()
     browser = p.chromium.launch(headless=True, args=["--window-size=1440,900"])
@@ -161,9 +218,7 @@ def _run_action(session: ComputerSession, action: Dict[str, Any]) -> Dict[str, A
         result["title"] = page.title()
 
     elif action_type == "screenshot":
-        png_bytes = page.screenshot(
-            type="png", full_page=action.get("full_page", False)
-        )
+        png_bytes = page.screenshot(type="png", full_page=action.get("full_page", False))
         b64 = base64.b64encode(png_bytes).decode("utf-8")
         result["screenshot_base64"] = _truncate_screenshot(b64)
         result["width"] = page.viewport_size["width"]
@@ -265,20 +320,16 @@ def run_computer_actions(
             if action.get("type", "").lower() == "navigate":
                 url = action.get("url", "")
                 if url and not _is_url_allowed(url, session.authorized_domains):
-                    errors.append(
-                        f"Action {i}: {url} is not in the authorized domain list."
-                    )
+                    errors.append(f"Action {i}: {url} is not in the authorized domain list.")
                     continue
 
             # Sensitive action warning (not a hard block, but logged)
             if _is_sensitive_action(action):
-                results.append(
-                    {
-                        "index": i,
-                        "warning": "This action touches a sensitive workflow (login, payment, password, etc.).",
-                        "action": action,
-                    }
-                )
+                results.append({
+                    "index": i,
+                    "warning": "This action touches a sensitive workflow (login, payment, password, etc.).",
+                    "action": action,
+                })
 
             result = _run_action(session, action)
             result["index"] = i
@@ -293,15 +344,13 @@ def run_computer_actions(
         try:
             png_bytes = session.page.screenshot(type="png")
             b64 = base64.b64encode(png_bytes).decode("utf-8")
-            results.append(
-                {
-                    "index": len(actions),
-                    "type": "screenshot",
-                    "status": "ok",
-                    "screenshot_base64": _truncate_screenshot(b64),
-                    "note": "auto-captured after action batch",
-                }
-            )
+            results.append({
+                "index": len(actions),
+                "type": "screenshot",
+                "status": "ok",
+                "screenshot_base64": _truncate_screenshot(b64),
+                "note": "auto-captured after action batch",
+            })
         except Exception as exc:
             errors.append(f"Final screenshot failed: {exc}")
 

@@ -18,19 +18,19 @@ try:
 except Exception:
     _OBSERVATORY_ENABLED = False
 
-from brain import InfjBrain
+from brain import DriftBrain
 from commands import BotState, handle_command
 from growth import growth_profile
 from history import ChatHistory
-from memory import InfjMemory
+from memory import DriftMemory
 from goals import GoalsDB
 from config import DEFAULT_AUTHORIZED_TARGETS
 from documents import DocumentStore
 from prompt_builder import build_chat_prompt
 
 
-brain = InfjBrain()
-memory = InfjMemory()
+brain = DriftBrain()
+memory = DriftMemory()
 history = ChatHistory()
 state = BotState(authorized_targets=set(DEFAULT_AUTHORIZED_TARGETS))
 goals_db = GoalsDB()

@@ -39,10 +39,10 @@ def cmd_tui(_args):
 
 
 def cmd_ask(args):
-    from brain import InfjBrain
+    from brain import DriftBrain
     from commands import BotState
     from history import ChatHistory
-    from memory import InfjMemory
+    from memory import DriftMemory
     from prompt_builder import build_chat_prompt
     from goals import GoalsDB
     from documents import DocumentStore
@@ -61,8 +61,8 @@ def cmd_ask(args):
         proactive_enabled=False,
         authorized_targets=set(DEFAULT_AUTHORIZED_TARGETS),
     )
-    brain = InfjBrain()
-    memory = InfjMemory()
+    brain = DriftBrain()
+    memory = DriftMemory()
     history = ChatHistory()
     goals_db = GoalsDB()
     doc_store = DocumentStore()

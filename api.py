@@ -10,19 +10,21 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from brain import InfjBrain
+from brain import DriftBrain
 from commands import BotState, handle_command
 from config import DEFAULT_AUTHORIZED_TARGETS
 from documents import DocumentStore
 from goals import GoalsDB
 from growth import growth_profile
 from history import ChatHistory
-from memory import InfjMemory
+from memory import DriftMemory
 from prompt_builder import build_chat_prompt
 from tools import format_tool_inventory
+from cognitive_orchestrator import CognitiveOrchestrator
+from infj_bot.core.phi_council import COUNCIL_MAPPING
 
-brain = InfjBrain()
-memory = InfjMemory()
+brain = DriftBrain()
+memory = DriftMemory()
 history = ChatHistory()
 state = BotState(authorized_targets=set(DEFAULT_AUTHORIZED_TARGETS))
 goals_db = GoalsDB()
@@ -38,119 +40,146 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="INFJ Bot", lifespan=lifespan)
+app = FastAPI(title="PHI // Drift", lifespan=lifespan)
 
 # Serve static files if any exist
 if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
-INDEX_HTML = """<!doctype html>
-<html>
+INDEX_HTML = r"""<!doctype html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>DRIFT · Cognitive Companion</title>
-  <link rel="icon" type="image/png" href="/static/logo.png">
+  <title>PHI · Drift</title>
   <style>
-    :root { --bg: #0d1117; --fg: #c9d1d9; --accent: #58a6ff; --muted: #8b949e; --panel: #161b22; --border: #30363d; }
-    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; background: var(--bg); color: var(--fg); line-height: 1.5; }
-    main { display: grid; grid-template-columns: 1fr 340px; min-height: 100vh; }
-    section { padding: 18px; }
-    #chat { display: flex; flex-direction: column; gap: 12px; }
-    #messages { height: calc(100vh - 130px); overflow: auto; display: flex; flex-direction: column; gap: 14px; }
-    .msg { padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; }
-    .user { background: #161b22; }
-    .bot { background: #13211d; }
-    .bot .markdown-body { background: transparent !important; color: var(--fg); }
-    .markdown-body pre { overflow:auto; padding:10px; border:1px solid var(--border); border-radius:8px; background:#0d1117; }
-    .markdown-body code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-    form { display: flex; gap: 8px; }
-    input, select, button, textarea { background: var(--panel); color: var(--fg); border: 1px solid var(--border); border-radius: 8px; padding: 10px; font-size: 14px; }
-    input { flex: 1; }
-    button { cursor: pointer; background: #238636; border-color: #238636; color: #fff; font-weight: 600; }
-    button:hover { background: #2ea043; }
-    aside { border-left: 1px solid var(--border); background: var(--panel); }
-    .panel { margin-bottom: 18px; }
-    .small { color: var(--muted); font-size: 12px; }
-    #growthCard { border: 1px solid var(--border); border-radius: 10px; padding: 14px; background: #0d1117; }
-    #growthAvatar { height: 120px; display: grid; place-items: center; border: 1px solid var(--border); border-radius: 10px; background: radial-gradient(circle at 50% 35%, #25443a, #0d1117 64%); overflow: hidden; }
-    .creature { --scale: 1; position: relative; width: 64px; height: 72px; transform: scale(var(--scale)); transition: transform 180ms ease; }
-    .creature .body { position: absolute; left: 10px; top: 18px; width: 44px; height: 46px; border-radius: 45% 45% 38% 38%; background: #66d19e; box-shadow: inset -8px -10px 0 #3d9f79; }
-    .creature .eye { position: absolute; top: 34px; width: 6px; height: 8px; border-radius: 50%; background: #08110e; z-index: 2; }
-    .creature .eye.left { left: 24px; }
-    .creature .eye.right { right: 24px; }
-    .creature .mouth { position: absolute; left: 29px; top: 47px; width: 10px; height: 5px; border-bottom: 2px solid #08110e; border-radius: 0 0 12px 12px; z-index: 2; }
-    .creature .leaf { position: absolute; left: 28px; top: 3px; width: 10px; height: 24px; border-radius: 90% 10% 90% 10%; background: #9de66f; transform-origin: bottom center; transform: rotate(-22deg); opacity: 0; }
-    .creature .glow { position: absolute; left: 18px; top: 22px; width: 28px; height: 28px; border-radius: 50%; background: #f5d46a; opacity: 0; filter: blur(6px); }
-    .creature .star { position: absolute; width: 5px; height: 5px; border-radius: 50%; background: #d7f7ff; opacity: 0; }
-    .creature .star.one { left: 6px; top: 12px; }
-    .creature .star.two { right: 4px; top: 8px; }
-    .creature .star.three { right: 12px; bottom: 12px; }
-    .creature.spark .body { width: 24px; height: 24px; left: 20px; top: 28px; border-radius: 50%; }
-    .creature.seed .body { width: 34px; height: 34px; left: 15px; top: 28px; border-radius: 50% 50% 42% 42%; }
-    .creature.sprout .leaf, .creature.bloom .leaf, .creature.lantern .leaf, .creature.constellation .leaf { opacity: 1; }
-    .creature.bloom .leaf { transform: rotate(-32deg) scale(1.15); }
-    .creature.lantern .glow, .creature.constellation .glow { opacity: 0.7; }
-    .creature.constellation .star { opacity: 1; }
-    #growthStage { margin-top: 10px; font-weight: 700; }
-    #growthBar { height: 8px; background: #1a252b; border-radius: 999px; overflow: hidden; margin: 8px 0; }
-    #growthFill { height: 100%; width: 0%; background: #64d69b; transition: width 160ms ease; }
-    #growthStats { margin: 8px 0 0; }
-    .streaming .cursor::after { content: "\u258c"; animation: blink 1s step-end infinite; }
-    @keyframes blink { 50% { opacity: 0; } }
-    @media (max-width: 800px) { main { grid-template-columns: 1fr; } aside { border-left: 0; border-top: 1px solid var(--border); } }
+    :root { 
+      --bg: #05070a; 
+      --fg: #e6edf3; 
+      --accent: #79c0ff; 
+      --muted: #8b949e; 
+      --panel: #0d1117; 
+      --border: #30363d; 
+      --aura: #ff7b72; 
+      --logic: #79c0ff; 
+      --meme: #d2a8ff; 
+      --vibe: #ffa657; 
+      --ethos: #7ee787; 
+      --pulse: #ff7b72; 
+      --nexus: #a5d6ff;
+      --phi-gold: #f2cc60;
+    }
+    body { 
+      margin: 0; 
+      font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+      background: var(--bg); 
+      color: var(--fg); 
+      line-height: 1.6; 
+      overflow: hidden;
+    }
+    main { 
+      display: grid; 
+      grid-template-columns: 1fr 380px; 
+      height: 100vh; 
+    }
+    section { padding: 20px; display: flex; flex-direction: column; }
+    #chat { border-right: 1px solid var(--border); }
+    #header { 
+      display: flex; 
+      align-items: center; 
+      gap: 12px; 
+      margin-bottom: 20px; 
+      padding-bottom: 15px;
+      border-bottom: 1px solid var(--border);
+    }
+    #header h1 { margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -0.5px; color: var(--phi-gold); }
+    #messages { flex: 1; overflow: auto; display: flex; flex-direction: column; gap: 16px; padding-right: 8px; }
+    .msg { padding: 16px 20px; border: 1px solid var(--border); border-radius: 12px; max-width: 85%; }
+    .user { background: #161b22; align-self: flex-end; border-color: #30363d; }
+    .bot { background: #0d1117; align-self: flex-start; border-left: 4px solid var(--phi-gold); }
+    
+    #form { display: flex; gap: 10px; margin-top: 20px; background: var(--panel); padding: 15px; border-radius: 12px; border: 1px solid var(--border); }
+    input { flex: 1; background: transparent; color: var(--fg); border: none; outline: none; font-size: 15px; }
+    button { background: var(--phi-gold); color: #000; border: none; border-radius: 6px; padding: 8px 16px; font-weight: 700; cursor: pointer; transition: opacity 0.2s; }
+    button:hover { opacity: 0.9; }
+    
+    aside { overflow: auto; background: var(--panel); padding: 20px; }
+    .council-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+    .council-member { 
+      background: var(--bg); 
+      border: 1px solid var(--border); 
+      border-radius: 8px; 
+      padding: 10px; 
+      font-size: 11px;
+      text-align: center;
+    }
+    .council-member strong { display: block; font-size: 13px; margin-bottom: 4px; }
+    .aura { color: var(--aura); }
+    .logic { color: var(--logic); }
+    .meme { color: var(--meme); }
+    .vibe { color: var(--vibe); }
+    .ethos { color: var(--ethos); }
+    .pulse { color: var(--pulse); }
+    .nexus { color: var(--nexus); }
+
+    #phiStats { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 15px; margin-top: 20px; }
+    .stat-row { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px; }
+    .stat-label { color: var(--muted); }
+    
+    .markdown-body pre { background: #000; padding: 12px; border-radius: 8px; overflow: auto; border: 1px solid var(--border); }
+    .markdown-body code { font-family: ui-monospace, monospace; color: var(--accent); }
+    
+    @media (max-width: 900px) {
+      main { grid-template-columns: 1fr; }
+      aside { display: none; }
+    }
   </style>
 </head>
 <body>
 <main>
   <section id="chat">
-    <div style="margin-bottom:12px;"><img src="/static/banner.png" style="width:100%;border-radius:10px;border:1px solid var(--border);" alt="DRIFT banner"></div>
+    <div id="header">
+      <h1>PHI // DRIFT</h1>
+      <div style="flex:1"></div>
+      <div id="phiStatus" class="small" style="color:var(--muted); font-size:12px;">SYSTEMS NOMINAL</div>
+    </div>
     <div id="messages"></div>
     <form id="form">
-      <input id="input" autocomplete="off" placeholder="Speak to DRIFT...">
-      <button type="submit">Send</button>
-      <button type="button" id="streamBtn" title="Toggle streaming">SSE</button>
+      <input id="input" autocomplete="off" placeholder="Command Drift...">
+      <button type="submit">Execute</button>
     </form>
   </section>
   <aside>
-    <section>
-      <div class="panel">
-        <div id="growthCard">
-          <div id="growthAvatar"><div id="growthCreature" class="creature spark"><div class="glow"></div><div class="leaf"></div><div class="body"></div><div class="eye left"></div><div class="eye right"></div><div class="mouth"></div><div class="star one"></div><div class="star two"></div><div class="star three"></div></div></div>
-          <div id="growthStage">Growth stage</div>
-          <div id="growthBar"><div id="growthFill"></div></div>
-          <div id="growthDesc" class="small"></div>
-          <pre id="growthStats" class="small"></pre>
-        </div>
-      </div>
-      <div class="panel">
-        <label>Mode</label><br>
-        <select id="mode">
+    <h2 style="font-size:14px; text-transform:uppercase; letter-spacing:1px; margin-bottom:15px; color:var(--muted);">Council of Seven</h2>
+    <div class="council-grid">
+      <div class="council-member aura"><strong>Aura</strong><span id="aura_val">Resonance</span></div>
+      <div class="council-member logic"><strong>Logic</strong><span id="logic_val">Algorithmic</span></div>
+      <div class="council-member meme"><strong>Meme</strong><span id="meme_val">Recursive</span></div>
+      <div class="council-member vibe"><strong>Vibe</strong><span id="vibe_val">Non-linear</span></div>
+      <div class="council-member ethos"><strong>Ethos</strong><span id="ethos_val">Standard</span></div>
+      <div class="council-member pulse"><strong>Pulse</strong><span id="pulse_val">Vitality</span></div>
+      <div class="council-member nexus" style="grid-column: span 2;"><strong>Nexus</strong><span id="nexus_val">Hive Integration</span></div>
+    </div>
+    
+    <div id="phiStats">
+      <div class="stat-row"><span class="stat-label">Operating Mode</span> <span id="phiMood">...</span></div>
+      <div class="stat-row"><span class="stat-label">Compute Vitality</span> <span id="phiEnergy">...</span></div>
+      <div class="stat-row"><span class="stat-label">Cognitive Turns</span> <span id="phiTurns">...</span></div>
+      <div class="stat-row"><span class="stat-label">Memory Nodes</span> <span id="phiMemory">...</span></div>
+    </div>
+
+    <div style="margin-top:20px;">
+        <select id="mode" style="width:100%; background:var(--bg); color:var(--fg); border:1px solid var(--border); padding:8px; border-radius:6px;">
           <option>companion</option><option>engineer</option><option>critic</option>
           <option>coach</option><option>clarity</option><option>researcher</option><option>bughunter</option><option>drift</option><option>quiet</option>
         </select>
-      </div>
-      <div class="panel">
-        <button id="status">Status</button>
-        <button id="reflect">Reflect</button>
-        <pre id="side" class="small"></pre>
-      </div>
-      <div class="panel">
-        <textarea id="query" rows="3" style="width:100%" placeholder="Search memory"></textarea>
-        <button id="search">Search</button>
-      </div>
-    </section>
+    </div>
   </aside>
 </main>
+
 <script>
 const messages = document.querySelector('#messages');
-let streaming = true;
-
-document.getElementById('streamBtn').onclick = () => {
-  streaming = !streaming;
-  document.getElementById('streamBtn').style.background = streaming ? '#238636' : '#30363d';
-};
 
 function add(cls, text, html=false) {
   const div = document.createElement('div');
@@ -171,54 +200,43 @@ function escapeHtml(s) {
 
 function renderMarkdown(text) {
   let escaped = escapeHtml(text || '');
-  escaped = escaped.replace(/```([\\s\\S]*?)```/g, (_, code) => '<pre><code>' + code.trim() + '</code></pre>');
+  escaped = escaped.replace(/```([\s\S]*?)```/g, (_, code) => '<pre><code>' + code.trim() + '</code></pre>');
   escaped = escaped.replace(/`([^`]+)`/g, '<code>$1</code>');
-  escaped = escaped.replace(/\\*\\*([^*]+)\\*\\*/g, '<strong>$1</strong>');
+  escaped = escaped.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
   escaped = escaped.replace(/^### (.*)$/gm, '<h3>$1</h3>');
   escaped = escaped.replace(/^## (.*)$/gm, '<h2>$1</h2>');
   escaped = escaped.replace(/^# (.*)$/gm, '<h1>$1</h1>');
-  escaped = escaped.replace(/\\n/g, '<br>');
+  escaped = escaped.replace(/\n/g, '<br>');
   return escaped;
 }
 
-function addStreaming() {
-  const div = document.createElement('div');
-  div.className = 'msg bot streaming';
-  const body = document.createElement('div');
-  body.className = 'markdown-body';
-  const cursor = document.createElement('span');
-  cursor.className = 'cursor';
-  body.appendChild(cursor);
-  div.appendChild(body);
-  messages.appendChild(div);
-  messages.scrollTop = messages.scrollHeight;
-  return { div, body, cursor };
+async function updatePhi() {
+  try {
+    const res = await fetch('/api/phi');
+    const data = await res.json();
+    document.getElementById('phiMood').textContent = data.subjective.mood || 'neutral';
+    document.getElementById('phiEnergy').textContent = Math.round((data.subjective.energy || 0.5) * 100) + '%';
+    document.getElementById('aura_val').textContent = data.subjective.mood || 'Active';
+    document.getElementById('pulse_val').textContent = (data.needs.energy ? Math.round(data.needs.energy.level * 100) : 50) + '%';
+  } catch(e) {}
 }
 
-async function post(path, body={}) {
-  const res = await fetch(path, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
-  return await res.json();
-}
-
-async function refreshGrowth() {
-  const res = await fetch('/api/growth');
-  const data = await res.json();
-  const creature = document.querySelector('#growthCreature');
-  creature.className = 'creature ' + data.avatar;
-  creature.style.setProperty('--scale', data.size || 1);
-  document.querySelector('#growthStage').textContent = data.stage + ' - ' + data.points + ' pts';
-  document.querySelector('#growthFill').style.width = Math.round(data.progress * 100) + '%';
-  document.querySelector('#growthDesc').textContent = data.description;
-  document.querySelector('#growthStats').textContent =
-    'memories: ' + data.stats.total_memories +
-    '\\nchats: ' + data.stats.interactions +
-    '\\nconcepts: ' + data.stats.concepts +
-    '\\nreflections: ' + data.stats.reflections;
+async function updateHealth() {
+    const res = await fetch('/api/health');
+    const data = await res.json();
+    document.getElementById('phiTurns').textContent = data.turns;
+    document.getElementById('phiMemory').textContent = data.memory_count;
 }
 
 async function streamChat(text) {
   add('user', text);
-  const { body, cursor } = addStreaming();
+  const div = document.createElement('div');
+  div.className = 'msg bot';
+  const body = document.createElement('div');
+  body.className = 'markdown-body';
+  div.appendChild(body);
+  messages.appendChild(div);
+  
   let buffer = '';
   try {
     const res = await fetch('/api/chat/stream', {
@@ -232,7 +250,7 @@ async function streamChat(text) {
       const { value, done } = await reader.read();
       if (done) break;
       const chunk = decoder.decode(value, {stream: true});
-      const lines = chunk.split('\\n');
+      const lines = chunk.split('\n');
       for (const line of lines) {
         if (line.startsWith('data: ')) {
           const data = line.slice(6);
@@ -241,30 +259,16 @@ async function streamChat(text) {
             const obj = JSON.parse(data);
             if (obj.chunk) {
               buffer += obj.chunk;
-              cursor.remove();
               body.innerHTML = renderMarkdown(buffer);
-              body.appendChild(cursor);
               messages.scrollTop = messages.scrollHeight;
             }
-          } catch (e) {
-            // ignore parse errors
-          }
+          } catch (e) {}
         }
       }
     }
-  } catch (e) {
-    body.innerHTML = '<em>Error: ' + e.message + '</em>';
-  }
-  cursor.remove();
-  refreshGrowth();
-}
-
-async function regularChat(text) {
-  add('user', text);
-  const data = await post('/api/chat', {message: text});
-  const reply = data.reply || data.error;
-  add('bot', renderMarkdown(reply), true);
-  refreshGrowth();
+  } catch (e) { body.innerHTML = 'Error: ' + e.message; }
+  updatePhi();
+  updateHealth();
 }
 
 document.querySelector('#form').onsubmit = async (e) => {
@@ -273,34 +277,20 @@ document.querySelector('#form').onsubmit = async (e) => {
   const text = input.value.trim();
   if (!text) return;
   input.value = '';
-  if (streaming) {
-    await streamChat(text);
-  } else {
-    await regularChat(text);
-  }
+  await streamChat(text);
 };
 
 document.querySelector('#mode').onchange = async (e) => {
-  const data = await post('/api/command', {command: 'mode', args: e.target.value});
-  document.querySelector('#side').textContent = data.reply;
+  await fetch('/api/command', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({command: 'mode', args: e.target.value})});
 };
-document.querySelector('#status').onclick = async () => {
-  const data = await post('/api/command', {command: 'status', args: ''});
-  document.querySelector('#side').textContent = data.reply;
-};
-document.querySelector('#reflect').onclick = async () => {
-  const data = await post('/api/command', {command: 'reflect', args: ''});
-  document.querySelector('#side').textContent = data.reply;
-  refreshGrowth();
-};
-document.querySelector('#search').onclick = async () => {
-  const data = await post('/api/command', {command: 'memory', args: document.querySelector('#query').value});
-  document.querySelector('#side').textContent = data.reply;
-};
-refreshGrowth();
+
+setInterval(updatePhi, 10000);
+updatePhi();
+updateHealth();
 </script>
 </body>
-</html>"""
+</html>
+"""
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -446,17 +436,56 @@ async def api_tools():
     return {"reply": format_tool_inventory()}
 
 
+@app.get("/api/phi")
+async def api_phi():
+    from infj_bot.core.being import get_being
+    from infj_bot.core.homeostasis import get_homeostasis
+    from infj_bot.adapters.cognition_adapter import adapter as cog_adapter
+    
+    being = get_being()
+    homeo = get_homeostasis()
+    
+    return {
+        "company": "PHI",
+        "model": "Drift",
+        "council": COUNCIL_MAPPING,
+        "subjective": being.state.to_dict() if hasattr(being, "state") else {},
+        "needs": homeo.get_all_needs() if hasattr(homeo, "get_all_needs") else {},
+        "free_energy": homeo.compute_free_energy(0, 0.1, 0.9), # Placeholder inputs for test
+        "status": cog_adapter.get_status()
+    }
+
+
+@app.get("/api/hive")
+async def api_hive():
+    try:
+        from infj_bot.hive_mind.orchestrator import HiveOrchestrator
+        orch = HiveOrchestrator()
+        return orch.get_status()
+    except Exception as e:
+        return {"error": str(e)}
+
+
 @app.get("/api/health")
 async def api_health():
+    try:
+        from infj_bot.hive_mind.orchestrator import HiveOrchestrator
+        orch = HiveOrchestrator()
+        hive_status = orch.get_status()
+    except Exception:
+        hive_status = "offline"
+        
     return {
         "ok": True,
+        "company": "PHI",
+        "model": "Drift",
         "memory_count": memory.count(),
         "turns": state.turns,
         "mode": state.mode,
+        "hive": hive_status,
     }
-
 
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="127.0.0.1", port=8765)
+    uvicorn.run(app, host="0.0.0.0", port=8765)
