@@ -5,6 +5,17 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path as _Path
 import traceback
 
+# Ensure the parent directory is in sys.path so 'infj_bot.*' absolute imports work
+_parent_dir = str(_Path(__file__).resolve().parent.parent)
+if _parent_dir not in _sys.path:
+    _sys.path.insert(0, _parent_dir)
+
+import gevent
+from flask import Flask, request, jsonify, render_template_string
+from flask_socketio import SocketIO, emit
+import threading
+from infj_bot.core.cognitive_orchestrator import CognitiveOrchestrator
+
 # Observatory integration — add hive_mind to path
 _hive_path = str(_Path(__file__).resolve().parent / "hive_mind")
 if _hive_path not in _sys.path:
@@ -237,117 +248,195 @@ def chat_reply(message):
     return output
 
 
-class Handler(BaseHTTPRequestHandler):
-    def _send(self, status, content_type, body):
-        encoded = body.encode("utf-8")
-        self.send_response(status)
-        self.send_header("Content-Type", content_type)
-        self.send_header("Content-Length", str(len(encoded)))
-        self.end_headers()
-        self.wfile.write(encoded)
 
-    def _json(self, payload, status=200):
-        self._send(status, "application/json", json.dumps(payload))
+app = Flask(__name__)
+app.config['SECRET_KEY'] = 'drift-secret-key'
 
-    def do_GET(self):
-        if self.path == "/":
-            self._send(200, "text/html", INDEX_HTML)
-        elif self.path == "/api/growth":
-            self._json(growth_profile(memory, state.turns))
-        elif self.path in ("/observatory", "/observatory/"):
-            if not _OBSERVATORY_ENABLED:
-                self._json({"error": "Observatory unavailable"}, 503)
-                return
-            self._send(200, "text/html; charset=utf-8", _OBS_HTML)
-        elif self.path == "/observatory/api/state":
-            if not _OBSERVATORY_ENABLED:
-                self._json({"error": "Observatory unavailable"}, 503)
-                return
-            snap = _obs_gather(_obs_drift)
-            self._send(200, "application/json", json.dumps(snap, default=str))
-        elif self.path == "/observatory/api/stream":
-            if not _OBSERVATORY_ENABLED:
-                self._json({"error": "Observatory unavailable"}, 503)
-                return
-            self.send_response(200)
-            self.send_header("Content-Type", "text/event-stream")
-            self.send_header("Cache-Control", "no-cache")
-            self.send_header("Connection", "keep-alive")
-            self.send_header("Access-Control-Allow-Origin", "*")
-            self.end_headers()
-            try:
-                while True:
-                    snap = _obs_gather(_obs_drift)
-                    payload = json.dumps(snap, default=str)
-                    self.wfile.write(f"data: {payload}\n\n".encode("utf-8"))
-                    self.wfile.flush()
-                    time.sleep(0.5)
-            except (BrokenPipeError, ConnectionResetError):
-                pass
-        else:
-            self._json({"error": "not found"}, 404)
+socketio = SocketIO(
+    app,
+    async_mode='gevent', 
+    cors_allowed_origins="*",
+    websocket_compression=True
+)
 
-    def do_HEAD(self):
-        if self.path == "/":
-            self.send_response(200)
-            self.send_header("Content-Type", "text/html")
-            self.end_headers()
-        else:
-            self.send_response(404)
-            self.end_headers()
+broadcast_interval = 0.35 
+total_bytes_raw = 0
+total_bytes_compressed = 0
+cognitive_orchestrator = CognitiveOrchestrator()
 
-    def do_POST(self):
+def broadcast_observatory_state():
+    global broadcast_interval, total_bytes_raw, total_bytes_compressed
+    while True:
         try:
-            length = int(self.headers.get("Content-Length", 0))
-            if length > _MAX_PAYLOAD:
-                self._json({"error": "payload too large"}, 413)
-                return
-            payload = json.loads(self.rfile.read(length) or b"{}")
-            if self.path == "/api/chat":
-                message = payload.get("message", "").strip()
-                if not message:
-                    self._json({"error": "message is required"}, 400)
-                    return
-                self._json({"reply": chat_reply(message)})
-            elif self.path == "/api/command":
-                reply = handle_command(
-                    payload.get("command", ""),
-                    payload.get("args", ""),
-                    state,
-                    brain,
-                    memory,
-                    history,
-                    goals_db,
-                    doc_store,
-                )
-                self._json({"reply": reply})
-            elif self.path == "/api/email":
-                from emailer import send_email
+            delta = cognitive_orchestrator.get_delta_state()
+            if len(delta) > 1:
+                raw_size = len(json.dumps(delta))
+                total_bytes_raw += raw_size
+                total_bytes_compressed += int(raw_size * 0.3)
+                delta['network_stats'] = {
+                    'raw_kb': round(total_bytes_raw / 1024, 2),
+                    'comp_kb': round(total_bytes_compressed / 1024, 2),
+                    'interval_ms': int(broadcast_interval * 1000)
+                }
+                socketio.emit('observatory_delta', delta)
+        except Exception as e:
+            pass
+        gevent.sleep(broadcast_interval)
 
-                result = send_email(
-                    to=payload.get("to", ""),
-                    subject=payload.get("subject", ""),
-                    body=payload.get("body", ""),
-                    html_body=payload.get("html_body"),
-                )
-                if result.get("ok"):
-                    self._json({"sent": True})
-                else:
-                    self._json({"sent": False, "error": result.get("error")}, 500)
-            else:
-                self._json({"error": "not found"}, 404)
-        except json.JSONDecodeError:
-            self._json({"error": "invalid JSON"}, 400)
-        except Exception as exc:
-            traceback.print_exc()
-            self._json({"error": f"{type(exc).__name__}: {exc}"}, 500)
+threading.Thread(target=broadcast_observatory_state, daemon=True).start()
 
+@socketio.on('latency_ping')
+def handle_latency_ping(data):
+    emit('latency_pong', {
+        'server_time': time.time(),
+        'client_timestamp': data.get('timestamp')
+    })
+
+@socketio.on('auto_adjust_rate')
+def handle_adjust_rate(data):
+    global broadcast_interval
+    target_interval = data.get('interval', 0.35)
+    broadcast_interval = max(0.2, min(target_interval, 1.5))
+
+@app.route('/')
+def index():
+    return INDEX_HTML
+
+@app.route('/api/growth', methods=['GET'])
+def get_growth():
+    return jsonify(growth_profile(memory, state.turns))
+
+@app.route('/api/tags', methods=['GET'])
+def ollama_tags():
+    return jsonify({
+        "models": [
+            {
+                "name": "infj_bot:latest",
+                "model": "infj_bot:latest",
+                "modified_at": "2023-11-04T14:56:49.277302595-07:00",
+                "size": 7323310500,
+                "digest": "9f438cb9cd581fc025612d27f7c1a6669ff83a8bb0ed86c94fcf4c5440555697"
+            }
+        ]
+    })
+
+@app.route('/api/chat', methods=['POST'])
+def api_chat():
+    payload = request.json
+    
+    # Check if this is an Ollama-style request (from Reins)
+    if "messages" in payload:
+        messages = payload.get("messages", [])
+        user_message = ""
+        for msg in reversed(messages):
+            if msg.get("role") == "user":
+                user_message = msg.get("content", "")
+                break
+        if not user_message:
+            return jsonify({"error": "No user message found"}), 400
+            
+        reply_text = chat_reply(user_message)
+        
+        return jsonify({
+            "model": payload.get("model", "infj_bot:latest"),
+            "created_at": time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime()),
+            "message": {
+                "role": "assistant",
+                "content": reply_text
+            },
+            "done": True
+        })
+        
+    # Standard INFJ Bot UI request
+    message = payload.get("message", "")
+    if isinstance(message, str):
+        message = message.strip()
+    if not message:
+        return jsonify({"error": "message is required"}), 400
+    return jsonify({"reply": chat_reply(message)})
+
+@app.route('/v1/chat/completions', methods=['POST', 'OPTIONS'])
+def openai_chat_completions():
+    if request.method == 'OPTIONS':
+        return '', 200
+        
+    payload = request.json
+    messages = payload.get("messages", [])
+    
+    # Extract the last user message
+    user_message = ""
+    for msg in reversed(messages):
+        if msg.get("role") == "user":
+            user_message = msg.get("content", "")
+            break
+            
+    if not user_message:
+        return jsonify({"error": "No user message found"}), 400
+        
+    # Get reply from infj_bot
+    reply_text = chat_reply(user_message)
+    
+    # Format as OpenAI response
+    import uuid
+    response = {
+        "id": f"chatcmpl-{uuid.uuid4().hex}",
+        "object": "chat.completion",
+        "created": int(time.time()),
+        "model": payload.get("model", "infj_bot"),
+        "choices": [
+            {
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "content": reply_text
+                },
+                "finish_reason": "stop"
+            }
+        ],
+        "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0
+        }
+    }
+    return jsonify(response)
+
+@app.route('/api/command', methods=['POST'])
+def api_command():
+    payload = request.json
+    reply = handle_command(
+        payload.get("command", ""),
+        payload.get("args", ""),
+        state, brain, memory, history, goals_db, doc_store
+    )
+    return jsonify({"reply": reply})
+
+@app.route('/api/email', methods=['POST'])
+def api_email():
+    from emailer import send_email
+    payload = request.json
+    result = send_email(
+        to=payload.get("to", ""),
+        subject=payload.get("subject", ""),
+        body=payload.get("body", ""),
+        html_body=payload.get("html_body"),
+    )
+    if result.get("ok"):
+        return jsonify({"sent": True})
+    return jsonify({"sent": False, "error": result.get("error")}), 500
+
+@app.route('/observatory')
+def observatory():
+    try:
+        with open("/home/crexs/templates/observatory.html", "r") as f:
+            content = f.read()
+        return render_template_string(content)
+    except Exception as e:
+        return str(e), 500
 
 def main():
-    server = ThreadingHTTPServer(("127.0.0.1", 8765), Handler)
-    print("INFJ bot web UI: http://127.0.0.1:8765")
-    server.serve_forever()
-
+    print("🚀 DRIFT Web App: Gevent + Compression + Delta Logic Active")
+    socketio.run(app, host='0.0.0.0', port=5000, debug=True, use_reloader=False)
 
 if __name__ == "__main__":
     main()

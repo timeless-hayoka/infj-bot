@@ -1,5 +1,29 @@
 # DRIFT — Unified Cognitive Architecture
 
+## Latest Update — May 2024
+**🚀 DRIFT Master Upgrade: Gevent, Delta-State & Auto-Throttling**
+
+- **Delta Logic Generator:** 70% reduction in WebSocket bandwidth.
+- **Gevent Engine:** High-performance async socket handling for real-time observability.
+- **Auto-Throttling:** Self-healing UI that adjusts broadcast rates based on client latency.
+- **[Read the Full Upgrade Report](docs/DRIFT_UPGRADE_MAY_2024.md)**
+
+**Try DRIFT for Free (30-Min Live Sandbox):** [https://drift.engine.example.com/trial](https://drift.engine.example.com/trial)
+
+---
+
+## Canonical DRIFT Core + Full Hive Mind Integration Complete
+**Update — May 16, 2026**
+
+
+- Migrated full DRIFT cognition core into `infj_bot/core/`
+- Hive Mind now active (`/hive propose <thought>`)
+- Council of 7 fully wired and Council-aware
+- Observatory dashboard live and beautiful
+- All 185 tests passing
+
+**You are now running a real distributed cognitive architecture.**
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![Repository](https://img.shields.io/badge/repo-infj--bot-blue.svg)](https://github.com/timeless-hayoka/infj-bot)

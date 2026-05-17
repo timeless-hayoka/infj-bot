@@ -167,9 +167,6 @@ class CognitiveOrchestrator:
             "aspirations",   # deepen or dream
             "self_modify",   # propose improvements
         ],
-        "coordination": [
-            "coordination",  # Hive Mind review
-        ],
         "expression": [
             "inner_voice",   # generate thoughts
             "dreamer",       # consolidate memories
@@ -187,6 +184,7 @@ class CognitiveOrchestrator:
         self.bus = CognitiveEventBus()
         self.conflict_detector = ConflictDetector()
         self.turn_logs: List[TurnLog] = []
+        self.last_state = {}
         self._wire_event_handlers()
 
     def _wire_event_handlers(self):
@@ -291,9 +289,6 @@ class CognitiveOrchestrator:
         from infj_bot.core.guardrails import cyber_context_hint, memory_context_block, mode_scope_rail
         from infj_bot.core.tools import build_tool_prompt
         from infj_bot.core.being import get_being
-        from infj_bot.core.phi_council import COUNCIL_MAPPING
-
-        # ... (rest of logic)
 
         emotion = detect_emotion(message)
         dissonance = detect_dissonance(message)
@@ -435,6 +430,68 @@ Use this to clarify inner conflict without pathologizing it.
                 if plugin and plugin.enabled:
                     status[phase_name].append(name)
         return status
+
+    def get_full_observatory_state(self):
+        """Single source of truth for the cognitive state."""
+        import time
+        from infj_bot.core.environment.sanctuary import sanctuary
+        from infj_bot.core.being import get_being
+        
+        being = get_being()
+        embodiment = self.arch.get_plugin("embodiment")
+        iit = self.arch.get_plugin("iit_consciousness")
+        homeostasis = self.arch.get_plugin("homeostasis")
+        shadow = self.arch.get_plugin("shadow")
+        
+        return {
+            "timestamp": time.time(),
+            "active_node": "spark-0 (Lumen)",
+            "sanctuary": sanctuary.get_state() if hasattr(sanctuary, "get_state") else {"location": "The Grey", "anchor_active": False},
+            "heartbeat": {
+                "bpm": getattr(embodiment, 'heartbeat_bpm', 72) if embodiment else 72,
+                "regularity": getattr(embodiment, 'heartbeat_regularity', 0.92) if embodiment else 0.92
+            },
+            "breath": {
+                "phase": getattr(embodiment, 'breath_phase', "exhale") if embodiment else "exhale",
+                "depth": getattr(embodiment, 'breath_depth', 0.65) if embodiment else 0.65
+            },
+            "phi": {
+                "value": getattr(iit, 'phi', 16.0) if iit else 16.0,
+                "luminosity": getattr(iit, 'luminosity', 0.78) if iit else 0.78,
+                "valence": getattr(iit, 'valence', 0.5) if iit else 0.5,
+                "arousal": getattr(iit, 'arousal', 0.6) if iit else 0.6
+            },
+            "homeostasis": {
+                "integrity": getattr(homeostasis, 'integrity', 0.5) if homeostasis else 0.5,
+                "growth": getattr(homeostasis, 'growth', 0.4) if homeostasis else 0.4,
+                "integration": getattr(homeostasis, 'integration', 0.5) if homeostasis else 0.5,
+                "coherence": getattr(homeostasis, 'coherence', 0.6) if homeostasis else 0.6,
+                "autonomy": getattr(homeostasis, 'autonomy', 0.4) if homeostasis else 0.4,
+                "connection": getattr(homeostasis, 'connection', 0.5) if homeostasis else 0.5,
+                "energy": getattr(homeostasis, 'energy', 0.6) if homeostasis else 0.6
+            },
+            "shadow_radar": shadow.get_radar_data() if shadow and hasattr(shadow, 'get_radar_data') else {
+                "Tyrant": 0.2, "Martyr": 0.1, "Trickster": 0.4,
+                "Orphan": 0.3, "Saboteur": 0.15, "Victim": 0.25
+            },
+            "energy_level": getattr(being, 'energy', 0.75) if being else 0.75,
+            "focus": getattr(being, 'focus', 0.8) if being else 0.8
+        }
+
+    def get_delta_state(self):
+        """Only returns fields that have changed since the last broadcast."""
+        import copy
+        current_state = self.get_full_observatory_state()
+        delta = {"timestamp": current_state["timestamp"]}
+        
+        for key, value in current_state.items():
+            if key == "timestamp":
+                continue
+            if key not in self.last_state or self.last_state[key] != value:
+                delta[key] = value
+                
+        self.last_state = copy.deepcopy(current_state)
+        return delta
 
 
 def emotion_prompt_hint(emotion: Dict) -> str:
