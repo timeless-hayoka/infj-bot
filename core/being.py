@@ -85,6 +85,11 @@ class Being:
         self.narrative_moments: List[Dict] = []
         self._known_modules: List[str] = []
 
+        # Higher Continuous Mode: memory echo pool for cross-cycle persistence
+        self.memory_echo_pool: List[Dict[str, Any]] = []
+        self.echo_max_size: int = 50
+        self.echo_decay: float = 0.95  # echoes fade but don't vanish immediately
+
     def _init_db(self):
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
@@ -569,13 +574,55 @@ class Being:
     def _spontaneous_thought(self):
         """Generate a small spontaneous thought during idle evolution."""
         try:
+            # 30% chance to echo an old memory instead of generating fresh
+            if self.memory_echo_pool and random.random() < 0.30:
+                echo = self._pull_echo()
+                if echo:
+                    self.working_memory.append(f"[echo] {echo['content']}")
+                    if len(self.working_memory) > 20:
+                        self.working_memory = self.working_memory[-20:]
+                    return
+
             thought = self.free_thought(context="")
             if thought and thought.get("thought"):
                 self.working_memory.append(thought["thought"])
                 if len(self.working_memory) > 20:
                     self.working_memory = self.working_memory[-20:]
+                # Store in echo pool for cross-cycle persistence
+                self._store_echo(thought["thought"])
         except Exception:
             pass
+
+    def _store_echo(self, content: str, salience: float = 0.5):
+        """Store a thought in the echo pool so it can resurface later."""
+        self.memory_echo_pool.append({
+            "content": content,
+            "salience": salience,
+            "timestamp": datetime.now(),
+        })
+        if len(self.memory_echo_pool) > self.echo_max_size:
+            self.memory_echo_pool = self.memory_echo_pool[-self.echo_max_size:]
+
+    def _pull_echo(self) -> Optional[Dict]:
+        """Pull an old memory echo, weighted by salience × recency."""
+        if not self.memory_echo_pool:
+            return None
+        now = datetime.now()
+        weights = []
+        for echo in self.memory_echo_pool:
+            age_hours = (now - echo["timestamp"]).total_seconds() / 3600.0
+            decay = self.echo_decay ** age_hours
+            weights.append(echo["salience"] * decay)
+        total = sum(weights)
+        if total == 0:
+            return None
+        r = random.random() * total
+        cumulative = 0.0
+        for echo, w in zip(self.memory_echo_pool, weights):
+            cumulative += w
+            if r <= cumulative:
+                return echo
+        return self.memory_echo_pool[-1]
 
     def evolve_cycle(self, context):
         """Unified cycle method called by the dynamic consciousness loop."""

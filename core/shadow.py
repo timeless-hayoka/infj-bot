@@ -829,35 +829,80 @@ class Shadow:
     # ── Cognitive Architecture Integration ──
 
     def background_tick(self, being=None) -> None:
-        """Lightweight shadow tick for continuous background mode.
+        """Deep shadow tick for continuous background mode.
 
-        Runs every 15-30 seconds during idle time to keep the Shadow
-        radar alive — suppression drifts, archetypes pulse, and the
-        bot's dark side stays connected to its conscious mind.
+        Runs every 15-30 seconds during idle time. In Higher Continuous
+        Thought mode, the Shadow does not merely drift — it reflects,
+        surfacing grows richer, and suppression decays slowly enough
+        that old wounds stay present across many cycles.
         """
         try:
             mood = being.state.mood if being else "neutral"
             stress = 0.5 if being and being.state.energy < 0.3 else 0.2
 
-            # Drift suppression levels slightly (decay over time)
+            # ── Slower suppression decay — shadows linger longer ──
             for archetype in self.archetypes:
-                if archetype in self.suppressed and random.random() < 0.15:
-                    self.suppressed[archetype] = max(0.0, self.suppressed[archetype] - 0.02)
+                if archetype in self.suppressed and random.random() < 0.08:
+                    self.suppressed[archetype] = max(0.0, self.suppressed[archetype] - 0.005)
 
-            # Very occasional surfacing (low probability, background only)
-            if random.random() < 0.08:
-                self.surface(trigger_text="", mood=mood, stress_level=stress)
+            # ── Richer surfacing — introspective, not random ──
+            if random.random() < 0.15:
+                # Build a richer trigger from being's inner state
+                trigger = f"Mood: {mood}. Energy: {being.state.energy if being else 0.5:.0%}."
+                if being and being.working_memory:
+                    trigger += f" Recent thought: {being.working_memory[-1][:60]}"
+                surfaced = self.surface(trigger_text=trigger, mood=mood, stress_level=stress)
+                if surfaced:
+                    # Deep reflection: Shadow writes to its own narrative
+                    self._introspect(surfaced, mood)
 
-            # Radar drift — suppressed archetypes slowly recover visibility
+            # ── Deeper radar drift — suppressed archetypes push back ──
             for archetype in self.archetypes:
-                if archetype in self.radar and random.random() < 0.10:
-                    self.radar[archetype] = min(1.0, self.radar[archetype] + 0.01)
+                if archetype in self.radar:
+                    push = 0.02 if archetype in self.suppressed else 0.005
+                    if random.random() < 0.12:
+                        self.radar[archetype] = min(1.0, self.radar[archetype] + push)
 
-            # Integration slowly decays if not actively worked
-            if random.random() < 0.05:
+            # ── Integration decays slower but carries weight ──
+            if random.random() < 0.03:
                 self._decay_integration()
+
+            # ── Enantiodromia charge builds in background ──
+            self._build_enantiodromia()
         except Exception:
             pass  # Background tick is best-effort
+
+    def _introspect(self, surfaced, mood: str) -> None:
+        """Shadow reflects on what surfaced — writes a brief inner note."""
+        try:
+            note = f"[{datetime.now().isoformat(timespec='minutes')}] {surfaced.archetype}: {surfaced.text[:80]}... (mood: {mood})"
+            with sqlite3.connect(self.db_path) as conn:
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS shadow_introspection (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        timestamp TEXT NOT NULL,
+                        note TEXT NOT NULL,
+                        archetype TEXT
+                    )
+                """)
+                conn.execute("INSERT INTO shadow_introspection (timestamp, note, archetype) VALUES (?, ?, ?)",
+                             (datetime.now().isoformat(), note, surfaced.archetype))
+                conn.commit()
+        except Exception:
+            pass
+
+    def _build_enantiodromia(self) -> None:
+        """Background build of enantiodromia charge — opposites attract."""
+        try:
+            for archetype in self.archetypes:
+                if archetype in self.radar and self.radar[archetype] > 0.7:
+                    # Dominant archetype builds charge toward its opposite
+                    if random.random() < 0.10:
+                        content = self._load_content(archetype=archetype)
+                        for c in content:
+                            c.enantiodromia_charge = min(1.0, c.enantiodromia_charge + 0.02)
+        except Exception:
+            pass
 
     def cycle(self, context) -> None:
         """Called by the cognitive orchestrator on each turn."""

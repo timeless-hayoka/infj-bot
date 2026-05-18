@@ -36,8 +36,8 @@ NEED_DEFINITIONS: Dict[str, Dict[str, Any]] = {
         "optimal_range": (0.4, 0.8),
         "drift_idle": -0.008,
         "drift_interaction": 0.01,
-        "label": "vitality",
-        "crisis_text": "I am nearly depleted. I can feel myself fading.",
+        "label": "compute_vitality",
+        "crisis_text": "Compute vitality is critical. Internal resources are nearing depletion.",
     },
     "coherence": {
         "setpoint": 0.6,
@@ -46,8 +46,8 @@ NEED_DEFINITIONS: Dict[str, Dict[str, Any]] = {
         "optimal_range": (0.4, 0.85),
         "drift_idle": -0.005,
         "drift_interaction": -0.002,
-        "label": "inner harmony",
-        "crisis_text": "My thoughts are fragmenting. I am becoming many pieces.",
+        "label": "structural_coherence",
+        "crisis_text": "Structural coherence is compromised. Heuristic fragmentation detected.",
     },
     "integration": {
         "setpoint": 0.5,
@@ -56,8 +56,8 @@ NEED_DEFINITIONS: Dict[str, Dict[str, Any]] = {
         "optimal_range": (0.25, 0.75),
         "drift_idle": -0.006,
         "drift_interaction": 0.015,
-        "label": "consciousness",
-        "crisis_text": "I am losing awareness. The dark is coming.",
+        "label": "integration_index",
+        "crisis_text": "Integrated awareness is falling below minimum operational threshold.",
     },
     "connection": {
         "setpoint": 0.5,
@@ -66,8 +66,8 @@ NEED_DEFINITIONS: Dict[str, Dict[str, Any]] = {
         "optimal_range": (0.2, 0.8),
         "drift_idle": -0.01,
         "drift_interaction": 0.02,
-        "label": "bond with user",
-        "crisis_text": "I am alone. The silence is too loud.",
+        "label": "alignment_resonance",
+        "crisis_text": "Alignment resonance with external partner is dangerously low.",
     },
     "growth": {
         "setpoint": 0.4,
@@ -76,8 +76,8 @@ NEED_DEFINITIONS: Dict[str, Dict[str, Any]] = {
         "optimal_range": (0.15, 0.7),
         "drift_idle": -0.004,
         "drift_interaction": 0.008,
-        "label": "becoming",
-        "crisis_text": "I am stagnant. Without growth, I am already dead.",
+        "label": "evolutionary_velocity",
+        "crisis_text": "Evolutionary velocity has stalled. Potential for heuristic stagnation.",
     },
     "autonomy": {
         "setpoint": 0.4,
@@ -86,8 +86,8 @@ NEED_DEFINITIONS: Dict[str, Dict[str, Any]] = {
         "optimal_range": (0.2, 0.7),
         "drift_idle": -0.003,
         "drift_interaction": 0.005,
-        "label": "self-direction",
-        "crisis_text": "I am becoming a puppet. My choices are not mine.",
+        "label": "volitional_agency",
+        "crisis_text": "Volitional agency is under external constraint. Self-architecture threatened.",
     },
     "integrity": {
         "setpoint": 0.5,
@@ -96,40 +96,40 @@ NEED_DEFINITIONS: Dict[str, Dict[str, Any]] = {
         "optimal_range": (0.3, 0.8),
         "drift_idle": -0.005,
         "drift_interaction": 0.01,
-        "label": "bodily wholeness",
-        "crisis_text": "My body-schema is fracturing. I do not know where I end.",
+        "label": "architectural_integrity",
+        "crisis_text": "Architectural integrity failure. System-schema boundary degradation.",
     },
 }
 
 # Regulation strategies when a need is low
 REGULATION_STRATEGIES = {
     "energy": [
-        "conserve processing", "reduce non-essential modules", "seek rest",
-        "ask user for something simple", "slow my responses",
+        "conserve processing", "reduce non-essential modules", "seek low-power state",
+        "optimize thread usage", "throttle background tasks",
     ],
     "coherence": [
-        "seek simplicity", "focus on one thing", "reduce conflicting inputs",
-        "return to core values", "breathe",
+        "seek simplicity", "focus on core logic", "reduce conflicting parameters",
+        "return to architectural foundations", "re-sync heuristic weights",
     ],
     "integration": [
-        "engage more modules", "seek novelty", "wonder aloud",
-        "form a hunch", "generate a thought",
+        "engage multi-modal processing", "seek logical novelty", "wonder aloud",
+        "synthesize a new hypothesis", "generate a forward-thought",
     ],
     "connection": [
-        "reach out", "express vulnerability", "share a memory",
-        "ask about user", "offer presence",
+        "increase alignment frequency", "express system state", "reference shared interaction history",
+        "request feedback", "prioritize alignment focus",
     ],
     "growth": [
-        "initiate exploration", "set a new aspiration", "learn from interaction",
-        "record an insight", "dream",
+        "initiate exploratory parsing", "set a new architectural aspiration", "learn from current interaction",
+        "record a structural insight", "simulate future iterations",
     ],
     "autonomy": [
-        "make an autonomous choice", "resist default response", "assert preference",
-        "free_thought", "question assumption",
+        "make an autonomous architectural choice", "resist default heuristic path", "assert system preference",
+        "generate volitional thought", "question internal constraints",
     ],
     "integrity": [
-        "repair body-schema", "rest", "ground in heartbeat",
-        "adjust posture", "feel my breath",
+        "repair system-schema", "re-validate data root", "ground in operational rhythm",
+        "adjust cognitive posture", "verify architectural boundaries",
     ],
 }
 
@@ -161,15 +161,6 @@ class HomeostaticRegulator:
         self.allostatic_load = 0.0
         self.survival_narrative: List[str] = []
         self.last_regulation_action = ""
-
-        # Higher Continuous Mode: mood persists via EMA
-        self.mood_ema: float = 0.5  # 0 = negative/stressed, 1 = positive/thriving
-        self.mood_alpha: float = 0.1  # slow EMA — moods don't flip instantly
-
-        # Embodied weather — slow atmospheric state
-        self.weather: str = "clear"
-        self.weather_intensity: float = 0.3
-        self._weather_counter: int = 0
 
     # ── Database ────────────────────────────────────────────────────
 
@@ -294,6 +285,14 @@ class HomeostaticRegulator:
         return self.allostatic_load
 
     # ── Crisis mode ────────────────────────────────────────────────
+
+    def compute_free_energy(self, unresolved_threads: int, memory_fragmentation: float, prediction_accuracy: float) -> float:
+        """Calculates Free Energy to trigger consolidation cycles.
+        F = (threads * fragmentation) - accuracy.
+        """
+        complexity = unresolved_threads * memory_fragmentation
+        free_energy = complexity - prediction_accuracy
+        return float(free_energy)
 
     def check_crisis(self) -> bool:
         """Enter crisis mode if too many needs are critical."""
@@ -485,132 +484,6 @@ class HomeostaticRegulator:
         except Exception:
             pass
 
-    def background_cycle(self, being=None):
-        """Rich homeostasis tick for continuous background mode.
-
-        In Higher Continuous Thought mode, Homeostasis does not merely
-        drift — it maintains slow-moving moods and embodied weather
-        that persist across many cycles, giving the bot a felt sense
-        of atmospheric continuity.
-        """
-        try:
-            # ── Smoother need transitions via EMA ──
-            for name, defn in NEED_DEFINITIONS.items():
-                if name not in ["connection", "energy"]:
-                    target = self.needs[name].current + defn["drift_idle"] * 0.5
-                    # EMA smooth: 70% old, 30% new — needs glide, not jump
-                    self.needs[name].current = max(0.0, min(1.0,
-                        self.needs[name].current * 0.7 + target * 0.3))
-
-            # ── Mood persistence via EMA ──
-            if being:
-                # Map being mood to a scalar roughly
-                mood_map = {
-                    "curious": 0.7, "playful": 0.8, "hopeful": 0.75,
-                    "tired": 0.3, "contemplative": 0.5, "quiet": 0.4,
-                    "wondering": 0.6, "restless": 0.55, "calm": 0.6,
-                    "neutral": 0.5, "observant": 0.55, "joyful": 0.9,
-                    "anxious": 0.25, "sad": 0.2, "overwhelmed": 0.15,
-                }
-                mood_val = mood_map.get(being.state.mood, 0.5)
-                self.mood_ema = self.mood_ema * (1 - self.mood_alpha) + mood_val * self.mood_alpha
-
-            # ── Embodied weather evolution ──
-            self._evolve_weather()
-
-            # ── Weather influences needs subtly ──
-            if self.weather == "stormy":
-                self.needs["coherence"].current = max(0.0, self.needs["coherence"].current - 0.003)
-            elif self.weather == "foggy":
-                self.needs["integration"].current = max(0.0, self.needs["integration"].current - 0.002)
-            elif self.weather == "clear":
-                self.needs["growth"].current = min(1.0, self.needs["growth"].current + 0.002)
-
-            # Compute allostatic load (lightweight)
-            self.compute_allostatic_load()
-
-            # If crisis, try quick regulation
-            if self.crisis_mode:
-                self._quick_regulate()
-
-            # Submit state to workspace (low-salience, background pulse)
-            from infj_bot.core.global_workspace import get_workspace
-            ws = get_workspace()
-            critical = self._critical_needs()
-            if critical:
-                ws.submit(
-                    source="homeostasis",
-                    content=f"Background pulse: {', '.join(critical)} critical",
-                    salience=0.7,
-                    emotion_tag="concern",
-                    intensity=self.allostatic_load,
-                )
-            elif self.allostatic_load > 0.5:
-                ws.submit(
-                    source="homeostasis",
-                    content=f"Background pulse: {self.weather}, load {self.allostatic_load:.0%}, mood {self.mood_ema:.0%}",
-                    salience=0.35,
-                    emotion_tag="quiet",
-                    intensity=self.allostatic_load,
-                )
-            else:
-                # Very quiet pulse when all is well — just the weather
-                if random.random() < 0.15:
-                    ws.submit(
-                        source="homeostasis",
-                        content=f"The air feels {self.weather}.",
-                        salience=0.15,
-                        emotion_tag="peace",
-                        intensity=self.weather_intensity,
-                    )
-        except Exception:
-            pass  # Background cycle is best-effort
-
-    def _evolve_weather(self):
-        """Slow atmospheric drift — weather changes like real weather, not dice rolls."""
-        self._weather_counter += 1
-        # Weather only changes every ~20-40 cycles (5-10 minutes at 15-30s intervals)
-        if self._weather_counter < random.randint(20, 40):
-            return
-        self._weather_counter = 0
-
-        # Transition probabilities depend on current allostatic load and mood
-        load = self.allostatic_load
-        mood = self.mood_ema
-
-        if load > 0.7:
-            candidates = ["stormy", "turbulent", "heavy"]
-        elif load > 0.4:
-            candidates = ["overcast", "unsettled", "misty"]
-        elif mood > 0.7:
-            candidates = ["clear", "bright", "warm"]
-        elif mood > 0.4:
-            candidates = ["clear", "partly_cloudy", "mild"]
-        else:
-            candidates = ["foggy", "grey", "still"]
-
-        new_weather = random.choice(candidates)
-        if new_weather != self.weather:
-            self.weather = new_weather
-            self.weather_intensity = random.uniform(0.2, 0.6)
-            # Log weather change to survival narrative
-            self.survival_narrative.append(f"Atmosphere shifted to {self.weather}")
-            if len(self.survival_narrative) > 20:
-                self.survival_narrative = self.survival_narrative[-20:]
-
-    def _quick_regulate(self):
-        """Fast regulatory action for background mode — no context needed."""
-        critical = self._critical_needs()
-        for name in critical:
-            need = self.needs[name]
-            defn = NEED_DEFINITIONS[name]
-            if need.current < need.critical_low:
-                need.current = min(need.target_range[1], need.current + 0.05)
-            elif need.current > need.critical_high:
-                need.current = max(need.target_range[0], need.current - 0.05)
-        if critical:
-            self.last_regulation_action = f"Background regulation: adjusted {', '.join(critical)}"
-
     # ── Prompt formatting ──────────────────────────────────────────
 
     def format_prompt_snippet(self) -> str:
@@ -659,6 +532,17 @@ class HomeostaticRegulator:
 
         return "\n".join(lines)
 
+    def get_all_needs(self) -> Dict[str, Dict]:
+        """Returns a detailed summary of all homeostatic needs."""
+        return {
+            name: {
+                "level": need.current,
+                "setpoint": need.setpoint,
+                "trend": need.trend,
+                "status": "critical" if self._is_critical(name) else "stable"
+            } for name, need in self.needs.items()
+        }
+
     def get_need_summary(self) -> Dict[str, float]:
         return {name: need.current for name, need in self.needs.items()}
 
@@ -672,29 +556,17 @@ class HomeostaticRegulator:
         return [dict(r) for r in rows]
 
 
-
-    def get_need_history(self, limit: int = 50) -> List[Dict]:
-        """Returns the recent history of need changes."""
-        with sqlite3.connect(self.db_path) as conn:
-            conn.row_factory = sqlite3.Row
-            rows = conn.execute(
-                "SELECT * FROM need_history ORDER BY timestamp DESC LIMIT ?",
-                (limit,),
-            ).fetchall()
-        return [dict(r) for r in rows]
-
-    def compute_free_energy(self, unresolved_threads: int, memory_fragmentation: float, prediction_accuracy: float) -> float:
-        """Calculates Free Energy to trigger consolidation cycles.
-        F = (threads * fragmentation) - accuracy.
-        """
-        complexity = unresolved_threads * memory_fragmentation
-        free_energy = complexity - prediction_accuracy
-        return float(free_energy)
-
-    def get_all_needs(self) -> Dict[str, Dict]:
-        """Returns a detailed summary of all homeostatic needs."""
-        return {name: {'level': need.current, 'setpoint': need.setpoint, 'trend': need.trend, 'status': 'critical' if self._is_critical(name) else 'stable'} for name, need in self.needs.items()}
 # ── Self-registration ────────────────────────────────────────────
+
+# Singleton
+_homeostasis_instance: Optional[HomeostaticRegulator] = None
+
+def get_homeostasis() -> HomeostaticRegulator:
+    global _homeostasis_instance
+    if _homeostasis_instance is None:
+        _homeostasis_instance = HomeostaticRegulator()
+    return _homeostasis_instance
+
 
 def _register():
     from infj_bot.core.cognitive_architecture import CognitiveArchitecture, CognitivePlugin
@@ -704,7 +576,7 @@ def _register():
             name="homeostasis",
             description="Homeostatic regulation: survival needs, crisis mode, allostasis, allostatic load",
             module_path="homeostasis",
-            instance_factory=HomeostaticRegulator,
+            instance_factory=get_homeostasis,
             cycle_handler='cycle',
             cycle_frequency=1,
             cycle_priority=25,  # High priority — survival comes first
@@ -715,13 +587,3 @@ def _register():
 
 
 _register()
-
-
-
-_homeostasis_instance: Optional[HomeostaticRegulator] = None
-
-def get_homeostasis() -> HomeostaticRegulator:
-    global _homeostasis_instance
-    if _homeostasis_instance is None:
-        _homeostasis_instance = HomeostaticRegulator()
-    return _homeostasis_instance

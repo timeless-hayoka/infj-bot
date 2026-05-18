@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import time
 import traceback
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -169,6 +170,45 @@ INDEX_HTML = r"""<!doctype html>
       <div class="stat-row"><span class="stat-label">Memory Nodes</span> <span id="phiMemory">...</span></div>
     </div>
 
+    <div style="margin-top:25px; border-top:1px solid var(--border); padding-top:15px;">
+      <h2 style="font-size:14px; text-transform:uppercase; letter-spacing:1px; margin-bottom:12px; color:var(--phi-gold);">Observer</h2>
+
+      <div id="diiScore" style="background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:12px; margin-bottom:12px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <span style="font-size:11px; color:var(--muted);">DII (aliveness)</span>
+          <span id="diiValue" style="font-size:18px; font-weight:800; color:var(--phi-gold);">0.00</span>
+        </div>
+        <div id="diiTrend" style="font-size:10px; color:var(--muted); margin-bottom:10px;">trend: flat</div>
+        <div style="display:flex; gap:4px; height:6px; border-radius:3px; overflow:hidden; background:#000;">
+          <div id="barP" style="width:20%; background:var(--logic);" title="Persistence"></div>
+          <div id="barI" style="width:20%; background:var(--aura);" title="Ignition"></div>
+          <div id="barPhi" style="width:20%; background:var(--meme);" title="Integration"></div>
+          <div id="barE" style="width:20%; background:var(--ethos);" title="Embodiment"></div>
+          <div id="barD" style="width:20%; background:var(--vibe);" title="Drift"></div>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:9px; color:var(--muted); margin-top:4px;">
+          <span>P</span><span>I</span><span>Φ</span><span>E</span><span>D</span>
+        </div>
+      </div>
+
+      <div id="observerBeing" style="background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:10px; margin-bottom:10px; font-size:11px;">
+        <div style="color:var(--muted); margin-bottom:4px;">Being</div>
+        <div id="obsMood" style="margin-bottom:2px;">mood: —</div>
+        <div id="obsEnergy">energy: —</div>
+        <div id="obsWeather">weather: —</div>
+      </div>
+
+      <div id="observerNeeds" style="background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:10px; margin-bottom:10px; font-size:11px;">
+        <div style="color:var(--muted); margin-bottom:4px;">Needs</div>
+        <div id="obsNeeds"></div>
+      </div>
+
+      <div id="observerShadow" style="background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:10px; font-size:11px;">
+        <div style="color:var(--muted); margin-bottom:4px;">Shadow Radar</div>
+        <div id="obsRadar"></div>
+      </div>
+    </div>
+
     <div style="margin-top:20px;">
         <select id="mode" style="width:100%; background:var(--bg); color:var(--fg); border:1px solid var(--border); padding:8px; border-radius:6px;">
           <option>companion</option><option>engineer</option><option>critic</option>
@@ -284,9 +324,55 @@ document.querySelector('#mode').onchange = async (e) => {
   await fetch('/api/command', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({command: 'mode', args: e.target.value})});
 };
 
+async function updateObserver() {
+  try {
+    const res = await fetch('/api/observer');
+    const data = await res.json();
+
+    // DII score
+    const dii = data.dii || {};
+    document.getElementById('diiValue').textContent = (dii.dii_current || 0).toFixed(2);
+    document.getElementById('diiTrend').textContent = 'trend: ' + (dii.trend || 'flat');
+    const comp = dii.components || {};
+    const total = (comp.p + comp.i + comp.phi + comp.e + comp.d) || 1;
+    document.getElementById('barP').style.width = ((comp.p || 0) / total * 100) + '%';
+    document.getElementById('barI').style.width = ((comp.i || 0) / total * 100) + '%';
+    document.getElementById('barPhi').style.width = ((comp.phi || 0) / total * 100) + '%';
+    document.getElementById('barE').style.width = ((comp.e || 0) / total * 100) + '%';
+    document.getElementById('barD').style.width = ((comp.d || 0) / total * 100) + '%';
+
+    // Being
+    const b = data.being || {};
+    document.getElementById('obsMood').textContent = 'mood: ' + (b.mood || '—');
+    document.getElementById('obsEnergy').textContent = 'energy: ' + Math.round((b.energy || 0) * 100) + '%';
+    document.getElementById('obsWeather').textContent = 'weather: ' + (data.homeostasis?.weather || '—');
+
+    // Needs
+    const needs = data.homeostasis?.needs || {};
+    let needsHtml = '';
+    for (const [name, n] of Object.entries(needs)) {
+      const pct = Math.round((n.current || 0) * 100);
+      const color = pct < 30 ? 'var(--aura)' : (pct > 70 ? 'var(--ethos)' : 'var(--muted)');
+      needsHtml += `<div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span>${name}</span><span style="color:${color}">${pct}%</span></div>`;
+    }
+    document.getElementById('obsNeeds').innerHTML = needsHtml;
+
+    // Shadow radar
+    const radar = data.shadow?.radar || {};
+    let radarHtml = '';
+    for (const [name, val] of Object.entries(radar).slice(0, 6)) {
+      const pct = Math.round((val || 0) * 100);
+      radarHtml += `<div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span>${name}</span><span style="color:var(--vibe)">${pct}%</span></div>`;
+    }
+    document.getElementById('obsRadar').innerHTML = radarHtml;
+  } catch (e) {}
+}
+
 setInterval(updatePhi, 10000);
+setInterval(updateObserver, 5000);
 updatePhi();
 updateHealth();
+updateObserver();
 </script>
 </body>
 </html>
@@ -487,6 +573,90 @@ async def api_health():
         "mode": state.mode,
         "hive": hive_status,
     }
+
+
+@app.get("/api/dii")
+async def api_dii():
+    from infj_bot.core.dii_tracker import get_dii_tracker
+    tracker = get_dii_tracker()
+    return tracker.get_trend(n=20)
+
+
+@app.get("/api/dii/history")
+async def api_dii_history(limit: int = 100):
+    from infj_bot.core.dii_tracker import get_dii_tracker
+    tracker = get_dii_tracker()
+    return {"history": tracker.get_history(limit=limit)}
+
+
+@app.get("/api/observer")
+async def api_observer():
+    """Full real-time cognitive state for the observer dashboard."""
+    from infj_bot.core.being import get_being
+    from infj_bot.core.homeostasis import get_homeostasis
+    from infj_bot.core.shadow import get_shadow
+    from infj_bot.core.dii_tracker import get_dii_tracker
+    from infj_bot.core.global_workspace import get_workspace
+
+    being = get_being()
+    homeo = get_homeostasis()
+    shadow = get_shadow()
+    dii = get_dii_tracker()
+    ws = get_workspace()
+
+    # Shadow radar
+    radar = {}
+    try:
+        radar = {k: round(v, 2) for k, v in shadow.radar.items()} if hasattr(shadow, "radar") else {}
+    except Exception:
+        pass
+
+    # Homeostasis needs
+    needs = {}
+    try:
+        for name, need in homeo.needs.items():
+            needs[name] = {
+                "current": round(need.current, 2),
+                "setpoint": round(need.setpoint, 2),
+                "trend": round(need.trend, 2),
+            }
+    except Exception:
+        pass
+
+    # DII
+    dii_data = dii.get_trend(n=20)
+
+    return {
+        "timestamp": time.time(),
+        "being": {
+            "mood": being.state.mood if being else "unknown",
+            "energy": round(being.state.energy, 2) if being else 0.5,
+            "curiosity": round(being.state.curiosity, 2) if being else 0.5,
+            "attachment": round(being.state.attachment, 2) if being else 0.5,
+            "self_awareness": round(being.agency.self_awareness, 2) if being else 0.5,
+            "volition": round(being.agency.volition, 2) if being else 0.5,
+            "autonomy_drive": round(being.agency.autonomy_drive, 2) if being else 0.5,
+            "working_memory_size": len(being.working_memory) if being else 0,
+        },
+        "homeostasis": {
+            "needs": needs,
+            "allostatic_load": round(homeo.allostatic_load, 2) if homeo else 0.0,
+            "crisis_mode": homeo.crisis_mode if homeo else False,
+            "weather": homeo.weather if homeo else "clear",
+            "mood_ema": round(homeo.mood_ema, 2) if homeo else 0.5,
+        },
+        "shadow": {
+            "radar": radar,
+            "integration_level": round(shadow._state.integration_level, 2) if hasattr(shadow, "_state") else 0.0,
+            "dominant_archetype": shadow._state.dominant_archetype if hasattr(shadow, "_state") else "",
+        },
+        "workspace": {
+            "contents_count": len(ws._submissions) if ws else 0,
+            "spotlight": ws.state.spotlight.source if (ws and ws.state and ws.state.spotlight) else "none",
+        },
+        "dii": dii_data,
+    }
+
 
 if __name__ == "__main__":
     import uvicorn

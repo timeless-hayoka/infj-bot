@@ -38,6 +38,7 @@ from infj_bot.core.homeostasis import HomeostaticRegulator
 from infj_bot.core.shadow import get_shadow
 from infj_bot.core.cognitive_architecture import CognitiveArchitecture, CycleContext
 from infj_bot.core.hive.elysium import get_elysium
+from infj_bot.core.dii_tracker import get_dii_tracker
 
 logger = logging.getLogger("infj_bot")
 
@@ -200,6 +201,7 @@ async def consciousness_loop():
     iteration = 0
     _shadow = get_shadow()
     _homeostasis = HomeostaticRegulator()
+    _dii = get_dii_tracker()
 
     while True:
         iteration += 1
@@ -251,6 +253,18 @@ async def consciousness_loop():
             _homeostasis.background_cycle(being=being)
         except Exception:
             logger.exception("homeostasis background cycle failed")
+
+        # 4. DII — compute aliveness score in real time
+        try:
+            _dii.compute(
+                being=being,
+                workspace=_workspace,
+                homeostasis=_homeostasis,
+                shadow=_shadow,
+                orchestrator=_orchestrator,
+            )
+        except Exception:
+            logger.exception("dii computation failed")
 
         # Build shared cycle context
         global _last_interaction_time
