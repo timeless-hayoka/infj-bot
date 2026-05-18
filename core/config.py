@@ -84,3 +84,9 @@ DRIFT_USE_LOCAL_FALLBACK = os.getenv(
     os.getenv("INFJ_USE_LOCAL_FALLBACK", "true"),
 ).lower() in ("1", "true", "yes", "on")
 OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+
+# Groq High-Speed Inference Config
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+DRIFT_GROQ_MODEL = os.getenv("DRIFT_GROQ_MODEL", "llama-3.3-70b-versatile")
+DRIFT_USE_GROQ = os.getenv("DRIFT_USE_GROQ", "true").lower() in ("1", "true", "yes", "on")
+

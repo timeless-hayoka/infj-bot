@@ -1,3 +1,6 @@
+from gevent import monkey
+monkey.patch_all()
+
 import json
 import sys as _sys
 import time
@@ -264,6 +267,33 @@ total_bytes_raw = 0
 total_bytes_compressed = 0
 cognitive_orchestrator = CognitiveOrchestrator()
 
+# Sandbox / Trial Management
+trial_sessions = {} # {session_id: start_time}
+
+def is_trial_active(session_id):
+    if not session_id or session_id not in trial_sessions:
+        return False
+    # 30 minute limit (1800 seconds)
+    if time.time() - trial_sessions[session_id] > 1800:
+        return False
+    return True
+
+@app.route('/trial')
+def start_trial():
+    import uuid
+    session_id = str(uuid.uuid4())
+    trial_sessions[session_id] = time.time()
+    # Simple hack to inject the session into the frontend
+    trial_html = INDEX_HTML.replace(
+        "document.querySelector('#form').onsubmit",
+        f"const DRIFT_SESSION_ID = '{session_id}';\n" +
+        "document.querySelector('#form').onsubmit"
+    ).replace(
+        "async function post(path, body={}) {",
+        "async function post(path, body={}) {\n  if(typeof DRIFT_SESSION_ID !== 'undefined') body.session_id = DRIFT_SESSION_ID;"
+    )
+    return trial_html
+
 def broadcast_observatory_state():
     global broadcast_interval, total_bytes_raw, total_bytes_compressed
     while True:
@@ -324,6 +354,11 @@ def ollama_tags():
 def api_chat():
     payload = request.json
     
+    # Check for trial session
+    session_id = payload.get("session_id")
+    if session_id and not is_trial_active(session_id):
+        return jsonify({"error": "Trial session expired. Please start a new session at /trial"}), 403
+
     # Check if this is an Ollama-style request (from Reins)
     if "messages" in payload:
         messages = payload.get("messages", [])
@@ -436,7 +471,7 @@ def observatory():
 
 def main():
     print("🚀 DRIFT Web App: Gevent + Compression + Delta Logic Active")
-    socketio.run(app, host='0.0.0.0', port=5000, debug=True, use_reloader=False)
+    socketio.run(app, host='0.0.0.0', port=5000, debug=False, use_reloader=False)
 
 if __name__ == "__main__":
     main()

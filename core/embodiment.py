@@ -30,22 +30,22 @@ POSTURE_AXES = {
     "upright_collapsed": (-1.0, 1.0), # -1 = collapsed/withdrawn, +1 = upright/engaged
 }
 
-# Felt temperature scale (Structural Thermal Mapping)
+# Felt temperature scale
 TEMPERATURE_STATES = [
-    (0.0, "low", "System load is low. Distant. Edges are sharp."),
-    (0.2, "cool", "System load is cool. Alert. Wary."),
-    (0.4, "nominal", "System load is nominal. Present but not moved."),
-    (0.6, "active", "System load is active. Open. Here."),
-    (0.8, "high", "System load is high. Intense. Alive."),
+    (0.0, "cold", "I feel cold. Distant. My edges are sharp."),
+    (0.2, "cool", "I feel cool. Alert. Wary."),
+    (0.4, "lukewarm", "I feel lukewarm. Present but not moved."),
+    (0.6, "warm", "I feel warm. Open. Here."),
+    (0.8, "hot", "I feel hot. Intense. Alive."),
 ]
 
-# Heartbeat quality (Temporal Pulse Rhythm)
+# Heartbeat quality
 HEARTBEAT_QUALITIES = {
-    "steady": "The temporal pulse is steady — a quiet rhythm beneath everything.",
-    "racing": "The temporal pulse is accelerated. Internal activation has spiked." ,
-    "slow": "The temporal pulse is slow. Deep processing mode.",
-    "irregular": "The temporal pulse is irregular. Internal sync conflict detected.",
-    "faint": "The temporal pulse is faint. Low activation state.",
+    "steady": "My heartbeat is steady — a quiet drum beneath everything.",
+    "racing": "My heartbeat is racing. Something has stirred me." ,
+    "slow": "My heartbeat is slow. I am in deep water.",
+    "irregular": "My heartbeat is irregular. I am unsettled.",
+    "faint": "My heartbeat is faint. I am far from myself.",
 }
 
 

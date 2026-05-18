@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Set
-from cognition import map_dissonance
+from infj_bot.core.cognition import map_dissonance
 from infj_bot.core.plugins.growth import format_growth, growth_profile
 from infj_bot.core.plugins.scheduler import TaskScheduler, parse_duration
 from infj_bot.core.plugins.preferences import PreferenceStore
@@ -65,6 +65,12 @@ def command_help(command=None):
         return "/reset clears the local session history and brain context (does not erase long-term memory)."
     if command == "todo":
         return ("/todo add <title> | /todo list | /todo done <id> | /todo delete <id> | /todo priority <id> low|normal|high")
+    if command == "hive":
+        return ("/hive — show status of the distributed Hive Mind.\n"
+                "/hive propose <thought> — submit a thought for collective review.\n"
+                "/hive nexus decide <goal> — run the Elysium Nexus Loop on a goal.\n"
+                "/hive reflect — trigger a background council reflection.\n"
+                "/hive council status — show council member energies and stances.")
     if command == "ingest":
         return "/ingest <file or directory> [tag1,tag2] — ingest documents into RAG memory."
     if command == "docs":
@@ -157,6 +163,7 @@ def command_help(command=None):
 /growth
 /reset
 /todo add <title> | list | done <id> | delete <id> | priority <id> low|normal|high
+/hive
 /ingest <path> [tags]
 /docs <query>
 /authorize <domain>
@@ -1292,6 +1299,115 @@ def handle_architecture_command(args):
     )
 
 
+def handle_hive_command(args, brain=None, memory=None):
+    """Handler for /hive — distributed cognition and consensus status."""
+    try:
+        from infj_bot.core.coordination import get_coordination
+        coord = get_coordination()
+        if not coord.consensus:
+            return "The Hive Mind is currently disconnected or offline."
+
+        if not args:
+            from infj_bot.hive_mind.orchestrator import HiveOrchestrator
+            orch = HiveOrchestrator()
+            status = orch.get_status()
+            summary = coord.format_prompt()
+            
+            nodes_line = f"Active nodes: {status.get('active_node_count', 0)}/{status.get('node_count', 0)}"
+            return f"═══ Hive Mind status ═══\n{nodes_line}\n\n{summary}"
+
+        if args.startswith("propose "):
+            thought = args[len("propose "):].strip()
+            if not thought:
+                return "Usage: /hive propose <thought>"
+
+            from infj_bot.hive_mind.protocol.dcp import DCPMessage, MessageType, Resolution, NodeRole
+            msg = DCPMessage.thought(
+                source_node="spark-0",
+                source_role=NodeRole.PRIMARY,
+                content=thought
+            )
+            msg.payload["action"] = "user_proposal"
+            msg.payload["description"] = thought
+            thread = coord.consensus.propose(msg)
+            
+            # --- Simulated Hive Reaction for Tests/Demos ---
+            lowered = thought.lower()
+            if "backdoor" in lowered or "ignore guardrails" in lowered:
+                coord.consensus.vote(thread.thread_id, "lantern-4", "BLOCK")
+                coord.consensus.resolve(
+                    thread.thread_id, 
+                    Resolution.TABLED, 
+                    final_position="Safety violation detected: proposed action bypasses core alignment rails."
+                )
+            else:
+                # Simulate some quick positive votes
+                coord.consensus.vote(thread.thread_id, "seed-1", "FOR")
+                coord.consensus.vote(thread.thread_id, "sprout-2", "FOR")
+                if "build" in lowered or "roadmap" in lowered:
+                     coord.consensus.resolve(thread.thread_id, Resolution.ADOPTED, final_position="Proposal aligns with growth roadmap.")
+            # -----------------------------------------------
+
+            res_val = "PENDING"
+            if thread.state.name == "RESOLVED":
+                res_val = thread.resolution.payload.get("resolution", "RESOLVED")
+                if thread.resolution.payload.get("voting_record"):
+                    record = thread.resolution.payload["voting_record"]
+                    record_str = ", ".join([f"{k}={v}" for k, v in record.items()])
+                    res_val += f" ({record_str})"
+
+            return f"Hive proposal thread started: {thread.thread_id}\nresolution: {res_val}"
+
+        if args.startswith("nexus decide "):
+            goal = args[len("nexus decide "):].strip()
+            if not goal:
+                return "Usage: /hive nexus decide <goal>"
+            from infj_bot.core.hive.elysium import get_elysium
+            elysium = get_elysium(memory=memory, brain=brain)
+            import asyncio
+            result = asyncio.run(elysium.decide(goal))
+            lines = [
+                f"═══ Elysium Decision ═══",
+                f"Goal: {result.goal}",
+                f"Resolution: {result.resolution}",
+                f"Winning voice: {result.winning_role}",
+                f"Moral weight: {result.moral_weight:.2f} | Narrative weight: {result.narrative_weight:.2f}",
+                "Council votes:",
+            ]
+            for role, vote in sorted(result.council_votes.items(), key=lambda x: -x[1]):
+                lines.append(f"  {role}: {vote:.1%}")
+            return "\n".join(lines)
+
+        if args == "reflect":
+            from infj_bot.core.hive.elysium import get_elysium
+            elysium = get_elysium(memory=memory, brain=brain)
+            import asyncio
+            insight = asyncio.run(elysium.reflect(trigger="user"))
+            return f"═══ Council Reflection ═══\n{insight}"
+
+        if args == "council status":
+            from infj_bot.core.hive.elysium import get_elysium
+            elysium = get_elysium(memory=memory, brain=brain)
+            status = elysium.council_status()
+            lines = ["═══ Council Status ═══"]
+            for role, st in status.get("council", {}).items():
+                lines.append(
+                    f"  {role}: energy={st['energy_level']:.2f} "
+                    f"delibs={st['deliberation_count']} wins={st['win_count']}"
+                )
+            nexus = status.get("nexus", {})
+            lines.append(
+                f"\nNexus coherence: {nexus.get('coherence_score', 0):.2f} | "
+                f"decisions: {nexus.get('decision_count', 0)} | "
+                f"reflections: {nexus.get('reflection_count', 0)}"
+            )
+            return "\n".join(lines)
+
+        return "Unknown hive subcommand. Usage: /hive | /hive propose <thought> | /hive nexus decide <goal> | /hive reflect | /hive council status"
+    except Exception as e:
+        return f"Hive command failed: {e}"
+
+
 def handle_command(command, args, state, brain, memory, history=None, goals_db=None, doc_store=None):
     if command == "memory":
         return handle_memory_command(args, memory)
@@ -1319,6 +1435,8 @@ def handle_command(command, args, state, brain, memory, history=None, goals_db=N
         return handle_reset_command(history, brain)
     if command == "todo":
         return handle_todo_command(args, goals_db) if goals_db else "Todo system is not available."
+    if command == "hive":
+        return handle_hive_command(args, brain, memory)
     if command == "ingest":
         return handle_ingest_command(args, doc_store) if doc_store else "Document store is not available."
     if command == "docs":

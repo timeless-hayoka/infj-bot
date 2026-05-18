@@ -17,19 +17,17 @@ import time
 import random
 import string
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 import pytest
 
-from being import Being
-from cognitive_architecture import CycleContext
-from cognitive_orchestrator import CognitiveOrchestrator
-from embeddings import SemanticEmbeddingFunction
-from memory import DriftMemory
-from physics import PhysicsEngine
-from humanity import HumanityEngine
-from prompt_budget import PromptBudget
-from resilience import CircuitBreaker, ResilienceManager
+from infj_bot.core.being import Being
+from infj_bot.core.cognitive_architecture import CycleContext
+from infj_bot.core.cognitive_orchestrator import CognitiveOrchestrator
+from infj_bot.core.embeddings import SemanticEmbeddingFunction
+from infj_bot.core.memory import DriftMemory
+from infj_bot.core.plugins.physics import PhysicsEngine
+from infj_bot.core.plugins.humanity import HumanityEngine
+from infj_bot.core.prompt_budget import PromptBudget
+from infj_bot.core.resilience import CircuitBreaker, ResilienceManager
 
 
 # ── Helpers ───────────────────────────────────────────────────────

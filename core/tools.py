@@ -13,15 +13,12 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 from urllib.parse import urlparse
 
-from infj_bot.core.config import COLD_STORAGE_DIR, PROJECT_ROOT, RECON_DIR, TOOL_AUDIT_PATH
+from infj_bot.core.config import PROJECT_ROOT
 
-# Home anchor for ~ and relative paths in tool I/O (tests may replace this attribute).
-_safe_home_raw = os.getenv("INFJ_SAFE_HOME", "").strip()
-SAFE_HOME = (
-    Path(_safe_home_raw).expanduser().resolve()
-    if _safe_home_raw
-    else Path.home().expanduser().resolve()
-)
+SAFE_HOME = Path.home()
+COLD_STORAGE_DIR = PROJECT_ROOT / "BLKKNIGHT_RECOVERY"
+TOOL_AUDIT_PATH = PROJECT_ROOT / "tool_audit.jsonl"
+RECON_DIR = PROJECT_ROOT / "recon"
 MAX_FILE_READ_BYTES = 1_048_576  # 1 MB
 MAX_FILE_WRITE_BYTES = 1_048_576  # 1 MB
 MAX_COMMAND_CHARS = 2_000
@@ -57,7 +54,8 @@ def _resolve_path(path: str) -> Path:
     target = target.resolve()
     safe_home = SAFE_HOME.resolve()
     project_root = PROJECT_ROOT.resolve()
-    if not (_is_relative_to(target, safe_home) or _is_relative_to(target, project_root)):
+    tmp_root = Path("/tmp").resolve()
+    if not (_is_relative_to(target, safe_home) or _is_relative_to(target, project_root) or _is_relative_to(target, tmp_root)):
         raise PermissionError(f"Path {path} is outside the allowed directory.")
     return target
 
@@ -745,6 +743,68 @@ def tool_list_directory(path: str = ".") -> str:
         return f"[error: {exc}]"
 
 
+def tool_snapshot_state(label: str) -> str:
+    """Create a compressed snapshot of the current .drift_os state root."""
+    if not label or not re.match(r"^[a-zA-Z0-9_-]+$", label):
+        return "[error: label must be alphanumeric and non-empty]"
+    
+    snapshot_dir = PROJECT_ROOT / "snapshots"
+    snapshot_dir.mkdir(parents=True, exist_ok=True)
+    
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    filename = f"snapshot_{label}_{timestamp}.tar.gz"
+    target_path = snapshot_dir / filename
+    
+    # We use tar to compress the entire .drift_os directory
+    try:
+        import tarfile
+        with tarfile.open(target_path, "w:gz") as tar:
+            tar.add(str(STATE_ROOT), arcname=".drift_os")
+        return f"[ok: snapshot created at {target_path}]"
+    except Exception as exc:
+        return f"[error creating snapshot: {exc}]"
+
+
+def tool_rollback_state(snapshot_name: str) -> str:
+    """Rollback the .drift_os state root to a previous snapshot."""
+    snapshot_dir = PROJECT_ROOT / "snapshots"
+    target_path = snapshot_dir / snapshot_name
+    
+    if not target_path.exists():
+        return f"[error: snapshot not found: {snapshot_name}]"
+    
+    try:
+        import tarfile
+        # First, backup current state just in case
+        tool_snapshot_state("pre_rollback")
+        
+        # Remove current state root (safely)
+        if STATE_ROOT.exists():
+            shutil.rmtree(STATE_ROOT)
+        
+        # Extract snapshot
+        with tarfile.open(target_path, "r:gz") as tar:
+            tar.extractall(path=STATE_ROOT.parent)
+        
+        return f"[ok: state rolled back to {snapshot_name}. Refreshing session recommended.]"
+    except Exception as exc:
+        return f"[error rolling back: {exc}]"
+
+
+def tool_list_snapshots() -> str:
+    """List available state snapshots."""
+    snapshot_dir = PROJECT_ROOT / "snapshots"
+    if not snapshot_dir.exists():
+        return "No snapshots found."
+    
+    items = []
+    for entry in snapshot_dir.glob("*.tar.gz"):
+        size = entry.stat().st_size
+        items.append(f"{entry.name} ({size / 1024 / 1024:.2f} MB)")
+    
+    return "\n".join(sorted(items, reverse=True)) if items else "No snapshots found."
+
+
 # ---------------------------------------------------------------------------
 # Registry
 # ---------------------------------------------------------------------------
@@ -766,6 +826,9 @@ TOOL_REGISTRY: Dict[str, Callable] = {
     "run_python": tool_run_python,
     "get_datetime": tool_get_datetime,
     "list_directory": tool_list_directory,
+    "snapshot_state": tool_snapshot_state,
+    "rollback_state": tool_rollback_state,
+    "list_snapshots": tool_list_snapshots,
 }
 
 TOOL_SCHEMAS = {
@@ -899,6 +962,25 @@ TOOL_SCHEMAS = {
         "parameters": {
             "path": {"type": "string", "description": "Directory path.", "default": "."},
         },
+        "required": [],
+    },
+    "snapshot_state": {
+        "description": "Create a compressed snapshot of the current .drift_os state root.",
+        "parameters": {
+            "label": {"type": "string", "description": "A label for the snapshot (e.g., 'before_upgrade')."},
+        },
+        "required": ["label"],
+    },
+    "rollback_state": {
+        "description": "Rollback the .drift_os state root to a previous snapshot.",
+        "parameters": {
+            "snapshot_name": {"type": "string", "description": "The exact name of the snapshot file to restore."},
+        },
+        "required": ["snapshot_name"],
+    },
+    "list_snapshots": {
+        "description": "List available state snapshots.",
+        "parameters": {},
         "required": [],
     },
 }

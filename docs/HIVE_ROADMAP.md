@@ -28,7 +28,7 @@ Shipped in this phase:
 
 ## Phase 2: First Consensus Loop
 
-Status: current target
+Status: shipped
 
 Goals:
 - Turn hive consensus into a usable feature from the main bot.
@@ -42,6 +42,23 @@ Capability:
   - casts votes
   - resolves to adopted, tabled, or needs more data
   - stores the thread outcome in hive memory
+
+## Phase 5: Elysium — Persistent Distributed Frontal Lobe
+
+Status: shipped — 2026-05-17
+
+Goals:
+- Transform the Hive into a true persistent distributed frontal lobe.
+- Give DRIFT an explicit self-model (Nexus) that learns from every decision.
+- Make Council members persistent identities with memory views and energy.
+
+Shipped:
+- `core/hive/elysium.py` — Nexus Loop engine
+- `core/hive/nexus.py` — persistent self-model (goals, moral stance, narrative arc, tensions)
+- `core/hive/council_member.py` — 7 persistent voices with fractal memory filters
+- Commands: `/hive nexus decide <goal>`, `/hive reflect`, `/hive council status`
+- Background reflection wired into consciousness loop
+- Health check for Elysium coherence
 
 ## Phase 3: Memory Integrity Layer
 

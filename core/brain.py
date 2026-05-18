@@ -23,15 +23,15 @@ if new_genai is None:
         legacy_genai = None
 
 
-from infj_bot.core.config import API_KEY, DRIFT_PRIMARY_MODEL, DRIFT_CRITIC_MODEL, DRIFT_USE_LOCAL_FALLBACK
+from infj_bot.core.config import API_KEY, DRIFT_PRIMARY_MODEL, DRIFT_CRITIC_MODEL, DRIFT_USE_LOCAL_FALLBACK, GROQ_API_KEY, DRIFT_GROQ_MODEL, DRIFT_USE_GROQ
 from infj_bot.core.local_llm import OllamaBridge
 from infj_bot.core.plugins.self_eval import SelfEvaluator
 from infj_bot.core.tools import build_tool_prompt, extract_tool_calls, execute_tool_call
 
-if not API_KEY:
+if not API_KEY and not GROQ_API_KEY:
     print(
-        "Warning: API_KEY not found. Set API_KEY in a .env file or export it in your environment. "
-        "Bot functionality will be limited without a valid API key."
+        "Warning: No API keys found (Gemini or Groq). Set them in a .env file. "
+        "Bot functionality will be limited to local models."
     )
 
 
@@ -137,14 +137,69 @@ class DriftBrain:
             if text:
                 yield text
 
+    def _generate_groq(self, system_instruction, prompt, stream=False):
+        """High-speed Groq LPU inference (OpenAI compatible)."""
+        import requests
+        import json
+        
+        headers = {
+            "Authorization": f"Bearer {GROQ_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        
+        payload = {
+            "model": DRIFT_GROQ_MODEL,
+            "messages": [
+                {"role": "system", "content": system_instruction},
+                {"role": "user", "content": prompt}
+            ],
+            "stream": stream
+        }
+        
+        try:
+            response = requests.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers=headers,
+                json=payload,
+                stream=stream,
+                timeout=30
+            )
+            response.raise_for_status()
+            
+            if stream:
+                for line in response.iter_lines():
+                    if line:
+                        line_str = line.decode('utf-8').replace('data: ', '')
+                        if line_str == '[DONE]':
+                            break
+                        try:
+                            data = json.loads(line_str)
+                            chunk = data['choices'][0]['delta'].get('content', '')
+                            if chunk:
+                                yield chunk
+                        except:
+                            continue
+            else:
+                data = response.json()
+                return data['choices'][0]['message']['content']
+        except Exception as e:
+            print(f"Groq error: {e}")
+            return None
+
     def _generate_local(self, system_instruction, prompt):
         return self.local_bridge.generate(prompt=prompt, system=system_instruction)
 
     def _generate(self, model_name, system_instruction, prompt):
+        # Prioritize Groq if enabled and key exists
+        if DRIFT_USE_GROQ and GROQ_API_KEY:
+            res = self._generate_groq(system_instruction, prompt)
+            if res:
+                return res
+
         if not API_KEY:
             if self._use_local_fallback and self.local_bridge.is_available():
                 return self._generate_local(system_instruction, prompt)
-            raise RuntimeError("Missing API_KEY, GEMINI_API_KEY, or GOOGLE_API_KEY.")
+            raise RuntimeError("Missing API_KEY or GROQ_API_KEY.")
         last_exc = None
         for attempt in range(3):
             try:
@@ -165,11 +220,20 @@ class DriftBrain:
         yield from self.local_bridge.generate_stream(prompt=prompt, system=system_instruction)
 
     def _generate_stream(self, model_name, system_instruction, prompt):
+        # Prioritize Groq if enabled and key exists
+        if DRIFT_USE_GROQ and GROQ_API_KEY:
+            has_yielded = False
+            for chunk in self._generate_groq(system_instruction, prompt, stream=True):
+                has_yielded = True
+                yield chunk
+            if has_yielded:
+                return
+
         if not API_KEY:
             if self._use_local_fallback and self.local_bridge.is_available():
                 yield from self._generate_local_stream(system_instruction, prompt)
                 return
-            raise RuntimeError("Missing API_KEY, GEMINI_API_KEY, or GOOGLE_API_KEY.")
+            raise RuntimeError("Missing API_KEY or GROQ_API_KEY.")
         last_exc = None
         for attempt in range(3):
             try:

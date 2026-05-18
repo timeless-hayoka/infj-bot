@@ -7,7 +7,7 @@ from infj_bot.core.config import HISTORY_PATH
 
 class ChatHistory:
     def __init__(self, path=None):
-        self.path = Path(path) if path else Path(HISTORY_PATH)
+        self.path = Path(path) if path else HISTORY_PATH
 
     def append(self, user_input, bot_output, mode, emotion, dissonance=None):
         record = {
@@ -18,7 +18,7 @@ class ChatHistory:
             "user": user_input,
             "bot": bot_output,
         }
-        with self.path.open("a", encoding="utf-8") as handle:
+        with Path(self.path).open("a", encoding="utf-8") as handle:
             handle.write(json.dumps(record, ensure_ascii=True) + "\n")
 
     def recent(self, limit=20):

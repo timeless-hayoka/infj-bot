@@ -68,9 +68,13 @@ class ProactiveState:
         return None
 
     def next_wait_seconds(self) -> int:
-        """Dynamic wait based on recent activity."""
+        """Dynamic wait based on recent activity.
+
+        STRONG CONTINUOUS MODE: background cycles fire every 15–30 seconds
+        so the bot maintains an ongoing inner life even when idle.
+        """
         if self.last_stress_level > 0.7:
-            return random.randint(180, 400)  # 3-7 min
+            return random.randint(15, 25)  # faster when stressed
         if self.last_dissonance_score > 0.5:
-            return random.randint(300, 600)  # 5-10 min
-        return random.randint(600, 1200)  # 10-20 min
+            return random.randint(20, 30)  # faster when dissonant
+        return random.randint(15, 30)  # 15-30 s default — continuous thought

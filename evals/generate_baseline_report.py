@@ -74,9 +74,9 @@ def load_shadow_state() -> Tuple[int, int]:
 
 
 def load_memory_stats(logs: List[Dict]) -> Dict:
-    from memory import InfjMemory
+    from memory import DriftMemory
 
-    m = InfjMemory()
+    m = DriftMemory()
     return {
         "total_memories": m.count(),
         "interaction_count": len(logs),
@@ -471,10 +471,10 @@ class RealModeDiscriminator:
         try:
             from prompt_builder import build_chat_prompt
             from commands import BotState
-            from memory import InfjMemory
+            from memory import DriftMemory
 
             state = BotState()
-            mem = InfjMemory()
+            mem = DriftMemory()
             modes = [
                 "companion",
                 "researcher",

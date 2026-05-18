@@ -10,17 +10,17 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from brain import DriftBrain
-from commands import BotState, handle_command
-from config import DEFAULT_AUTHORIZED_TARGETS
-from documents import DocumentStore
-from goals import GoalsDB
-from growth import growth_profile
-from history import ChatHistory
-from memory import DriftMemory
-from prompt_builder import build_chat_prompt
-from tools import format_tool_inventory
-from cognitive_orchestrator import CognitiveOrchestrator
+from infj_bot.core.brain import DriftBrain
+from infj_bot.core.commands import BotState, handle_command
+from infj_bot.core.config import DEFAULT_AUTHORIZED_TARGETS
+from infj_bot.core.plugins.documents import DocumentStore
+from infj_bot.core.plugins.goals import GoalsDB
+from infj_bot.core.plugins.growth import growth_profile
+from infj_bot.core.history import ChatHistory
+from infj_bot.core.memory import DriftMemory
+from infj_bot.core.prompt_builder import build_chat_prompt
+from infj_bot.core.tools import format_tool_inventory
+from infj_bot.core.cognitive_orchestrator import CognitiveOrchestrator
 from infj_bot.core.phi_council import COUNCIL_MAPPING
 
 brain = DriftBrain()
@@ -440,14 +440,17 @@ async def api_tools():
 async def api_phi():
     from infj_bot.core.being import get_being
     from infj_bot.core.homeostasis import get_homeostasis
+    from infj_bot.core.iit_consciousness import IITConsciousness
     from infj_bot.adapters.cognition_adapter import adapter as cog_adapter
     
     being = get_being()
     homeo = get_homeostasis()
+    iit = IITConsciousness()
     
     return {
         "company": "PHI",
         "model": "Drift",
+        "phi": iit.state.phi,
         "council": COUNCIL_MAPPING,
         "subjective": being.state.to_dict() if hasattr(being, "state") else {},
         "needs": homeo.get_all_needs() if hasattr(homeo, "get_all_needs") else {},

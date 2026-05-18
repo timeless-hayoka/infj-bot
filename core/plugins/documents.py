@@ -8,7 +8,7 @@ from typing import List, Optional
 import chromadb
 
 from infj_bot.core.config import PROJECT_ROOT, DATA_DIR
-from embeddings import get_default_embedding_function, LocalEmbeddingFunction
+from infj_bot.core.embeddings import get_default_embedding_function, LocalEmbeddingFunction
 
 SUPPORTED_TEXT = {".txt", ".md", ".py", ".js", ".ts", ".jsx", ".tsx", ".json", ".yaml", ".yml", ".csv", ".sh", ".html", ".css", ".rs", ".go", ".java", ".c", ".cpp", ".h"}
 MAX_INGEST_FILE_BYTES = 2_000_000

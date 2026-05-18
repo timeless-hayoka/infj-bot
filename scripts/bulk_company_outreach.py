@@ -2,7 +2,7 @@
 """
 Bulk-generate personalized company outreach drafts from AI_COMPANY_OUTREACH.md.
 
-Uses Gemini once per run (reuse one InfjBrain), or `--offline` for instant
+Uses Gemini once per run (reuse one DriftBrain), or `--offline` for instant
 deterministic drafts with no API. Writes Markdown + CSV manifest.
 
 Does NOT send email — human review required.
@@ -342,7 +342,7 @@ def main() -> int:
     model_name = None
     if not args.offline:
         from config import API_KEY
-        from brain import INFJ_PRIMARY_MODEL, InfjBrain
+        from brain import INFJ_PRIMARY_MODEL, DriftBrain
 
         if not API_KEY:
             print(
@@ -364,7 +364,7 @@ def main() -> int:
             "Starting model client… (first start can sit quietly 15–45s loading SDK / keys)",
             flush=True,
         )
-        brain = InfjBrain()
+        brain = DriftBrain()
         model_name = INFJ_PRIMARY_MODEL
         print("Ready — generating files.", flush=True)
     else:

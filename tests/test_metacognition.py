@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from metacognition import MetacognitionEngine
+from infj_bot.core.metacognition import MetacognitionEngine
 
 
 @pytest.fixture

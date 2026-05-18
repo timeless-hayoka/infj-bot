@@ -15,7 +15,7 @@ from dotenv import load_dotenv
 import os
 load_dotenv()
 assert os.getenv("API_KEY"), "API_KEY missing"
-from memory import InfjMemory
-m = InfjMemory()
+from memory import DriftMemory
+m = DriftMemory()
 print(f"memory_count={m.collection.count()}")
 PY

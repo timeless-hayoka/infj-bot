@@ -385,16 +385,11 @@ class CognitiveArchitecture:
 
     def assemble_prompt_sections(self) -> Dict[str, List[str]]:
         """Assemble prompt snippets from all enabled plugins."""
-        from infj_bot.core.phi_council import get_council_name
         sections: Dict[str, List[str]] = {"core": [], "cognitive": [], "analysis": [], "context": []}
         for plugin in self.get_prompt_plugins():
             snippet = plugin.format_prompt()
             if snippet:
                 section = plugin.prompt_section if plugin.prompt_section in sections else "cognitive"
-                council_name = get_council_name(plugin.name)
-                # Label the snippet with the Council member name if it differs
-                if council_name != plugin.name:
-                    snippet = f"[{council_name}] {snippet}"
                 sections[section].append(snippet)
         return sections
 

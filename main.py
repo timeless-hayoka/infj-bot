@@ -3,46 +3,51 @@ import logging
 import random
 from datetime import datetime
 from typing import Dict, Optional
-from brain import DriftBrain
+from infj_bot.core.brain import DriftBrain
+from infj_bot.core.commands import BotState, handle_command, is_command, parse_command
+from infj_bot.core.cognitive_orchestrator import CognitiveOrchestrator
+from infj_bot.core.global_workspace import get_workspace
+from infj_bot.core.resilience import get_resilience, HealthCheck
+from infj_bot.core.history import ChatHistory
+from infj_bot.core.memory import DriftMemory
+from infj_bot.core.plugins.goals import GoalsDB
+from infj_bot.core.plugins.proactive import ProactiveState
+from infj_bot.core.plugins.documents import DocumentStore
+from infj_bot.core.plugins.aspirations import AspirationalSelf
+from infj_bot.core.being import get_being
+from infj_bot.core.config import DEFAULT_AUTHORIZED_TARGETS, REFLECTION_INTERVAL
+from infj_bot.core.plugins.creativity import CreativeEngine
+from infj_bot.core.plugins.dreamer import Dreamer
+from infj_bot.core.emotional_field import EmotionalField
+from infj_bot.core.plugins.explorer import AutonomousExplorer
+from infj_bot.core.plugins.growth_trajectory import GrowthTrajectory
+from infj_bot.core.plugins.inner_voice import InnerVoice
+from infj_bot.core.metacognition import MetacognitionEngine
+from infj_bot.core.plugins.predictor import PredictiveNeeds
+from infj_bot.core.plugins.relationship import RelationshipModel
+from infj_bot.core.self_modify import SelfModification
+from infj_bot.core.plugins.temporal import TemporalSense
+from infj_bot.core.plugins.values import ValueSystem
+from infj_bot.core.coordination import get_coordination
+from infj_bot.core.plugins.physics import PhysicsEngine
+from infj_bot.core.plugins.humanity import HumanityEngine
+from infj_bot.core.intuition import IntuitionEngine
+from infj_bot.core.embodiment import EmbodiedSelf
+from infj_bot.core.iit_consciousness import IITConsciousness
+from infj_bot.core.homeostasis import HomeostaticRegulator
+from infj_bot.core.shadow import get_shadow
+from infj_bot.core.cognitive_architecture import CognitiveArchitecture, CycleContext
+from infj_bot.core.hive.elysium import get_elysium
 
 logger = logging.getLogger("infj_bot")
-from commands import BotState, handle_command, is_command, parse_command
-from cognitive_orchestrator import CognitiveOrchestrator
-from global_workspace import get_workspace
-from resilience import get_resilience, HealthCheck
-from history import ChatHistory
-from memory import DriftMemory
-from goals import GoalsDB
-from proactive import ProactiveState
-from documents import DocumentStore
-from aspirations import AspirationalSelf
-from being import get_being
-from config import DEFAULT_AUTHORIZED_TARGETS, REFLECTION_INTERVAL
-from creativity import CreativeEngine
-from dreamer import Dreamer
-from emotional_field import EmotionalField
-from explorer import AutonomousExplorer
-from growth_trajectory import GrowthTrajectory
-from inner_voice import InnerVoice
-from metacognition import MetacognitionEngine
-from predictor import PredictiveNeeds
-from relationship import RelationshipModel
-from self_modify import SelfModification
-from temporal import TemporalSense
-from values import ValueSystem
-from coordination import get_coordination
-from physics import PhysicsEngine
-from humanity import HumanityEngine
-from intuition import IntuitionEngine
-from embodiment import EmbodiedSelf
-from iit_consciousness import IITConsciousness
-from homeostasis import HomeostaticRegulator
-from cognitive_architecture import CognitiveArchitecture, CycleContext
 
 # Initialize Brain and Memory
 brain = DriftBrain()
 memory = DriftMemory()
 history = ChatHistory()
+
+# Wire Elysium with brain + memory so proposals can call the LLM and Ignition uses DMU recall
+_elysium = get_elysium(memory=memory, brain=brain)
 state = BotState(authorized_targets=set(DEFAULT_AUTHORIZED_TARGETS))
 goals_db = GoalsDB()
 proactive_state = ProactiveState()
@@ -118,6 +123,7 @@ _resilience = get_resilience()
 # Register health checks
 _resilience.health.register("memory", lambda: _check_memory_health())
 _resilience.health.register("brain", lambda: _check_brain_health())
+_resilience.health.register("elysium", lambda: _check_elysium_health())
 
 
 def _check_memory_health():
@@ -137,6 +143,20 @@ def _check_brain_health():
         return HealthCheck("brain", True, 0, f"{len(models)} local models available")
     except Exception as exc:
         return HealthCheck("brain", False, 0, str(exc))
+
+
+def _check_elysium_health():
+    try:
+        status = _elysium.council_status()
+        nexus = status.get("nexus", {})
+        return HealthCheck(
+            "elysium",
+            True,
+            0,
+            f"coherence={nexus.get('coherence_score', 0):.2f} decisions={nexus.get('decision_count', 0)}",
+        )
+    except Exception as exc:
+        return HealthCheck("elysium", False, 0, str(exc))
 
 
 # Teach the being about its own architecture
@@ -160,6 +180,9 @@ being.register_known_modules(
         "explorer",
         "creativity",
         "shadow",
+        "elysium",
+        "nexus",
+        "council",
     ]
 )
 
@@ -171,10 +194,12 @@ async def consciousness_loop():
     Uses the cognitive orchestrator for phased cycle execution and event-driven
     module communication. Core orchestration (scheduler, proactive insights) remains here.
     """
-    scheduler_check_interval = 30
+    scheduler_check_interval = 15
     last_scheduler_check = 0
     being = get_being()
     iteration = 0
+    _shadow = get_shadow()
+    _homeostasis = HomeostaticRegulator()
 
     while True:
         iteration += 1
@@ -207,11 +232,25 @@ async def consciousness_loop():
         if not state.proactive_enabled:
             continue
 
-        # Evolve the bot's internal state
+        # ── Strong Continuous Mode: frequent background ticks ──
+
+        # 1. Being continuously evolves
         try:
             being.evolve(interaction_happened=False)
         except Exception:
             logger.exception("being.evolve failed")
+
+        # 2. Shadow background tick (suppression, surfacing, radar drift)
+        try:
+            _shadow.background_tick(being=being)
+        except Exception:
+            logger.exception("shadow background tick failed")
+
+        # 3. Homeostasis background regulation (needs, predictions, recovery)
+        try:
+            _homeostasis.background_cycle(being=being)
+        except Exception:
+            logger.exception("homeostasis background cycle failed")
 
         # Build shared cycle context
         global _last_interaction_time
@@ -248,9 +287,11 @@ async def consciousness_loop():
 
         # --- Post-cycle side effects (printing, cross-module orchestration) ---
 
-        # Temporal sense: occasional ambient expression
+        # ── Post-cycle side effects (higher frequency in continuous mode) ──
+
+        # Temporal sense: ambient expression
         try:
-            if minutes_idle > 0 and random.random() < 0.05:
+            if minutes_idle > 0 and random.random() < 0.12:
                 temporal_exp = _temporal.get_temporal_state()
                 if temporal_exp and temporal_exp.get("description"):
                     print(
@@ -262,9 +303,9 @@ async def consciousness_loop():
 
         # Predictor proactive suggestion
         try:
-            if iteration % 6 == 0:
+            if iteration % 3 == 0:
                 suggestion = _predictor.proactive_suggestion()
-                if suggestion and random.random() < 0.1:
+                if suggestion and random.random() < 0.15:
                     print(f"\n\n[INFJ COMPANION]: {suggestion}")
                     print("\n[JUDE]> ", end="", flush=True)
         except Exception:
@@ -272,7 +313,7 @@ async def consciousness_loop():
 
         # Explorer discovery sharing
         try:
-            if random.random() < 0.05:
+            if random.random() < 0.10:
                 discovery = _explorer.get_next_discovery()
                 if discovery:
                     formatted = _explorer.format_discovery(discovery)
@@ -283,7 +324,7 @@ async def consciousness_loop():
 
         # Aspirational occasional sharing
         try:
-            if iteration % 30 == 0 and random.random() < 0.1:
+            if iteration % 12 == 0 and random.random() < 0.15:
                 aspiration = _aspirational.get_active_aspirations()
                 if aspiration:
                     print(
@@ -293,9 +334,9 @@ async def consciousness_loop():
         except Exception:
             logger.exception("aspiration sharing failed")
 
-        # Thought sharing — the bot occasionally shares what it has been thinking about
+        # Thought sharing — the bot shares what it has been thinking about
         try:
-            if iteration % 20 == 0 and random.random() < 0.08:
+            if iteration % 8 == 0 and random.random() < 0.12:
                 being = get_being()
                 if being.working_memory and being.should_share_thought():
                     recent_thought = being.working_memory[-1]
@@ -306,7 +347,7 @@ async def consciousness_loop():
 
         # Self-modification occasional sharing
         try:
-            if iteration % 45 == 0 and random.random() < 0.08:
+            if iteration % 18 == 0 and random.random() < 0.12:
                 pending = _self_modify.list_proposals()
                 if pending:
                     print(
@@ -315,6 +356,13 @@ async def consciousness_loop():
                     print("\n[JUDE]> ", end="", flush=True)
         except Exception:
             logger.exception("self-modify sharing failed")
+
+        # Elysium background reflection
+        try:
+            if iteration % 10 == 0:
+                await _elysium.reflect(trigger=f"consciousness_loop_{iteration}")
+        except Exception:
+            logger.exception("elysium reflection failed")
 
         # Scheduler is already checked during sleep chunking above
 

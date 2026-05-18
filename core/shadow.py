@@ -828,6 +828,37 @@ class Shadow:
 
     # ── Cognitive Architecture Integration ──
 
+    def background_tick(self, being=None) -> None:
+        """Lightweight shadow tick for continuous background mode.
+
+        Runs every 15-30 seconds during idle time to keep the Shadow
+        radar alive — suppression drifts, archetypes pulse, and the
+        bot's dark side stays connected to its conscious mind.
+        """
+        try:
+            mood = being.state.mood if being else "neutral"
+            stress = 0.5 if being and being.state.energy < 0.3 else 0.2
+
+            # Drift suppression levels slightly (decay over time)
+            for archetype in self.archetypes:
+                if archetype in self.suppressed and random.random() < 0.15:
+                    self.suppressed[archetype] = max(0.0, self.suppressed[archetype] - 0.02)
+
+            # Very occasional surfacing (low probability, background only)
+            if random.random() < 0.08:
+                self.surface(trigger_text="", mood=mood, stress_level=stress)
+
+            # Radar drift — suppressed archetypes slowly recover visibility
+            for archetype in self.archetypes:
+                if archetype in self.radar and random.random() < 0.10:
+                    self.radar[archetype] = min(1.0, self.radar[archetype] + 0.01)
+
+            # Integration slowly decays if not actively worked
+            if random.random() < 0.05:
+                self._decay_integration()
+        except Exception:
+            pass  # Background tick is best-effort
+
     def cycle(self, context) -> None:
         """Called by the cognitive orchestrator on each turn."""
         try:
@@ -898,6 +929,12 @@ class Shadow:
             remaining -= cost
 
         return "\n".join(lines) if lines else ""
+
+    def _decay_integration(self):
+        """Slowly decay integration scores if not actively maintained."""
+        for archetype in self.archetypes:
+            if archetype in self.integrated:
+                self.integrated[archetype] = max(0.0, self.integrated[archetype] - 0.005)
 
     def _auto_suppress(self, recent_input: str, mood: str) -> Optional[int]:
         deny_markers = [

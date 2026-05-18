@@ -8,17 +8,15 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
-from emotion import detect_emotion, emotion_prompt_hint
-from cognition import detect_dissonance, dissonance_prompt_hint, map_dissonance
-from commands import is_command, parse_command, handle_command, MODES, BotState
-from guardrails import cyber_context_hint, mode_scope_rail
-from memory import LocalEmbeddingFunction, DriftMemory
-from growth import growth_profile
-from proactive import ProactiveState
-from documents import DocumentStore, _chunk_text, format_doc_results
-from tools import (
+from infj_bot.core.plugins.emotion import detect_emotion, emotion_prompt_hint
+from infj_bot.core.cognition import detect_dissonance, dissonance_prompt_hint, map_dissonance
+from infj_bot.core.commands import is_command, parse_command, handle_command, MODES, BotState
+from infj_bot.core.guardrails import cyber_context_hint, mode_scope_rail
+from infj_bot.core.memory import LocalEmbeddingFunction, DriftMemory
+from infj_bot.core.plugins.growth import growth_profile
+from infj_bot.core.plugins.proactive import ProactiveState
+from infj_bot.core.plugins.documents import DocumentStore, _chunk_text, format_doc_results
+from infj_bot.core.tools import (
     tool_get_datetime,
     tool_read_file,
     tool_write_file,
@@ -33,8 +31,8 @@ from tools import (
     build_tool_prompt,
     recent_tool_audit,
 )
-from config import PROJECT_ROOT
-from goals import GoalsDB, init_db, DB_PATH
+from infj_bot.core.config import PROJECT_ROOT
+from infj_bot.core.plugins.goals import GoalsDB, init_db, DB_PATH
 
 
 class TestEmotion(unittest.TestCase):
@@ -208,11 +206,29 @@ class TestMemory(unittest.TestCase):
             with self.assertRaises(ValueError):
                 memory.import_json(str(bad_path))
 
-    def test_prune(self):
+    @unittest.mock.patch("infj_bot.core.unified_memory.datetime")
+    @unittest.mock.patch("infj_bot.core.memory.datetime")
+    def test_prune(self, mock_memory_datetime, mock_unified_datetime):
+        # We mock unified_memory.datetime and memory.datetime so that when prune is called,
+        # it thinks it is far in the future, thus Ebbinghaus decays the memory to 0.
+        import datetime
+        mock_unified_datetime.datetime.now.return_value = datetime.datetime.now()
+        mock_unified_datetime.datetime.fromisoformat = datetime.datetime.fromisoformat
+        
+        mock_memory_datetime.datetime.now.return_value = datetime.datetime.now()
+        mock_memory_datetime.datetime.fromisoformat = datetime.datetime.fromisoformat
+        mock_memory_datetime.timedelta = datetime.timedelta
+        
         with tempfile.TemporaryDirectory() as tmp:
             memory = DriftMemory(persist_directory=tmp)
             memory.save_interaction("hello", "hi", importance=0.2)
             count_before = memory.count()
+            
+            # Fast forward 10 years
+            future = datetime.datetime.now() + datetime.timedelta(days=3650)
+            mock_unified_datetime.datetime.now.return_value = future
+            mock_memory_datetime.datetime.now.return_value = future
+            
             removed = memory.prune_interactions(max_age_days=0, max_importance=0.4)
             self.assertEqual(removed, 1)
             self.assertEqual(memory.count(), count_before - 1)
@@ -232,23 +248,34 @@ class TestTools(unittest.TestCase):
         self._orig_cold_storage_dir = None
         self._orig_tool_audit_path = None
         import tools
+        import infj_bot.core.tools as core_tools
 
-        self._orig_safe_home = tools.SAFE_HOME
-        self._orig_cold_storage_dir = tools.COLD_STORAGE_DIR
-        self._orig_tool_audit_path = tools.TOOL_AUDIT_PATH
+        self._orig_safe_home = core_tools.SAFE_HOME
+        self._orig_cold_storage_dir = core_tools.COLD_STORAGE_DIR
+        self._orig_tool_audit_path = core_tools.TOOL_AUDIT_PATH
         self.tmp_home = Path(tempfile.mkdtemp())
-        tools.SAFE_HOME = self.tmp_home
-        tools.COLD_STORAGE_DIR = self.tmp_home / "BLKKNIGHT_RECOVERY"
-        tools.TOOL_AUDIT_PATH = self.tmp_home / "tool_audit.jsonl"
+        
+        core_tools.SAFE_HOME = self.tmp_home
+        core_tools.COLD_STORAGE_DIR = self.tmp_home / "BLKKNIGHT_RECOVERY"
+        core_tools.TOOL_AUDIT_PATH = self.tmp_home / "tool_audit.jsonl"
+        
+        # Sync facade
+        tools.SAFE_HOME = core_tools.SAFE_HOME
+        tools.COLD_STORAGE_DIR = core_tools.COLD_STORAGE_DIR
+        tools.TOOL_AUDIT_PATH = core_tools.TOOL_AUDIT_PATH
 
     def tearDown(self):
         import tools
+        import infj_bot.core.tools as core_tools
 
         if self._orig_safe_home is not None:
+            core_tools.SAFE_HOME = self._orig_safe_home
             tools.SAFE_HOME = self._orig_safe_home
         if self._orig_cold_storage_dir is not None:
+            core_tools.COLD_STORAGE_DIR = self._orig_cold_storage_dir
             tools.COLD_STORAGE_DIR = self._orig_cold_storage_dir
         if self._orig_tool_audit_path is not None:
+            core_tools.TOOL_AUDIT_PATH = self._orig_tool_audit_path
             tools.TOOL_AUDIT_PATH = self._orig_tool_audit_path
         import shutil
 
@@ -344,16 +371,14 @@ class TestGoals(unittest.TestCase):
     def setUp(self):
         # Point DB to a temp file for isolation
         self.tmp_db = Path(tempfile.mkdtemp()) / "goals_test.db"
-        self._orig_path = DB_PATH
-        import goals
-
-        goals.DB_PATH = self.tmp_db
-        init_db()
+        from infj_bot.core.plugins import goals as core_goals
+        self._orig_path = core_goals.DB_PATH
+        core_goals.DB_PATH = self.tmp_db
+        core_goals.init_db()
 
     def tearDown(self):
-        import goals
-
-        goals.DB_PATH = self._orig_path
+        from infj_bot.core.plugins import goals as core_goals
+        core_goals.DB_PATH = self._orig_path
         if self.tmp_db.exists():
             self.tmp_db.unlink()
 
@@ -401,6 +426,10 @@ class TestGrowth(unittest.TestCase):
 
 
 class TestProactive(unittest.TestCase):
+    def setUp(self):
+        import random
+        random.seed(42)
+
     def test_stress_trigger(self):
         p = ProactiveState()
         p.record_interaction(
@@ -489,7 +518,7 @@ class TestDocuments(unittest.TestCase):
 class TestHistory(unittest.TestCase):
     def test_export_and_import(self):
         import tempfile
-        from history import ChatHistory
+        from infj_bot.core.history import ChatHistory
 
         with tempfile.TemporaryDirectory() as tmp:
             hist = ChatHistory(path=Path(tmp) / "hist.jsonl")
@@ -507,7 +536,7 @@ class TestHistory(unittest.TestCase):
 
     def test_import_skips_bad_lines(self):
         import tempfile
-        from history import ChatHistory
+        from infj_bot.core.history import ChatHistory
 
         with tempfile.TemporaryDirectory() as tmp:
             bad_file = Path(tmp) / "bad.jsonl"

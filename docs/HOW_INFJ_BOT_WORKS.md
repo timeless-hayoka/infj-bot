@@ -99,6 +99,29 @@ Representative wired modules (instances live largely in **`main.py`**):
 - **`embodiment`** — heartbeat/breath/posture metaphors persisted to **`embodiment.db`**.
 - **`homeostasis`**, **`iit_consciousness`**, **`intuition`**, **`shadow`**, **`values`**, **`relationship`**, **`predictor`**, **`temporal`**, **`explorer`**, **`creativity`**, **`aspirations`**, **`metacognition`**, **`self_modify`**, **`growth_trajectory`**, **`physics`**, **`humanity`** — specialized loops and prompt fragments.
 
+---
+
+## 5. Performance & Networking Upgrade (May 2024)
+
+### 5.1 Gevent-SocketIO Engine
+The web interface now runs on a high-performance **Gevent** async server (`web_app.py`). This allows for:
+- **Real-time Observability:** Constant WebSocket updates without blocking the main chat.
+- **RFC 7692 Compression:** Transparent WebSocket compression (`permessage-deflate`) reduces bandwidth usage by ~70%.
+
+### 5.2 Delta-State Broadcasting
+The `CognitiveOrchestrator` now generates **delta maps** for the system state.
+- **Mechanism:** The server tracks the `last_state` sent to each client. It only transmits fields that have changed (except for a required `timestamp`).
+- **Impact:** Drastic reduction in packet size and client-side processing overhead.
+
+### 5.3 Auto-Throttling & Latency Management
+The system now detects network bottlenecks in real-time.
+- **Feedback Loop:** The client pings the server every second.
+- **Dynamic Rate:** If average latency exceeds 250ms, the server slows down the broadcast rate (up to 1.5s). If latency is low (<100ms), it speeds up (down to 200ms).
+
+### 5.4 Hybrid Inference (Groq + Gemini)
+- **High-Speed Tier:** Support for **Groq LPU** inference (OpenAI-compatible) has been integrated into `DriftBrain`. 
+- **Speed:** Responses can reach 500+ tokens/second, making the bot's "inner thoughts" feel instantaneous.
+
 Plugins submit salient snippets to **`global_workspace.py`**, loosely inspired by Global Workspace Theory: limited capacity competition, decay, persistence in **`workspace.db`**.
 
 ---

@@ -19,7 +19,7 @@ from infj_bot.core.config import DATA_DIR, SQLITE_DIR
 # Hive Mind imports
 try:
     from infj_bot.hive_mind.consensus_engine import ConsensusEngine
-    from infj_bot.hive_mind.protocol.dcp import DCPMessage, MessageType
+    from infj_bot.hive_mind.protocol.dcp import DCPMessage, MessageType, NodeRole
     HAS_HIVE = True
 except ImportError:
     HAS_HIVE = False
@@ -48,33 +48,33 @@ class Coordination:
         self._sync_self_modification_proposals()
         
         # Check for active consensus threads that need resolution
-        active_threads = self.consensus.list_active_threads()
-        for thread in active_threads:
-            # Phase 5: Check for resolutions to apply
-            if thread.status == "RESOLVED":
+        # We check ALL threads because resolved ones need their results applied locally
+        for thread in self.consensus._threads.values():
+            if thread.state.name == "RESOLVED":
                 self._apply_hive_resolution(thread)
 
     def _apply_hive_resolution(self, thread):
         """Sync Hive consensus result back to local state."""
-        content = thread.proposal.content
-        if content.get("action") == "self_modify" and "plan_id" in content:
-            plan_id = content["plan_id"]
-            resolution = thread.resolution.value if hasattr(thread.resolution, "value") else str(thread.resolution)
+        # Use resolution payload
+        content = thread.resolution.payload
+        if "proposal_id" in content:
+            proposal_id = content["proposal_id"]
             
-            new_status = "approved" if resolution == "APPROVED" else "rejected"
+            # Resolution can be ADOPTED or TABLED/REJECTED
+            new_status = "approved" if thread.resolution.name == "ADOPTED" else "rejected"
             
             try:
                 with sqlite3.connect(SELF_MODIFY_DB) as conn:
                     conn.execute(
-                        "UPDATE improvement_plans SET status = ? WHERE plan_id = ? AND status = 'proposed'",
-                        (new_status, plan_id)
+                        "UPDATE self_modify_proposals SET status = ?, reviewed_at = ? WHERE id = ? AND status = 'pending'",
+                        (new_status, datetime.now().isoformat(), proposal_id)
                     )
-                logger.info(f"Hive consensus resolved self-mod {plan_id} as {new_status}")
+                logger.info(f"Hive consensus resolved proposal {proposal_id} as {new_status}")
             except Exception as e:
-                logger.error(f"Failed to apply Hive resolution for {plan_id}: {e}")
+                logger.error(f"Failed to apply Hive resolution for {proposal_id}: {e}")
 
     def _sync_self_modification_proposals(self):
-        """Find proposed self-mods and push to Hive if not already there."""
+        """Find pending self-modify proposals and push to Hive if not already there."""
         if not SELF_MODIFY_DB.exists():
             return
             
@@ -82,54 +82,56 @@ class Coordination:
             with sqlite3.connect(SELF_MODIFY_DB) as conn:
                 conn.row_factory = sqlite3.Row
                 proposals = conn.execute(
-                    "SELECT * FROM improvement_plans WHERE status = 'proposed'"
+                    "SELECT * FROM self_modify_proposals WHERE status = 'pending'"
                 ).fetchall()
                 
             for prop in proposals:
-                plan_id = prop["plan_id"]
+                proposal_id = prop["id"]
                 # Check if Hive already has a thread for this
-                if not self._is_already_in_consensus(plan_id):
+                if not self._is_already_in_consensus(proposal_id):
                     self._propose_to_hive(prop)
         except Exception as e:
             logger.error(f"Coordination failed to sync proposals: {e}")
 
-    def _is_already_in_consensus(self, plan_id: str) -> bool:
-        # Check shared memory or active threads for the plan_id
-        for thread_id, thread in self.consensus.threads.items():
-            if thread.proposal.content.get("plan_id") == plan_id:
+    def _is_already_in_consensus(self, proposal_id: int) -> bool:
+        # Check active threads for the proposal_id in metadata
+        for thread in self.consensus._threads.values():
+            if thread.original_thought and thread.original_thought.payload.get("proposal_id") == proposal_id:
                 return True
         return False
 
     def _propose_to_hive(self, prop: sqlite3.Row):
-        """Submit a self-modification plan to the Hive for Multi-Role Review."""
-        msg = DCPMessage(
-            type=MessageType.PROPOSAL,
-            source="spark-0", # Canonical ID for the local core
-            content={
-                "action": "self_modify",
-                "plan_id": prop["plan_id"],
-                "area": prop["area"],
-                "description": prop["description"],
-                "steps": json.loads(prop["implementation_steps"]),
-                "validation": json.loads(prop["validation_criteria"])
-            }
+        """Submit a self-modification proposal to the Hive for Multi-Role Review."""
+        msg = DCPMessage.thought(
+            source_node="spark-0",
+            source_role=NodeRole.PRIMARY,
+            content=f"Self-modification proposal: {prop['description']}",
+            priority=0.8
         )
+        # Add metadata to payload
+        msg.payload.update({
+            "action": "self_modify",
+            "proposal_id": prop["id"],
+            "area": prop["area"],
+            "description": prop["description"],
+            "observed_need": prop["observed_need"]
+        })
         thread = self.consensus.propose(msg)
-        logger.info(f"Submitted self-mod {prop['plan_id']} to Hive consensus. Thread: {thread.thread_id}")
+        logger.info(f"Submitted proposal {prop['id']} to Hive consensus. Thread: {thread.thread_id}")
 
     def format_prompt(self) -> str:
         """Inject hive status and active consensus threads into prompt."""
         if not HAS_HIVE:
             return "The Hive Mind is currently disconnected."
             
-        active_threads = self.consensus.list_active_threads()
+        active_threads = self.consensus.active_threads()
         if not active_threads:
             return "The Hive is silent but watchful. No active consensus threads require my immediate attention."
             
         summary = f"The Hive is debating {len(active_threads)} active proposals:\n"
         for thread in active_threads:
-            content = thread.proposal.content
-            summary += f"- [{thread.status}] {content.get('action')}: {content.get('description')[:50]}...\n"
+            payload = thread.original_thought.payload if thread.original_thought else {}
+            summary += f"- [{thread.state.name}] {payload.get('action', 'thought')}: {payload.get('description', '')[:50]}...\n"
         return summary
 
 def get_coordination():

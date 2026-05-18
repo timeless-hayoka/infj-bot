@@ -39,13 +39,13 @@ def cmd_tui(_args):
 
 
 def cmd_ask(args):
-    from brain import DriftBrain
-    from commands import BotState
-    from history import ChatHistory
-    from memory import DriftMemory
-    from prompt_builder import build_chat_prompt
-    from goals import GoalsDB
-    from documents import DocumentStore
+    from infj_bot.core.brain import DriftBrain
+    from infj_bot.core.commands import BotState
+    from infj_bot.core.history import ChatHistory
+    from infj_bot.core.memory import DriftMemory
+    from infj_bot.core.prompt_builder import build_chat_prompt
+    from infj_bot.core.plugins.goals import GoalsDB
+    from infj_bot.core.plugins.documents import DocumentStore
 
     prompt = " ".join(args.prompt).strip()
     if not prompt:
@@ -54,7 +54,7 @@ def cmd_ask(args):
         )
         return 2
 
-    from config import DEFAULT_AUTHORIZED_TARGETS
+    from infj_bot.core.config import DEFAULT_AUTHORIZED_TARGETS
 
     state = BotState(
         mode=args.mode,

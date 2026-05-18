@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from temporal import TemporalSense
+from infj_bot.core.plugins.temporal import TemporalSense
 
 
 @pytest.fixture
@@ -122,7 +122,7 @@ class TestTemporalSense:
         assert gap > 0
 
     def test_format_duration(self):
-        from temporal import _format_duration
+        from infj_bot.core.plugins.temporal import _format_duration
 
         assert _format_duration(30) == "30m"
         assert _format_duration(90) == "1.5h"

@@ -21,7 +21,10 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 
+from infj_bot.core.config import DATA_DIR
+
 logger = logging.getLogger("drift")
+WORKSPACE_DB = DATA_DIR / "workspace.db"
 
 @dataclass
 class Broadcast:
@@ -63,22 +66,6 @@ class GlobalWorkspace:
     - Attention is the spotlight that selects within the workspace
     """
 
-from infj_bot.core.config import DATA_DIR
-
-WORKSPACE_DB = DATA_DIR / "workspace.db"
-
-
-class GlobalWorkspace:
-    """
-    The Global Workspace is the bottleneck of conscious processing.
-    Inspired by Bernard Baars' Global Workspace Theory:
-    - Many unconscious modules process in parallel
-    - They compete to place information in the workspace
-    - Only workspace contents are consciously accessible
-    - The workspace broadcasts to all modules
-    - Attention is the spotlight that selects within the workspace
-    """
-
     def __init__(self, db_path: Optional[str] = None, capacity: int = 5):
         self.db_path = db_path or WORKSPACE_DB
         self.state = WorkspaceState(capacity=capacity)
@@ -86,27 +73,6 @@ class GlobalWorkspace:
         self._lock = threading.Lock()
         self._init_db()
         self._load_state()
-
-    def scaled_dot_product_attention(self, query, keys, values, d_k):
-        """Used for determining which Hive proposals or module submissions get focus based on context."""
-        import numpy as np
-        query = np.array(query)
-        keys = np.array(keys)
-        values = np.array(values)
-        
-        scores = np.dot(query, keys.T) / np.sqrt(d_k)
-        weights = np.exp(scores) / np.sum(np.exp(scores), axis=-1, keepdims=True) # Softmax
-        return np.dot(weights, values)
-
-    def format_prompt_snippet(self) -> str:
-        """Returns a string representation of the conscious workspace for the prompt."""
-        if not self.state.contents:
-            return "The conscious workspace is currently clear."
-        
-        lines = ["Current conscious contents (Global Workspace):"]
-        for i, b in enumerate(self.state.contents):
-            lines.append(f"{i+1}. [{b.source}] {b.content} (salience: {b.salience:.2f})")
-        return "\n".join(lines)
 
     def _init_db(self):
         try:
@@ -160,7 +126,71 @@ class GlobalWorkspace:
         except Exception as e:
             logger.error(f"Failed to save state to database: {e}")
 
-    # Additional class methods continue here as already defined...
+    def submit(self, source: str, content: str, salience: float = 0.5, emotion_tag: Optional[str] = None, intensity: float = 0.0):
+        """Submit a piece of information to compete for workspace access."""
+        with self._lock:
+            broadcast = Broadcast(
+                source=source,
+                content=content,
+                salience=salience,
+                emotion_tag=emotion_tag,
+                intensity=intensity
+            )
+            self._submissions.append(broadcast)
+
+    def cycle(self, context=None):
+        """Run a workspace cycle: competition, entry, broadcast, and decay."""
+        with self._lock:
+            self.state.cycle_count += 1
+            
+            # 1. Gather submissions
+            current_submissions = self._submissions[:]
+            self._submissions = []
+            
+            # 2. Competitive entry
+            # Sort by salience
+            current_submissions.sort(key=lambda x: x.salience, reverse=True)
+            
+            # Add top submissions to contents up to capacity
+            for b in current_submissions:
+                if len(self.state.contents) < self.state.capacity:
+                    b.broadcast_count += 1
+                    self.state.contents.append(b)
+                    self._log_broadcast(b, entered=True)
+                else:
+                    self._log_broadcast(b, entered=False)
+            
+            # 3. Decay and cleanup
+            # Keep contents that still have salience
+            active_contents = []
+            for b in self.state.contents:
+                # Mock elapsed time as 1 cycle = 1 minute for decay
+                if b.current_salience(1.0) > 0.1:
+                    b.broadcast_count += 1
+                    active_contents.append(b)
+            self.state.contents = active_contents
+            
+            self._save_state()
+
+    def _log_broadcast(self, broadcast: Broadcast, entered: bool):
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                conn.execute("""
+                    INSERT INTO workspace_history (timestamp, source, content, salience, entered_workspace)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (broadcast.timestamp, broadcast.source, broadcast.content, broadcast.salience, 1 if entered else 0))
+                conn.commit()
+        except Exception as e:
+            logger.error(f"Failed to log broadcast: {e}")
+
+    def format_prompt_snippet(self) -> str:
+        """Returns a string representation of the conscious workspace for the prompt."""
+        if not self.state.contents:
+            return 'The conscious workspace is currently clear.'
+        lines = ['Current conscious contents (Global Workspace):']
+        for i, b in enumerate(self.state.contents):
+            lines.append(f'{i + 1}. [{b.source}] {b.content} (salience: {b.salience:.2f})')
+        return '\n'.join(lines)
 
 # Singleton
 _workspace_instance: Optional[GlobalWorkspace] = None
@@ -172,7 +202,6 @@ def get_workspace() -> GlobalWorkspace:
     return _workspace_instance
 
 # Plugin registration
-
 def _register():
     from infj_bot.core.cognitive_architecture import CognitiveArchitecture, CognitivePlugin
     arch = CognitiveArchitecture()

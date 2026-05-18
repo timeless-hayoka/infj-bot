@@ -6,7 +6,11 @@ import hashlib
 import math
 from typing import Any, List
 
+import threading
+
 import numpy as np
+import torch
+torch.set_default_device("cpu")
 from chromadb.api.types import Documents, Embeddings
 
 
@@ -15,12 +19,16 @@ class SemanticEmbeddingFunction:
 
     def __init__(self) -> None:
         self._model = None
+        self._lock = threading.Lock()
 
     def _encoder(self):
-        if self._model is None:
-            from sentence_transformers import SentenceTransformer
+        with self._lock:
+            if self._model is None:
+                from sentence_transformers import SentenceTransformer
 
-            self._model = SentenceTransformer("all-MiniLM-L6-v2")
+                import torch
+                torch.set_default_device("cpu")
+                self._model = SentenceTransformer("all-MiniLM-L6-v2", device="cpu")
         return self._model
 
     @property

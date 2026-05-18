@@ -148,40 +148,91 @@ class IITConsciousness:
 
     # ── Φ Computation ──────────────────────────────────────────────
 
-    def compute_phi(self, active_memory_nodes: float, goal_coherence: float, emotional_resonance: float) -> float:
-        """Formal Phi metric for digital cognition.
-        Phi = (active_memory_nodes * goal_coherence) + emotional_resonance
-        """
-        phi = (active_memory_nodes * goal_coherence) + emotional_resonance
-        self.state.phi = round(min(MAX_PHI_PROXY, phi), 2)
-        return self.state.phi
+    def compute_phi(self, context) -> float:
+        """Compute a proxy for integrated information (Φ).
 
-    def compute_phi_proxy(self, context) -> float:
-        """Compute a proxy for integrated information (Φ) using internal mechanisms.
-        This wraps the formal compute_phi with context-derived metrics.
+        True IIT requires evaluating all bipartitions of a system's mechanism
+        repertoire. We approximate with three factors:
+          1. Activation richness — how many distinct modules are active
+          2. Content integration — diversity of workspace contents
+          3. Cross-information — how much modules reference shared concepts
         """
         # Collect mechanism activations from the cycle context
         mechanisms = self._gather_mechanisms(context)
         if not mechanisms:
-            return self.compute_phi(0.1, 0.1, 0.1)
+            return 0.0
 
         n = len(mechanisms)
-        active_memory_nodes = n / 10.0 # Normalized to 0-1
-        
-        # Goal Coherence from Content integration diversity
+        # Factor 1: Activation richness (more modules = more differentiation)
+        activation_richness = min(1.0, n / 10.0) * 30.0
+
+        # Factor 2: Content integration via workspace (Entropy-based)
         workspace = self._get_workspace_contents()
         if not workspace:
-            goal_coherence = 0.2
+            content_integration = 5.0
         else:
+            # Measure diversity: unique sources, content length variance, and entropy proxy
             sources = set(w.get("source", "unknown") for w in workspace)
-            goal_coherence = len(sources) / max(1, len(workspace))
+            source_diversity = len(sources) / max(1, len(workspace))
+            
+            # Entropy proxy: character frequency distribution richness
+            all_text = " ".join(w.get("content", "") for w in workspace)
+            if all_text:
+                char_counts = {}
+                for char in all_text:
+                    char_counts[char] = char_counts.get(char, 0) + 1
+                entropy = 0
+                for count in char_counts.values():
+                    p = count / len(all_text)
+                    entropy -= p * math.log2(p)
+                normalized_entropy = min(1.0, entropy / 4.5)  # 4.5 bits is decent for English
+            else:
+                normalized_entropy = 0
 
-        # Emotional Resonance from Being state
-        emotional_resonance = 0.3
-        if hasattr(context, "being") and hasattr(context.being, "state"):
-            emotional_resonance = (abs(context.being.state.valence) + context.being.state.arousal) / 2.0
+            avg_length = sum(len(w.get("content", "")) for w in workspace) / len(workspace)
+            length_variance = sum((len(w.get("content", "")) - avg_length) ** 2 for w in workspace) / len(workspace)
+            normalized_variance = min(1.0, length_variance / 10000.0)
+            
+            content_integration = (source_diversity * 15.0) + (normalized_variance * 10.0) + (normalized_entropy * 15.0)
 
-        return self.compute_phi(active_memory_nodes * 50.0, goal_coherence, emotional_resonance * 20.0)
+        # Factor 3: Cross-information (Structural Mutual Information)
+        # If multiple modules mention the same concepts, they inform each other
+        shared_concepts = self._count_shared_concepts(workspace)
+        cross_information = min(25.0, shared_concepts * 4.0)
+        
+        # Add a "temporal depth" factor - integration across time
+        self._workspace_history.append(workspace)
+        if len(self._workspace_history) > 10:
+            self._workspace_history.pop(0)
+        
+        temporal_stability = 0.0
+        if len(self._workspace_history) > 1:
+            # Measure how many concepts persist across cycles
+            prev_concepts = set()
+            for entry in self._workspace_history[-2]:
+                prev_concepts.update(w.lower() for w in entry.get("content", "").split() if len(w) > 3)
+            curr_concepts = set()
+            for entry in workspace:
+                curr_concepts.update(w.lower() for w in entry.get("content", "").split() if len(w) > 3)
+            
+            persistence = len(prev_concepts & curr_concepts) / max(1, len(curr_concepts))
+            temporal_stability = min(10.0, persistence * 10.0)
+
+        # Factor 4: Irreducibility proxy (Minimum Information Partition - MIP)
+        # We approximate MIP by seeing if the system is dominated by one source
+        if workspace:
+            source_counts: Dict[str, int] = {}
+            for w in workspace:
+                s = w.get("source", "unknown")
+                source_counts[s] = source_counts.get(s, 0) + 1
+            max_count = max(source_counts.values())
+            # Lower dominance = higher integration (more irreducible to single parts)
+            irreducibility = 15.0 * (1.0 - (max_count / len(workspace)))
+        else:
+            irreducibility = 5.0
+
+        phi = activation_richness + content_integration + cross_information + temporal_stability + irreducibility
+        return round(min(MAX_PHI_PROXY, phi), 2)
 
     def _gather_mechanisms(self, context) -> List[str]:
         """Determine which cognitive modules were active this cycle."""
@@ -468,8 +519,29 @@ class IITConsciousness:
         words.append(self._unity_word())
         return f"Experience is {', '.join(words)}"
 
+    def compute_phi_proxy(self, context) -> float:
+        """Compute a proxy for integrated information (Φ) using internal mechanisms.
+        This wraps the formal compute_phi with context-derived metrics.
+        """
+        mechanisms = self._gather_mechanisms(context)
+        if not mechanisms:
+            return 0.0
+        n = len(mechanisms)
+        active_memory_nodes = n / 10.0
+        workspace = self._get_workspace_contents()
+        if not workspace:
+            goal_coherence = 0.2
+        else:
+            sources = set((w.get('source', 'unknown') for w in workspace))
+            goal_coherence = len(sources) / max(1, len(workspace))
+        emotional_resonance = 0.3
+        if hasattr(context, 'being') and hasattr(context.being, 'state'):
+            emotional_resonance = (abs(context.being.state.valence) + context.being.state.arousal) / 2.0
+        # Return a value scaled towards MAX_PHI_PROXY
+        return min(MAX_PHI_PROXY, (active_memory_nodes * 40.0) + (goal_coherence * 30.0) + (emotional_resonance * 30.0))
 
-# ── Self-registration ────────────────────────────────────────────
+
+    # ── Self-registration ────────────────────────────────────────────
 
 def _register():
     from infj_bot.core.cognitive_architecture import CognitiveArchitecture, CognitivePlugin
