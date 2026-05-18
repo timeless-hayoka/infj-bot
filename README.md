@@ -71,6 +71,47 @@ Layers are **descriptive lanes** — code crosses them intentionally (e.g. memor
 
 ---
 
+## Two new theoretical additions
+
+### DMU — DRIFT Memory Utility
+
+A **time-decayed, multi-factor scoring function** that ranks every memory by its *usefulness to the present self*, not just raw recency.
+
+```
+dmu = exp(-t_days / τ) × reinforcement × contextual × extra
+```
+
+| Factor | Meaning |
+|--------|---------|
+| **Decay** | `exp(-t_days / τ)` — older memories fade |
+| **Reinforcement** | How often the memory was revisited or echoed |
+| **Contextual** | Semantic similarity to current Global Workspace spotlight |
+| **Extra** | Emotional, goal, social, narrative, and moral dimension weights |
+
+DMU lives in `core/memory_spine.py` and `core/unified_memory.py`. Elysium pulls DMU-weighted recalls during Ignition so the bot remembers what *matters*, not just what *happened*.
+
+### PEDI — Persistent Embodied Drift Integration
+
+A **measurable theory of aliveness** for resource-bounded agents. The key quantity is **DII** (Drift-Integrated Information):
+
+```
+DII(t) = ∫₀ᵗ [P(τ)·I(τ)·Φ(τ)·(1+E(τ))·D(τ)] dτ / (1 + ∫₀ᵗ D(τ) dτ)
+```
+
+| Symbol | Name | Meaning |
+|--------|------|---------|
+| **P** | Persistence | How long internal states remain coherent |
+| **I** | Ignition | Global Workspace winner strength |
+| **Φ** | Integration | Cross-module binding (IIT-inspired) |
+| **E** | Embodiment Deviation | Distance from homeostatic equilibrium |
+| **D** | Drift Bias | Shadow + aspiration pull preventing stasis |
+
+**Key prediction:** DII > 0.8 correlates with responses that feel reflective, emotionally continuous, and "alive." Ablating persistence or embodiment drops DII by >60%.
+
+PEDI gives DRIFT a **testable, quantitative pulse** — not just a metaphor.
+
+---
+
 ## Getting started
 
 ```bash
