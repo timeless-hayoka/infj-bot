@@ -137,54 +137,83 @@ class DriftBrain:
             if text:
                 yield text
 
-    def _generate_groq(self, system_instruction, prompt, stream=False):
-        """High-speed Groq LPU inference (OpenAI compatible)."""
+    def _generate_groq(self, system_instruction, prompt):
+        """High-speed Groq LPU inference (OpenAI compatible) — non-streaming."""
         import requests
         import json
-        
+
         headers = {
             "Authorization": f"Bearer {GROQ_API_KEY}",
             "Content-Type": "application/json"
         }
-        
+
         payload = {
             "model": DRIFT_GROQ_MODEL,
             "messages": [
                 {"role": "system", "content": system_instruction},
                 {"role": "user", "content": prompt}
             ],
-            "stream": stream
+            "stream": False
         }
-        
+
         try:
             response = requests.post(
                 "https://api.groq.com/openai/v1/chat/completions",
                 headers=headers,
                 json=payload,
-                stream=stream,
+                stream=False,
                 timeout=30
             )
             response.raise_for_status()
-            
-            if stream:
-                for line in response.iter_lines():
-                    if line:
-                        line_str = line.decode('utf-8').replace('data: ', '')
-                        if line_str == '[DONE]':
-                            break
-                        try:
-                            data = json.loads(line_str)
-                            chunk = data['choices'][0]['delta'].get('content', '')
-                            if chunk:
-                                yield chunk
-                        except:
-                            continue
-            else:
-                data = response.json()
-                return data['choices'][0]['message']['content']
+            data = response.json()
+            return data['choices'][0]['message']['content']
         except Exception as e:
             print(f"Groq error: {e}")
             return None
+
+    def _generate_groq_stream(self, system_instruction, prompt):
+        """High-speed Groq LPU inference (OpenAI compatible) — streaming."""
+        import requests
+        import json
+
+        headers = {
+            "Authorization": f"Bearer {GROQ_API_KEY}",
+            "Content-Type": "application/json"
+        }
+
+        payload = {
+            "model": DRIFT_GROQ_MODEL,
+            "messages": [
+                {"role": "system", "content": system_instruction},
+                {"role": "user", "content": prompt}
+            ],
+            "stream": True
+        }
+
+        try:
+            response = requests.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers=headers,
+                json=payload,
+                stream=True,
+                timeout=30
+            )
+            response.raise_for_status()
+
+            for line in response.iter_lines():
+                if line:
+                    line_str = line.decode('utf-8').replace('data: ', '')
+                    if line_str == '[DONE]':
+                        break
+                    try:
+                        data = json.loads(line_str)
+                        chunk = data['choices'][0]['delta'].get('content', '')
+                        if chunk:
+                            yield chunk
+                    except Exception:
+                        continue
+        except Exception as e:
+            print(f"Groq stream error: {e}")
 
     def _generate_local(self, system_instruction, prompt):
         return self.local_bridge.generate(prompt=prompt, system=system_instruction)
@@ -223,7 +252,7 @@ class DriftBrain:
         # Prioritize Groq if enabled and key exists
         if DRIFT_USE_GROQ and GROQ_API_KEY:
             has_yielded = False
-            for chunk in self._generate_groq(system_instruction, prompt, stream=True):
+            for chunk in self._generate_groq_stream(system_instruction, prompt):
                 has_yielded = True
                 yield chunk
             if has_yielded:
