@@ -551,7 +551,7 @@ class TestHistory(unittest.TestCase):
 class TestApi(unittest.TestCase):
     def test_health_and_tools_endpoints(self):
         from fastapi.testclient import TestClient
-        from api import app
+        from infj_bot.interfaces.api import app
 
         client = TestClient(app)
         health = client.get("/api/health")
@@ -564,7 +564,7 @@ class TestApi(unittest.TestCase):
 
     def test_chat_rejects_invalid_json(self):
         from fastapi.testclient import TestClient
-        from api import app
+        from infj_bot.interfaces.api import app
 
         client = TestClient(app)
         response = client.post(

@@ -18,7 +18,7 @@ from typing import Dict, List, Tuple
 PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from config import BEING_DB, HISTORY_PATH, HOMEOSTASIS_DB, SELF_MODIFY_DB, SHADOW_DB
+from infj_bot.core.config import BEING_DB, HISTORY_PATH, HOMEOSTASIS_DB, SELF_MODIFY_DB, SHADOW_DB
 
 
 def load_history() -> List[Dict]:

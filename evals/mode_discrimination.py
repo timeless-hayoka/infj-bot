@@ -23,7 +23,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from config import MODE_DISCRIMINATION_DB as EVAL_DB
+from infj_bot.core.config import MODE_DISCRIMINATION_DB as EVAL_DB
 
 TEST_PROMPTS = [
     "I feel stuck in my career.",

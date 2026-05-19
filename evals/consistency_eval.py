@@ -22,7 +22,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from config import CONSISTENCY_EVAL_DB as EVAL_DB
+from infj_bot.core.config import CONSISTENCY_EVAL_DB as EVAL_DB
 
 
 def _load_turn_logs(limit: int = 500) -> List[Dict]:

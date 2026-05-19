@@ -17,7 +17,7 @@ def run_script(script_name, extra_env=None):
 
 
 def cmd_chat(_args):
-    from main import main
+    from infj_bot.interfaces.main import main
 
     try:
         asyncio.run(main())

@@ -21,7 +21,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from config import SELF_MODIFY_AUDIT_DB as AUDIT_DB
+from infj_bot.core.config import SELF_MODIFY_AUDIT_DB as AUDIT_DB
 
 
 @dataclass
