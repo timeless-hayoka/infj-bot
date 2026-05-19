@@ -53,3 +53,11 @@ hive_mind/
 .drift_boot.log
 .drift_seen_pids
 .drift_watcher.pid
+
+# Backup debris
+*_backup.py
+*_infj_backup.py
+
+# IDE
+.idea/
+
