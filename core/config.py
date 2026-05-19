@@ -90,3 +90,15 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 DRIFT_GROQ_MODEL = os.getenv("DRIFT_GROQ_MODEL", "llama-3.3-70b-versatile")
 DRIFT_USE_GROQ = os.getenv("DRIFT_USE_GROQ", "true").lower() in ("1", "true", "yes", "on")
 
+# Memory pruning config
+MAX_MEMORIES = int(os.getenv("INFJ_MAX_MEMORIES", "2500"))
+PRUNING_THRESHOLD = float(os.getenv("INFJ_PRUNING_THRESHOLD", "0.15"))
+PRUNE_EVERY_N_TURNS = int(os.getenv("INFJ_PRUNE_EVERY_N_TURNS", "10"))
+BACKGROUND_PRUNE_INTERVAL_SECONDS = int(os.getenv("INFJ_PRUNE_INTERVAL_SEC", "1800"))  # 30 min
+
+# Strong Continuous Mode Config
+STRONG_CONTINUOUS_MODE = os.getenv("STRONG_CONTINUOUS_MODE", "true").lower() in ("1", "true", "yes", "on")
+BACKGROUND_CYCLE_SECONDS = int(os.getenv("BACKGROUND_CYCLE_SECONDS", "20"))
+SHADOW_INFLUENCE_WEIGHT = float(os.getenv("SHADOW_INFLUENCE_WEIGHT", "0.7"))
+HOMEOSTASIS_DECAY_SLOW = os.getenv("HOMEOSTASIS_DECAY_SLOW", "true").lower() in ("1", "true", "yes", "on")
+

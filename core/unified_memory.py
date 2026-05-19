@@ -232,43 +232,138 @@ class MemoryManager:
     async def forget_concept(self, concept_name: str) -> int:
         return await anyio.to_thread.run_sync(self.forget_concept_sync, concept_name)
 
-    def prune_sync(self, now: datetime.datetime, threshold: float = 0.15) -> PruneStats:
+    def prune_sync(self, now: datetime.datetime = None, threshold: float = 0.15,
+                   max_memories: int = None, force: bool = False) -> PruneStats:
+        """Prune low-value memories using DMU scoring with safety guards.
+
+        Safety: never deletes entries < 1 hour old or with emotion_intensity > 0.85.
+        Hard cap: if still over max_memories, removes lowest-DMU non-protected entries.
+        """
+        if now is None:
+            now = datetime.datetime.now()
+        if max_memories is None:
+            max_memories = 2500
+
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
-            rows = conn.execute("SELECT unified_id, timestamp, salience, repetitions, metadata FROM episodic").fetchall()
-            
+            rows = conn.execute(
+                "SELECT unified_id, timestamp, salience, repetitions, metadata FROM episodic"
+            ).fetchall()
+
+            if len(rows) <= max_memories and not force:
+                return PruneStats(0, 0)
+
             to_delete = []
+            scored = []  # (unified_id, dmu, protected)
+
             for row in rows:
                 ts = datetime.datetime.fromisoformat(row["timestamp"])
                 t_hours = max(0, (now - ts).total_seconds() / 3600.0)
                 salience = row["salience"]
                 repetitions = row["repetitions"]
                 meta = json.loads(row["metadata"])
-                
+
                 e_score = float(meta.get("emotion_intensity", meta.get("emotional", 0.5)))
                 g_score = float(meta.get("importance", meta.get("goal", 0.5)))
                 social = float(meta.get("social", 0.5))
                 narrative = float(meta.get("narrative", 0.5))
                 moral = float(meta.get("moral", 0.5))
-                
-                # Context (C) is 0 during a background prune since we are not searching against a query
-                dmu = self._calculate_dmu(t_hours, salience, repetitions, c_score=0.0, e_score=e_score, g_score=g_score, social=social, narrative=narrative, moral=moral)
-                
-                if dmu < threshold:
+
+                # Context (C) is 0 during background prune (no query alignment)
+                dmu = self._calculate_dmu(
+                    t_hours, salience, repetitions,
+                    c_score=0.0, e_score=e_score, g_score=g_score,
+                    social=social, narrative=narrative, moral=moral,
+                )
+
+                # Safety overrides
+                is_too_recent = t_hours < 1.0
+                is_high_emotion = e_score > 0.85
+                protected = is_too_recent or is_high_emotion
+
+                if not protected and dmu < threshold:
                     to_delete.append(row["unified_id"])
-            
+
+                scored.append((row["unified_id"], dmu, protected))
+
+            # Hard cap: if still over limit, remove lowest-scoring non-protected
+            remaining_after_threshold = len(rows) - len(to_delete)
+            if remaining_after_threshold > max_memories:
+                deletable = [
+                    (uid, dmu) for uid, dmu, protected in scored
+                    if uid not in to_delete and not protected
+                ]
+                deletable.sort(key=lambda x: x[1])  # lowest DMU first
+                needed = remaining_after_threshold - max_memories
+                for uid, _ in deletable[:needed]:
+                    to_delete.append(uid)
+
             if not to_delete:
                 return PruneStats(0, 0)
-            
+
             placeholders = ",".join("?" * len(to_delete))
             conn.execute(f"DELETE FROM episodic WHERE unified_id IN ({placeholders})", to_delete)
             conn.commit()
-            
+
         self._collection.delete(ids=to_delete)
+        self._log_prune_stats(len(to_delete), len(rows), len(rows) - len(to_delete))
         return PruneStats(chroma_deleted=len(to_delete), sqlite_deleted=len(to_delete))
 
-    async def prune(self, now: datetime.datetime, threshold: float = 0.15) -> PruneStats:
-        return await anyio.to_thread.run_sync(self.prune_sync, now, threshold)
+    async def prune(self, now: datetime.datetime = None, threshold: float = 0.15,
+                    max_memories: int = None, force: bool = False) -> PruneStats:
+        return await anyio.to_thread.run_sync(
+            self.prune_sync, now, threshold, max_memories, force
+        )
+
+    def auto_prune_sync(self, turn_count: int = 0, force: bool = False) -> PruneStats:
+        """Auto-prune based on turn count or time since last prune.
+
+        Call this periodically (e.g. every consciousness cycle or N user turns).
+        """
+        from infj_bot.core.config import BACKGROUND_PRUNE_INTERVAL_SECONDS, PRUNE_EVERY_N_TURNS, PRUNING_THRESHOLD, MAX_MEMORIES
+
+        should_prune = force
+
+        # Turn-based trigger
+        if turn_count > 0 and turn_count % PRUNE_EVERY_N_TURNS == 0:
+            should_prune = True
+
+        # Time-based trigger
+        if not should_prune:
+            last_prune = self.get_state_sync("last_prune_time")
+            if last_prune is None:
+                should_prune = True
+            else:
+                last = datetime.datetime.fromisoformat(last_prune) if isinstance(last_prune, str) else last_prune
+                elapsed = (datetime.datetime.now() - last).total_seconds()
+                if elapsed >= BACKGROUND_PRUNE_INTERVAL_SECONDS:
+                    should_prune = True
+
+        if not should_prune:
+            return PruneStats(0, 0)
+
+        stats = self.prune_sync(threshold=PRUNING_THRESHOLD, max_memories=MAX_MEMORIES)
+        if stats.sqlite_deleted > 0:
+            self.set_state_sync("last_prune_time", datetime.datetime.now().isoformat())
+        return stats
+
+    async def auto_prune(self, turn_count: int = 0, force: bool = False) -> PruneStats:
+        return await anyio.to_thread.run_sync(self.auto_prune_sync, turn_count, force)
+
+    def _log_prune_stats(self, pruned: int, before: int, after: int):
+        """Log pruning stats to JSONL for observability."""
+        log_path = Path(self.chroma_path) / "prune_log.jsonl"
+        entry = {
+            "timestamp": datetime.datetime.now().isoformat(),
+            "pruned": pruned,
+            "before": before,
+            "after": after,
+        }
+        try:
+            with open(log_path, "a", encoding="utf-8") as f:
+                f.write(json.dumps(entry) + "\n")
+        except Exception:
+            pass
 
     def get_state_sync(self, key: str, default: Any = None) -> Any:
         with sqlite3.connect(self.db_path) as conn:

@@ -266,6 +266,14 @@ async def consciousness_loop():
         except Exception:
             logger.exception("dii computation failed")
 
+        # 5. Memory spine auto-prune (background, every 30 min or N turns)
+        try:
+            pruned = memory.auto_prune(turn_count=iteration, force=False)
+            if pruned > 0:
+                logger.info("Memory spine pruned %d low-value entries", pruned)
+        except Exception:
+            logger.exception("background memory prune failed")
+
         # Build shared cycle context
         global _last_interaction_time
         minutes_idle = 0.0
@@ -457,6 +465,14 @@ async def chat_loop():
         )
         history.append(user_input, output, state.mode, emotion, dissonance)
         state.turns += 1
+
+        # Trigger memory auto-prune after user turns
+        try:
+            pruned = memory.auto_prune(turn_count=state.turns, force=False)
+            if pruned > 0:
+                logger.info("Memory spine pruned %d low-value entries after turn %d", pruned, state.turns)
+        except Exception:
+            logger.exception("turn-based memory prune failed")
 
         # Update proactive state and being's theory of mind
         proactive_state.record_interaction(user_input, emotion, dissonance)

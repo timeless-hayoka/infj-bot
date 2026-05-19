@@ -296,6 +296,14 @@ class DriftMemory:
         stats = self.unified_manager.prune_sync(now=now, threshold=0.1) # Uses standard Ebbinghaus
         return stats.sqlite_deleted
 
+    def auto_prune(self, turn_count: int = 0, force: bool = False) -> int:
+        """Auto-prune low-value memories based on turn count or time elapsed.
+
+        Returns number of memories pruned.
+        """
+        stats = self.unified_manager.auto_prune_sync(turn_count=turn_count, force=force)
+        return stats.sqlite_deleted
+
     def migrate_from_legacy(self) -> int:
         """Deprecated."""
         return 0
