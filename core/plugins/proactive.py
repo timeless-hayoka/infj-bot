@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
 from infj_bot.core.plugins.emotion import detect_emotion
-from cognition import detect_dissonance
+from infj_bot.core.cognition import detect_dissonance
 
 
 class ProactiveState:

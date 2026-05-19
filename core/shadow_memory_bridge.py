@@ -18,8 +18,8 @@ Usage: wrap memory.save() calls with bridge.validate_before_save()
 
 from typing import Dict, Optional
 
-from shadow import get_shadow
-from memory_reliability import get_reliability_engine
+from infj_bot.core.shadow import get_shadow
+from infj_bot.core.memory_reliability import get_reliability_engine
 
 # Shadow markers that indicate projection when stored as user memories
 PROJECTION_MARKERS = {

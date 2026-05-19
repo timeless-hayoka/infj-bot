@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-import sys
 from pathlib import Path
 
 try:
@@ -14,12 +13,7 @@ except Exception:
         return False
 
 
-CORE_DIR = Path(__file__).resolve().parent
-INFJ_ROOT = CORE_DIR.parent
-if str(INFJ_ROOT) not in sys.path:
-    sys.path.insert(0, str(INFJ_ROOT))
-
-from config_adapter import (  # noqa: E402
+from infj_bot.config_adapter import (
     ADAPTER,
     ARCHITECTURE_DB,
     ASPIRATIONS_DB,

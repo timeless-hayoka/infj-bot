@@ -2,16 +2,10 @@ from gevent import monkey
 monkey.patch_all()
 
 import json
-import sys as _sys
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from pathlib import Path as _Path
+from pathlib import Path
 import traceback
-
-# Ensure the parent directory is in sys.path so 'infj_bot.*' absolute imports work
-_parent_dir = str(_Path(__file__).resolve().parent.parent)
-if _parent_dir not in _sys.path:
-    _sys.path.insert(0, _parent_dir)
 
 import gevent
 from flask import Flask, request, jsonify, render_template_string
@@ -19,11 +13,12 @@ from flask_socketio import SocketIO, emit
 import threading
 from infj_bot.core.cognitive_orchestrator import CognitiveOrchestrator
 
-# Observatory integration — add hive_mind to path
-_hive_path = str(_Path(__file__).resolve().parent / "hive_mind")
-if _hive_path not in _sys.path:
-    _sys.path.insert(0, _hive_path)
+# Observatory integration — hive_mind is an external symlinked dependency
 try:
+    import sys as _sys
+    _hive_path = str(Path(__file__).resolve().parent / "hive_mind")
+    if _hive_path not in _sys.path:
+        _sys.path.insert(0, _hive_path)
     from observatory.server import INDEX_HTML as _OBS_HTML, gather_state as _obs_gather
     from drift_bridge import DriftBridge as _DriftBridge
 
@@ -32,15 +27,15 @@ try:
 except Exception:
     _OBSERVATORY_ENABLED = False
 
-from brain import DriftBrain
-from commands import BotState, handle_command
-from growth import growth_profile
-from history import ChatHistory
-from memory import DriftMemory
-from goals import GoalsDB
-from config import DEFAULT_AUTHORIZED_TARGETS
-from documents import DocumentStore
-from prompt_builder import build_chat_prompt
+from infj_bot.core.brain import DriftBrain
+from infj_bot.core.commands import BotState, handle_command
+from infj_bot.core.plugins.growth import growth_profile
+from infj_bot.core.history import ChatHistory
+from infj_bot.core.memory import DriftMemory
+from infj_bot.core.plugins.goals import GoalsDB
+from infj_bot.core.config import DEFAULT_AUTHORIZED_TARGETS
+from infj_bot.core.plugins.documents import DocumentStore
+from infj_bot.core.prompt_builder import build_chat_prompt
 
 
 brain = DriftBrain()

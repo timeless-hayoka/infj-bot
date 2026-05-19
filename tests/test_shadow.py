@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from shadow import Shadow, ARCHETYPE_DEFS
+from infj_bot.core.shadow import Shadow, ARCHETYPE_DEFS
 
 
 @pytest.fixture

@@ -22,26 +22,6 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-# ── Path bootstrap for legacy drift imports ───────────────────────────────────
-# Several core modules use absolute imports relative to core/ (e.g.
-# ``from config import ...`` instead of ``from infj_bot.core.config import ...``).
-# We add the package root and core/ to sys.path so the check suite can import
-# them without rewriting the entire codebase.
-
-
-def _bootstrap_paths():
-    import sys as _sys
-    from pathlib import Path as _Path
-    here = _Path(__file__).resolve().parent
-    core = here / "core"
-    parent = here.parent
-    for p in (str(core), str(parent)):
-        if p not in _sys.path:
-            _sys.path.insert(0, p)
-
-
-_bootstrap_paths()
-
 # ── Lazy imports for drift subsystems ─────────────────────────────────────────
 # We import lazily so a missing dependency doesn't crash the whole check suite.
 

@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 from urllib.parse import urlparse
 
-from config import PROJECT_ROOT
+from infj_bot.config_adapter import PROJECT_ROOT
 
 # Lazy-import playwright so the module loads even when playwright is absent
 try:
@@ -100,7 +100,7 @@ class ComputerUse:
 
 
 def _register():
-    from cognitive_architecture import CognitiveArchitecture, CognitivePlugin
+    from infj_bot.core.cognitive_architecture import CognitiveArchitecture, CognitivePlugin
     arch = CognitiveArchitecture()
     if "computer_use" not in arch.list_plugins():
         arch.register(CognitivePlugin(

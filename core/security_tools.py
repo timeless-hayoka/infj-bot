@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from urllib.parse import urlparse
 
-from tools import tool_enumerate_subdomains, tool_fuzz_directories, tool_run_nuclei_scan
+from infj_bot.core.tools import tool_enumerate_subdomains, tool_fuzz_directories, tool_run_nuclei_scan
 
 
 def _hostname(target: str) -> str:

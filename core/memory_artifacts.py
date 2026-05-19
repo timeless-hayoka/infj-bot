@@ -37,7 +37,7 @@ from PIL import Image, ImageDraw, ImageFont
 import qrcode
 
 # Import existing memory system
-from memory import DriftMemory
+from infj_bot.core.memory import DriftMemory
 
 
 class MemoryLayer(Enum):

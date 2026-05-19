@@ -5,7 +5,7 @@ import os
 import subprocess
 import sys
 
-from config import PROJECT_ROOT
+from infj_bot.config_adapter import PROJECT_ROOT
 
 
 def run_script(script_name, extra_env=None):

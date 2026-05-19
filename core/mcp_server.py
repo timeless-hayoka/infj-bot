@@ -15,14 +15,18 @@ from fastapi import FastAPI, HTTPException, Request
 import uvicorn
 import time
 
-from brain import DriftBrain
-from cognition import map_dissonance
-from documents import DocumentStore, format_doc_results
-from emotion import detect_emotion
-from goals import GoalsDB
-from memory import DriftMemory
-from global_workspace import GlobalWorkspace
-from hive_mind.orchestrator import HiveOrchestrator
+from infj_bot.core.brain import DriftBrain
+from infj_bot.core.cognition import map_dissonance
+from infj_bot.core.plugins.documents import DocumentStore, format_doc_results
+from infj_bot.core.plugins.emotion import detect_emotion
+from infj_bot.core.plugins.goals import GoalsDB
+from infj_bot.core.memory import DriftMemory
+from infj_bot.core.global_workspace import GlobalWorkspace
+
+try:
+    from hive_mind.orchestrator import HiveOrchestrator
+except Exception:
+    HiveOrchestrator = None  # type: ignore[misc,assignment]
 
 mcp = FastMCP(
     "infj_companion",
@@ -401,6 +405,8 @@ def ingest_document(path: str, tags: str = "") -> str:
 @mcp.tool()
 def hive_status() -> str:
     """Return current hive mind node status, consensus state, and drift bridge health."""
+    if HiveOrchestrator is None:
+        return "HiveOrchestrator not available (hive_mind integration missing)."
     try:
         hive = HiveOrchestrator()
         status = hive.get_status()

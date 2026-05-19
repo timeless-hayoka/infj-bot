@@ -7,7 +7,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-from memory import DriftMemory, LocalEmbeddingFunction
+from infj_bot.core.memory import DriftMemory, LocalEmbeddingFunction
 
 
 PROMPTS = [
