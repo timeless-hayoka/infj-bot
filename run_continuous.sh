@@ -14,7 +14,6 @@ PID_FILE="${PROJECT_ROOT}/drift.pid"
 LOG_FILE="${PROJECT_ROOT}/logs/drift_continuous.log"
 MAIN_SCRIPT="${PROJECT_ROOT}/main.py"
 ENV_FILE="${PROJECT_ROOT}/.env"
-VENV_ACTIVATE="${PROJECT_ROOT}/venv/bin/activate"
 
 # Critical: preserve PYTHONPATH for infj_bot imports
 export PYTHONPATH="/home/crexs:/home/crexs/infj_bot/core:${PYTHONPATH:-}"
@@ -57,13 +56,20 @@ start_bot() {
         exit 1
     fi
 
-    # Activate virtual environment if present
-    if [[ -f "$VENV_ACTIVATE" ]]; then
+    # Activate virtual environment if present (prefer .venv, fallback to venv)
+    local venv_activated=false
+    if [[ -f "${PROJECT_ROOT}/.venv/bin/activate" ]]; then
         # shellcheck source=/dev/null
-        source "$VENV_ACTIVATE"
-    else
-        echo "⚠️  Virtual environment not found at $VENV_ACTIVATE"
-        echo "   Attempting to use system Python..."
+        source "${PROJECT_ROOT}/.venv/bin/activate"
+        venv_activated=true
+    elif [[ -f "${PROJECT_ROOT}/venv/bin/activate" ]]; then
+        # shellcheck source=/dev/null
+        source "${PROJECT_ROOT}/venv/bin/activate"
+        venv_activated=true
+    fi
+
+    if [[ "$venv_activated" == false ]]; then
+        echo "⚠️  Virtual environment not found. Attempting system Python..."
     fi
 
     echo "🚀 Starting DRIFT in Continuous Mode..."
@@ -75,7 +81,8 @@ start_bot() {
         echo "📦 Rotated old log file"
     fi
 
-    nohup python "$MAIN_SCRIPT" >> "$LOG_FILE" 2>&1 &
+    # ── THE FIX: pass --continuous ─────────────────────────────────
+    nohup python "$MAIN_SCRIPT" --continuous >> "$LOG_FILE" 2>&1 &
     local new_pid=$!
 
     # Wait briefly to confirm it started

@@ -38,7 +38,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from config import SHADOW_DB
+from infj_bot.core.config import SHADOW_DB
 
 # ───────────────────────────────────────────────────────────────────────────────
 # Archetype definitions: personal, golden, and collective shadow
@@ -1074,7 +1074,7 @@ def get_shadow() -> Shadow:
 
 
 def _register():
-    from cognitive_architecture import CognitiveArchitecture, CognitivePlugin
+    from infj_bot.core.cognitive_architecture import CognitiveArchitecture, CognitivePlugin
 
     arch = CognitiveArchitecture()
     if "shadow" not in arch.list_plugins():

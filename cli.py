@@ -28,10 +28,10 @@ def cmd_chat(_args):
 
 
 def cmd_tui(_args):
-    from tui import InfjTUI
+    from tui import DriftTUI
 
     try:
-        InfjTUI().run()
+        DriftTUI().run()
     except KeyboardInterrupt:
         print("\n[*] Manual override. Powering down.")
         return 130
@@ -130,6 +130,42 @@ def cmd_path(_args):
     return 0
 
 
+def cmd_meow(_args):
+    from infj_bot.core.plugins.meow_scanner import meow_hunt
+    print(meow_hunt(str(PROJECT_ROOT)))
+    return 0
+
+
+def cmd_bug(args):
+    from infj_bot.core.bug_bot import BugBot
+    bot = BugBot()
+    subcmd = args.subcmd or "health"
+    if subcmd == "sync":
+        print(bot.sync_programs())
+    elif subcmd == "programs":
+        print(bot.list_programs())
+    elif subcmd == "recon":
+        print(bot.recon(args.program, args.tool))
+    elif subcmd == "list":
+        print(bot.list_findings(program_id=args.program, status=args.status))
+    elif subcmd == "get":
+        print(bot.get_finding(args.id))
+    elif subcmd == "report":
+        print(bot.generate_report(args.id))
+    elif subcmd == "preview":
+        print(bot.preview_report(args.id))
+    elif subcmd == "submit":
+        print(bot.submit(args.id))
+    elif subcmd == "stats":
+        print(bot.stats())
+    elif subcmd == "health":
+        print(bot.health())
+    else:
+        print(f"Unknown bug subcommand: {subcmd}")
+        return 1
+    return 0
+
+
 def build_parser():
     parser = argparse.ArgumentParser(
         prog="infj_bot",
@@ -194,6 +230,17 @@ def build_parser():
 
     path = sub.add_parser("path", help="Print the bot project path.")
     path.set_defaults(func=cmd_path)
+
+    bug = sub.add_parser("bug", help="Bug bounty engine — sync, recon, findings, reports.")
+    bug.add_argument("subcmd", nargs="?", help="sync | programs | recon | list | get | report | preview | submit | stats | health")
+    bug.add_argument("--program", "-p", default="", help="Program ID for recon/list.")
+    bug.add_argument("--tool", "-t", default="all", help="Recon tool: all | subdomains | nuclei | fuzz")
+    bug.add_argument("--status", "-s", default="", help="Filter findings by status.")
+    bug.add_argument("--id", "-i", default="", help="Finding ID for get/report/preview/submit.")
+    bug.set_defaults(func=cmd_bug)
+
+    meow = sub.add_parser("meow", help="Run the chaos gremlin code scanner.")
+    meow.set_defaults(func=cmd_meow)
 
     return parser
 

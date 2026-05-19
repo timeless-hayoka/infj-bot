@@ -497,6 +497,57 @@ def handle_recon_fuzz_command(args, state):
     return tool_recon_fuzz(args, authorized=state.authorized_targets)
 
 
+def handle_meow_command(args, state):
+    from infj_bot.core.plugins.meow_scanner import meow_hunt
+    return meow_hunt(str(PROJECT_ROOT))
+
+
+def handle_bug_command(args, state):
+    if not args:
+        return command_help("bug")
+    from infj_bot.core.bug_bot import BugBot
+    bot = BugBot()
+    subcmd, _, rest = args.partition(" ")
+    subcmd = subcmd.lower()
+
+    if subcmd == "sync":
+        return bot.sync_programs()
+    if subcmd == "programs":
+        return bot.list_programs()
+    if subcmd == "recon":
+        prog_id = rest.strip()
+        tool = "all"
+        if " " in prog_id:
+            prog_id, tool = prog_id.rsplit(" ", 1)
+        return bot.recon(prog_id, tool)
+    if subcmd == "add":
+        # /bug add <title> | <severity> | <asset> | <description>
+        parts = [p.strip() for p in rest.split("|")]
+        if len(parts) < 4:
+            return "Use: /bug add <title> | <severity> | <asset> | <description>"
+        return bot.add_finding(
+            title=parts[0],
+            severity=parts[1],
+            asset=parts[2],
+            description=parts[3],
+        )
+    if subcmd == "list":
+        return bot.list_findings()
+    if subcmd == "get":
+        return bot.get_finding(rest.strip())
+    if subcmd == "report":
+        return bot.generate_report(rest.strip())
+    if subcmd == "preview":
+        return bot.preview_report(rest.strip())
+    if subcmd == "submit":
+        return bot.submit(rest.strip())
+    if subcmd == "stats":
+        return bot.stats()
+    if subcmd == "health":
+        return bot.health()
+    return command_help("bug")
+
+
 def handle_computer_use_command(args, state):
     if not args:
         return command_help("computer-use")
@@ -1453,6 +1504,10 @@ def handle_command(command, args, state, brain, memory, history=None, goals_db=N
         return handle_recon_enum_command(args, state)
     if command == "recon-fuzz":
         return handle_recon_fuzz_command(args, state)
+    if command == "bug":
+        return handle_bug_command(args, state)
+    if command == "meow":
+        return handle_meow_command(args, state)
     if command == "computer-use":
         return handle_computer_use_command(args, state)
     if command == "computer-status":

@@ -45,8 +45,10 @@ STAGES = [
 
 
 def _count_type(memory, record_type):
-    results = memory.collection.get(where={"type": record_type}, include=[])
-    return len(results.get("ids", []))
+    try:
+        return memory.unified_manager.count_sync(record_type)
+    except Exception:
+        return 0
 
 
 def growth_profile(memory, turns=0):

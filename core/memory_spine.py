@@ -122,4 +122,52 @@ class MemoryManager:
         self.sqlite_conn.commit()
 
     async def prune(self):
-        pass  # Full prune logic from earlier versions
+        """Perform DMU-based pruning of the memory spine."""
+        cursor = self.sqlite_conn.execute("""
+            SELECT unified_id, last_reinforced, reps, salience, emotional, goal, social, narrative, moral
+            FROM memories
+        """)
+        rows = cursor.fetchall()
+
+        to_delete = []
+        for row in rows:
+            uid = row[0]
+            # Mock an entry for DMU computation
+            entry = MemoryEntry(
+                unified_id=uid,
+                event=None,  # Not needed for score
+                metadata={},
+                vector=None,
+                dmu=0.0,
+                last_reinforced=datetime.fromisoformat(row[1]),
+                reps=row[2],
+                salience=row[3],
+                emotional=row[4],
+                goal=row[5],
+                social=row[6],
+                narrative=row[7],
+                moral=row[8]
+            )
+
+            score = self.compute_dmu(entry)
+            if score < THRESHOLD_PRUNE:
+                to_delete.append(uid)
+
+        if not to_delete:
+            return
+
+        try:
+            self.sqlite_conn.execute("BEGIN TRANSACTION")
+            # Delete from SQLite
+            placeholders = ",".join(["?"] * len(to_delete))
+            self.sqlite_conn.execute(f"DELETE FROM memories WHERE unified_id IN ({placeholders})", to_delete)
+
+            # Delete from Chroma
+            collection = self.chroma_client.get_or_create_collection("drift_memory")
+            collection.delete(ids=to_delete)
+
+            self.sqlite_conn.commit()
+            print(f"Memory Spine: Pruned {len(to_delete)} low-utility memories.")
+        except Exception as e:
+            self.sqlite_conn.rollback()
+            print(f"Memory Spine: Pruning failed: {e}")
