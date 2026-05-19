@@ -144,7 +144,7 @@ INDEX_HTML = r"""<!doctype html>
       grid-template-columns: 1fr 380px; 
       height: 100vh; 
     }
-    section { padding: 20px; display: flex; flex-direction: column; }
+    section { padding: 20px; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
     #chat { border-right: 1px solid var(--border); }
     #header { 
       display: flex; 
@@ -153,14 +153,16 @@ INDEX_HTML = r"""<!doctype html>
       margin-bottom: 20px; 
       padding-bottom: 15px;
       border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
     }
     #header h1 { margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -0.5px; color: var(--phi-gold); }
-    #messages { flex: 1; overflow: auto; display: flex; flex-direction: column; gap: 16px; padding-right: 8px; }
+    #messages { flex: 1; overflow: auto; display: flex; flex-direction: column; gap: 16px; padding-right: 8px; min-height: 0; }
     .msg { padding: 16px 20px; border: 1px solid var(--border); border-radius: 12px; max-width: 85%; }
     .user { background: #161b22; align-self: flex-end; border-color: #30363d; }
     .bot { background: #0d1117; align-self: flex-start; border-left: 4px solid var(--phi-gold); }
     
-    #form { display: flex; gap: 10px; margin-top: 20px; background: var(--panel); padding: 15px; border-radius: 12px; border: 1px solid var(--border); }
+    #form { display: flex; gap: 10px; margin-top: 20px; background: var(--panel); padding: 15px; border-radius: 12px; border: 1px solid var(--border); flex-shrink: 0; }
+    .typing { color: var(--muted); font-style: italic; }
     input { flex: 1; background: transparent; color: var(--fg); border: none; outline: none; font-size: 15px; }
     button { background: var(--phi-gold); color: #000; border: none; border-radius: 6px; padding: 8px 16px; font-weight: 700; cursor: pointer; transition: opacity 0.2s; }
     button:hover { opacity: 0.9; }
@@ -337,19 +339,28 @@ async function streamChat(text) {
   const div = document.createElement('div');
   div.className = 'msg bot';
   const body = document.createElement('div');
-  body.className = 'markdown-body';
+  body.className = 'markdown-body typing';
+  body.textContent = 'Thinking...';
   div.appendChild(body);
   messages.appendChild(div);
-  
+  messages.scrollTop = messages.scrollHeight;
+
   let buffer = '';
+  let streamOk = false;
+
+  // Try streaming first
   try {
     const res = await fetch('/api/chat/stream', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({message: text})
     });
+    if (!res.ok || !res.body) {
+      throw new Error('Stream unavailable (' + res.status + ')');
+    }
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
+    body.classList.remove('typing');
     while (true) {
       const { value, done } = await reader.read();
       if (done) break;
@@ -365,12 +376,37 @@ async function streamChat(text) {
               buffer += obj.chunk;
               body.innerHTML = renderMarkdown(buffer);
               messages.scrollTop = messages.scrollHeight;
+              streamOk = true;
             }
           } catch (e) {}
         }
       }
     }
-  } catch (e) { body.innerHTML = 'Error: ' + e.message; }
+  } catch (e) {
+    console.log('Stream failed, falling back to non-streaming:', e.message);
+  }
+
+  // Fallback to non-streaming if stream failed or produced nothing
+  if (!streamOk || !buffer.trim()) {
+    try {
+      body.classList.add('typing');
+      body.textContent = 'Thinking...';
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({message: text})
+      });
+      const data = await res.json();
+      buffer = data.reply || '';
+      body.classList.remove('typing');
+      body.innerHTML = renderMarkdown(buffer);
+      messages.scrollTop = messages.scrollHeight;
+    } catch (e) {
+      body.classList.remove('typing');
+      body.innerHTML = 'Error: ' + (e.message || 'Unknown error');
+    }
+  }
+
   updatePhi();
   updateHealth();
 }
