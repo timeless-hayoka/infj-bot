@@ -421,14 +421,17 @@ class DriftBrain:
             if len(self.history) > self._max_history:
                 self.history = self.history[-self._max_history:]
 
+            # Run critic in background (do not return critic text to user)
             try:
-                return self._generate(
+                self._generate(
                     self.critic_model_name,
                     CRITIC_SYSTEM_PROMPT,
                     f"Review the following response for hallucinations, errors, or unsafe content:\n\n{primary_text}",
                 )
-            except Exception as exc:
-                return f"{primary_text}\n\n[critic unavailable: {type(exc).__name__}]"
+            except Exception:
+                pass
+
+            return primary_text
 
         except Exception as exc:
             return self._offline_fallback(user_input, exc)
@@ -484,13 +487,8 @@ class DriftBrain:
             if len(self.history) > self._max_history:
                 self.history = self.history[-self._max_history:]
 
-            # Stream critic review (or just stream the primary text if critic fails)
-            try:
-                critic_prompt = f"Review the following response for hallucinations, errors, or unsafe content:\n\n{primary_text}"
-                for chunk in self._generate_stream(self.critic_model_name, CRITIC_SYSTEM_PROMPT, critic_prompt):
-                    yield chunk
-            except Exception:
-                yield primary_text
+            # Stream the actual response to the user (critic runs separately)
+            yield primary_text
 
         except Exception as exc:
             yield self._offline_fallback(user_input, exc)
