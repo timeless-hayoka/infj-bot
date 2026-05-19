@@ -5,6 +5,7 @@ Simulates background cycles and verifies inner continuity.
 
 import asyncio
 import logging
+import pytest
 import sys
 import os
 from datetime import datetime
@@ -69,6 +70,7 @@ async def run_simulated_cycles(minutes: int = 5, interval: int = 5):
         
     return thoughts_captured
 
+@pytest.mark.asyncio
 async def test_continuity():
     """Verify that the bot can recall what it has been thinking about."""
     logger.info("Verifying inner continuity...")

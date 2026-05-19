@@ -229,7 +229,7 @@ class TestMemory(unittest.TestCase):
             mock_unified_datetime.datetime.now.return_value = future
             mock_memory_datetime.datetime.now.return_value = future
             
-            removed = memory.prune_interactions(max_age_days=0, max_importance=0.4)
+            removed = memory.prune_interactions(max_age_days=0, max_importance=0.4, force=True)
             self.assertEqual(removed, 1)
             self.assertEqual(memory.count(), count_before - 1)
 
@@ -412,15 +412,16 @@ class TestGrowth(unittest.TestCase):
         mock_mem = MagicMock()
         mock_mem.collection.get.return_value = {"ids": []}
         mock_mem.count.return_value = 0
+        mock_mem.unified_manager.count_sync.return_value = 0
         profile = growth_profile(mock_mem, turns=0)
         self.assertEqual(profile["stage"], "Spark")
         self.assertEqual(profile["progress"], 0.0)
 
         mock_mem.count.return_value = 100
         # Simulate enough interactions to reach seed
-        mock_mem.collection.get.side_effect = lambda where, include: {
-            "ids": ["x"] * (20 if where.get("type") == "interaction" else 0)
-        }
+        mock_mem.unified_manager.count_sync.side_effect = lambda t: {
+            "interaction": 20, "learned_knowledge": 0, "reflection": 0
+        }.get(t, 0)
         profile = growth_profile(mock_mem, turns=10)
         self.assertGreaterEqual(profile["points"], 12)
 

@@ -290,10 +290,10 @@ class DriftMemory:
     def count(self):
         return self.unified_manager.count_sync()
 
-    def prune_interactions(self, max_age_days=30, max_importance=0.4):
+    def prune_interactions(self, max_age_days=30, max_importance=0.4, force=False):
         """Remove old interactions with low importance. Returns count removed."""
         now = datetime.datetime.now()
-        stats = self.unified_manager.prune_sync(now=now, threshold=0.1) # Uses standard Ebbinghaus
+        stats = self.unified_manager.prune_sync(now=now, threshold=0.1, force=force) # Uses standard Ebbinghaus
         return stats.sqlite_deleted
 
     def auto_prune(self, turn_count: int = 0, force: bool = False) -> int:

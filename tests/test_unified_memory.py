@@ -62,7 +62,7 @@ async def test_memory_manager_ebbinghaus_prune(temp_dirs):
     uid2 = await mm.remember(event2, metadata={"importance": 0.99})
     
     # Prune evaluated AT current time
-    stats = await mm.prune(now=datetime.datetime.now(), threshold=0.1)
+    stats = await mm.prune(now=datetime.datetime.now(), threshold=0.1, force=True)
     # The old memory should be pruned, the recent high importance one kept
     assert stats.chroma_deleted == 1
     assert stats.sqlite_deleted == 1
