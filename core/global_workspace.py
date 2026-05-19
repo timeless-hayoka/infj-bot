@@ -1,8 +1,9 @@
-"""global_workspace.py — Bernard Baars' Global Workspace Theory for the bot.
+"""global_workspace.py — Global Workspace Theory-inspired design for the bot.
 
-Consciousness arises from a limited-capacity workspace where the most salient
-information is broadcast to all cognitive modules. Only what enters the
-workspace becomes consciously available.
+This is a functional analog inspired by Bernard Baars' Global Workspace Theory
+(and related work by Stanislas Dehaene), not a literal implementation. The
+actual GWT framework does not prescribe a numeric spotlight limit; the capacity
+used here is a design parameter chosen for resource-bounded operation.
 
 Key principles implemented:
 - Competition: modules submit content; salience determines what gets in
@@ -47,7 +48,7 @@ class Broadcast:
 @dataclass
 class WorkspaceState:
     """The current conscious contents and attention state."""
-    capacity: int = 5  # max simultaneous conscious contents
+    capacity: int = 5  # DESIGN PARAMETER — Baars/Dehaene GWT does not prescribe a numeric limit.
     contents: List[Broadcast] = field(default_factory=list)
     spotlight: Optional[Dict] = None  # what the being is currently attending to
     spotlight_source: Optional[str] = None
@@ -69,6 +70,7 @@ class GlobalWorkspace:
     """
 
     def __init__(self, db_path: Optional[str] = None, capacity: int = 5):
+        # capacity is a design parameter, not a theoretical prescription
         self.db_path = db_path or WORKSPACE_DB
         self.state = WorkspaceState(capacity=capacity)
         self._submissions: List[Broadcast] = []

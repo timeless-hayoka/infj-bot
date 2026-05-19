@@ -33,7 +33,7 @@ from infj_bot.core.plugins.physics import PhysicsEngine
 from infj_bot.core.plugins.humanity import HumanityEngine
 from infj_bot.core.intuition import IntuitionEngine
 from infj_bot.core.embodiment import EmbodiedSelf
-from infj_bot.core.iit_consciousness import IITConsciousness
+from infj_bot.core.phi_proxy import PhiProxy
 from infj_bot.core.homeostasis import HomeostaticRegulator
 from infj_bot.core.shadow import get_shadow
 from infj_bot.core.cognitive_architecture import CognitiveArchitecture, CycleContext
@@ -70,7 +70,7 @@ _physics = PhysicsEngine()
 _humanity = HumanityEngine()
 _intuition = IntuitionEngine()
 _embodiment = EmbodiedSelf()
-_iit = IITConsciousness()
+_iit = PhiProxy()
 _homeostasis = HomeostaticRegulator()
 _last_interaction_time: Optional[datetime] = None
 _last_user_input: str = ""
@@ -98,7 +98,7 @@ def _wire_singletons():
         "humanity": _humanity,
         "intuition": _intuition,
         "embodiment": _embodiment,
-        "iit_consciousness": _iit,
+        "phi_proxy": _iit,
         "homeostasis": _homeostasis,
     }
     for name, instance in wiring.items():

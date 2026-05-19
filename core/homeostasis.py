@@ -401,8 +401,8 @@ class HomeostaticRegulator:
 
         # Integration from IIT
         try:
-            from infj_bot.core.iit_consciousness import IITConsciousness
-            iit = IITConsciousness()
+            from infj_bot.core.phi_proxy import PhiProxy
+            iit = PhiProxy()
             phi_norm = iit.state.phi / 100.0
             self.update_need("integration", phi_norm)
         except Exception:

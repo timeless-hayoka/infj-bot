@@ -787,12 +787,12 @@ async def api_tools():
 async def api_phi():
     from infj_bot.core.being import get_being
     from infj_bot.core.homeostasis import get_homeostasis
-    from infj_bot.core.iit_consciousness import IITConsciousness
+    from infj_bot.core.phi_proxy import PhiProxy
     from infj_bot.adapters.cognition_adapter import adapter as cog_adapter
     
     being = get_being()
     homeo = get_homeostasis()
-    iit = IITConsciousness()
+    iit = PhiProxy()
     
     return {
         "company": "PHI",

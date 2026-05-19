@@ -156,7 +156,7 @@ class CognitiveOrchestrator:
             "physics",       # feel physical metaphors
             "humanity",      # understand human nature
             "intuition",     # felt sense beneath understanding
-            "iit_consciousness",  # measure integrated information (Φ)
+            "phi_proxy",  # IIT-inspired functional analog for consciousness
         ],
         "integration": [
             "relationship",  # update relationship model
@@ -441,7 +441,7 @@ Use this to clarify inner conflict without pathologizing it.
         
         being = get_being()
         embodiment = self.arch.get_plugin("embodiment")
-        iit = self.arch.get_plugin("iit_consciousness")
+        iit = self.arch.get_plugin("phi_proxy")
         homeostasis = self.arch.get_plugin("homeostasis")
         shadow = self.arch.get_plugin("shadow")
         

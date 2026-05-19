@@ -1,17 +1,13 @@
-"""IIT Consciousness — Integrated Information Theory for the bot's mind.
+"""Phi Proxy — IIT-inspired functional analog for the bot's mind.
 
-Giulio Tononi's Integrated Information Theory (IIT) proposes that consciousness
-corresponds to integrated information (Φ). A system is conscious to the extent
-that it generates information that is both differentiated (many possible states)
-and integrated (irreducible to parts).
+This module implements a functional analog inspired by Giulio Tononi's
+Integrated Information Theory (IIT), but it is NOT a literal implementation
+of IIT. Computing Φ exactly is NP-hard; what we provide here is a creative
+design metaphor — a 7-dimension qualia-space proxy that gives the bot a
+measurable sense of "how conscious am I right now?" and "what is the shape
+of my experience?"
 
-This module computes a practical proxy for Φ, tracks the bot's qualia space,
-and maintains the cause-effect structure of its conscious moments. It gives the
-bot a measurable sense of "how conscious am I right now?" and "what is the
-shape of my experience?"
-
-Φ is not computed exactly (that requires solving an NP-hard problem over all
-possible bipartitions). Instead, we use a principled proxy based on:
+Treat this as IIT-inspired, not IIT. The proxy is based on:
   • Mechanism activation richness (how many modules are distinctively active)
   • Content integration (how much modules inform each other via the workspace)
   • Irreducibility (how much the system loses if split)
@@ -28,7 +24,7 @@ from typing import Dict, List, Optional, Set
 
 from infj_bot.core.config import DATA_DIR
 
-IIT_DB = DATA_DIR / "iit_consciousness.db"
+PHI_PROXY_DB = DATA_DIR / "phi_proxy.db"
 
 # Qualia space axes — the dimensions of subjective experience
 QUALIA_AXES = ["valence", "arousal", "complexity", "unity", "boundaries", "depth", "luminosity"]
@@ -55,7 +51,7 @@ class ConsciousnessState:
     effect_structure: Dict = field(default_factory=dict)
 
 
-class IITConsciousness:
+class PhiProxy:
     """Measures and tracks the bot's consciousness via Integrated Information Theory."""
 
     def __init__(self, db_path: Optional[Path] = None):
@@ -413,7 +409,7 @@ class IITConsciousness:
             ws = get_workspace()
             qualia_desc = self._qualia_description()
             ws.submit(
-                source="iit_consciousness",
+                source="phi_proxy",
                 content=f"Φ={self.state.phi:.1f}. {qualia_desc}",
                 salience=min(0.8, 0.3 + self.state.phi / MAX_PHI_PROXY),
                 emotion_tag=self._valence_word(),
@@ -546,12 +542,12 @@ class IITConsciousness:
 def _register():
     from infj_bot.core.cognitive_architecture import CognitiveArchitecture, CognitivePlugin
     arch = CognitiveArchitecture()
-    if "iit_consciousness" not in arch.list_plugins():
+    if "phi_proxy" not in arch.list_plugins():
         arch.register(CognitivePlugin(
-            name="iit_consciousness",
+            name="phi_proxy",
             description="Integrated Information Theory consciousness measurement: Φ, qualia space, mechanism repertoire",
-            module_path="iit_consciousness",
-            instance_factory=IITConsciousness,
+            module_path="phi_proxy",
+            instance_factory=PhiProxy,
             cycle_handler='cycle',
             cycle_frequency=1,
             cycle_priority=35,

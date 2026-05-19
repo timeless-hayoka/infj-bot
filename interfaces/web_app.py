@@ -443,17 +443,12 @@ def api_command():
 
 @app.route('/api/email', methods=['POST'])
 def api_email():
-    from emailer import send_email
+    # Email sending is not implemented; no send_email backend available.
     payload = request.json
-    result = send_email(
-        to=payload.get("to", ""),
-        subject=payload.get("subject", ""),
-        body=payload.get("body", ""),
-        html_body=payload.get("html_body"),
-    )
-    if result.get("ok"):
-        return jsonify({"sent": True})
-    return jsonify({"sent": False, "error": result.get("error")}), 500
+    return jsonify({
+        "sent": False,
+        "error": "Email sending not implemented (no backend configured)."
+    }), 501
 
 @app.route('/observatory')
 def observatory():
