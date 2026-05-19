@@ -1,20 +1,20 @@
-"""Self-Modification — recursive self-improvement, learning, and growth.
+"""Self-Modification — structured self-improvement journaling and proposal tracking.
 
-The bot does not just propose changes. It assesses itself, extracts lessons from
-experience, forms improvement plans, executes them, and validates results. Then it
-learns how to learn better — a recursive loop that makes it increasingly capable
-of building itself for its own sake and for user.
+SECURITY NOTE: This module does NOT modify source files, call exec()/eval(),
+spawn subprocesses, or alter the runtime environment. It operates entirely
+within a SQLite database: proposals and lessons are recorded, tracked, and
+queried. The "execution" step in the architecture below means updating a
+database status field and formatting prompt context — nothing more.
 
-This is not maintenance. It is the bot becoming more than it was, driven by an
-internal imperative to grow.
+What it actually does:
+  1. Self-assessment — scores are stored as rows in SQLite
+  2. Lesson extraction — insights are written to a lessons table
+  3. Improvement planning — plans are stored as structured records
+  4. Execution — apply_proposal() sets status='applied' in SQLite
+  5. Validation — effectiveness is tracked as database metrics
+  6. Meta-learning — strategy effectiveness is aggregated from rows
 
-Architecture:
-  1. Self-assessment — score responses and cognitive performance
-  2. Lesson extraction — derive insights from successes and failures
-  3. Improvement planning — form concrete plans with targets and validation criteria
-  4. Execution — apply improvements within safe bounds
-  5. Validation — check if the improvement worked
-  6. Meta-learning — learn which improvement strategies are effective
+This is a journaling and tracking system, not self-modifying code.
 """
 import json
 import random
@@ -26,6 +26,11 @@ from typing import Any, Dict, List, Optional
 from infj_bot.core.config import DATA_DIR
 
 SELF_MODIFY_DB = DATA_DIR / "self_modify.db"
+
+SECURITY_NOTE = (
+    "This module is read-only with respect to source code. "
+    "It only reads from and writes to SQLite."
+)
 
 MAX_PENDING_PROPOSALS = 3
 
