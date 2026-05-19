@@ -1,3 +1,11 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["infj_bot"]
+package-dir = {"infj_bot" = "."}
+
 [project]
 name = "infj-bot"
 version = "0.1.0"
@@ -60,6 +68,6 @@ voice = [
 ]
 
 [project.scripts]
-infj-bot = "cli:main"
+infj-bot = "infj_bot.cli:main"
 
 
