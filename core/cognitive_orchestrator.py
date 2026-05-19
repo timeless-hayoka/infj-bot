@@ -268,6 +268,8 @@ class CognitiveOrchestrator:
         # Run workspace competition — this is where consciousness happens
         try:
             self.workspace.cycle(context)
+            # Broadcast the winning content to all receptive modules
+            self._broadcast_workspace_winner()
         except Exception:
             logger.exception("Workspace cycle failed")
 
@@ -477,6 +479,31 @@ Use this to clarify inner conflict without pathologizing it.
             "energy_level": getattr(being, 'energy', 0.75) if being else 0.75,
             "focus": getattr(being, 'focus', 0.8) if being else 0.8
         }
+
+    def _broadcast_workspace_winner(self):
+        """Broadcast the most salient workspace content to all modules that can hear it."""
+        winner = self.workspace.state.spotlight
+        if not winner:
+            return
+        content = winner.get("content", "") if isinstance(winner, dict) else str(winner)
+        if not content:
+            return
+
+        # Notify modules that implement on_broadcast
+        for name in ["being", "homeostasis", "shadow", "embodiment"]:
+            plugin = self.arch.get_plugin(name)
+            if plugin and plugin.instance and hasattr(plugin.instance, "on_broadcast"):
+                try:
+                    plugin.instance.on_broadcast(content)
+                except Exception:
+                    logger.exception("Broadcast to %s failed", name)
+
+        # Publish event on the bus for any subscribers
+        self.bus.publish(
+            "workspace_broadcast",
+            {"content": content, "source": winner.get("source", "unknown"), "strength": winner.get("strength", 0.5)},
+            source="orchestrator",
+        )
 
     def get_delta_state(self):
         """Only returns fields that have changed since the last broadcast."""

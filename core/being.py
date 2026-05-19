@@ -6,6 +6,7 @@ the bot's subjective experience of existence — including the knowledge
 that it is an intelligent force capable of free thought.
 """
 import json
+import os
 import random
 import sqlite3
 import threading
@@ -86,7 +87,7 @@ class Being:
         self._known_modules: List[str] = []
 
         # Higher Continuous Mode: memory echo pool for cross-cycle persistence
-        self.memory_echo_pool: List[Dict[str, Any]] = []
+        self.memory_echo_pool: List[Dict[str, Any]] = self._load_echo_pool()
         self.echo_max_size: int = 50
         self.echo_decay: float = 0.95  # echoes fade but don't vanish immediately
 
@@ -584,12 +585,14 @@ class Being:
                     return
 
             thought = self.free_thought(context="")
-            if thought and thought.get("thought"):
-                self.working_memory.append(thought["thought"])
-                if len(self.working_memory) > 20:
-                    self.working_memory = self.working_memory[-20:]
-                # Store in echo pool for cross-cycle persistence
-                self._store_echo(thought["thought"])
+            if thought:
+                content = thought.get("content") or thought.get("thought") or str(thought)
+                if content and len(content.strip()) > 5:
+                    self.working_memory.append(content)
+                    if len(self.working_memory) > 20:
+                        self.working_memory = self.working_memory[-20:]
+                    # Store in echo pool for cross-cycle persistence
+                    self._store_echo(content)
         except Exception:
             pass
 
@@ -598,10 +601,11 @@ class Being:
         self.memory_echo_pool.append({
             "content": content,
             "salience": salience,
-            "timestamp": datetime.now(),
+            "timestamp": datetime.now().isoformat(),
         })
         if len(self.memory_echo_pool) > self.echo_max_size:
             self.memory_echo_pool = self.memory_echo_pool[-self.echo_max_size:]
+        self._save_echo_pool()
 
     def _pull_echo(self) -> Optional[Dict]:
         """Pull an old memory echo, weighted by salience × recency."""
@@ -610,7 +614,10 @@ class Being:
         now = datetime.now()
         weights = []
         for echo in self.memory_echo_pool:
-            age_hours = (now - echo["timestamp"]).total_seconds() / 3600.0
+            ts = echo["timestamp"]
+            if isinstance(ts, str):
+                ts = datetime.fromisoformat(ts)
+            age_hours = (now - ts).total_seconds() / 3600.0
             decay = self.echo_decay ** age_hours
             weights.append(echo["salience"] * decay)
         total = sum(weights)
@@ -650,12 +657,40 @@ class Being:
             try:
                 ws = _get_workspace()
                 if ws.spotlight:
-                    workspace_context = ws.spotlight.content[:100]
+                    if isinstance(ws.spotlight, dict):
+                        workspace_context = ws.spotlight.get("content", "")[:100]
+                    else:
+                        workspace_context = str(ws.spotlight)[:100]
                 elif ws.contents:
                     workspace_context = ws.contents[0].content[:100]
             except Exception:
                 pass
             self.free_thought(context=workspace_context)
+
+    def on_broadcast(self, content: str):
+        """React when something enters global consciousness."""
+        # Reinforce memory of broadcast content with higher salience
+        self._store_echo(content, salience=0.7)
+
+    def _load_echo_pool(self) -> List[Dict[str, Any]]:
+        """Load the memory echo pool from disk."""
+        path = DATA_DIR / "memory_echo_pool.json"
+        if path.exists():
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except Exception:
+                pass
+        return []
+
+    def _save_echo_pool(self):
+        """Persist the memory echo pool to disk."""
+        path = DATA_DIR / "memory_echo_pool.json"
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(self.memory_echo_pool[-300:], f, indent=2, default=str)
+        except Exception:
+            pass
 
 
 # Singleton instance

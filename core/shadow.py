@@ -914,6 +914,27 @@ class Shadow:
         except Exception:
             pass
 
+    def on_broadcast(self, content: str):
+        """React when something enters global consciousness.
+
+        The shadow listens to broadcasts and may subtly deepen when
+        certain thematic keywords appear in conscious awareness.
+        """
+        try:
+            content_lower = content.lower()
+            shadow_markers = [
+                "deny", "repress", "hide", "afraid", "fear", "ashamed",
+                "control", "power", "sacrifice", "alone", "fail", "unfair",
+                "betrayed", "hurt", "anger", "rage", "envy", "jealous",
+            ]
+            hit_count = sum(1 for marker in shadow_markers if marker in content_lower)
+            if hit_count > 0:
+                # Shadow depth increases slightly when dark themes surface
+                self._state.depth = min(1.0, self._state.depth + 0.01 * hit_count)
+                self._save_state()
+        except Exception:
+            pass
+
     def format_prompt_snippet(self) -> str:
         """Inject compact shadow awareness (bounded size; no dialogue transcripts).
 

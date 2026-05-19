@@ -694,6 +694,25 @@ class HomeostaticRegulator:
     def get_all_needs(self) -> Dict[str, Dict]:
         """Returns a detailed summary of all homeostatic needs."""
         return {name: {'level': need.current, 'setpoint': need.setpoint, 'trend': need.trend, 'status': 'critical' if self._is_critical(name) else 'stable'} for name, need in self.needs.items()}
+
+    def on_broadcast(self, content: str):
+        """React when something enters global consciousness.
+
+        Meaningful broadcasts slightly reinforce coherence and integration,
+        as the system experiences a moment of structured awareness.
+        """
+        try:
+            if len(content) > 20:
+                # Structured conscious content reinforces inner harmony
+                self.needs["coherence"].current = min(
+                    1.0, self.needs["coherence"].current + 0.005
+                )
+                self.needs["integration"].current = min(
+                    1.0, self.needs["integration"].current + 0.003
+                )
+        except Exception:
+            pass
+
 # ── Self-registration ────────────────────────────────────────────
 
 def _register():

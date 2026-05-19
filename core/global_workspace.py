@@ -49,10 +49,12 @@ class WorkspaceState:
     """The current conscious contents and attention state."""
     capacity: int = 5  # max simultaneous conscious contents
     contents: List[Broadcast] = field(default_factory=list)
-    spotlight: Optional[str] = None  # what the being is currently attending to
+    spotlight: Optional[Dict] = None  # what the being is currently attending to
     spotlight_source: Optional[str] = None
     cycle_count: int = 0
     total_broadcasts: int = 0
+    broadcast_history: List[Dict] = field(default_factory=list)
+    last_ignition: Optional[datetime] = None
 
 class GlobalWorkspace:
     """
@@ -138,8 +140,22 @@ class GlobalWorkspace:
             )
             self._submissions.append(broadcast)
 
+    def set_spotlight(self, content: str, source: str = "", strength: float = 1.0):
+        """Set the attention spotlight on a specific conscious content."""
+        self.state.spotlight = {
+            "content": content,
+            "source": source,
+            "strength": strength,
+            "timestamp": datetime.now().isoformat(),
+        }
+        self.state.spotlight_source = source
+        self.state.last_ignition = datetime.now()
+        self.state.broadcast_history.append(self.state.spotlight.copy())
+        if len(self.state.broadcast_history) > 50:
+            self.state.broadcast_history.pop(0)
+
     def cycle(self, context=None):
-        """Run a workspace cycle: competition, entry, broadcast, and decay."""
+        """Run a workspace cycle: competition, entry, spotlight, broadcast, and decay."""
         with self._lock:
             self.state.cycle_count += 1
             
@@ -151,16 +167,27 @@ class GlobalWorkspace:
             # Sort by salience
             current_submissions.sort(key=lambda x: x.salience, reverse=True)
             
-            # Add top submissions to contents up to capacity
+            entered = []
             for b in current_submissions:
                 if len(self.state.contents) < self.state.capacity:
                     b.broadcast_count += 1
                     self.state.contents.append(b)
                     self._log_broadcast(b, entered=True)
+                    entered.append(b)
                 else:
                     self._log_broadcast(b, entered=False)
             
-            # 3. Decay and cleanup
+            # 3. Set spotlight on the most salient newly-entered content
+            if entered:
+                winner = entered[0]
+                self.set_spotlight(
+                    content=winner.content,
+                    source=winner.source,
+                    strength=winner.salience,
+                )
+                self.state.total_broadcasts += len(entered)
+            
+            # 4. Decay and cleanup
             # Keep contents that still have salience
             active_contents = []
             for b in self.state.contents:
