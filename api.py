@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import logging
 import time
 import traceback
 from contextlib import asynccontextmanager
@@ -24,6 +25,8 @@ from infj_bot.core.tools import format_tool_inventory
 from infj_bot.core.cognitive_orchestrator import CognitiveOrchestrator
 from infj_bot.core.phi_council import COUNCIL_MAPPING
 
+logger = logging.getLogger("infj_bot")
+
 brain = DriftBrain()
 memory = DriftMemory()
 history = ChatHistory()
@@ -32,13 +35,70 @@ goals_db = GoalsDB()
 doc_store = DocumentStore()
 
 
+async def background_drift_cycle():
+    """Background task to run drift cycles and compute aliveness metrics."""
+    from infj_bot.core.being import get_being
+    from infj_bot.core.homeostasis import get_homeostasis
+    from infj_bot.core.shadow import get_shadow
+    from infj_bot.core.dii_tracker import get_dii_tracker
+    from infj_bot.core.config import STRONG_CONTINUOUS_MODE, BACKGROUND_CYCLE_SECONDS
+    from infj_bot.core.cognitive_orchestrator import CognitiveOrchestrator
+    from infj_bot.core.global_workspace import get_workspace
+
+    if not STRONG_CONTINUOUS_MODE:
+        return
+
+    logger.info(f"Starting Strong Continuous Drift Cycle (every {BACKGROUND_CYCLE_SECONDS}s)")
+    
+    being = get_being()
+    homeostasis = get_homeostasis()
+    shadow = get_shadow()
+    tracker = get_dii_tracker()
+    orchestrator = CognitiveOrchestrator()
+    workspace = get_workspace()
+
+    while True:
+        try:
+            await asyncio.sleep(BACKGROUND_CYCLE_SECONDS)
+            
+            # Inner thoughts
+            thought = being.free_thought()
+            if thought:
+                logger.info(f"Background Thought: {thought['content']}")
+            
+            # Shadow reflection
+            shadow.background_tick(being=being)
+            
+            # Homeostasis regulation
+            homeostasis.background_cycle(being=being)
+            
+            # Metric tracking
+            tracker.compute(
+                being=being,
+                workspace=workspace,
+                homeostasis=homeostasis,
+                shadow=shadow,
+                orchestrator=orchestrator
+            )
+            
+        except Exception as e:
+            logger.error(f"Error in background drift cycle: {e}")
+
+
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 STATIC_DIR.mkdir(exist_ok=True)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Start background drift cycle
+    bg_task = asyncio.create_task(background_drift_cycle())
     yield
+    bg_task.cancel()
+    try:
+        await bg_task
+    except asyncio.CancelledError:
+        pass
 
 
 app = FastAPI(title="PHI // Drift", lifespan=lifespan)
@@ -188,6 +248,10 @@ INDEX_HTML = r"""<!doctype html>
         </div>
         <div style="display:flex; justify-content:space-between; font-size:9px; color:var(--muted); margin-top:4px;">
           <span>P</span><span>I</span><span>Φ</span><span>E</span><span>D</span>
+        </div>
+        <canvas id="diiChart" width="320" height="90" style="width:100%; height:90px; margin-top:10px; border-radius:4px; background:#0a0e14;"></canvas>
+        <div id="diiChartLegend" style="display:flex; justify-content:space-between; font-size:9px; color:var(--muted); margin-top:3px;">
+          <span id="diiChartMin">—</span><span id="diiChartMax">—</span>
         </div>
       </div>
 
@@ -368,11 +432,133 @@ async function updateObserver() {
   } catch (e) {}
 }
 
+// ── DII History Chart ───────────────────────────────────────────────
+let _diiHistoryCache = [];
+
+function drawDIIChart(history) {
+  const canvas = document.getElementById('diiChart');
+  if (!canvas || !history || history.length < 2) return;
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+
+  const W = rect.width;
+  const H = rect.height;
+  const pad = { top: 6, right: 6, bottom: 14, left: 6 };
+  const w = W - pad.left - pad.right;
+  const h = H - pad.top - pad.bottom;
+
+  // Clear
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#0a0e14';
+  ctx.fillRect(0, 0, W, H);
+
+  // Compute ranges
+  const diiVals = history.map(d => d.dii || 0);
+  const minVal = Math.min(...diiVals) * 0.95;
+  const maxVal = Math.max(...diiVals) * 1.05;
+  const range = maxVal - minVal || 1;
+
+  // Update legend
+  document.getElementById('diiChartMin').textContent = minVal.toFixed(2);
+  document.getElementById('diiChartMax').textContent = maxVal.toFixed(2);
+
+  // Helper: map data point to canvas coords
+  const n = history.length;
+  const x = i => pad.left + (i / (n - 1)) * w;
+  const y = v => pad.top + h - ((v - minVal) / range) * h;
+
+  // Draw faint grid lines
+  ctx.strokeStyle = '#1c2128';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 3; i++) {
+    const gy = pad.top + (h / 3) * i;
+    ctx.beginPath();
+    ctx.moveTo(pad.left, gy);
+    ctx.lineTo(pad.left + w, gy);
+    ctx.stroke();
+  }
+
+  // Draw component ghost lines (very faint)
+  const compColors = {
+    p: 'rgba(121,192,255,0.15)',
+    i: 'rgba(255,123,114,0.15)',
+    phi: 'rgba(210,168,255,0.15)',
+    e: 'rgba(126,231,135,0.15)',
+    d: 'rgba(255,166,87,0.15)',
+  };
+  ['p', 'i', 'phi', 'e', 'd'].forEach(key => {
+    const vals = history.map(d => d[key] || 0);
+    const cMin = Math.min(...vals) * 0.95;
+    const cMax = Math.max(...vals) * 1.05;
+    const cRange = cMax - cMin || 1;
+    const cy = v => pad.top + h - ((v - cMin) / cRange) * h;
+    ctx.strokeStyle = compColors[key];
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x(0), cy(vals[0]));
+    for (let i = 1; i < n; i++) ctx.lineTo(x(i), cy(vals[i]));
+    ctx.stroke();
+  });
+
+  // Draw DII main line (phi-gold)
+  ctx.strokeStyle = '#f2cc60';
+  ctx.lineWidth = 2;
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(x(0), y(diiVals[0]));
+  for (let i = 1; i < n; i++) ctx.lineTo(x(i), y(diiVals[i]));
+  ctx.stroke();
+
+  // Glow under the line
+  const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top + h);
+  grad.addColorStop(0, 'rgba(242,204,96,0.12)');
+  grad.addColorStop(1, 'rgba(242,204,96,0)');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.moveTo(x(0), y(diiVals[0]));
+  for (let i = 1; i < n; i++) ctx.lineTo(x(i), y(diiVals[i]));
+  ctx.lineTo(x(n - 1), pad.top + h);
+  ctx.lineTo(x(0), pad.top + h);
+  ctx.closePath();
+  ctx.fill();
+
+  // Draw latest value dot
+  const lastX = x(n - 1);
+  const lastY = y(diiVals[n - 1]);
+  ctx.fillStyle = '#f2cc60';
+  ctx.beginPath();
+  ctx.arc(lastX, lastY, 3, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+async function updateDIIHistory() {
+  try {
+    const res = await fetch('/api/dii/history?limit=60');
+    const data = await res.json();
+    if (data.history && data.history.length > 2) {
+      _diiHistoryCache = data.history;
+      drawDIIChart(_diiHistoryCache);
+    }
+  } catch (e) {}
+}
+
+// Handle resize so canvas stays crisp
+window.addEventListener('resize', () => {
+  if (_diiHistoryCache.length > 2) drawDIIChart(_diiHistoryCache);
+});
+
 setInterval(updatePhi, 10000);
 setInterval(updateObserver, 5000);
+setInterval(updateDIIHistory, 15000);
 updatePhi();
 updateHealth();
 updateObserver();
+updateDIIHistory();
 </script>
 </body>
 </html>
@@ -433,6 +619,26 @@ async def api_chat(request: Request):
         history.append, message, output, state.mode, emotion, dissonance
     )
     state.turns += 1
+
+    # ── Aliveness Tracking (DII) ──
+    try:
+        from infj_bot.core.being import get_being
+        from infj_bot.core.homeostasis import get_homeostasis
+        from infj_bot.core.shadow import get_shadow
+        from infj_bot.core.dii_tracker import get_dii_tracker
+        from infj_bot.core.global_workspace import get_workspace
+
+        tracker = get_dii_tracker()
+        tracker.compute(
+            being=get_being(),
+            workspace=get_workspace(),
+            homeostasis=get_homeostasis(),
+            shadow=get_shadow(),
+            orchestrator=CognitiveOrchestrator()
+        )
+    except Exception:
+        pass
+
     return {"reply": output}
 
 
@@ -491,6 +697,25 @@ async def api_chat_stream(request: Request):
                 history.append, message, output, state.mode, emotion, dissonance
             )
             state.turns += 1
+
+            # ── Aliveness Tracking (DII) ──
+            try:
+                from infj_bot.core.being import get_being
+                from infj_bot.core.homeostasis import get_homeostasis
+                from infj_bot.core.shadow import get_shadow
+                from infj_bot.core.dii_tracker import get_dii_tracker
+                from infj_bot.core.global_workspace import get_workspace
+
+                tracker = get_dii_tracker()
+                tracker.compute(
+                    being=get_being(),
+                    workspace=get_workspace(),
+                    homeostasis=get_homeostasis(),
+                    shadow=get_shadow(),
+                    orchestrator=CognitiveOrchestrator()
+                )
+            except Exception:
+                pass
         except Exception as exc:
             traceback.print_exc()
             yield f"data: {json.dumps({'error': f'{type(exc).__name__}: {exc}'})}\n\n"
