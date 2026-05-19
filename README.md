@@ -1,6 +1,6 @@
 # DRIFT — Unified Cognitive Architecture
 
-## Latest Update — May 2024
+## Latest Update — May 2026
 **🚀 DRIFT Master Upgrade: Gevent, Delta-State & Auto-Throttling**
 
 - **Delta Logic Generator:** 70% reduction in WebSocket bandwidth.
