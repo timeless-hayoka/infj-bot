@@ -286,7 +286,7 @@ class CognitiveOrchestrator:
                        debug_dump=False) -> Tuple[str, Dict, Dict]:
         """Assemble the full prompt with budget tracking and conflict resolution."""
         from infj_bot.core.prompt_budget import PromptBudget
-        from cognition import detect_dissonance
+        from infj_bot.core.cognition import detect_dissonance
         from infj_bot.core.plugins.emotion import detect_emotion
         from infj_bot.core.guardrails import cyber_context_hint, memory_context_block, mode_scope_rail
         from infj_bot.core.tools import build_tool_prompt
@@ -589,5 +589,5 @@ def emotion_prompt_hint(emotion: Dict) -> str:
 
 def dissonance_prompt_hint(dissonance: Dict) -> str:
     """Imported from cognition module to avoid circular import."""
-    from cognition import dissonance_prompt_hint as _hint
+    from infj_bot.core.cognition import dissonance_prompt_hint as _hint
     return _hint(dissonance)

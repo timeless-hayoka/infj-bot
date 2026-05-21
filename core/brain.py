@@ -84,27 +84,33 @@ class DriftBrain:
         self.local_bridge = OllamaBridge()
         self.evaluator = SelfEvaluator()
 
-        if new_genai is not None:
+        if new_genai is not None and API_KEY:
             self.sdk = "google.genai"
             self.client = new_genai.Client(api_key=API_KEY)
             self.primary_model = None
             self.critic_model = None
             return
 
-        if legacy_genai is None:
-            raise ImportError("Install google-genai or google-generativeai to use DriftBrain.")
+        if legacy_genai is not None and API_KEY:
+            self.sdk = "google.generativeai"
+            legacy_genai.configure(api_key=API_KEY)
+            self.primary_model = legacy_genai.GenerativeModel(
+                model_name=self.primary_model_name,
+                system_instruction=INFJ_SYSTEM_PROMPT,
+            )
+            self.critic_model = legacy_genai.GenerativeModel(
+                model_name=self.critic_model_name,
+                system_instruction=CRITIC_SYSTEM_PROMPT,
+            )
+            self.chat = self.primary_model.start_chat(history=[])
+            return
 
-        self.sdk = "google.generativeai"
-        legacy_genai.configure(api_key=API_KEY)
-        self.primary_model = legacy_genai.GenerativeModel(
-            model_name=self.primary_model_name,
-            system_instruction=INFJ_SYSTEM_PROMPT,
-        )
-        self.critic_model = legacy_genai.GenerativeModel(
-            model_name=self.critic_model_name,
-            system_instruction=CRITIC_SYSTEM_PROMPT,
-        )
-        self.chat = self.primary_model.start_chat(history=[])
+        # No API key available — operate in local-only / test mode
+        self.sdk = "none"
+        self.client = None
+        self.primary_model = None
+        self.critic_model = None
+        self.chat = None
 
     # ------------------------------------------------------------------
     # Internal generation helpers
@@ -537,7 +543,7 @@ Rules:
 
     def clear_history(self):
         self.history = []
-        if self.sdk != "google.genai" and hasattr(self, "chat"):
+        if self.sdk == "google.generativeai" and self.primary_model is not None:
             self.chat = self.primary_model.start_chat(history=[])
 
 

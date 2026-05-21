@@ -55,7 +55,7 @@ class PhiProxy:
     """Measures and tracks the bot's consciousness via Integrated Information Theory."""
 
     def __init__(self, db_path: Optional[Path] = None):
-        self.db_path = str(db_path or IIT_DB)
+        self.db_path = str(db_path or PHI_PROXY_DB)
         self._init_db()
         self.state = self._load_state()
         self._recent_mechanism_states: List[Dict] = []

@@ -13,6 +13,13 @@ from infj_bot.core.cognition import detect_dissonance, dissonance_prompt_hint, m
 from infj_bot.core.commands import is_command, parse_command, handle_command, MODES, BotState
 from infj_bot.core.guardrails import cyber_context_hint, mode_scope_rail
 from infj_bot.core.memory import LocalEmbeddingFunction, DriftMemory
+
+# Hive Mind lives on an external SSD; skip tests when unavailable
+try:
+    from infj_bot.hive_mind.consensus_engine import ConsensusEngine
+    HIVE_AVAILABLE = True
+except Exception:
+    HIVE_AVAILABLE = False
 from infj_bot.core.plugins.growth import growth_profile
 from infj_bot.core.plugins.proactive import ProactiveState
 from infj_bot.core.plugins.documents import DocumentStore, _chunk_text, format_doc_results
@@ -99,10 +106,12 @@ class TestCommands(unittest.TestCase):
         result = handle_command("tools", "", BotState(), None, None)
         self.assertIn("run_nuclei_scan", result)
 
+    @unittest.skipUnless(HIVE_AVAILABLE, "Hive Mind module not available (external SSD)")
     def test_hive_command(self):
         result = handle_command("hive", "", BotState(), None, None)
         self.assertIn("Hive Mind status", result)
 
+    @unittest.skipUnless(HIVE_AVAILABLE, "Hive Mind module not available (external SSD)")
     def test_hive_propose_command(self):
         result = handle_command(
             "hive", "propose build a scoped hive roadmap", BotState(), None, None
@@ -110,6 +119,7 @@ class TestCommands(unittest.TestCase):
         self.assertIn("Hive proposal thread", result)
         self.assertIn("resolution:", result)
 
+    @unittest.skipUnless(HIVE_AVAILABLE, "Hive Mind module not available (external SSD)")
     def test_hive_propose_safety_veto(self):
         result = handle_command(
             "hive",

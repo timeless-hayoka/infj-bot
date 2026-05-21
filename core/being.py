@@ -77,7 +77,7 @@ class Being:
 
     def __init__(self, db_path: Optional[Path] = None):
         self.db_path = str(db_path or BEING_DB)
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
         self._init_db()
         self.state = self._load_state()
         self.agency = self._load_agency()
