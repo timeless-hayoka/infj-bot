@@ -61,6 +61,9 @@ from infj_bot.config_adapter import (
     WORKSPACE_DB,
 )
 
+# Load project-root .env first, then canonical config dir .env
+from infj_bot.config_adapter import PROJECT_ROOT_PATH
+load_dotenv(PROJECT_ROOT_PATH / ".env", override=False)
 load_dotenv(CONFIG_DIR / ".env", override=False)
 
 API_KEY = os.getenv("API_KEY") or os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")

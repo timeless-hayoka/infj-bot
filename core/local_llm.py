@@ -25,7 +25,7 @@ class OllamaBridge:
         self._client = None
         if ollama is not None:
             try:
-                self._client = ollama.Client(host=self.host)
+                self._client = ollama.Client(host=self.host, timeout=15)
             except Exception:
                 self._client = None
 
