@@ -1,31 +1,75 @@
 # DMU & PEDI Testing Methodology
 
-This document outlines the formal testing strategy for the Dynamic Memory Unit (DMU) and the Performance and Efficiency Detection Index (PEDI).
+> **Last updated:** 2026-05-20  
+> **Status:** Core modules implemented and wired into `cognitive_orchestrator.py`. Unit tests pending.
 
 ---
 
 ## 1. DMU (Dynamic Memory Unit) Testing
-The DMU regulates memory salience using the formula:
-$W_{final} = (BaseScore) \cdot e^{-\lambda (\Delta t)} \cdot (1 + \alpha \cdot Resonance)$
 
-### 🧪 Test Cases (`tests/test_dmu.py`)
-- **Exponential Decay Verification:** Use `pytest` to verify that memory scores decrease over simulated time intervals when resonance is constant.
-- **Resonance Multiplier Test:** Confirm that high emotional resonance values (from the `Aura` layer) can override temporal decay, keeping critical memories "fresh."
-- **Collection Boundary Test:** Ensure retrieved collections from ChromaDB are correctly re-ranked without loss of metadata.
-- **Null Safety:** Verify the engine handles memories with missing timestamps or resonance scores gracefully.
+The DMU lives at `memory/dmu.py` and provides an **alternative time-decay ranking model** on top of the Unified Memory Spine's existing `_calculate_dmu()`. It uses an emotionally-dampened exponential retention curve:
+
+```
+R(t, E) = e^(-λ_base * t / (1 + α * E))
+MPS = w_sim * S + w_time * R + w_emo * E + w_rec * recency
+```
+
+### ✅ Implemented
+- `DynamicMemoryUnit.rank_memories()` — re-ranks `MemoryEntry` objects from the spine
+- `DriftMemory.retrieve_context_ranked()` — prompt-builder integration with fallback
+- SQLite telemetry logging (`data/dmu.db`)
+
+### 🧪 Test Cases (to be written in `tests/test_dmu.py`)
+- **Exponential Decay Verification:** Verify `R(t, E)` decreases monotonically with `t` and increases with `E`
+- **Emotional Damping Test:** High-emotion memories (E=1) should decay at ~1/3 the rate of neutral memories (E=0) when α=2
+- **MPS Bounds:** Confirm MPS ∈ [0, 1] for all valid inputs
+- **Fallback Safety:** If `rank_memory_entries()` throws, `retrieve_context_ranked()` must fall back to plain retrieval
+- **Integration:** Call `assemble_prompt()` and verify DMU-ranked context appears in the final prompt string
 
 ---
 
 ## 2. PEDI (Performance & Efficiency Detection Index) Testing
-PEDI calculates the organism's efficiency ratio based on hardware load and API performance.
 
-### 🧪 Test Cases (`tests/test_pedi.py`)
-- **Metric Collection:** Mock the `google.generativeai` response metadata to verify `tokens_per_second` is captured accurately.
-- **Latency Sensitivity:** Simulate high-latency network conditions and verify that the PEDI score reflects a decrease in efficiency.
-- **Resource Correlation:** Verify the somatic link between `host_load.py` (CPU/RAM) and the PEDI efficiency curve.
-- **Data Persistence:** Ensure PEDI results are correctly serialized to the `pedi_logs.db` SQLite database for longitudinal research.
+The PEDI lives at `metrics/pedi.py` and measures **state fluidity** across context-window resets using Euclidean jump detection:
+
+```
+Δ_k = ||s_post - s_pre||_2
+SFS = max(0, 1 - Δ_k / Δ_max)
+CF_t = β * CF_{t-1} + (1 - β) * SFS_t
+```
+
+### ✅ Implemented
+- `PediIndex.evaluate_reset()` — compares pre/post homeostatic snapshots
+- `PediIndex.record_snapshot()` — turn-level state persistence
+- Crisis flagging when cumulative fluidity drops below 0.6
+- SQLite telemetry logging (`data/pedi.db`)
+- Wired into `assemble_prompt()` pre/post `trim_to_budget()`
+
+### 🧪 Test Cases (to be written in `tests/test_pedi.py`)
+- **Zero Jump:** Identical state vectors → SFS = 1.0
+- **Max Jump:** Δ_k ≥ Δ_max → SFS = 0.0
+- **EMA Smoothing:** Verify CF_t updates correctly with β = 0.9
+- **Crisis Trigger:** Simulate 5 consecutive low-SFS turns and confirm crisis flag
+- **Integration:** Verify snapshot is recorded on every `assemble_prompt()` call
 
 ---
 
-## 3. Integrated Research Validation
-A combined test suite will be run periodically to analyze the correlation between **Memory Freshness (DMU)** and **Cognitive Efficiency (PEDI)**. Results will be logged to `~/.drift_os/logs/research_audit.jsonl`.
+## 3. Research Alignment
+
+Both modules align with the cognitive research synthesized in `research_from_gemini.md`:
+
+| Research | Implementation |
+|----------|----------------|
+| CAEEMA (Cardoso & Campos, 2025) — emotional decay mechanics | DMU: logarithmic retention + emotional damping |
+| Abdulhai et al. NeurIPS 2025 — trajectory-level consistency | PEDI: measures state continuity across context resets |
+
+---
+
+## 4. Running the Audit
+
+```bash
+export GEMINI_API_KEY="your-key"
+python3 verify_architecture.py
+```
+
+This validates inline mathematical documentation for both modules.

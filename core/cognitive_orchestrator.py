@@ -294,9 +294,29 @@ class CognitiveOrchestrator:
 
         emotion = detect_emotion(message)
         dissonance = detect_dissonance(message)
-        context = memory.retrieve_context(message)
+
+        # DMU-ranked memory retrieval: re-ranks by time-decay + emotional weight
+        if hasattr(memory, "retrieve_context_ranked"):
+            context = memory.retrieve_context_ranked(message)
+        else:
+            context = memory.retrieve_context(message)
 
         budget = PromptBudget()
+
+        # ── PEDI: capture pre-assembly homeostatic snapshot ──
+        pre_snapshot = None
+        try:
+            from infj_bot.metrics.pedi import StateSnapshot
+            from infj_bot.core.homeostasis import get_homeostasis
+            pre_needs = get_homeostasis().get_need_summary()
+            pre_snapshot = StateSnapshot(
+                timestamp=datetime.now(),
+                turn_id=getattr(state, 'turns', len(self.turn_logs)),
+                needs=pre_needs,
+                context_tokens_used=budget.total_tokens(),
+            )
+        except Exception:
+            pass
 
         # Core tier (always included, protected)
         being = get_being()
@@ -374,6 +394,46 @@ Use this to clarify inner conflict without pathologizing it.
 
         # Trim to budget
         prompt = budget.trim_to_budget()
+
+        # ── PEDI: evaluate state fluidity across context-window reset ──
+        try:
+            from infj_bot.metrics.pedi import PediIndex, StateSnapshot, ResetEvent
+            from infj_bot.core.homeostasis import get_homeostasis
+
+            post_needs = get_homeostasis().get_need_summary()
+            post_snapshot = StateSnapshot(
+                timestamp=datetime.now(),
+                turn_id=getattr(state, 'turns', len(self.turn_logs)),
+                needs=post_needs,
+                context_tokens_used=budget.total_tokens(),
+            )
+
+            # Determine if a reset occurred by checking whether trim_to_budget
+            # dropped sections from any tier.
+            total_sections_before = sum(
+                len(budget.tiers[t].sections) for t in budget.tiers
+            )
+            # trim_to_budget mutates budget.tiers in place (pops sections).
+            # We compare against a heuristic: if the assembled prompt was
+            # truncated or sections were removed, treat it as a reset boundary.
+            assembled_raw = budget.assemble()
+            was_trimmed = (
+                len(assembled_raw) >= budget.max_total_chars - 100
+                or total_sections_before == 0
+            )
+
+            pedi = PediIndex()
+            if pre_snapshot is not None and was_trimmed:
+                reset_event = ResetEvent(
+                    turn_id=post_snapshot.turn_id,
+                    timestamp=datetime.now(),
+                    reason="token_budget" if total_sections_before > 0 else "session_resume",
+                )
+                pedi.evaluate_reset(pre_snapshot, post_snapshot, reset_event)
+            else:
+                pedi.record_snapshot(post_snapshot)
+        except Exception:
+            pass
 
         if debug_dump:
             budget.dump()

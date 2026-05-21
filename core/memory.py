@@ -233,6 +233,27 @@ class DriftMemory:
             return "\n---\n".join([e.event.content for e in entries])
         return [(e.event.content, e.metadata) for e in entries]
 
+    def retrieve_context_ranked(self, query, n_results=5):
+        """
+        Retrieve memory context re-ranked by the DMU (Dynamic Memory Unit).
+
+        This applies a second re-ranking pass on top of the Unified Memory Spine's
+        internal DMU scoring, using an alternative time-decay model with explicit
+        emotional-weight damping. Results are logged to the DMU telemetry database.
+
+        Falls back to standard `retrieve_context` if the DMU module is unavailable.
+        """
+        try:
+            from infj_bot.memory.dmu import rank_memory_entries, format_ranked_entries
+            entries = self.unified_manager.recall_sync(query, limit=n_results * 2)
+            if not entries:
+                return ""
+            ranked = rank_memory_entries(entries, query=query, top_k=n_results)
+            return format_ranked_entries(ranked)
+        except Exception:
+            # Safe fallback: if DMU fails for any reason, use standard retrieval
+            return self.retrieve_context(query, n_results=n_results)
+
     def _rerank(self, documents, metadatas, distances, top_k=5) -> Tuple[List[str], List[dict]]:
         # Deprecated: _rerank logic is now handled internally by MemoryManager.recall
         pass

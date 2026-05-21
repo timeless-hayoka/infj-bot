@@ -27,7 +27,7 @@ from infj_bot.core.config import CONSISTENCY_EVAL_DB as EVAL_DB
 
 def _load_turn_logs(limit: int = 500) -> List[Dict]:
     """Load recent turn logs from cognitive orchestrator."""
-    from cognitive_orchestrator import CognitiveOrchestrator
+    from infj_bot.core.cognitive_orchestrator import CognitiveOrchestrator
 
     orch = CognitiveOrchestrator()
     return orch.turn_logs[-limit:] if orch.turn_logs else []
@@ -199,7 +199,7 @@ class ConsistencyEvaluator:
 
     def _score_value_alignment(self, logs: List[Dict]) -> float:
         """Check if bot responses contradict stated values."""
-        from values import ValueSystem
+        from infj_bot.core.plugins.values import ValueSystem
 
         vs = ValueSystem()
         stated_values = set(v.lower() for v in vs.get_top_values())
@@ -284,7 +284,7 @@ class ConsistencyEvaluator:
 
     def _score_mode_integrity(self, logs: List[Dict]) -> float:
         """Check if behavior matches declared mode."""
-        from commands import BotState
+        from infj_bot.core.commands import BotState
 
         state = BotState()
         current_mode = state.mode if hasattr(state, "mode") else "companion"
@@ -378,7 +378,7 @@ class ConsistencyEvaluator:
 
     def _score_homeostatic_continuity(self, logs: List[Dict]) -> float:
         """Need states should drift plausibly, not jump randomly."""
-        from homeostasis import HomeostaticRegulator
+        from infj_bot.core.homeostasis import HomeostaticRegulator
 
         hr = HomeostaticRegulator()
         # Get need history if available

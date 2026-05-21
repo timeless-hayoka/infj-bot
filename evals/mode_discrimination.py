@@ -126,9 +126,9 @@ class ModeDiscriminator:
         self, modes: List[str], prompts: List[str]
     ) -> Dict[str, List[Dict]]:
         """Collect responses from each mode for each prompt."""
-        from brain import DriftBrain
-        from commands import BotState
-        from prompt_builder import build_chat_prompt
+        from infj_bot.core.brain import DriftBrain
+        from infj_bot.core.commands import BotState
+        from infj_bot.core.prompt_builder import build_chat_prompt
 
         brain = DriftBrain()
         state = BotState()

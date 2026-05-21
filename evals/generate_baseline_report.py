@@ -74,7 +74,7 @@ def load_shadow_state() -> Tuple[int, int]:
 
 
 def load_memory_stats(logs: List[Dict]) -> Dict:
-    from memory import DriftMemory
+    from infj_bot.core.memory import DriftMemory
 
     m = DriftMemory()
     return {
@@ -469,9 +469,9 @@ class RealModeDiscriminator:
     def _prompt_structure_analysis(self) -> Dict:
         """Check which modes have explicit rails in the prompt builder."""
         try:
-            from prompt_builder import build_chat_prompt
-            from commands import BotState
-            from memory import DriftMemory
+            from infj_bot.core.prompt_builder import build_chat_prompt
+            from infj_bot.core.commands import BotState
+            from infj_bot.core.memory import DriftMemory
 
             state = BotState()
             mem = DriftMemory()

@@ -9,6 +9,7 @@ Living list of improvements worth making, grouped by area. Reorder or check off 
 | Priority | Upgrade | Notes |
 |----------|---------|--------|
 | **P0** | **Semantic embeddings** | `LocalEmbeddingFunction` in `memory.py` is hash-bucket based; recall is weak for paraphrases and long-tail context. Options: Chroma default embedding, local model (e.g. sentence-transformers / Ollama embeddings API), or API embeddings — pick one path and version the collection name if dimensionality changes. |
+| **P0** | **DMU & PEDI integration** | ✅ **Done** — `memory/dmu.py` re-ranks by time-decay + emotional weight; `metrics/pedi.py` tracks state fluidity across context resets. Both wired into `cognitive_orchestrator.py`. |
 | **P0** | **Hybrid search** | Combine dense retrieval with keyword / recency / importance (you already store rich metadata). Reduces “almost right” misses. |
 | **P1** | **Memory lifecycle** | Summarize or prune old interactions; deduplicate near-duplicate facts; optional “pinned” memories vs ephemeral chat. |
 | **P1** | **Contradiction handling** | When new memory conflicts with retrieved chunks, resolve or surface uncertainty in `memory_context_block` / guardrails. |
@@ -21,7 +22,7 @@ Living list of improvements worth making, grouped by area. Reorder or check off 
 
 | Priority | Upgrade | Notes |
 |----------|---------|--------|
-| **P0** | **Token budget + trimming** | `prompt_builder.py` stacks many sections; enforce a max context budget and drop low-priority slices first (growth/temporal/etc.) when near limit. |
+| ~~P0~~ | ~~Token budget + trimming~~ | ✅ **Done** — `PromptBudget` enforces tiered limits; `trim_to_budget()` drops context → analysis → cognitive sections progressively. DMU/PEDI telemetry added. |
 | **P1** | **De-duplicate instructions** | Multiple modules may repeat “be reflective” / values language; consolidate to reduce contradictions and save tokens. |
 | **P1** | **Debug / trace mode** | One flag to dump final prompt sections (redacted) to a file or structured log — essential for “why did it say that?” |
 | **P2** | **Structured system blocks** | e.g. XML or markdown headings the model reliably respects; eases future caching if the API supports prefix caching. |

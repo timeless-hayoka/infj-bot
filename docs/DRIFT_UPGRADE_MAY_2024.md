@@ -1,4 +1,8 @@
-# DRIFT Master Upgrade: May 2024
+# [ARCHIVED] DRIFT Master Upgrade: May 2024
+
+> **Status:** Archived — preserved for historical context.  
+> **Current as of:** 2024-05  
+> **Superseded by:** Continuous iteration (see `UPGRADE_BACKLOG.md` for current roadmap).
 
 Today we successfully implemented a series of high-performance cognitive and networking upgrades to the INFJ Bot / DRIFT ecosystem.
 
