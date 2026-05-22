@@ -21,6 +21,7 @@ from infj_bot.core.plugins.growth import growth_profile
 from infj_bot.core.history import ChatHistory
 from infj_bot.core.memory import DriftMemory
 from infj_bot.core.prompt_builder import build_chat_prompt
+from infj_bot.core.security_defense import scan_input
 from infj_bot.core.tools import format_tool_inventory
 from infj_bot.core.cognitive_orchestrator import CognitiveOrchestrator
 from infj_bot.core.phi_council import COUNCIL_MAPPING
@@ -626,6 +627,11 @@ async def api_chat(request: Request):
     message = payload.get("message", "").strip()
     if not message:
         return JSONResponse({"error": "message is required"}, status_code=400)
+    sec = scan_input(message)
+    if sec.blocked:
+        return JSONResponse({"reply": sec.refusal_message, "security": sec.to_dict()})
+    if sec.warn:
+        message = sec.sanitized_input or message
     prompt, emotion, dissonance = build_chat_prompt(
         message,
         state,
@@ -692,6 +698,15 @@ async def api_chat_stream(request: Request):
             (f"data: {json.dumps({'error': 'message is required'})}\n\n" for _ in [1]),
             media_type="text/event-stream",
         )
+    sec = scan_input(message)
+    if sec.blocked:
+        refusal = sec.refusal_message or "I can't process that request."
+        return StreamingResponse(
+            (f"data: {json.dumps({'chunk': refusal})}\n\n" for _ in [1]),
+            media_type="text/event-stream",
+        )
+    if sec.warn:
+        message = sec.sanitized_input or message
 
     prompt, emotion, dissonance = build_chat_prompt(
         message,

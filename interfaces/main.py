@@ -6,6 +6,8 @@ from typing import Dict, Optional
 from infj_bot.core.brain import DriftBrain
 from infj_bot.core.commands import BotState, handle_command, is_command, parse_command
 from infj_bot.core.cognitive_orchestrator import CognitiveOrchestrator
+from infj_bot.core.security_defense import scan_input
+from infj_bot.core.logic_chain import get_chain_navigator
 from infj_bot.core.global_workspace import get_workspace
 from infj_bot.core.resilience import get_resilience, HealthCheck
 from infj_bot.core.history import ChatHistory
@@ -46,6 +48,11 @@ logger = logging.getLogger("infj_bot")
 brain = DriftBrain()
 memory = DriftMemory()
 history = ChatHistory()
+
+# Wire chain navigator with memory so reasoning chains persist across sessions
+get_chain_navigator(memory)
+# Also wire brain's navigator
+brain.chain_navigator = get_chain_navigator(memory)
 
 # Wire Elysium with brain + memory so proposals can call the LLM and Ignition uses DMU recall
 _elysium = get_elysium(memory=memory, brain=brain)
@@ -418,6 +425,13 @@ async def chat_loop():
             _temporal.record_session_end()
             session_active = False
             break
+
+        sec = scan_input(user_input)
+        if sec.blocked:
+            print(f"\n[INFJ COMPANION]: {sec.refusal_message or 'I can\'t process that request.'}")
+            continue
+        if sec.warn:
+            user_input = sec.sanitized_input or user_input
 
         if is_command(user_input):
             command, args = parse_command(user_input)

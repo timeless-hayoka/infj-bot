@@ -1,0 +1,88 @@
+{
+  "run_id": "20260521_220610",
+  "timestamp": "2026-05-21T22:08:07.986692",
+  "summary": {
+    "API_CURRENT": {
+      "avg_formal": 0.0,
+      "avg_chill": 1.67,
+      "parrot_count": 0,
+      "avg_latency": 17.6
+    },
+    "OLD_FORMAL": {
+      "avg_formal": 0.0,
+      "avg_chill": 0.0,
+      "parrot_count": 0,
+      "avg_latency": 15.53
+    }
+  },
+  "current_api": [
+    {
+      "formal_score": 0,
+      "chill_score": 0,
+      "state_parrot": false,
+      "length": 459,
+      "label": "greeting",
+      "prompt": "yo whats good",
+      "ok": true,
+      "latency": 16.25,
+      "reply": "[Local model is online but also failed this request.]\n\nI hit a model/API problem before I could think with Gemini, but I can still keep the thread steady.\n\nWhat I can do locally: separate the situation into facts, interpretations, feelings, values, and one small next action. Try `/dissonance <situation>` if this is an inner-conflict loop, or ask again once the model connection settles.\n\n[model unavailable: LocalLLMError: Ollama generate failed: timed out]"
+    },
+    {
+      "formal_score": 0,
+      "chill_score": 0,
+      "state_parrot": false,
+      "length": 459,
+      "label": "stress",
+      "prompt": "im kinda stressed about work",
+      "ok": true,
+      "latency": 16.82,
+      "reply": "[Local model is online but also failed this request.]\n\nI hit a model/API problem before I could think with Gemini, but I can still keep the thread steady.\n\nWhat I can do locally: separate the situation into facts, interpretations, feelings, values, and one small next action. Try `/dissonance <situation>` if this is an inner-conflict loop, or ask again once the model connection settles.\n\n[model unavailable: LocalLLMError: Ollama generate failed: timed out]"
+    },
+    {
+      "formal_score": 0,
+      "chill_score": 5,
+      "state_parrot": false,
+      "length": 893,
+      "label": "deep",
+      "prompt": "why do people overthink things?",
+      "ok": true,
+      "latency": 19.73,
+      "reply": "Hm, that's a solid question, for real. Why do people overthink?\n\nLowkey, I think it boils down to a few things. Sometimes it's just 'cause our brains are built to try and solve problems, you know? So when we hit a tricky spot, it's like our brain's on overdrive tryna figure out every angle, every possible outcome.\n\nAnd then there's the whole fear thing \u2013 fear of messing up, fear of making the wrong choice, or even just fear of the unknown. That can really get the gears spinnin' way too fast.\n\nPlus, sometimes it's just kinda a habit. The more you do it, the easier it is to get caught in that loop. It's like, you think if you just think *harder*, you'll find the perfect answer. But often, it just ends up makin' things more muddy.\n\nSo yeah, basically, it's a mix of problem-solving instincts, trying to dodge potential pain, and sometimes just a habit that's hard to break. Wild, right?"
+    }
+  ],
+  "old_formal_direct": [
+    {
+      "formal_score": 0,
+      "chill_score": 0,
+      "state_parrot": false,
+      "length": 459,
+      "label": "greeting",
+      "prompt": "yo whats good",
+      "ok": true,
+      "latency": 15.56,
+      "reply": "[Local model is online but also failed this request.]\n\nI hit a model/API problem before I could think with Gemini, but I can still keep the thread steady.\n\nWhat I can do locally: separate the situation into facts, interpretations, feelings, values, and one small next action. Try `/dissonance <situation>` if this is an inner-conflict loop, or ask again once the model connection settles.\n\n[model unavailable: LocalLLMError: Ollama generate failed: timed out]"
+    },
+    {
+      "formal_score": 0,
+      "chill_score": 0,
+      "state_parrot": false,
+      "length": 459,
+      "label": "stress",
+      "prompt": "im kinda stressed about work",
+      "ok": true,
+      "latency": 15.68,
+      "reply": "[Local model is online but also failed this request.]\n\nI hit a model/API problem before I could think with Gemini, but I can still keep the thread steady.\n\nWhat I can do locally: separate the situation into facts, interpretations, feelings, values, and one small next action. Try `/dissonance <situation>` if this is an inner-conflict loop, or ask again once the model connection settles.\n\n[model unavailable: LocalLLMError: Ollama generate failed: timed out]"
+    },
+    {
+      "formal_score": 0,
+      "chill_score": 0,
+      "state_parrot": false,
+      "length": 459,
+      "label": "deep",
+      "prompt": "why do people overthink things?",
+      "ok": true,
+      "latency": 15.35,
+      "reply": "[Local model is online but also failed this request.]\n\nI hit a model/API problem before I could think with Gemini, but I can still keep the thread steady.\n\nWhat I can do locally: separate the situation into facts, interpretations, feelings, values, and one small next action. Try `/dissonance <situation>` if this is an inner-conflict loop, or ask again once the model connection settles.\n\n[model unavailable: LocalLLMError: Ollama generate failed: timed out]"
+    }
+  ]
+}

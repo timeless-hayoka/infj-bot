@@ -1,3 +1,4 @@
+import json
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -151,6 +152,15 @@ def command_help(command=None):
                 "/architecture proposals — list pending proposals.\n"
                 "/architecture approve <name> — approve and install a proposal.\n"
                 "/architecture reject <name> — reject a proposal.")
+    if command == "security":
+        return ("/security status — show security scanner state and recent threat trend.\n"
+                "/security audit — show last 10 security events.\n"
+                "/security test <text> — scan arbitrary text and show scores.")
+    if command == "chain":
+        return ("/chain list — show active reasoning chains.\n"
+                "/chain show <id> — show steps for a specific chain.\n"
+                "/chain mark <query> success|fail — mark the last approach on a chain.\n"
+                "/chain clear — clear in-session chain cache.")
     return """Commands:
 /memory <query> | learn <name>: <description> | forget <name> | count | export [path] | import <path> | compact [days] | edit <name>: <desc>
 /mode companion|engineer|critic|coach|clarity|researcher|bughunter|quiet
@@ -211,6 +221,8 @@ def command_help(command=None):
 /humanity
 /physics
 /architecture list|enable|disable|propose|proposals|approve|reject
+/security status|audit|test <text>
+/chain list|show <id>|mark <query> success|fail|clear
 /help [command]"""
 
 
@@ -582,6 +594,96 @@ def handle_health_command(brain, memory):
         f"Memory count: {memory.count()}",
     ]
     return "\n".join(lines)
+
+
+def handle_security_command(args):
+    from infj_bot.core.security_defense import get_security_scanner
+    scanner = get_security_scanner()
+    if not args or args.strip() == "status":
+        trend = scanner.get_anomaly_trend()
+        status = "calm" if trend < 0.1 else ("elevated" if trend < 0.3 else "high")
+        return f"Security scanner status: {status} (trend={trend:.3f}, recent_inputs={len(scanner._recent_scores)})"
+    if args.strip().startswith("audit"):
+        from infj_bot.core.security_defense import SECURITY_AUDIT_PATH
+        if not SECURITY_AUDIT_PATH.exists():
+            return "No security events logged yet."
+        lines = []
+        try:
+            with open(SECURITY_AUDIT_PATH) as fh:
+                for line in list(fh)[-10:]:
+                    data = json.loads(line)
+                    lines.append(
+                        f"[{data.get('ts', '?')}] {data.get('action','?').upper()} — "
+                        f"{data.get('category','?')} (score={data.get('score','?')})"
+                    )
+        except Exception as exc:
+            return f"Error reading audit log: {exc}"
+        return "Recent security events:\n" + "\n".join(lines) if lines else "Audit log is empty."
+    if args.strip().startswith("test "):
+        text = args[5:].strip()
+        from infj_bot.core.security_defense import scan_input
+        result = scan_input(text)
+        lines = [
+            f"Scan result for: {text[:60]}...",
+            f"  Blocked: {result.blocked}",
+            f"  Warn: {result.warn}",
+            f"  Overall score: {result.overall_score:.3f}",
+            "  Category scores:",
+        ]
+        for cat, score in result.category_scores.items():
+            lines.append(f"    {cat}: {score:.3f}")
+        if result.matched_patterns:
+            lines.append("  Matched patterns:")
+            for cat, patterns in result.matched_patterns.items():
+                lines.append(f"    {cat}: {', '.join(patterns)}")
+        if result.refusal_message:
+            lines.append(f"  Refusal: {result.refusal_message[:120]}...")
+        return "\n".join(lines)
+    return command_help("security")
+
+
+def handle_chain_command(args):
+    from infj_bot.core.logic_chain import get_chain_navigator
+    nav = get_chain_navigator()
+    if not args or args.strip() == "list":
+        active = nav.list_active()
+        if not active:
+            return "No active reasoning chains."
+        lines = ["Active reasoning chains:"]
+        for c in active:
+            lines.append(f"  {c['chain_id']}: {c['query']}... ({c['steps']} steps, {c['status']})")
+        return "\n".join(lines)
+    if args.strip().startswith("show "):
+        chain_id = args[5:].strip()
+        chain = nav.get_chain(chain_id)
+        if not chain:
+            return f"Chain {chain_id} not found."
+        lines = [f"Chain {chain.chain_id} ({chain.status})"]
+        lines.append(f"Query: {chain.query}")
+        for node in chain.nodes:
+            icon = {"success": "✓", "failure": "✗", "partial": "~", "unknown": "?"}.get(node.status, "?")
+            lines.append(f"  {icon} [{node.iteration}] {node.approach}")
+            if node.result:
+                lines.append(f"      → {node.result[:100]}")
+        return "\n".join(lines)
+    if args.strip().startswith("mark "):
+        rest = args[5:].strip()
+        parts = rest.rsplit(maxsplit=1)
+        if len(parts) < 2 or parts[1] not in ("success", "fail", "failure", "partial"):
+            return "Use: /chain mark <query> success|fail|partial"
+        query = parts[0]
+        status = "success" if parts[1] == "success" else ("failure" if parts[1] in ("fail", "failure") else "partial")
+        chain = nav.find_or_create(query)
+        if chain.nodes:
+            chain.nodes[-1].status = status
+            if status == "success":
+                chain.status = "resolved"
+            return f"Marked last approach on chain as {status}."
+        return "No steps found for that query yet."
+    if args.strip() == "clear":
+        nav._active_chains.clear()
+        return "In-session chain cache cleared."
+    return command_help("chain")
 
 
 def handle_models_command(brain):
@@ -1516,6 +1618,10 @@ def handle_command(command, args, state, brain, memory, history=None, goals_db=N
         return handle_computer_close_command()
     if command == "health":
         return handle_health_command(brain, memory)
+    if command == "security":
+        return handle_security_command(args)
+    if command == "chain":
+        return handle_chain_command(args)
     if command == "models":
         return handle_models_command(brain)
     if command == "model":

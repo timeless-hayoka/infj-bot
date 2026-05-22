@@ -87,6 +87,15 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 DRIFT_GROQ_MODEL = os.getenv("DRIFT_GROQ_MODEL", "llama-3.3-70b-versatile")
 DRIFT_USE_GROQ = os.getenv("DRIFT_USE_GROQ", "true").lower() in ("1", "true", "yes", "on")
 
+# Moonshot Kimi Config
+KIMI_API_KEY = os.getenv("KIMI_API_KEY")
+DRIFT_KIMI_MODEL = os.getenv("DRIFT_KIMI_MODEL", "moonshot-v1-8k")
+DRIFT_USE_KIMI = os.getenv("DRIFT_USE_KIMI", "false").lower() in ("1", "true", "yes", "on")
+KIMI_BASE_URL = os.getenv("KIMI_BASE_URL", "https://api.moonshot.cn/v1")
+
+# Embedding config (use local hash-based embeddings on CPU for speed)
+DRIFT_USE_LOCAL_EMBEDDINGS = os.getenv("DRIFT_USE_LOCAL_EMBEDDINGS", "false").lower() in ("1", "true", "yes", "on")
+
 # Memory pruning config
 MAX_MEMORIES = int(os.getenv("INFJ_MAX_MEMORIES", "2500"))
 PRUNING_THRESHOLD = float(os.getenv("INFJ_PRUNING_THRESHOLD", "0.15"))

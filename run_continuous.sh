@@ -66,6 +66,10 @@ start_bot() {
         # shellcheck source=/dev/null
         source "${PROJECT_ROOT}/venv/bin/activate"
         venv_activated=true
+    elif [[ -f "${PROJECT_ROOT}/.venv/bin/activate" ]]; then
+        # shellcheck source=/dev/null
+        source "${PROJECT_ROOT}/.venv/bin/activate"
+        venv_activated=true
     fi
 
     if [[ "$venv_activated" == false ]]; then

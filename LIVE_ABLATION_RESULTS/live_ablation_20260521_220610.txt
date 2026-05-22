@@ -1,0 +1,87 @@
+============================================================
+LIVE ABLATION TEST RESULTS
+Run: 20260521_220610
+============================================================
+
+SUMMARY
+
+  API_CURRENT:
+    Avg formal markers:  0.0
+    Avg chill markers:   1.67
+    State parrot count:  0/3
+    Avg latency:         17.6s
+
+  OLD_FORMAL:
+    Avg formal markers:  0.0
+    Avg chill markers:   0.0
+    State parrot count:  0/3
+    Avg latency:         15.53s
+
+============================================================
+FULL RESPONSES — CURRENT API
+
+[greeting] > yo whats good
+lat=16.25s formal=0 chill=0 parrot=False
+[Local model is online but also failed this request.]
+
+I hit a model/API problem before I could think with Gemini, but I can still keep the thread steady.
+
+What I can do locally: separate the situation into facts, interpretations, feelings, values, and one small next action. Try `/dissonance <situation>` if this is an inner-conflict loop, or ask again once the model connection settles.
+
+[model unavailable: LocalLLMError: Ollama generate failed: timed out]
+
+[stress] > im kinda stressed about work
+lat=16.82s formal=0 chill=0 parrot=False
+[Local model is online but also failed this request.]
+
+I hit a model/API problem before I could think with Gemini, but I can still keep the thread steady.
+
+What I can do locally: separate the situation into facts, interpretations, feelings, values, and one small next action. Try `/dissonance <situation>` if this is an inner-conflict loop, or ask again once the model connection settles.
+
+[model unavailable: LocalLLMError: Ollama generate failed: timed out]
+
+[deep] > why do people overthink things?
+lat=19.73s formal=0 chill=5 parrot=False
+Hm, that's a solid question, for real. Why do people overthink?
+
+Lowkey, I think it boils down to a few things. Sometimes it's just 'cause our brains are built to try and solve problems, you know? So when we hit a tricky spot, it's like our brain's on overdrive tryna figure out every angle, every possible outcome.
+
+And then there's the whole fear thing – fear of messing up, fear of making the wrong choice, or even just fear of the unknown. That can really get the gears spinnin' way too fast.
+
+Plus, sometimes it's just kinda a habit. The more you do it, the easier it is to get caught in that loop. It's like, you think if you just think *harder*, you'll find the perfect answer. But often, it just ends up makin' things more muddy.
+
+So yeah, basically, it's a mix of problem-solving instincts, trying to dodge potential pain, and sometimes just a habit that's hard to break. Wild, right?
+
+============================================================
+FULL RESPONSES — OLD FORMAL PERSONA
+
+[greeting] > yo whats good
+lat=15.56s formal=0 chill=0 parrot=False
+[Local model is online but also failed this request.]
+
+I hit a model/API problem before I could think with Gemini, but I can still keep the thread steady.
+
+What I can do locally: separate the situation into facts, interpretations, feelings, values, and one small next action. Try `/dissonance <situation>` if this is an inner-conflict loop, or ask again once the model connection settles.
+
+[model unavailable: LocalLLMError: Ollama generate failed: timed out]
+
+[stress] > im kinda stressed about work
+lat=15.68s formal=0 chill=0 parrot=False
+[Local model is online but also failed this request.]
+
+I hit a model/API problem before I could think with Gemini, but I can still keep the thread steady.
+
+What I can do locally: separate the situation into facts, interpretations, feelings, values, and one small next action. Try `/dissonance <situation>` if this is an inner-conflict loop, or ask again once the model connection settles.
+
+[model unavailable: LocalLLMError: Ollama generate failed: timed out]
+
+[deep] > why do people overthink things?
+lat=15.35s formal=0 chill=0 parrot=False
+[Local model is online but also failed this request.]
+
+I hit a model/API problem before I could think with Gemini, but I can still keep the thread steady.
+
+What I can do locally: separate the situation into facts, interpretations, feelings, values, and one small next action. Try `/dissonance <situation>` if this is an inner-conflict loop, or ask again once the model connection settles.
+
+[model unavailable: LocalLLMError: Ollama generate failed: timed out]
+

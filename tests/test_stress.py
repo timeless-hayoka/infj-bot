@@ -144,7 +144,8 @@ class TestRapidFire:
     """Test many operations in quick succession."""
 
     def test_100_interactions_memory(self, tmp_path):
-        memory = DriftMemory(persist_directory=str(tmp_path))
+        from infj_bot.core.embeddings import LocalEmbeddingFunction
+        memory = DriftMemory(persist_directory=str(tmp_path), embedding_function=LocalEmbeddingFunction())
         start = time.time()
         for i in range(100):
             memory.save_interaction(
@@ -155,7 +156,7 @@ class TestRapidFire:
             )
         elapsed = time.time() - start
         assert memory.count() == 100
-        assert elapsed < 30  # Should be fast
+        assert elapsed < 25  # ChromaDB persistent writes are disk-bound
 
     def test_50_physics_observations(self, tmp_path):
         physics = PhysicsEngine(db_path=str(tmp_path / "physics.db"))

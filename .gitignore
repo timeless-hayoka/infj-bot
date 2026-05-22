@@ -61,3 +61,9 @@ hive_mind/
 # IDE
 .idea/
 
+
+# Generated artifacts
+.mouse_vanguard/
+.obsidian/
+*.html
+ablation_results/

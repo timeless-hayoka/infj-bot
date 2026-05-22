@@ -8,7 +8,7 @@ import asyncio
 from pathlib import Path
 from typing import List, Optional, Tuple
 
-from infj_bot.core.config import PERSIST_DIRECTORY
+from infj_bot.core.config import PERSIST_DIRECTORY, DRIFT_USE_LOCAL_EMBEDDINGS
 from infj_bot.core.embeddings import (
     get_default_embedding_function,
     LocalEmbeddingFunction,
@@ -60,7 +60,7 @@ def _run_async(coro):
         # Create a fire-and-forget task if we are already in an event loop
         loop.create_task(coro)
     except RuntimeError:
-        # No running event loop
+        # No running event loop — use a fresh loop per call (safest for threads)
         asyncio.run(coro)
 
 
@@ -72,9 +72,11 @@ class DriftMemory:
         if persist_directory is None:
             persist_directory = str(PERSIST_DIRECTORY)
 
-        self.use_semantic = use_semantic
+        self.use_semantic = use_semantic and not DRIFT_USE_LOCAL_EMBEDDINGS
         if embedding_function is None:
-            if use_semantic:
+            if DRIFT_USE_LOCAL_EMBEDDINGS:
+                embedding_function = LocalEmbeddingFunction()
+            elif use_semantic:
                 embedding_function = get_default_embedding_function()
             else:
                 embedding_function = LocalEmbeddingFunction()
