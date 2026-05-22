@@ -8,6 +8,8 @@
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![Tests](https://img.shields.io/badge/tests-72%2F72%20passing-brightgreen.svg)]()
 
+> **Tested on:** Omni Slim (local CPU environment). Results may vary with GPU acceleration, different model sizes, or cloud provider availability.
+
 **DRIFT** (Distributed Response & Integrated Functional Thought) is a Python companion stack that merges an INFJ-bot chat interface with a full cognitive architecture — emotion, memory, homeostasis, shadow, global workspace, and a reasoning trace system.
 
 > The LLM does not secretly execute arbitrary code. Distinct behavior comes from **what is assembled into the prompt**, **what is retrieved from memory**, and **what structured state** is updated before and after each turn.
