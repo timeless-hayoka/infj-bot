@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: "If you use this software or the DRIFT architecture in your research, please cite both the software and the paper."
+title: "DRIFT: Distributed Response & Integrated Functional Thought"
+abstract: "A unified cognitive architecture for local AI companion bots that constructs distinct behavior through prompt assembly, memory retrieval, and structured state updates."
+type: software
+authors:
+  - family-names: "Hayoka"
+    given-names: "Timeless"
+repository-code: "https://github.com/timeless-hayoka/infj-bot"
+license: MIT
+version: "0.1.0"
+date-released: "2026-05-22"
+
+preferred-citation:
+  type: article
+  title: "PHI // DRIFT: A Homeostatic Cognitive Architecture for Persistent, State-Aware AI Companionship"
+  authors:
+    - family-names: "Hayoka"
+      given-names: "Timeless"
+  doi: "10.5281/zenodo.20350249"
+  url: "https://zenodo.org/records/20350249"
+  year: 2026

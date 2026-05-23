@@ -7,6 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![Tests](https://img.shields.io/badge/tests-72%2F72%20passing-brightgreen.svg)]()
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20350249.svg)](https://doi.org/10.5281/zenodo.20350249)
 
 > **Tested on:** Omni Slim (local CPU environment). Results may vary with GPU acceleration, different model sizes, or cloud provider availability.
 
@@ -208,6 +209,18 @@ python tests/ablation_suite.py --conditions A,B,C,D,E,F --prompts 50 --live
 | Security & keys | [`SECURITY.md`](SECURITY.md) |
 | Terminology | [`docs/GLOSSARY.md`](docs/GLOSSARY.md) |
 | Full doc index | [`docs/README.md`](docs/README.md) |
+
+---
+
+## Citation
+
+If you use DRIFT in your research, please cite:
+
+> **PHI // DRIFT: A Homeostatic Cognitive Architecture for Persistent, State-Aware AI Companionship**
+>
+> Zenodo: [https://doi.org/10.5281/zenodo.20350249](https://doi.org/10.5281/zenodo.20350249)
+>
+> PDF: [DRIFT_paper_v4.pdf](https://zenodo.org/records/20350249/files/DRIFT_paper_v4.pdf)
 
 ---
 
