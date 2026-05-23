@@ -1,5 +1,6 @@
 """Local LLM bridge via Ollama for offline/fallback operation."""
 import json
+import os
 import time
 from typing import Any, Dict, Generator, List, Optional
 
@@ -25,7 +26,8 @@ class OllamaBridge:
         self._client = None
         if ollama is not None:
             try:
-                self._client = ollama.Client(host=self.host, timeout=120)
+                timeout = int(os.getenv("DRIFT_LOCAL_TIMEOUT", "120"))
+                self._client = ollama.Client(host=self.host, timeout=timeout)
             except Exception:
                 self._client = None
 

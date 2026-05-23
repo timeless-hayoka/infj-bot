@@ -488,9 +488,16 @@ class DriftBrain:
                 self.history.extend([f"User: {user_input}", f"Bot: {primary_text}"])
                 if len(self.history) > self._max_history:
                     self.history = self.history[-self._max_history:]
-            else:
+            elif self.sdk == "google.generativeai":
                 response = self.chat.send_message(user_input)
                 primary_text = response.text
+            else:
+                # Local-only / test mode — no cloud SDK available
+                primary_text = self._generate(
+                    self.primary_model_name,
+                    INFJ_SYSTEM_PROMPT,
+                    user_input,
+                )
         except Exception as exc:
             return self._offline_fallback(user_input, exc)
 

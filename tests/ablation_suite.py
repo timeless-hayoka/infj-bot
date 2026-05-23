@@ -237,27 +237,34 @@ def estimate_tokens(text: str) -> int:
 class AblationRunner:
     """Runs a single ablation condition and collects metrics."""
 
-    def __init__(self, condition: str, prompts: List[Tuple[str, str]], output_dir: Path):
+    def __init__(self, condition: str, prompts: List[Tuple[str, str]], output_dir: Path, live: bool = False):
         self.condition = condition
         self.prompts = prompts
         self.output_dir = output_dir
+        self.live = live
         self.results: List[Dict] = []
         self.memory = None
 
     def _setup_ablation(self) -> Tuple[Any, Callable]:
         """Configure the system for the given ablation condition.
         Returns (brain_instance, cleanup_fn)."""
+        print("[DEBUG] _setup_ablation start", flush=True)
         from infj_bot.core.brain import DriftBrain
         from infj_bot.core.memory import DriftMemory
         from infj_bot.core.logic_chain import get_chain_navigator
+        print("[DEBUG] imports done", flush=True)
 
         # Base setup
+        print("[DEBUG] before DriftBrain", flush=True)
         brain = DriftBrain()
+        print("[DEBUG] after DriftBrain", flush=True)
         self.memory = DriftMemory()
+        print("[DEBUG] after DriftMemory", flush=True)
 
         # Wire chain navigator with memory
         nav = get_chain_navigator(self.memory)
         brain.chain_navigator = nav
+        print("[DEBUG] after navigator", flush=True)
 
         cleanup = lambda: None
 
@@ -343,6 +350,59 @@ class AblationRunner:
             # Full stack — baseline, no modifications
             pass
 
+        if self.live:
+            # Live mode: use real LLM calls via configured providers (Kimi/Groq/Gemini)
+            # Only force Ollama fallback for Condition E (Local LLM only)
+            print("[DEBUG] live mode start", flush=True)
+            try:
+                from infj_bot.core import config as cfg_module
+                from infj_bot.core.local_llm import OllamaBridge
+                import infj_bot.core.brain as brain_module
+                if self.condition == "E":
+                    # Condition E: force local-only as per test design
+                    brain_module.API_KEY = ""
+                    brain_module.GROQ_API_KEY = ""
+                    brain_module.KIMI_API_KEY = ""
+                    brain_module.DRIFT_USE_GROQ = False
+                    brain_module.DRIFT_USE_KIMI = False
+                    cfg_module.API_KEY = ""
+                    cfg_module.GROQ_API_KEY = ""
+                    cfg_module.KIMI_API_KEY = ""
+                    cfg_module.DRIFT_USE_GROQ = False
+                    cfg_module.DRIFT_USE_KIMI = False
+                    os.environ["DRIFT_LOCAL_MODEL"] = "qwen3:4b"
+                    os.environ["DRIFT_LOCAL_TIMEOUT"] = "60"
+                    brain.local_bridge = OllamaBridge()
+                    brain._use_local_fallback = True
+                else:
+                    # Conditions A-D, F: Ollama-only for reliable completion
+                    # Groq rate limits (429) prevent consistent cloud usage on free tier
+                    brain_module.API_KEY = ""
+                    brain_module.GROQ_API_KEY = ""
+                    brain_module.KIMI_API_KEY = ""
+                    brain_module.DRIFT_USE_GROQ = False
+                    brain_module.DRIFT_USE_KIMI = False
+                    cfg_module.API_KEY = ""
+                    cfg_module.GROQ_API_KEY = ""
+                    cfg_module.KIMI_API_KEY = ""
+                    cfg_module.DRIFT_USE_GROQ = False
+                    cfg_module.DRIFT_USE_KIMI = False
+                    # Skip critic review to halve Ollama calls per prompt
+                    _orig_generate = brain._generate
+                    def _fast_generate(model_name, system_instruction, prompt):
+                        if "Review the following response" in prompt:
+                            return "[critic skipped for ablation speed]"
+                        return _orig_generate(model_name, system_instruction, prompt)
+                    brain._generate = _fast_generate
+                    os.environ["DRIFT_LOCAL_MODEL"] = "qwen3:4b"
+                    os.environ["DRIFT_LOCAL_TIMEOUT"] = "60"
+                    brain.local_bridge = OllamaBridge()
+                    brain._use_local_fallback = True
+                print("[DEBUG] live mode setup complete", flush=True)
+            except Exception as exc:
+                print(f"  [live mode setup warning: {exc}]")
+            return brain, cleanup
+
         # Patch _generate to a fast stub so we exercise the full pipeline
         # without waiting on broken providers. The stub inspects the prompt
         # and returns a response shaped by what the prompt contains.
@@ -406,6 +466,7 @@ class AblationRunner:
 
     def _run_single(self, brain, category: str, prompt: str) -> Dict:
         """Run one prompt through the FULL pipeline (orchestrator + brain) and collect metrics."""
+        print(f"[DEBUG] _run_single: {prompt[:30]}", flush=True)
         from infj_bot.core.cognitive_orchestrator import CognitiveOrchestrator
         from infj_bot.core.commands import BotState
         from infj_bot.core.config import DEFAULT_AUTHORIZED_TARGETS
@@ -422,16 +483,24 @@ class AblationRunner:
         goals_db = GoalsDB()
         doc_store = DocumentStore()
         orchestrator = CognitiveOrchestrator()
+        print("[DEBUG] state ready", flush=True)
 
+        is_timeout = False
         try:
             # Assemble the full prompt through the orchestrator (exercises memory, being, etc.)
+            print("[DEBUG] before assemble_prompt", flush=True)
             assembled_prompt, emotion_data, dissonance_data = orchestrator.assemble_prompt(
                 prompt, state, self.memory, goals_db=goals_db, doc_store=doc_store, prefs=state.prefs
             )
+            print("[DEBUG] after assemble_prompt", flush=True)
 
             # Pass assembled prompt to brain
+            print("[DEBUG] before think", flush=True)
             response = brain.think(prompt)
+            print("[DEBUG] after think", flush=True)
         except Exception as exc:
+            exc_str = str(exc).lower()
+            is_timeout = "timeout" in exc_str or "timed out" in exc_str
             response = f"[ERROR: {type(exc).__name__}: {exc}]"
             error = str(exc)
 
@@ -460,6 +529,7 @@ class AblationRunner:
             "emotion_label": emotion,
             "is_fallback": fallback["is_fallback"],
             "has_error": error is not None,
+            "is_timeout": is_timeout,
             "error": error,
             "prompt_length": prompt_len,
             "has_council_in_prompt": has_council,
@@ -479,6 +549,8 @@ class AblationRunner:
             print(f"  [{i:02d}/{len(self.prompts)}] {category}: {prompt[:50]}")
             result = self._run_single(brain, category, prompt)
             self.results.append(result)
+            if self.live and self.condition == "E":
+                time.sleep(1)  # Small breather for CPU Ollama thermal stability
 
         cleanup()
         return self._summarize()
@@ -628,17 +700,35 @@ def main():
     parser.add_argument("--conditions", default="A,B,C,D,E,F", help="Comma-separated condition IDs")
     parser.add_argument("--prompts", type=int, default=50, help="Number of prompts to run (max 50)")
     parser.add_argument("--output-dir", default=str(PROJECT_ROOT / "ABLATION_RESULTS"), help="Output directory")
+    parser.add_argument("--live", action="store_true", help="Use real LLM calls via Ollama qwen3:4b instead of stubs")
+    parser.add_argument("--diverse", type=int, default=0, help="If >0, sample N prompts per category (greeting, stress, deep, tech, creative) instead of first N")
     args = parser.parse_args()
+    print("[DEBUG] parsed args", flush=True)
 
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
     conditions = [c.strip().upper() for c in args.conditions.split(",")]
-    num_prompts = min(args.prompts, len(PROMPT_DATASET))
-    prompts = PROMPT_DATASET[:num_prompts]
+    if args.diverse > 0:
+        # Sample N prompts per category for balanced testing
+        by_cat: Dict[str, List[Tuple[str, str]]] = {}
+        for cat, prompt in PROMPT_DATASET:
+            by_cat.setdefault(cat, []).append((cat, prompt))
+        prompts = []
+        for cat in ["greeting", "stress", "deep", "tech", "creative"]:
+            cat_prompts = by_cat.get(cat, [])
+            n = min(args.diverse, len(cat_prompts))
+            prompts.extend(cat_prompts[:n])
+        num_prompts = len(prompts)
+    else:
+        num_prompts = min(args.prompts, len(PROMPT_DATASET))
+        prompts = PROMPT_DATASET[:num_prompts]
+    print("[DEBUG] prepared prompts", flush=True)
 
     print("=" * 60)
     print("DRIFT ABLATION TEST SUITE")
+    mode = "LIVE (real LLM calls via Ollama qwen3:4b)" if args.live else "STUBBED (synthetic responses)"
+    print(f"Mode: {mode}")
     print(f"Prompts: {num_prompts} | Conditions: {', '.join(conditions)}")
     print(f"Output: {output_dir}")
     print("=" * 60)
@@ -647,8 +737,11 @@ def main():
     json_paths: List[Path] = []
 
     for cond in conditions:
-        runner = AblationRunner(cond, prompts, output_dir)
+        print(f"[DEBUG] starting condition {cond}", flush=True)
+        runner = AblationRunner(cond, prompts, output_dir, live=args.live)
+        print(f"[DEBUG] created runner", flush=True)
         summary = runner.run()
+        print(f"[DEBUG] run complete", flush=True)
         path = runner.save(summary)
         all_summaries.append(summary)
         json_paths.append(path)
@@ -708,4 +801,6 @@ def main():
 
 
 if __name__ == "__main__":
+    print("[DEBUG] entering main", flush=True)
     main()
+    print("[DEBUG] exiting main", flush=True)

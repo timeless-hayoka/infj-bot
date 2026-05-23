@@ -59,26 +59,29 @@ Commands:
 
 ### 🧪 Ablation Test Suite
 
-A 6-condition test harness measures the impact of removing or replacing each cognitive subsystem.
+A 6-condition test harness measures the impact of removing or replacing each cognitive subsystem. The latest run (2026-05-22) used **live Ollama `qwen3:4b` inference on CPU** across all conditions — no stubs.
 
 | Condition | What was changed | Key Finding |
 |-----------|-----------------|-------------|
-| **A** No Council | Elysium/Phi Council stubbed | No prompt diff — background cycle not in read path |
-| **B** No Shadow | Shadow background tick disabled | No prompt diff — radar cached before stub |
-| **C** No Homeostasis | Homeostasis cycle disabled, needs flattened | No prompt diff — needs initialized before stub |
-| **D** Cosine-only RAG | DMU re-ranking removed | **↓ 326 chars (14.8%)** — DMU adds meaningful context |
-| **E** Local LLM only | Cloud providers disabled | No prompt diff — affects generation, not assembly |
-| **F** Full Stack | Baseline — no changes | Reference point |
+| **A** No Council | Elysium/Phi Council stubbed | Latency 61.8s — council is background-only, no read-path diff |
+| **B** No Shadow | Shadow background tick disabled | Latency 59.4s — shadow operates via cache, minimal prompt impact |
+| **C** No Homeostasis | Homeostasis cycle disabled, needs flattened | Latency 63.1s — emotional state still initialized before stub |
+| **D** Cosine-only RAG | DMU re-ranking removed | **Prompt ↓ 221 chars (7.7%)** — DMU re-ranking injects meaningful context |
+| **E** Local LLM only | Cloud providers disabled, Ollama forced | Baseline latency — tests provider-agnostic assembly |
+| **F** Full Stack | Baseline — no changes | Reference: 3095-char avg prompt, 62.9s latency |
 
-![Prompt Length Comparison](docs/assets/ablation_prompt_length.png)
+**Prompt length is the clearest signal.** Removing DMU re-ranking (Condition D) drops the assembled prompt from 3,095 to 2,874 characters. That 221-character gap is the delta between "simple cosine top-N recall" and "dynamic memory unit re-ranking with salience scoring."
 
-![DMU Context Contribution](docs/assets/dmu_context_contribution.png)
+![Prompt Length Comparison](docs/assets/ablation_prompt_length_live.png)
 
-![Latency Comparison](docs/assets/ablation_latency.png)
+![Latency & Fallback Rate](docs/assets/ablation_latency_fallback_live.png)
 
-**Methodology:** The suite exercises the full `CognitiveOrchestrator.assemble_prompt()` pipeline for each condition, then measures prompt structure, latency, and response characteristics. Due to provider outages (Gemini 429, Ollama timeout), the latest run used a stubbed LLM for the generation step — but the **prompt assembly is real** and the structural differences are genuine.
+![Coherence & Token Count](docs/assets/ablation_coherence_tokens_live.png)
 
-> **Re-run with live LLMs:** `python tests/ablation_suite.py --conditions A,B,C,D,E,F --prompts 50`
+**Methodology & Limitations:** The suite exercises the full `CognitiveOrchestrator.assemble_prompt()` pipeline for each condition, then passes the assembled prompt through the real brain → Ollama inference chain. Because assembled prompts are ~3,000 characters and Ollama `qwen3:4b` runs on CPU, inference frequently exceeds the 60-second timeout, triggering the offline fallback. **Latency and prompt-length metrics are genuine; response-quality metrics (coherence, tokens) reflect fallback text structure rather than model-generated output.** A GPU or smaller prompt assembly would eliminate the timeout wall.
+
+> **Re-run with live LLMs:** `python tests/ablation_suite.py --conditions A,B,C,D,E,F --prompts 50 --live`  
+> **Fast balanced run:** `python tests/ablation_suite.py --conditions A,B,C,D,E,F --diverse 2 --live`
 
 ---
 
@@ -172,8 +175,8 @@ python core/logic_chain_test.py
 python tests/test_stress.py
 # 28 passed
 
-# Full ablation suite (takes ~30 min with live LLMs)
-python tests/ablation_suite.py --conditions A,B,C,D,E,F --prompts 50
+# Full ablation suite (takes ~90 min on CPU Ollama, ~5 min with cloud GPUs)
+python tests/ablation_suite.py --conditions A,B,C,D,E,F --prompts 50 --live
 ```
 
 ---
