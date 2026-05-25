@@ -1,4 +1,4 @@
-# DRIFT — Unified Cognitive Architecture
+# PHI // DRIFT — Cognitive Architecture
 
 <p align="center">
   <img src="docs/assets/drift-banner.jpg" alt="DRIFT wordmark with integrated Phi symbol" width="520" />
@@ -11,7 +11,7 @@
 
 > **Tested on:** Omni Slim (local CPU environment). Results may vary with GPU acceleration, different model sizes, or cloud provider availability.
 
-**DRIFT** (Distributed Response & Integrated Functional Thought) is a Python companion stack that merges an INFJ-bot chat interface with a full cognitive architecture — emotion, memory, homeostasis, shadow, global workspace, and a reasoning trace system.
+**PHI // DRIFT** (Distributed Response & Integrated Functional Thought) is a Python cognitive architecture for AI companions — merging a 5-layer organism (Aura, Logic, Meme, Vibe, Ethos, Pulse, Nexus) with emotion, memory, homeostasis, shadow, global workspace, and a reasoning trace system.
 
 > The LLM does not secretly execute arbitrary code. Distinct behavior comes from **what is assembled into the prompt**, **what is retrieved from memory**, and **what structured state** is updated before and after each turn.
 
