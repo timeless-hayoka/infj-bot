@@ -36,7 +36,7 @@ This document groups the INFJ Bot's dependencies by purpose and identifies candi
 | `httpx` | HTTP client | No |
 | `websockets` | WebSocket support | If not using WS chat |
 
-**Slim option:** Run in CLI-only mode (`cli.py`) and drop FastAPI/uvicorn/sse-starlette.
+**Slim option:** Run in CLI-only mode (`interfaces/cli.py` → `infj-bot chat`) and drop FastAPI/uvicorn/sse-starlette.
 
 ## Voice & Audio
 
