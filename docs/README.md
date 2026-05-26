@@ -16,7 +16,10 @@ This folder is the canonical **secondary** navigation for DRIFT / INFJ Bot. Star
 | If you… | Start here |
 |--------|------------|
 | Want to **run** the bot and configure keys | [README § Getting started](../README.md#getting-started) — then `.env.example` at repo root |
+| **Deploy** to Docker or Hugging Face Spaces | [DEPLOYMENT.md](DEPLOYMENT.md) |
+| Hit the **web UI / chat APIs** from an external client | [WEB_INTERFACE.md](WEB_INTERFACE.md) |
 | Want to **understand one chat turn end-to-end** | [HOW_INFJ_BOT_WORKS.md](HOW_INFJ_BOT_WORKS.md) |
+| Understand **shadow governance, task mutation, retry, continuity telemetry** | [MAY_2026_SUBSYSTEMS.md](MAY_2026_SUBSYSTEMS.md) |
 | Integrate **Drift-named posture** via memory seeds only | [DRIFT_AI_INTEGRATION.md](DRIFT_AI_INTEGRATION.md) |
 | Review **secrets and reporting** | [SECURITY.md](../SECURITY.md) |
 | Plan **hive / observatory work** | [HIVE_ROADMAP.md](HIVE_ROADMAP.md) |
@@ -31,13 +34,16 @@ This folder is the canonical **secondary** navigation for DRIFT / INFJ Bot. Star
 | [BASELINE_REPORT.md](BASELINE_REPORT.md) | Snapshot metrics from evaluations (when generated). |
 | [DELL_HANDOFF.md](DELL_HANDOFF.md) | Long-form ops notes: devices, workflows, quirks. |
 | [DEPENDENCIES.md](DEPENDENCIES.md) | What major packages/runtime pieces are for. |
+| [DEPLOYMENT.md](DEPLOYMENT.md) | Docker image + Hugging Face Spaces deployment, secrets, pitfalls. |
 | [DRIFT_AI_INTEGRATION.md](DRIFT_AI_INTEGRATION.md) | How Drift-related concepts are seeded into memory—not a submodule. |
 | [HIVE_ROADMAP.md](HIVE_ROADMAP.md) | Direction for hive / observatory coordination features. |
 | [HOW_INFJ_BOT_WORKS.md](HOW_INFJ_BOT_WORKS.md) | Architecture, data flow diagram, modules, env table, verification. |
+| [MAY_2026_SUBSYSTEMS.md](MAY_2026_SUBSYSTEMS.md) | Shadow governance, task mutator, retry wrapper, continuity vector reference. |
 | [REDDIT_REPLY_DRAFT.md](REDDIT_REPLY_DRAFT.md) | Draft external communication (historical/context). |
 | [SHADOW_REDDIT_POST.md](SHADOW_REDDIT_POST.md) | Draft post material around shadow subsystem. |
 | [TEST_RISKS.md](TEST_RISKS.md) | Testing caveats and risk notes. |
 | [UPGRADE_BACKLOG.md](UPGRADE_BACKLOG.md) | Planned improvements backlog. |
+| [WEB_INTERFACE.md](WEB_INTERFACE.md) | Endpoint + WebSocket reference for `interfaces/web_app.py`. |
 
 ---
 

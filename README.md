@@ -167,9 +167,14 @@ python interfaces/api.py
 # or
 uvicorn interfaces.api:app --host 127.0.0.1 --port 8765 --reload
 
-# Web UI (port 5000)
+# Web UI (port 7860 — override with PORT env var)
 python interfaces/web_app.py
 ```
+
+See [`docs/WEB_INTERFACE.md`](docs/WEB_INTERFACE.md) for the full endpoint
+reference (chat UI, Observatory, OpenAI/Ollama-compatible APIs,
+WebSocket telemetry) and [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) for
+Docker and Hugging Face Spaces deployment.
 
 ---
 
