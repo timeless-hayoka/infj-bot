@@ -17,6 +17,9 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Copy project code
 COPY . .
 
+# Install the project itself in editable mode so 'infj_bot' namespace is resolved
+RUN pip install --no-cache-dir -e .
+
 # Data directory — override with INFJ_DATA_DIR env var to use PortableSSD
 RUN mkdir -p /app/chroma_db /app/data
 
