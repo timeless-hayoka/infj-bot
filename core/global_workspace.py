@@ -384,9 +384,7 @@ class GlobalWorkspace:
                 "cycle_count": self._cycle_count,
                 "total_broadcasts": self._total_submitted,
                 "spotlight": spotlight.source if spotlight else None,
-                "sources_in_consciousness": [
-                    b.source for b in self.state.contents
-                ],
+                "sources_in_consciousness": [b.source for b in self.state.contents],
             }
 
     def move_spotlight(self, content: str) -> bool:
