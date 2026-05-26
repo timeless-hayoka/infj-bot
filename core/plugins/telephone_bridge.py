@@ -2,12 +2,12 @@
 Telephone Bridge Plugin for DRIFT.
 Allows DRIFT to autonomously monitor his telephone inbox and communicate with Jude.
 """
+
 import json
 import logging
-import os
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 logger = logging.getLogger("drift")
 
@@ -16,10 +16,12 @@ TELEPHONE_DIR = Path.home() / "drift-telephone"
 INBOX_DIR = TELEPHONE_DIR / "inbox"
 OUTBOX_DIR = TELEPHONE_DIR / "outbox"
 
+
 class TelephoneBridge:
     """
     Plugin that connects DRIFT's consciousness to the physical 'Telephone' bridge.
     """
+
     def __init__(self):
         self._ensure_dirs()
         self.pending_messages = []
@@ -34,7 +36,9 @@ class TelephoneBridge:
         """
         self.pending_messages = self._load_pending()
         if self.pending_messages:
-            logger.info(f"TelephoneBridge: {len(self.pending_messages)} new message(s) from Jude.")
+            logger.info(
+                f"TelephoneBridge: {len(self.pending_messages)} new message(s) from Jude."
+            )
 
     def _load_pending(self) -> List[Dict]:
         pending = []
@@ -54,10 +58,10 @@ class TelephoneBridge:
         """
         if not self.pending_messages:
             return "TELEPHONE: No new messages. The line is quiet."
-        
+
         snippets = ["TELEPHONE: You have new messages from Jude:"]
         for msg in self.pending_messages:
-            snippets.append(f"- [{msg['timestamp']}] Jude: \"{msg['content']}\"")
+            snippets.append(f'- [{msg["timestamp"]}] Jude: "{msg["content"]}"')
         snippets.append("\nYou should respond to these messages in your next turn.")
         return "\n".join(snippets)
 
@@ -76,23 +80,23 @@ class TelephoneBridge:
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "meta": {
                 "relayed_by": "telephone_bridge_plugin",
-                "original_msg_id": original_msg_id
-            }
+                "original_msg_id": original_msg_id,
+            },
         }
-        
+
         out_path = OUTBOX_DIR / f"{msg_id}.json"
         try:
             with open(out_path, "w") as f:
                 json.dump(payload, f, indent=2)
-            
+
             # Mark original as relayed if ID provided
             if original_msg_id:
                 self._mark_relayed(original_msg_id)
             else:
                 # Mark all current pending as relayed
                 for msg in self.pending_messages:
-                    self._mark_relayed(msg['id'])
-                    
+                    self._mark_relayed(msg["id"])
+
             return f"[ok: reply sent as {msg_id}]"
         except Exception as e:
             return f"[error: failed to send reply: {e}]"
@@ -109,8 +113,13 @@ class TelephoneBridge:
             except Exception as e:
                 logger.error(f"Failed to mark message {msg_id} as relayed: {e}")
 
+
 def _register():
-    from infj_bot.core.cognitive_architecture import CognitiveArchitecture, CognitivePlugin
+    from infj_bot.core.cognitive_architecture import (
+        CognitiveArchitecture,
+        CognitivePlugin,
+    )
+
     arch = CognitiveArchitecture()
     if "telephone_bridge" not in arch.list_plugins():
         arch.register(
@@ -120,16 +129,15 @@ def _register():
                 module_path="plugins.telephone_bridge",
                 instance_factory=TelephoneBridge,
                 cycle_handler="cycle",
-                cycle_frequency=1, # Check every cycle
-                cycle_priority=20, # High priority
+                cycle_frequency=1,  # Check every cycle
+                cycle_priority=20,  # High priority
                 prompt_formatter="format_prompt_snippet",
                 prompt_priority=20,
                 prompt_section="context",
-                commands={
-                    "phone_reply": "reply"
-                }
+                commands={"phone_reply": "reply"},
             )
         )
+
 
 if __name__ == "__main__":
     _register()

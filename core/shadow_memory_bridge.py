@@ -37,7 +37,6 @@ def validate_before_save(
 ) -> Dict:
     """Validate a memory before saving. Returns validation result with flags."""
     shadow = get_shadow()
-    reliability = get_reliability_engine()
 
     result = {
         "allow_save": True,

@@ -10,6 +10,7 @@ import threading
 
 import numpy as np
 import torch
+
 torch.set_default_device("cpu")
 from chromadb.api.types import Documents, Embeddings
 
@@ -27,6 +28,7 @@ class SemanticEmbeddingFunction:
                 from sentence_transformers import SentenceTransformer
 
                 import torch
+
                 torch.set_default_device("cpu")
                 self._model = SentenceTransformer("all-MiniLM-L6-v2", device="cpu")
         return self._model

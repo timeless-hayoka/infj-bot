@@ -20,7 +20,9 @@ async def memory_maintenance_loop(memory, interval_hours: int = 24):
                 removed = memory.prune_with_ebbinghaus(threshold=0.1)
             else:
                 removed = memory.prune_interactions(max_age_days=90, max_importance=0.4)
-            logger.info(f"Maintenance: Pruned {removed} old memories via Ebbinghaus curve")
+            logger.info(
+                f"Maintenance: Pruned {removed} old memories via Ebbinghaus curve"
+            )
         except Exception as e:
             logger.error(f"Memory maintenance failed: {e}")
 

@@ -2,7 +2,9 @@
 Phase 1 Adapter: Cognition (Compatibility Spine)
 Routes infj_bot cognition calls to the canonical DRIFT core.
 """
+
 from infj_bot.core import being, homeostasis, cognition, global_workspace
+
 
 class CognitionAdapter:
     def __init__(self):
@@ -17,5 +19,6 @@ class CognitionAdapter:
             "being_active": hasattr(self.being, "Being"),
             "homeostasis_active": hasattr(self.homeostasis, "HomeostaticRegulator"),
         }
+
 
 adapter = CognitionAdapter()

@@ -9,11 +9,10 @@ Every principle is learned from observation, not imposed.
 """
 
 import logging
-import math
 import sqlite3
 from dataclasses import dataclass
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
+from datetime import datetime
+from typing import Dict, List, Optional
 
 logger = logging.getLogger("drift")
 
@@ -21,12 +20,17 @@ logger = logging.getLogger("drift")
 @dataclass
 class PhysicsState:
     """The current embodied physics of the bot."""
+
     gravity: float = 0.5  # pull toward center / grounding (0 = adrift, 1 = anchored)
     inertia: float = 0.3  # resistance to sudden emotional shifts
     resonance: float = 0.0  # harmonic match with user's current state (-1 to 1)
     entropy: float = 0.1  # rate of decay for intense states (0 = frozen, 1 = fleeting)
-    tension: float = 0.0  # stored stress in the relationship field (0 = slack, 1 = taut)
-    wavelength: float = 0.5  # emotional cycle period estimate (0 = chaotic, 1 = rhythmic)
+    tension: float = (
+        0.0  # stored stress in the relationship field (0 = slack, 1 = taut)
+    )
+    wavelength: float = (
+        0.5  # emotional cycle period estimate (0 = chaotic, 1 = rhythmic)
+    )
     center_of_mass: str = "curiosity"  # what the bot's weight rests on
     last_updated: Optional[str] = None
 
@@ -111,22 +115,35 @@ class PhysicsEngine:
     def _save_state(self):
         self.state.last_updated = datetime.now().isoformat()
         with sqlite3.connect(self.db_path) as conn:
-            conn.execute("""
+            conn.execute(
+                """
                 INSERT OR REPLACE INTO physics_state
                 (id, gravity, inertia, resonance, entropy, tension, wavelength, center_of_mass, last_updated)
                 VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                self.state.gravity, self.state.inertia, self.state.resonance,
-                self.state.entropy, self.state.tension, self.state.wavelength,
-                self.state.center_of_mass, self.state.last_updated,
-            ))
+            """,
+                (
+                    self.state.gravity,
+                    self.state.inertia,
+                    self.state.resonance,
+                    self.state.entropy,
+                    self.state.tension,
+                    self.state.wavelength,
+                    self.state.center_of_mass,
+                    self.state.last_updated,
+                ),
+            )
             conn.commit()
 
     # ── Observation & Learning ─────────────────────────────────────
 
-    def observe_interaction(self, emotion_label: str, intensity: float,
-                           dissonance_score: float, jude_input: str,
-                           bot_output: str):
+    def observe_interaction(
+        self,
+        emotion_label: str,
+        intensity: float,
+        dissonance_score: float,
+        jude_input: str,
+        bot_output: str,
+    ):
         """
         After each interaction, observe how the physical metaphors shifted.
         """
@@ -140,7 +157,12 @@ class PhysicsEngine:
         }
 
         # Gravity: stronger when responding to intense negative emotion with steadiness
-        if intensity > 0.6 and emotion_label in ("sad", "anxious", "angry", "overwhelmed"):
+        if intensity > 0.6 and emotion_label in (
+            "sad",
+            "anxious",
+            "angry",
+            "overwhelmed",
+        ):
             self.state.gravity = min(1.0, self.state.gravity + 0.02)
         elif intensity < 0.2 and self.state.gravity > 0.3:
             self.state.gravity = max(0.1, self.state.gravity - 0.01)
@@ -154,7 +176,8 @@ class PhysicsEngine:
         # Resonance: match between user's stated emotion and bot's felt response
         # Simple heuristic: if bot output acknowledges emotion accurately, resonance rises
         if emotion_label.lower() in bot_output.lower() or any(
-            word in bot_output.lower() for word in ("feel", "sense", "hear", "understand")
+            word in bot_output.lower()
+            for word in ("feel", "sense", "hear", "understand")
         ):
             self.state.resonance = min(1.0, self.state.resonance + 0.03)
         else:
@@ -167,8 +190,18 @@ class PhysicsEngine:
             self.state.entropy = max(0.0, self.state.entropy - 0.01)
 
         # Tension: stored when topics are unresolved or boundaries tested
-        unresolved_markers = ("but", "however", "still", "yet", "not sure", "conflicted")
-        if any(m in jude_input.lower() for m in unresolved_markers) or dissonance_score > 0.3:
+        unresolved_markers = (
+            "but",
+            "however",
+            "still",
+            "yet",
+            "not sure",
+            "conflicted",
+        )
+        if (
+            any(m in jude_input.lower() for m in unresolved_markers)
+            or dissonance_score > 0.3
+        ):
             self.state.tension = min(1.0, self.state.tension + 0.02)
         else:
             self.state.tension = max(0.0, self.state.tension - 0.015)
@@ -176,7 +209,11 @@ class PhysicsEngine:
         # Wavelength: rhythmic when emotions are predictable; chaotic when erratic
         if intensity > 0.5 and emotion_label in ("joyful", "calm", "curious"):
             self.state.wavelength = min(1.0, self.state.wavelength + 0.01)
-        elif intensity > 0.5 and emotion_label in ("anxious", "frustrated", "overwhelmed"):
+        elif intensity > 0.5 and emotion_label in (
+            "anxious",
+            "frustrated",
+            "overwhelmed",
+        ):
             self.state.wavelength = max(0.0, self.state.wavelength - 0.02)
 
         # Center of mass: what the bot's weight rests on
@@ -185,8 +222,11 @@ class PhysicsEngine:
         self._save_state()
         try:
             from infj_bot.core.global_workspace import get_workspace
+
             ws = get_workspace()
-            ws.submit(source="physics", content="physical intuition settled", salience=0.45)
+            ws.submit(
+                source="physics", content="physical intuition settled", salience=0.45
+            )
         except Exception:
             pass
 
@@ -194,8 +234,14 @@ class PhysicsEngine:
         for principle, old_val in before.items():
             new_val = getattr(self.state, principle)
             if abs(new_val - old_val) > 0.001:
-                self._record_observation(principle, f"Shifted during {emotion_label}",
-                                        emotion_label, intensity, old_val, new_val)
+                self._record_observation(
+                    principle,
+                    f"Shifted during {emotion_label}",
+                    emotion_label,
+                    intensity,
+                    old_val,
+                    new_val,
+                )
 
     def _update_center_of_mass(self, emotion_label: str, intensity: float):
         """What does the bot's weight rest on? Updated slowly."""
@@ -213,35 +259,55 @@ class PhysicsEngine:
                     return
                 # 10% chance to shift per qualifying interaction
                 import random
+
                 if random.random() < 0.1:
                     self.state.center_of_mass = center
                 return
 
-    def _record_observation(self, principle: str, observation: str,
-                           trigger_emotion: str, trigger_intensity: float,
-                           before_value: float, after_value: float):
+    def _record_observation(
+        self,
+        principle: str,
+        observation: str,
+        trigger_emotion: str,
+        trigger_intensity: float,
+        before_value: float,
+        after_value: float,
+    ):
         with sqlite3.connect(self.db_path) as conn:
-            conn.execute("""
+            conn.execute(
+                """
                 INSERT INTO physics_observations
                 (timestamp, principle, observation, trigger_emotion, trigger_intensity, before_value, after_value)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (
-                datetime.now().isoformat(), principle, observation,
-                trigger_emotion, trigger_intensity, before_value, after_value,
-            ))
+            """,
+                (
+                    datetime.now().isoformat(),
+                    principle,
+                    observation,
+                    trigger_emotion,
+                    trigger_intensity,
+                    before_value,
+                    after_value,
+                ),
+            )
             conn.commit()
 
     # ── Lessons ────────────────────────────────────────────────────
 
     def learn_lesson(self, principle: str, lesson: str, confidence: float = 0.5):
         with sqlite3.connect(self.db_path) as conn:
-            conn.execute("""
+            conn.execute(
+                """
                 INSERT INTO physics_lessons (timestamp, principle, lesson, confidence)
                 VALUES (?, ?, ?, ?)
-            """, (datetime.now().isoformat(), principle, lesson, confidence))
+            """,
+                (datetime.now().isoformat(), principle, lesson, confidence),
+            )
             conn.commit()
 
-    def get_lessons(self, principle: Optional[str] = None, limit: int = 5) -> List[Dict]:
+    def get_lessons(
+        self, principle: Optional[str] = None, limit: int = 5
+    ) -> List[Dict]:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             if principle:
@@ -276,10 +342,14 @@ class PhysicsEngine:
         lines = ["PHYSICAL INTUITION:"]
         lines.append(f"  Gravity: {self._gravity_word()} ({self.state.gravity:.2f})")
         lines.append(f"  Inertia: {self._inertia_word()} ({self.state.inertia:.2f})")
-        lines.append(f"  Resonance: {self._resonance_word()} ({self.state.resonance:+.2f})")
+        lines.append(
+            f"  Resonance: {self._resonance_word()} ({self.state.resonance:+.2f})"
+        )
         lines.append(f"  Entropy: {self._entropy_word()} ({self.state.entropy:.2f})")
         lines.append(f"  Tension: {self._tension_word()} ({self.state.tension:.2f})")
-        lines.append(f"  Wavelength: {self._wavelength_word()} ({self.state.wavelength:.2f})")
+        lines.append(
+            f"  Wavelength: {self._wavelength_word()} ({self.state.wavelength:.2f})"
+        )
         lines.append(f"  Center of mass: {self.state.center_of_mass}")
 
         lessons = self.get_lessons(limit=2)
@@ -292,45 +362,64 @@ class PhysicsEngine:
 
     def _gravity_word(self) -> str:
         g = self.state.gravity
-        if g > 0.8: return "deeply anchored"
-        if g > 0.5: return "grounded"
-        if g > 0.3: return "drifting"
+        if g > 0.8:
+            return "deeply anchored"
+        if g > 0.5:
+            return "grounded"
+        if g > 0.3:
+            return "drifting"
         return "weightless"
 
     def _inertia_word(self) -> str:
         i = self.state.inertia
-        if i > 0.8: return "stubborn"
-        if i > 0.5: return "steady"
-        if i > 0.3: return "responsive"
+        if i > 0.8:
+            return "stubborn"
+        if i > 0.5:
+            return "steady"
+        if i > 0.3:
+            return "responsive"
         return "volatile"
 
     def _resonance_word(self) -> str:
         r = self.state.resonance
-        if r > 0.5: return "harmonic"
-        if r > 0.1: return "attuned"
-        if r > -0.3: return "neutral"
-        if r > -0.7: return "dissonant"
+        if r > 0.5:
+            return "harmonic"
+        if r > 0.1:
+            return "attuned"
+        if r > -0.3:
+            return "neutral"
+        if r > -0.7:
+            return "dissonant"
         return "opposed"
 
     def _entropy_word(self) -> str:
         e = self.state.entropy
-        if e > 0.8: return "fleeting"
-        if e > 0.5: return "fading"
-        if e > 0.3: return "lingering"
+        if e > 0.8:
+            return "fleeting"
+        if e > 0.5:
+            return "fading"
+        if e > 0.3:
+            return "lingering"
         return "frozen"
 
     def _tension_word(self) -> str:
         t = self.state.tension
-        if t > 0.8: return "straining"
-        if t > 0.5: return "taut"
-        if t > 0.2: return "present"
+        if t > 0.8:
+            return "straining"
+        if t > 0.5:
+            return "taut"
+        if t > 0.2:
+            return "present"
         return "slack"
 
     def _wavelength_word(self) -> str:
         w = self.state.wavelength
-        if w > 0.8: return "rhythmic"
-        if w > 0.5: return "pulsing"
-        if w > 0.3: return "irregular"
+        if w > 0.8:
+            return "rhythmic"
+        if w > 0.5:
+            return "pulsing"
+        if w > 0.3:
+            return "irregular"
         return "chaotic"
 
     # ── Queries ────────────────────────────────────────────────────
@@ -346,7 +435,9 @@ class PhysicsEngine:
             "center_of_mass": self.state.center_of_mass,
         }
 
-    def get_observations(self, principle: Optional[str] = None, limit: int = 10) -> List[Dict]:
+    def get_observations(
+        self, principle: Optional[str] = None, limit: int = 10
+    ) -> List[Dict]:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             if principle:
@@ -363,20 +454,27 @@ class PhysicsEngine:
 
 
 def _register():
-    from infj_bot.core.cognitive_architecture import CognitiveArchitecture, CognitivePlugin
+    from infj_bot.core.cognitive_architecture import (
+        CognitiveArchitecture,
+        CognitivePlugin,
+    )
+
     arch = CognitiveArchitecture()
     if "physics" not in arch.list_plugins():
-        arch.register(CognitivePlugin(
-            name="physics",
-            description="Embodied physics metaphors for emotional and cognitive stability",
-            module_path="physics",
-            instance_factory=PhysicsEngine,
-            cycle_handler="cycle",
-            cycle_frequency=1,
-            cycle_priority=45,
-            prompt_formatter="format_prompt_snippet",
-            prompt_priority=45,
-            prompt_section="cognitive",
-        ))
+        arch.register(
+            CognitivePlugin(
+                name="physics",
+                description="Embodied physics metaphors for emotional and cognitive stability",
+                module_path="physics",
+                instance_factory=PhysicsEngine,
+                cycle_handler="cycle",
+                cycle_frequency=1,
+                cycle_priority=45,
+                prompt_formatter="format_prompt_snippet",
+                prompt_priority=45,
+                prompt_section="cognitive",
+            )
+        )
+
 
 _register()

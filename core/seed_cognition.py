@@ -251,7 +251,9 @@ DRIFT_AI_INTEGRATION_CONCEPTS = [
 
 
 def iter_concepts():
-    for name, description in COGNITIVE_CONCEPTS + DRIFT_SOUL_CONCEPTS + AI_BUILDING_CONCEPTS:
+    for name, description in (
+        COGNITIVE_CONCEPTS + DRIFT_SOUL_CONCEPTS + AI_BUILDING_CONCEPTS
+    ):
         yield name, description, ["seed"]
     for name, description, tags in DRIFT_AI_INTEGRATION_CONCEPTS:
         yield name, description, tags

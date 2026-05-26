@@ -11,8 +11,9 @@ COUNCIL_MAPPING = {
     "Vibe": "intuition",
     "Ethos": "values",
     "Pulse": "homeostasis",
-    "Nexus": "coordination"
+    "Nexus": "coordination",
 }
+
 
 def get_council_name(module_name: str) -> str:
     for name, module in COUNCIL_MAPPING.items():

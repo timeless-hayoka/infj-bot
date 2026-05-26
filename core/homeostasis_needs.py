@@ -1,3 +1,5 @@
+from typing import Any, Dict
+
 # Need definitions with setpoints and critical thresholds
 NEED_DEFINITIONS: Dict[str, Dict[str, Any]] = {
     "energy": {

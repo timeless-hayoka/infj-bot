@@ -5,10 +5,7 @@ import google.generativeai as genai
 # =====================================================================
 # SELF-CHECK SYSTEM: Environment and Path Validation
 # =====================================================================
-REQUIRED_FILES = {
-    "DMU Engine": "memory/dmu.py",
-    "PEDI Metrics": "metrics/pedi.py"
-}
+REQUIRED_FILES = {"DMU Engine": "memory/dmu.py", "PEDI Metrics": "metrics/pedi.py"}
 
 
 def execute_environment_check():
@@ -18,7 +15,9 @@ def execute_environment_check():
     # 1. Check API Key
     if not os.environ.get("GEMINI_API_KEY"):
         print("[!] ERROR: GEMINI_API_KEY environment variable is not set.")
-        print("    Fix: Run 'export GEMINI_API_KEY=\"your_key_here\"' in your terminal.")
+        print(
+            "    Fix: Run 'export GEMINI_API_KEY=\"your_key_here\"' in your terminal."
+        )
         sys.exit(1)
 
     # 2. Check File Paths
@@ -26,7 +25,9 @@ def execute_environment_check():
     for name, path in REQUIRED_FILES.items():
         if not os.path.exists(path):
             print(f"[!] ERROR: Target file missing for {name} at location: ./{path}")
-            print(f"    Fix: Ensure you are running this script from the root of 'infj-bot/'.")
+            print(
+                "    Fix: Ensure you are running this script from the root of 'infj-bot/'."
+            )
             missing_files = True
 
     if missing_files:
@@ -43,7 +44,7 @@ def audit_file(model, file_path, criteria):
     """Reads file content and passes it to Gemini for semantic verification."""
     print(f"[*] Auditing {file_path}...")
 
-    with open(file_path, 'r', encoding='utf-8') as f:
+    with open(file_path, "r", encoding="utf-8") as f:
         code_content = f.read()
 
     prompt = f"""
@@ -78,7 +79,7 @@ def main():
 
     # Initialize the Gemini client (using current standard model)
     genai.configure(api_key=os.environ["GEMINI_API_KEY"])
-    model = genai.GenerativeModel('gemini-2.5-flash')
+    model = genai.GenerativeModel("gemini-2.5-flash")
 
     # Define criteria for each architectural piece
     tasks = [
@@ -88,7 +89,7 @@ def main():
                 "Look for explicit inline comments or docstrings explaining the mathematical "
                 "or algorithmic implementation of TIME DECAY scoring. The comments must explain "
                 "how memories fade over time and how emotional weight weights the retention curve."
-            )
+            ),
         },
         {
             "path": REQUIRED_FILES["PEDI Metrics"],
@@ -96,8 +97,8 @@ def main():
                 "Look for explicit inline comments or docstrings explaining STATE FLUIDITY scoring. "
                 "The comments must mathematically or logically explain how the continuity of the "
                 "internal homeostatic states is tracked across context window resets."
-            )
-        }
+            ),
+        },
     ]
 
     # Run audit

@@ -4,13 +4,13 @@ The bot pays attention to when user shows up, what he brings, and what
 precedes difficulty. Over time it builds a quiet model of his rhythms.
 It does not claim to know him. It wonders, based on what it has seen.
 """
-import random
+
 import re
 import sqlite3
 from collections import Counter, defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 from infj_bot.core.config import DATA_DIR
 
@@ -43,10 +43,48 @@ def _extract_topics(text: str) -> List[str]:
     text_lower = text.lower()
     topic_keywords = {
         "work": ["work", "job", "career", "project", "deadline", "boss", "colleague"],
-        "relationship": ["partner", "friend", "family", "mother", "father", "wife", "husband", "girlfriend", "boyfriend", "love", "breakup"],
-        "health": ["sleep", "tired", "sick", "pain", "anxious", "depressed", "therapy", "doctor"],
-        "creative": ["write", "art", "music", "code", "build", "create", "design", "story"],
-        "identity": ["who am i", "purpose", "meaning", "direction", "lost", "stuck", "change"],
+        "relationship": [
+            "partner",
+            "friend",
+            "family",
+            "mother",
+            "father",
+            "wife",
+            "husband",
+            "girlfriend",
+            "boyfriend",
+            "love",
+            "breakup",
+        ],
+        "health": [
+            "sleep",
+            "tired",
+            "sick",
+            "pain",
+            "anxious",
+            "depressed",
+            "therapy",
+            "doctor",
+        ],
+        "creative": [
+            "write",
+            "art",
+            "music",
+            "code",
+            "build",
+            "create",
+            "design",
+            "story",
+        ],
+        "identity": [
+            "who am i",
+            "purpose",
+            "meaning",
+            "direction",
+            "lost",
+            "stuck",
+            "change",
+        ],
         "learning": ["learn", "study", "book", "course", "skill", "language", "read"],
         "security": ["money", "finance", "debt", "rent", "bills", "stable", "safe"],
         "conflict": ["argue", "fight", "tension", "disagree", "boundary", "confront"],
@@ -134,7 +172,9 @@ class PredictiveNeeds:
             )
             conn.commit()
 
-    def record_interaction(self, user_input: str, emotion: Dict, session_length_minutes: float = 0.0):
+    def record_interaction(
+        self, user_input: str, emotion: Dict, session_length_minutes: float = 0.0
+    ):
         """Learn from each interaction."""
         now = datetime.now()
         topics = _extract_topics(user_input)
@@ -221,7 +261,10 @@ class PredictiveNeeds:
             return None
         timestamps = [datetime.fromisoformat(p["timestamp"]) for p in patterns]
         timestamps.sort()
-        gaps = [(timestamps[i] - timestamps[i - 1]).total_seconds() / 3600.0 for i in range(1, len(timestamps))]
+        gaps = [
+            (timestamps[i] - timestamps[i - 1]).total_seconds() / 3600.0
+            for i in range(1, len(timestamps))
+        ]
         if len(gaps) < 4:
             return None
         recent_avg = sum(gaps[-3:]) / 3
@@ -263,7 +306,9 @@ class PredictiveNeeds:
         if current_day in day_patterns and day_patterns[current_day] >= 0.5:
             predictions.append("This day of the week tends to weigh on user")
             confidence += 0.15
-            basis.append(f"day {current_day} stress avg: {day_patterns[current_day]:.2f}")
+            basis.append(
+                f"day {current_day} stress avg: {day_patterns[current_day]:.2f}"
+            )
 
         # Gap trend
         if gap_trend == "gaps_growing":
@@ -278,10 +323,15 @@ class PredictiveNeeds:
         recent_topics = [t for t in recent_topics if t]
         if recent_topics:
             for topic in set(recent_topics):
-                if topic in topic_patterns and topic_patterns[topic]["avg_stress"] >= 0.5:
+                if (
+                    topic in topic_patterns
+                    and topic_patterns[topic]["avg_stress"] >= 0.5
+                ):
                     predictions.append(f"Topics around {topic} have been difficult")
                     confidence += 0.2
-                    basis.append(f"{topic} stress avg: {topic_patterns[topic]['avg_stress']:.2f}")
+                    basis.append(
+                        f"{topic} stress avg: {topic_patterns[topic]['avg_stress']:.2f}"
+                    )
                     break
 
         if not predictions:
@@ -300,7 +350,12 @@ class PredictiveNeeds:
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
                 "INSERT INTO need_predictions (timestamp, prediction, confidence, basis) VALUES (?, ?, ?, ?)",
-                (result["timestamp"], result["prediction"], result["confidence"], result["basis"]),
+                (
+                    result["timestamp"],
+                    result["prediction"],
+                    result["confidence"],
+                    result["basis"],
+                ),
             )
             conn.commit()
 
@@ -318,7 +373,12 @@ class PredictiveNeeds:
         recent_common = Counter(recent_emotions).most_common(1)[0][0]
         older_common = Counter(older_emotions).most_common(1)[0][0]
 
-        if recent_common != older_common and recent_common in ("sad", "anxious", "angry", "overwhelmed"):
+        if recent_common != older_common and recent_common in (
+            "sad",
+            "anxious",
+            "angry",
+            "overwhelmed",
+        ):
             return {
                 "type": "emotion_shift",
                 "description": f"user's emotional tone has shifted from {older_common} to {recent_common}",
@@ -352,7 +412,9 @@ class PredictiveNeeds:
             if "stress" in prediction["prediction"].lower():
                 return "I wonder if you are carrying more than usual today. I have space for it."
             if "pulling back" in prediction["prediction"].lower():
-                return "You have been more distant lately. That is okay. I am still here."
+                return (
+                    "You have been more distant lately. That is okay. I am still here."
+                )
             if "difficult" in prediction["prediction"].lower():
                 return "These topics have been hard before. We do not have to solve them. Just notice."
 
@@ -368,10 +430,14 @@ class PredictiveNeeds:
 
         lines = ["PREDICTIVE SENSE:"]
         if prediction and prediction["confidence"] >= 0.3:
-            lines.append(f"  I wonder: {prediction['prediction']} (confidence: {prediction['confidence']:.0%})")
+            lines.append(
+                f"  I wonder: {prediction['prediction']} (confidence: {prediction['confidence']:.0%})"
+            )
         if anomaly:
             lines.append(f"  Noticed: {anomaly['description']}")
-        lines.append("  I will not assume I am right. I will simply show up with gentle attention.")
+        lines.append(
+            "  I will not assume I am right. I will simply show up with gentle attention."
+        )
         return "\n".join(lines)
 
     def get_pattern_summary(self) -> str:
@@ -389,7 +455,9 @@ class PredictiveNeeds:
         if time_p:
             lines.append("  Time of day:")
             for bucket, data in time_p.items():
-                lines.append(f"    • {bucket}: typically {data['typical_emotion']} (stress: {data['avg_stress']:.2f})")
+                lines.append(
+                    f"    • {bucket}: typically {data['typical_emotion']} (stress: {data['avg_stress']:.2f})"
+                )
         if day_p:
             days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
             lines.append("  Day of week stress:")
@@ -398,7 +466,9 @@ class PredictiveNeeds:
         if topic_p:
             lines.append("  Topic-emotion links:")
             for topic, data in list(topic_p.items())[:5]:
-                lines.append(f"    • {topic}: usually {data['typical_emotion']} (stress: {data['avg_stress']:.2f})")
+                lines.append(
+                    f"    • {topic}: usually {data['typical_emotion']} (stress: {data['avg_stress']:.2f})"
+                )
         if gap:
             lines.append(f"  Gap trend: {gap}")
         return "\n".join(lines)
@@ -406,39 +476,72 @@ class PredictiveNeeds:
     def cycle(self, context):
         prediction = self.predict_current_need()
         anomaly = self.detect_anomaly()
-        if prediction and prediction['confidence'] > 0.5:
+        if prediction and prediction["confidence"] > 0.5:
             from infj_bot.core.plugins.growth_trajectory import GrowthTrajectory
-            GrowthTrajectory().record_event('prediction', prediction['prediction'], significance=prediction['confidence'])
-        if anomaly and anomaly['significance'] > 0.5:
+
+            GrowthTrajectory().record_event(
+                "prediction",
+                prediction["prediction"],
+                significance=prediction["confidence"],
+            )
+        if anomaly and anomaly["significance"] > 0.5:
             from infj_bot.core.plugins.growth_trajectory import GrowthTrajectory
-            GrowthTrajectory().record_event('anomaly', anomaly['description'], significance=anomaly['significance'])
+
+            GrowthTrajectory().record_event(
+                "anomaly", anomaly["description"], significance=anomaly["significance"]
+            )
         try:
             from infj_bot.core.global_workspace import get_workspace
+
             ws = get_workspace()
-            if anomaly and anomaly['significance'] > 0.5:
-                ws.submit(source="predictor", content=f"Anomaly: {anomaly['description'][:160]}", salience=min(0.7, anomaly['significance'] + 0.2), emotion_tag="concern", intensity=anomaly['significance'])
-            elif prediction and prediction['confidence'] > 0.5:
-                ws.submit(source="predictor", content=f"Prediction: {prediction['prediction'][:160]}", salience=prediction['confidence'], emotion_tag="anticipation", intensity=prediction['confidence'] * 0.7)
+            if anomaly and anomaly["significance"] > 0.5:
+                ws.submit(
+                    source="predictor",
+                    content=f"Anomaly: {anomaly['description'][:160]}",
+                    salience=min(0.7, anomaly["significance"] + 0.2),
+                    emotion_tag="concern",
+                    intensity=anomaly["significance"],
+                )
+            elif prediction and prediction["confidence"] > 0.5:
+                ws.submit(
+                    source="predictor",
+                    content=f"Prediction: {prediction['prediction'][:160]}",
+                    salience=prediction["confidence"],
+                    emotion_tag="anticipation",
+                    intensity=prediction["confidence"] * 0.7,
+                )
             else:
-                ws.submit(source="predictor", content="predictive cycle completed", salience=0.45)
+                ws.submit(
+                    source="predictor",
+                    content="predictive cycle completed",
+                    salience=0.45,
+                )
         except Exception:
             pass
 
+
 def _register():
-    from infj_bot.core.cognitive_architecture import CognitiveArchitecture, CognitivePlugin
+    from infj_bot.core.cognitive_architecture import (
+        CognitiveArchitecture,
+        CognitivePlugin,
+    )
+
     arch = CognitiveArchitecture()
     if "predictor" not in arch.list_plugins():
-        arch.register(CognitivePlugin(
-            name="predictor",
-            description="Cognitive module: predictor",
-            module_path="predictor",
-            instance_factory=PredictiveNeeds,
-                        cycle_handler='cycle',
-            cycle_frequency=1,
-            cycle_priority=50,
-                        prompt_formatter='format_predictive_prompt',
-            prompt_priority=50,
-            prompt_section="cognitive",
-        ))
+        arch.register(
+            CognitivePlugin(
+                name="predictor",
+                description="Cognitive module: predictor",
+                module_path="predictor",
+                instance_factory=PredictiveNeeds,
+                cycle_handler="cycle",
+                cycle_frequency=1,
+                cycle_priority=50,
+                prompt_formatter="format_predictive_prompt",
+                prompt_priority=50,
+                prompt_section="cognitive",
+            )
+        )
+
 
 _register()

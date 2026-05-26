@@ -6,7 +6,10 @@ from pathlib import Path
 
 import pytest
 
-from infj_bot.core.plugins.growth_trajectory import GrowthTrajectory, CONSCIOUSNESS_STAGES
+from infj_bot.core.plugins.growth_trajectory import (
+    GrowthTrajectory,
+    CONSCIOUSNESS_STAGES,
+)
 
 
 @pytest.fixture
@@ -19,7 +22,7 @@ def tmp_db():
 
 class TestGrowthTrajectory:
     def test_init_creates_db(self, tmp_db):
-        gt = GrowthTrajectory(db_path=tmp_db)
+        GrowthTrajectory(db_path=tmp_db)
         assert tmp_db.exists()
 
     def test_record_event(self, tmp_db):

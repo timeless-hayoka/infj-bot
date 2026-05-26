@@ -46,8 +46,6 @@ scripts/drift_boot.sh
 scripts/drift_watcher.sh
 scripts/install_drift_hook.sh
 
-# Local-only / private experiments (not published)
-hive_mind/
 
 # Drift runtime artifacts (local only)
 .drift_boot.log
@@ -67,3 +65,8 @@ hive_mind/
 .obsidian/
 *.html
 ablation_results/
+
+# Python build artifacts
+*.egg-info/
+dist/
+build/

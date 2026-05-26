@@ -24,13 +24,14 @@ COUNCIL_DB = DATA_DIR / "council.db"
 
 class CouncilRole(Enum):
     """The seven canonical council roles."""
-    AURA = "Aura"          # emotional_field
-    LOGIC = "Logic"        # cognition
-    MEME = "Meme"          # metacognition
-    VIBE = "Vibe"          # intuition
-    ETHOS = "Ethos"        # values
-    PULSE = "Pulse"        # homeostasis
-    NEXUS = "Nexus"        # coordination
+
+    AURA = "Aura"  # emotional_field
+    LOGIC = "Logic"  # cognition
+    MEME = "Meme"  # metacognition
+    VIBE = "Vibe"  # intuition
+    ETHOS = "Ethos"  # values
+    PULSE = "Pulse"  # homeostasis
+    NEXUS = "Nexus"  # coordination
 
 
 # Canonical role prompts — used when generating proposals
@@ -69,6 +70,7 @@ ROLE_SIGNATURES: Dict[CouncilRole, str] = {
 @dataclass
 class MemoryViewFilter:
     """A council member's selective access to memory subspaces."""
+
     # DMU threshold: only memories above this salience/utility
     dmu_threshold: float = 0.0
     # Emotional valence filter: -1.0 (negative) to 1.0 (positive); 0 = neutral/all
@@ -84,7 +86,7 @@ class MemoryViewFilter:
         if self.topic_boosts:
             text = json.dumps(memory_meta).lower()
             hits = sum(1 for t in self.topic_boosts if t.lower() in text)
-            score *= (1.0 + 0.2 * hits)
+            score *= 1.0 + 0.2 * hits
         if self.emotional_bias != 0.0:
             emotional = memory_meta.get("emotional", 0.5)
             # If bias is positive, prefer positive memories; negative bias prefers negative
@@ -100,6 +102,7 @@ class MemoryViewFilter:
 @dataclass
 class Proposal:
     """A council member's proposed response to a deliberation."""
+
     role: str
     text: str
     confidence: float = 0.5
@@ -112,6 +115,7 @@ class Proposal:
 @dataclass
 class Critique:
     """A member's critique of another member's proposal."""
+
     from_role: str
     target_role: str
     score: float  # 0.0 to 1.0
@@ -122,6 +126,7 @@ class Critique:
 @dataclass
 class CouncilMemberState:
     """Persisted state of a council member."""
+
     role: str
     name: str
     energy_level: float = 0.5
@@ -151,16 +156,32 @@ class CouncilMember:
         self._lock = threading.RLock()
         self._init_db()
         self._state = self._load_state()
-        self._filter = MemoryViewFilter(**self._state.memory_filter) if self._state.memory_filter else self._default_filter()
+        self._filter = (
+            MemoryViewFilter(**self._state.memory_filter)
+            if self._state.memory_filter
+            else self._default_filter()
+        )
 
     def _default_filter(self) -> MemoryViewFilter:
         defaults = {
-            CouncilRole.AURA: MemoryViewFilter(emotional_bias=0.3, topic_boosts=["emotion", "attachment", "resonance"]),
-            CouncilRole.LOGIC: MemoryViewFilter(dmu_threshold=0.3, topic_boosts=["system", "bug", "architecture"]),
-            CouncilRole.MEME: MemoryViewFilter(topic_boosts=["pattern", "recursion", "irony", "history"]),
-            CouncilRole.VIBE: MemoryViewFilter(emotional_bias=0.2, topic_boosts=["possibility", "future", "intuition"]),
-            CouncilRole.ETHOS: MemoryViewFilter(topic_boosts=["value", "moral", "harm", "growth"]),
-            CouncilRole.PULSE: MemoryViewFilter(topic_boosts=["energy", "safety", "need", "stress"]),
+            CouncilRole.AURA: MemoryViewFilter(
+                emotional_bias=0.3, topic_boosts=["emotion", "attachment", "resonance"]
+            ),
+            CouncilRole.LOGIC: MemoryViewFilter(
+                dmu_threshold=0.3, topic_boosts=["system", "bug", "architecture"]
+            ),
+            CouncilRole.MEME: MemoryViewFilter(
+                topic_boosts=["pattern", "recursion", "irony", "history"]
+            ),
+            CouncilRole.VIBE: MemoryViewFilter(
+                emotional_bias=0.2, topic_boosts=["possibility", "future", "intuition"]
+            ),
+            CouncilRole.ETHOS: MemoryViewFilter(
+                topic_boosts=["value", "moral", "harm", "growth"]
+            ),
+            CouncilRole.PULSE: MemoryViewFilter(
+                topic_boosts=["energy", "safety", "need", "stress"]
+            ),
             CouncilRole.NEXUS: MemoryViewFilter(dmu_threshold=0.0),  # sees everything
         }
         return defaults.get(self.role, MemoryViewFilter())
@@ -207,7 +228,9 @@ class CouncilMember:
                 try:
                     return CouncilMemberState.from_dict(json.loads(row[0]))
                 except Exception:
-                    logger.exception("Failed to load council member state for %s", self.name)
+                    logger.exception(
+                        "Failed to load council member state for %s", self.name
+                    )
         return CouncilMemberState(role=self.name, name=self.name)
 
     def _save_state(self):
@@ -260,16 +283,28 @@ class CouncilMember:
                     # Calibrate confidence upward when brain is used
                     confidence = min(0.95, 0.6 + (0.05 * self._state.win_count))
                 except Exception:
-                    logger.exception("Brain proposal failed for %s; falling back", self.name)
+                    logger.exception(
+                        "Brain proposal failed for %s; falling back", self.name
+                    )
                     text = f"[{self.name}] {self._role_angle(goal)}"
                     confidence = 0.5
             else:
                 text = f"[{self.name}] {self._role_angle(goal)}"
-                confidence = 0.5 + (0.1 * len(context_memories)) + (0.05 * self._state.win_count)
+                confidence = (
+                    0.5 + (0.1 * len(context_memories)) + (0.05 * self._state.win_count)
+                )
                 confidence = min(0.95, confidence)
 
-            moral = 0.6 if self.role == CouncilRole.ETHOS else 0.4 + (0.1 if "value" in text.lower() else 0.0)
-            narrative = 0.6 if self.role == CouncilRole.MEME else 0.4 + (0.1 if "pattern" in text.lower() else 0.0)
+            moral = (
+                0.6
+                if self.role == CouncilRole.ETHOS
+                else 0.4 + (0.1 if "value" in text.lower() else 0.0)
+            )
+            narrative = (
+                0.6
+                if self.role == CouncilRole.MEME
+                else 0.4 + (0.1 if "pattern" in text.lower() else 0.0)
+            )
 
             proposal = Proposal(
                 role=self.name,
@@ -292,14 +327,25 @@ class CouncilMember:
                 score -= 0.2
             if self.role == CouncilRole.ETHOS and target_proposal.moral_weight < 0.4:
                 score -= 0.2
-            if self.role == CouncilRole.PULSE and "cost" not in target_proposal.text.lower():
+            if (
+                self.role == CouncilRole.PULSE
+                and "cost" not in target_proposal.text.lower()
+            ):
                 score -= 0.1
-            if self.role == CouncilRole.AURA and "feel" not in target_proposal.text.lower():
+            if (
+                self.role == CouncilRole.AURA
+                and "feel" not in target_proposal.text.lower()
+            ):
                 score -= 0.1
 
             score = max(0.0, min(1.0, score))
             reasoning = f"{self.name} evaluates {target_role}: confidence={target_proposal.confidence:.2f}, moral={target_proposal.moral_weight:.2f}."
-            critique = Critique(from_role=self.name, target_role=target_role, score=score, reasoning=reasoning)
+            critique = Critique(
+                from_role=self.name,
+                target_role=target_role,
+                score=score,
+                reasoning=reasoning,
+            )
             self._persist_critique(critique)
             return critique
 
@@ -327,19 +373,21 @@ class CouncilMember:
 
     def _build_proposal_prompt(self, goal: str, memory_context: str) -> str:
         parts = [
-            f"You are participating in a council deliberation.",
-            f"",
+            "You are participating in a council deliberation.",
+            "",
             f"Your role: {self.name}",
             f"Your perspective: {self.signature}",
-            f"",
+            "",
             f"The council is deciding: {goal}",
         ]
         if memory_context:
             parts.append(f"Relevant memories from your viewpoint: {memory_context}")
-        parts.extend([
-            "",
-            "State your proposal in 2-4 sentences. Be specific and true to your role's perspective."
-        ])
+        parts.extend(
+            [
+                "",
+                "State your proposal in 2-4 sentences. Be specific and true to your role's perspective.",
+            ]
+        )
         return "\n".join(parts)
 
     def _role_angle(self, goal: str) -> str:
@@ -382,7 +430,13 @@ class CouncilMember:
                 (timestamp, from_role, target_role, score, reasoning)
                 VALUES (?, ?, ?, ?, ?)
                 """,
-                (critique.timestamp, critique.from_role, critique.target_role, critique.score, critique.reasoning),
+                (
+                    critique.timestamp,
+                    critique.from_role,
+                    critique.target_role,
+                    critique.score,
+                    critique.reasoning,
+                ),
             )
             conn.commit()
 

@@ -19,7 +19,7 @@ def tmp_db():
 
 class TestMetacognitionEngine:
     def test_init_creates_db(self, tmp_db):
-        meta = MetacognitionEngine(db_path=tmp_db)
+        MetacognitionEngine(db_path=tmp_db)
         assert tmp_db.exists()
 
     def test_reflect_on_response_detects_over_certainty(self, tmp_db):

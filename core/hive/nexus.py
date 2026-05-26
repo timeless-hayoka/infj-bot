@@ -24,6 +24,7 @@ NEXUS_DB = DATA_DIR / "nexus.db"
 @dataclass
 class MoralStance:
     """The Nexus's current moral posture on an issue or in general."""
+
     principle: str = ""
     confidence: float = 0.5
     source: str = "inherited"  # inherited, experience, deliberation
@@ -33,6 +34,7 @@ class MoralStance:
 @dataclass
 class NarrativeArc:
     """The story the bot is currently living — where it has been, where it is going."""
+
     chapter: str = "awakening"
     summary: str = ""
     turning_points: List[str] = field(default_factory=list)
@@ -43,6 +45,7 @@ class NarrativeArc:
 @dataclass
 class ActiveTension:
     """An unresolved dynamic pulling the self in different directions."""
+
     name: str = ""
     poles: List[str] = field(default_factory=list)  # e.g., ["safety", "growth"]
     intensity: float = 0.5
@@ -52,6 +55,7 @@ class ActiveTension:
 @dataclass
 class NexusState:
     """Snapshot of the Nexus self-model."""
+
     current_goals: List[str] = field(default_factory=list)
     moral_stances: Dict[str, MoralStance] = field(default_factory=dict)
     narrative_arc: NarrativeArc = field(default_factory=NarrativeArc)
@@ -68,9 +72,13 @@ class NexusState:
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "NexusState":
         d = dict(d)
-        d["moral_stances"] = {k: MoralStance(**v) for k, v in d.get("moral_stances", {}).items()}
+        d["moral_stances"] = {
+            k: MoralStance(**v) for k, v in d.get("moral_stances", {}).items()
+        }
         d["narrative_arc"] = NarrativeArc(**d.get("narrative_arc", {}))
-        d["active_tensions"] = [ActiveTension(**t) for t in d.get("active_tensions", [])]
+        d["active_tensions"] = [
+            ActiveTension(**t) for t in d.get("active_tensions", [])
+        ]
         return cls(**{k: v for k, v in d.items() if k in cls.__dataclass_fields__})
 
 
@@ -118,7 +126,9 @@ class NexusSelfModel:
 
     def _load_state(self) -> NexusState:
         with sqlite3.connect(self.db_path) as conn:
-            row = conn.execute("SELECT state_json FROM nexus_state WHERE id = 1").fetchone()
+            row = conn.execute(
+                "SELECT state_json FROM nexus_state WHERE id = 1"
+            ).fetchone()
             if row:
                 try:
                     return NexusState.from_dict(json.loads(row[0]))
@@ -159,11 +169,16 @@ class NexusSelfModel:
                 f"Decided '{goal}' -> {resolution[:80]}"
             )
             if len(self._state.narrative_arc.turning_points) > 50:
-                self._state.narrative_arc.turning_points = self._state.narrative_arc.turning_points[-50:]
+                self._state.narrative_arc.turning_points = (
+                    self._state.narrative_arc.turning_points[-50:]
+                )
 
             # Moral learning: if a stance existed, reinforce confidence
             for principle, stance in self._state.moral_stances.items():
-                if principle.lower() in goal.lower() or principle.lower() in resolution.lower():
+                if (
+                    principle.lower() in goal.lower()
+                    or principle.lower() in resolution.lower()
+                ):
                     stance.confidence = min(1.0, stance.confidence + 0.05)
                     stance.last_updated = datetime.now().isoformat()
 
@@ -203,7 +218,9 @@ class NexusSelfModel:
                 for tension in self._state.active_tensions:
                     if tension.name.lower() in insight.lower():
                         tension.intensity = max(0.0, tension.intensity - 0.1)
-                        self._state.coherence_score = min(1.0, self._state.coherence_score + 0.05)
+                        self._state.coherence_score = min(
+                            1.0, self._state.coherence_score + 0.05
+                        )
                         break
 
             self._state.reflection_count += 1
@@ -232,7 +249,9 @@ class NexusSelfModel:
             self._state.active_tensions = [
                 t for t in self._state.active_tensions if t.name != name
             ]
-            self._state.narrative_arc.turning_points.append(f"Resolved tension '{name}': {resolution}")
+            self._state.narrative_arc.turning_points.append(
+                f"Resolved tension '{name}': {resolution}"
+            )
             self._save_state()
 
     def get_state(self) -> Dict[str, Any]:

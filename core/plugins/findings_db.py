@@ -4,7 +4,6 @@ Tracks vulnerabilities, evidence, reproduction steps, and submission status.
 Integrates with DRIFT memory for long-term recall.
 """
 
-import json
 import sqlite3
 import uuid
 from dataclasses import asdict, dataclass, field
@@ -13,7 +12,9 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 
-DEFAULT_DB_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "bugbot_findings.db"
+DEFAULT_DB_PATH = (
+    Path(__file__).resolve().parent.parent.parent / "data" / "bugbot_findings.db"
+)
 
 
 @dataclass
@@ -35,8 +36,12 @@ class Finding:
     confidence: str = "low"  # low | medium | high | confirmed
     notes: str = ""
     bugcrowd_submission_id: str = ""
-    created_at: str = field(default_factory=lambda: datetime.now().isoformat(timespec="seconds"))
-    updated_at: str = field(default_factory=lambda: datetime.now().isoformat(timespec="seconds"))
+    created_at: str = field(
+        default_factory=lambda: datetime.now().isoformat(timespec="seconds")
+    )
+    updated_at: str = field(
+        default_factory=lambda: datetime.now().isoformat(timespec="seconds")
+    )
     submitted_at: str = ""
 
 
@@ -112,7 +117,9 @@ class FindingsDB:
 
     def get(self, finding_id: str) -> Optional[Finding]:
         with self._conn() as conn:
-            row = conn.execute("SELECT * FROM findings WHERE id = ?", (finding_id,)).fetchone()
+            row = conn.execute(
+                "SELECT * FROM findings WHERE id = ?", (finding_id,)
+            ).fetchone()
         return self._row_to_finding(row) if row else None
 
     def update(self, finding_id: str, **fields) -> bool:
@@ -155,11 +162,19 @@ class FindingsDB:
             rows = conn.execute(query, params).fetchall()
         return [self._row_to_finding(r) for r in rows]
 
-    def add_evidence(self, finding_id: str, ev_type: str, path: str, description: str = "") -> int:
+    def add_evidence(
+        self, finding_id: str, ev_type: str, path: str, description: str = ""
+    ) -> int:
         with self._conn() as conn:
             cur = conn.execute(
                 "INSERT INTO evidence (finding_id, type, path, description, created_at) VALUES (?, ?, ?, ?, ?)",
-                (finding_id, ev_type, path, description, datetime.now().isoformat(timespec="seconds")),
+                (
+                    finding_id,
+                    ev_type,
+                    path,
+                    description,
+                    datetime.now().isoformat(timespec="seconds"),
+                ),
             )
             conn.commit()
         return cur.lastrowid
@@ -167,7 +182,8 @@ class FindingsDB:
     def get_evidence(self, finding_id: str) -> List[Dict[str, Any]]:
         with self._conn() as conn:
             rows = conn.execute(
-                "SELECT * FROM evidence WHERE finding_id = ? ORDER BY created_at", (finding_id,)
+                "SELECT * FROM evidence WHERE finding_id = ? ORDER BY created_at",
+                (finding_id,),
             ).fetchall()
         return [dict(r) for r in rows]
 
@@ -176,11 +192,15 @@ class FindingsDB:
             total = conn.execute("SELECT COUNT(*) FROM findings").fetchone()[0]
             by_status = {
                 row[0]: row[1]
-                for row in conn.execute("SELECT status, COUNT(*) FROM findings GROUP BY status").fetchall()
+                for row in conn.execute(
+                    "SELECT status, COUNT(*) FROM findings GROUP BY status"
+                ).fetchall()
             }
             by_severity = {
                 row[0]: row[1]
-                for row in conn.execute("SELECT severity, COUNT(*) FROM findings GROUP BY severity").fetchall()
+                for row in conn.execute(
+                    "SELECT severity, COUNT(*) FROM findings GROUP BY severity"
+                ).fetchall()
             }
             programs = {
                 row[0]: row[1]
@@ -188,7 +208,12 @@ class FindingsDB:
                     "SELECT program_name, COUNT(*) FROM findings GROUP BY program_name"
                 ).fetchall()
             }
-        return {"total": total, "by_status": by_status, "by_severity": by_severity, "by_program": programs}
+        return {
+            "total": total,
+            "by_status": by_status,
+            "by_severity": by_severity,
+            "by_program": programs,
+        }
 
     def _row_to_finding(self, row: sqlite3.Row) -> Finding:
         return Finding(**{k: row[k] for k in row.keys()})

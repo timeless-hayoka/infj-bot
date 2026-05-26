@@ -102,7 +102,7 @@ class RunLogger:
         with self._write_lock:
             self.conn.execute(
                 "INSERT OR REPLACE INTO runs VALUES (?, ?, ?, ?)",
-                (run_id, json.dumps(config), git_hash, time.time())
+                (run_id, json.dumps(config), git_hash, time.time()),
             )
             self.conn.commit()
 
@@ -112,7 +112,7 @@ class RunLogger:
         with self._write_lock:
             self.conn.execute(
                 "INSERT INTO events VALUES (?, ?, ?, ?, ?)",
-                (run_id, turn, event_type, json.dumps(payload), time.time())
+                (run_id, turn, event_type, json.dumps(payload), time.time()),
             )
             self._pending_commits += 1
             if self._pending_commits >= self.COMMIT_BATCH_SIZE:
@@ -124,11 +124,12 @@ class RunLogger:
         Intentional redundant flush: guarantees run_end is persisted
         regardless of current batch state.
         """
-        self.log_event(run_id, -1, "run_end", {
-            "run_id": run_id,
-            "timestamp": time.time(),
-            "clean": True
-        })
+        self.log_event(
+            run_id,
+            -1,
+            "run_end",
+            {"run_id": run_id, "timestamp": time.time(), "clean": True},
+        )
         self.flush()  # intentional — ensures run_end is committed now
 
     def close(self):
