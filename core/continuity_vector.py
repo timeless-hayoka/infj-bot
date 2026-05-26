@@ -254,3 +254,186 @@ state_influence:
     Normalize by response length.
     Cross-validate against PEDI centroid delta for this turn.
 """
+
+
+# ================================================================== #
+#  Cognitive Context API (real-time, prompt-assembly integration)     #
+#  [Memory, State, Novelty] binary vector — call before each turn.   #
+# ================================================================== #
+
+import time as _time
+from dataclasses import dataclass as _dataclass
+from dataclasses import field as _field
+from typing import Optional as _Optional
+
+# Thresholds (tunable via env or direct assignment)
+MEMORY_NOTES_THRESHOLD = 0  # retrieved_notes_count > this → memory active
+MEMORY_DEPTH_THRESHOLD = 5  # history_depth > this → memory active
+STATE_COHERENCE_THRESHOLD = 0.80  # coherence_score < this → state active
+STATE_VARIANCE_THRESHOLD = 0.15  # pulse_variance > this → state active
+NOVELTY_SHADOW_THRESHOLD = 0.20  # shadow_influence > this → novelty active
+NOVELTY_ENTITIES_THRESHOLD = 0  # new_entities_detected > this → novelty active
+
+
+@_dataclass
+class CognitiveContext:
+    """
+    Snapshot of current cognitive telemetry for one prompt-assembly cycle.
+
+    Plug these values from your live modules:
+      retrieved_notes_count → memory.py retrieval count
+      history_depth         → main.py conversation history length
+      coherence_score       → homeostasis.py coherence need current value
+      pulse_variance        → homeostasis.py variance across needs
+      shadow_influence      → shadow_governance.py state.shadow_influence
+      new_entities_detected → metacognition.py novel concept counter
+    """
+
+    retrieved_notes_count: int = 0
+    history_depth: int = 0
+    coherence_score: float = 1.0
+    pulse_variance: float = 0.0
+    shadow_influence: float = 0.0
+    new_entities_detected: int = 0
+    timestamp: float = _field(default_factory=_time.time)
+    session_id: _Optional[str] = None
+    active_mode: str = "companion"
+
+
+@_dataclass
+class ContinuityVector:
+    """
+    The [Memory, State, Novelty] vector for one cognitive cycle.
+    Each component is 0 (inactive) or 1 (active).
+    """
+
+    memory: int
+    state: int
+    novelty: int
+    context: _Optional[CognitiveContext] = None
+    cycle: int = 0
+
+    def as_list(self) -> list:
+        return [self.memory, self.state, self.novelty]
+
+    def as_dict(self) -> dict:
+        return {
+            "memory": self.memory,
+            "state": self.state,
+            "novelty": self.novelty,
+            "cycle": self.cycle,
+            "pattern": self.pattern_name(),
+        }
+
+    def pattern_name(self) -> str:
+        """Human-readable name for common vector patterns."""
+        patterns = {
+            (1, 0, 0): "COMPANION — memory anchored, stable, familiar",
+            (0, 1, 0): "REGULATED — homeostasis active, no new input",
+            (0, 0, 1): "EXPLORER — novelty spike, state holding",
+            (1, 1, 0): "TASK — memory + regulation, known territory under load",
+            (1, 0, 1): "RESONANT — memory + novelty, creative synthesis",
+            (0, 1, 1): "FRONTIER — state fighting novelty, organism adapting",
+            (1, 1, 1): "FULL COUNCIL — all layers engaged, maximum deliberation",
+            (0, 0, 0): "QUIET — minimal cognitive load, resting state",
+        }
+        return patterns.get(
+            (self.memory, self.state, self.novelty),
+            f"UNKNOWN [{self.memory},{self.state},{self.novelty}]",
+        )
+
+
+def is_active(hook_type: str, context: CognitiveContext) -> bool:
+    """
+    Evaluate whether a cognitive hook is active given current context.
+
+    Args:
+        hook_type: "memory", "state", or "novelty"
+        context:   CognitiveContext snapshot
+
+    Returns:
+        True if the cognitive layer is meaningfully engaged
+    """
+    if hook_type == "memory":
+        return (
+            context.retrieved_notes_count > MEMORY_NOTES_THRESHOLD
+            or context.history_depth > MEMORY_DEPTH_THRESHOLD
+        )
+    elif hook_type == "state":
+        return (
+            context.coherence_score < STATE_COHERENCE_THRESHOLD
+            or context.pulse_variance > STATE_VARIANCE_THRESHOLD
+        )
+    elif hook_type == "novelty":
+        return (
+            context.shadow_influence > NOVELTY_SHADOW_THRESHOLD
+            or context.new_entities_detected > NOVELTY_ENTITIES_THRESHOLD
+        )
+    return False
+
+
+def calculate_continuity_vector(
+    context: CognitiveContext,
+    cycle: int = 0,
+) -> ContinuityVector:
+    """
+    Calculate the full [Memory, State, Novelty] vector for the current cycle.
+
+    Call this before final prompt assembly in cognitive_orchestrator.py.
+    Pass result to Observatory telemetry and homeostasis state.
+
+    Args:
+        context: CognitiveContext snapshot from live modules
+        cycle:   current deliberation cycle number
+
+    Returns:
+        ContinuityVector with pattern annotation
+    """
+    return ContinuityVector(
+        memory=1 if is_active("memory", context) else 0,
+        state=1 if is_active("state", context) else 0,
+        novelty=1 if is_active("novelty", context) else 0,
+        context=context,
+        cycle=cycle,
+    )
+
+
+class ContinuityLog:
+    """
+    Records continuity vectors across a session.
+    Enables post-session analysis of cognitive trajectory.
+    """
+
+    def __init__(self, session_id: str):
+        self.session_id = session_id
+        self.vectors: list = []
+        self.started_at: float = _time.time()
+
+    def record(self, vector: ContinuityVector):
+        self.vectors.append(vector.as_dict())
+
+    def trajectory(self) -> list:
+        """Return the sequence of pattern names across the session."""
+        return [v["pattern"] for v in self.vectors]
+
+    def dominant_pattern(self) -> str:
+        """Return the most frequently occurring pattern."""
+        if not self.vectors:
+            return "NO DATA"
+        patterns = [v["pattern"] for v in self.vectors]
+        return max(set(patterns), key=patterns.count)
+
+    def to_json(self) -> str:
+        import json
+
+        return json.dumps(
+            {
+                "session_id": self.session_id,
+                "started_at": self.started_at,
+                "vector_count": len(self.vectors),
+                "dominant_pattern": self.dominant_pattern(),
+                "trajectory": self.trajectory(),
+                "vectors": self.vectors,
+            },
+            indent=2,
+        )
