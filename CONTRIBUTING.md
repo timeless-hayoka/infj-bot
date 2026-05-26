@@ -36,11 +36,11 @@ infj_bot/
   emailer.py             # SMTP + Gmail MCP email backend
   rate_limit.py          # Token bucket rate limiters
   maintenance.py         # Automated pruning and upkeep tasks
-  hive_mind/             # DRIFT multi-agent consensus system
-    orchestrator.py      # Hive conductor
-    consensus_engine.py  # Epistemic triangulation
-    shared_memory.py     # Attributed semantic memory
-    protocol/dcp.py      # DCP v1 message protocol
+  hive_mind/             # Distributed-cognition kernel (see docs/HIVE_MIND.md)
+    orchestrator.py      # HiveOrchestrator — node registry + heartbeat
+    consensus_engine.py  # ConsensusEngine — thread state machine (propose → vote → resolve)
+    protocol/dcp.py      # DCPMessage, NodeRole, Resolution
+  core/hive/             # Elysium / Nexus / Council (built on the kernel above)
   ... (cognitive modules)
 ```
 
@@ -66,11 +66,11 @@ infj_bot/
 ## Running Tests
 
 ```bash
-# Hive Mind tests
-cd hive_mind && ../venv/bin/python -m pytest tests/ -q
+# Full suite (Hive Mind tests are skipped automatically if the package is unavailable)
+python -m pytest tests/ -q
 
-# Bot module smoke tests
-python -c "import config, brain, memory, rate_limit, maintenance; print('OK')"
+# Hive command + propose + safety-veto tests only
+python -m pytest tests/test_bot.py -k hive -q
 ```
 
 ## Areas That Need Help
