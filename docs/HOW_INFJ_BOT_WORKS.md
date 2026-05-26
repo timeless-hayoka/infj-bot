@@ -136,7 +136,18 @@ The system now detects network bottlenecks in real-time.
 - **High-Speed Tier:** Support for **Groq LPU** inference (OpenAI-compatible) has been integrated into `DriftBrain`. 
 - **Speed:** Responses can reach 500+ tokens/second, making the bot's "inner thoughts" feel instantaneous.
 
-Plugins submit salient snippets to **`global_workspace.py`**, loosely inspired by Global Workspace Theory: limited capacity competition, decay, persistence in **`workspace.db`**.
+### 3.7 Attention workspace — `global_workspace.py`
+
+Cognitive plugins submit salient snippets to a **tiered attention workspace** (`core/global_workspace.py`). Each cycle, every submission plus every surviving item is re-ranked by current (time-decayed) salience and assigned to one of four tiers:
+
+| Tier | Capacity | Role |
+|------|----------|------|
+| **Spotlight** | 1 | Single in-focus item; drives prompt focus and DII *ignition*. |
+| **Active** | 5 | Consciously available; included in the prompt as "active awareness". |
+| **Preconscious** | 20, split across `strong` / `moderate` / `faint` / `trace` salience bands | Below-threshold material kept out of focus rather than discarded. The strongest populated band is surfaced in the prompt as background context. |
+| **Archived** | unbounded (SQLite) | Items below `ARCHIVE_THRESHOLD = 0.05` are logged to `workspace.db.workspace_history` and evicted from memory. |
+
+Salience decays exponentially against real wall-clock time (≈8 % loss per minute by default) with an emotional-intensity boost. Repeat submissions are deduped on `(source, content[:80])` and keep the highest base salience. Full details, public API, and historical context for why the prior GWT stub was replaced live in [TIERED_ATTENTION.md](TIERED_ATTENTION.md).
 
 ---
 
@@ -238,6 +249,9 @@ Targeted subsets: `pytest tests/test_shadow.py tests/test_embeddings.py tests/te
 | [README.md](../README.md) | Quick start, layered map, who should read what |
 | [docs/README.md](README.md) | Full documentation index & reading paths |
 | [docs/GLOSSARY.md](GLOSSARY.md) | Definitions for codebase-specific terms |
+| [docs/TIERED_ATTENTION.md](TIERED_ATTENTION.md) | The Spotlight / Active / Preconscious / Archived attention workspace in depth |
+| [docs/HIVE_MIND.md](HIVE_MIND.md) | DCP protocol, `ConsensusEngine`, and `HiveOrchestrator` |
+| [docs/HIVE_ROADMAP.md](HIVE_ROADMAP.md) | Phased plan for the distributed-cognition layer |
 | [SECURITY.md](../SECURITY.md) | Secret hygiene & reporting posture |
 | [DRIFT_AI_INTEGRATION.md](DRIFT_AI_INTEGRATION.md) | How seeded Drift concepts map into memory-only integration |
 | [DELL_HANDOFF.md](DELL_HANDOFF.md) | Longer ops notes (devices, backups, quirks) |

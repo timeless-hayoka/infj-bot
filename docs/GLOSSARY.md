@@ -28,7 +28,19 @@ A **`/mode`** option with specific **guardrail scope** (`guardrails.mode_scope_r
 Deterministic helpers: posture brief text and **targeted retrieval** queries for seeded Drift concepts. Does not pull code from external private repos.
 
 ### Global Workspace (`global_workspace.py`)  
-Baars-inspired **spotlight**: limited simultaneous “conscious” entries; modules submit snippets with salience. Persisted via **`workspace.db`** when using the default data layout.
+Baars-inspired attention spine, implemented as a **tiered competition**: every cycle, all submissions plus surviving items are re-ranked by current (time-decayed) salience and assigned to **Spotlight → Active → Preconscious bands → Archived** tiers. Persisted via **`workspace.db`**. See [TIERED_ATTENTION.md](TIERED_ATTENTION.md) for the full model, tier capacities, and the lifecycle of a submission.
+
+### Spotlight / Active / Preconscious / Archived  
+The four tiers of the workspace. **Spotlight** is the single highest-salience item right now (drives prompt focus and the DII *ignition* component). **Active** (capacity 5) is the rest of the consciously available set. **Preconscious** (capacity 20 across `strong` / `moderate` / `faint` / `trace` bands) is below-threshold material kept out of focus rather than discarded. **Archived** items have decayed below `ARCHIVE_THRESHOLD` (0.05) and live only in `workspace.db.workspace_history`.
+
+### `Broadcast`  
+The dataclass submitted into the workspace: `source`, `content`, base `salience`, optional `emotion_tag` + `intensity`, and a `timestamp` used for real-time exponential decay. Use `broadcast.current_salience()` rather than the raw attribute when ranking.
+
+### Hive Mind (`hive_mind/` package)  
+Local-first kernel for the distributed-cognition layer: **`HiveOrchestrator`** (node registry), **`ConsensusEngine`** (thread state machine), and the **DCP** protocol module. Wired into the bot through `core/coordination.py` and exposed via `/hive` slash commands and `/api/hive`. Heavier orchestration (Elysium, Nexus, Council) lives separately in `core/hive/`. See [HIVE_MIND.md](HIVE_MIND.md).
+
+### Distributed Cognition Protocol (DCP)  
+The message format used by the hive kernel — `DCPMessage` (with `NodeRole` and `Resolution` enums) in `hive_mind/protocol/dcp.py`. Every proposal, vote, and resolution is expressed as a `DCPMessage`.
 
 ### Homeostasis (module)  
 Regulates simulated **needs** over time (**`homeostasis.py`** + SQLite). Influences prompts and dashboards; informal metaphor, not a medical model.
@@ -68,4 +80,6 @@ Many subsystems (**being**, **embodiment**, **homeostasis**, **shadow**, etc.) p
 ## Related
 
 - Mechanics and flow: [HOW_INFJ_BOT_WORKS.md](HOW_INFJ_BOT_WORKS.md)  
+- Attention model deep-dive: [TIERED_ATTENTION.md](TIERED_ATTENTION.md)  
+- Hive kernel: [HIVE_MIND.md](HIVE_MIND.md) · roadmap: [HIVE_ROADMAP.md](HIVE_ROADMAP.md)  
 - Terms for credentials and scope: [SECURITY.md](../SECURITY.md)  
