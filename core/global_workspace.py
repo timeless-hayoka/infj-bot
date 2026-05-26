@@ -110,6 +110,9 @@ class GlobalWorkspace:
             "trace": [],
         }
         self._lock = threading.Lock()
+        self._cycle_count: int = 0
+        self._total_submitted: int = 0
+        self._db_path = self.db_path
         self._init_db()
         self._load_state()
 
@@ -204,6 +207,7 @@ class GlobalWorkspace:
                     intensity=intensity,
                 )
             )
+            self._total_submitted += 1
 
     def set_spotlight(self, content: str, source: str = "", strength: float = 1.0):
         """Manually override the spotlight (used by external callers)."""
@@ -224,6 +228,7 @@ class GlobalWorkspace:
         """
         with self._lock:
             self.state.cycle_count += 1
+            self._cycle_count += 1
             now = datetime.now()
 
             # Gather all competitors
@@ -336,6 +341,79 @@ class GlobalWorkspace:
             ]
             for band, items in self.preconscious.items()
         }
+
+    @property
+    def _submissions(self) -> list:
+        """Alias for the pending broadcast pool (used by api.py for count)."""
+        return self._pool
+
+    def get_conscious_summary(self) -> str:
+        """Human-readable summary of current conscious contents."""
+        return self.format_prompt_snippet()
+
+    def get_history(self, limit: int = 10) -> list:
+        """Return recent archived broadcasts from the SQLite log."""
+        try:
+            import sqlite3
+
+            with sqlite3.connect(self._db_path) as conn:
+                rows = conn.execute(
+                    "SELECT source, content, salience, archived_at FROM workspace_archive ORDER BY archived_at DESC LIMIT ?",
+                    (limit,),
+                ).fetchall()
+            return [
+                {
+                    "source": r[0],
+                    "content": r[1],
+                    "salience": r[2],
+                    "entered_workspace": True,
+                    "timestamp": r[3],
+                }
+                for r in rows
+            ]
+        except Exception:
+            return []
+
+    def get_stats(self) -> dict:
+        """Return a snapshot of workspace statistics."""
+        with self._lock:
+            spotlight = self.state.spotlight
+            return {
+                "capacity": ACTIVE_CAPACITY,
+                "current_contents": len(self.state.contents),
+                "cycle_count": self._cycle_count,
+                "total_broadcasts": self._total_submitted,
+                "spotlight": spotlight.source if spotlight else None,
+                "sources_in_consciousness": [
+                    b.source for b in self.state.contents
+                ],
+            }
+
+    def move_spotlight(self, content: str) -> bool:
+        """Force spotlight to the active item whose content matches the given string."""
+        with self._lock:
+            for b in self.state.contents:
+                if content.lower() in b.content.lower():
+                    self.state.contents.remove(b)
+                    if self.state.spotlight:
+                        self.state.contents.insert(0, self.state.spotlight)
+                    self.state.spotlight = b
+                    self._save_state()
+                    return True
+        return False
+
+    def reflect_on_workspace(self) -> Optional[Broadcast]:
+        """Generate a higher-order reflection on current conscious contents."""
+        with self._lock:
+            items = self.state.contents
+            if len(items) < 2:
+                return None
+            themes = "; ".join(f"{b.source}: {b.content[:60]}" for b in items[:3])
+            return Broadcast(
+                source="metacognition",
+                content=f"Noticing multiple active concerns: {themes}",
+                salience=0.6,
+            )
 
 
 # ── Singleton ──────────────────────────────────────────────────────────────
