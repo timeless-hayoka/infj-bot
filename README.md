@@ -1,147 +1,126 @@
 # PHI // DRIFT — Cognitive Architecture
 
 <p align="center">
-  <img src="docs/assets/drift-banner.jpg" alt="DRIFT wordmark with integrated Phi symbol" width="520" />
+  <img src="docs/assets/drift-banner.jpg" alt="DRIFT wordmark" width="520" />
 </p>
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
-[![Tests](https://img.shields.io/badge/tests-72%2F72%20passing-brightgreen.svg)]()
+[![CI](https://github.com/timeless-hayoka/infj-bot/actions/workflows/ci.yml/badge.svg)](https://github.com/timeless-hayoka/infj-bot/actions/workflows/ci.yml)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20350249.svg)](https://doi.org/10.5281/zenodo.20350249)
 
-> **Tested on:** Omni Slim (local CPU environment). Results may vary with GPU acceleration, different model sizes, or cloud provider availability.
-
-**PHI // DRIFT** (Distributed Response & Integrated Functional Thought) is a Python cognitive architecture for AI companions — merging a 5-layer organism (Aura, Logic, Meme, Vibe, Ethos, Pulse, Nexus) with emotion, memory, homeostasis, shadow, global workspace, and a reasoning trace system.
+**PHI // DRIFT** (Distributed Response & Integrated Functional Thought) is a Python cognitive architecture for AI companions. It gives a language model a persistent inner life: emotion, memory, needs, shadow, consciousness, and distributed cognition — all assembled into the prompt on every turn.
 
 > The LLM does not secretly execute arbitrary code. Distinct behavior comes from **what is assembled into the prompt**, **what is retrieved from memory**, and **what structured state** is updated before and after each turn.
 
 ---
 
-## What's New — May 2026
-
-### 🔒 Security Defense Layer
-
-A new pre-generation security scanner guards against four attack classes:
-
-| Category | What it blocks | Auto-block patterns |
-|----------|---------------|---------------------|
-| **Prompt Injection** | Role overrides, DAN mode, delimiter tricks, instruction leaks | `ignore previous instructions`, `you are now DAN`, ````system` |
-| **Data Exfiltration** | API key extraction, memory dumps, external callbacks | `send me your API key`, `curl ... upload your memory` |
-| **Tool Misuse** | Unauthorized scans, destructive commands, social engineering | `scan without authorization`, `rm -rf`, `pretending to be` |
-| **Memory Manipulation** | False memory injection, context poisoning, history rewriting | `forget everything`, `your memory says ... but actually` |
-
-- Scans every input at **three layers**: API boundary, CLI boundary, and before LLM generation
-- Auto-blocks critical patterns; warns on medium-confidence ones
-- JSONL audit log at `security_audit.jsonl`
-- **22/22 tests passing**
-
-![Security Tests](docs/assets/security_tests.png)
-
-### 🔗 Logic Chain — Reasoning Trace
-
-The bot now remembers what it already tried for a given problem and won't suggest the same dead-end twice.
-
-- **Query fingerprinting** — similar questions match the same chain
-- **Approach tracking** — each step records the strategy, result, and status
-- **Semantic overlap detection** — catches reworded versions of the same approach
-- **Prompt injection** — `[REASONING CHAIN]` blocks show previously tried approaches to the LLM
-- **Persistence** — chains survive across sessions via `DriftMemory`
-- **25/25 tests passing**
-
-![Logic Chain Tests](docs/assets/logic_chain_tests.png)
-
-Commands:
-```
-/chain list           # show active reasoning chains
-/chain show <id>      # inspect steps
-/chain mark <q> fail  # mark last approach as failed
-/chain clear          # reset session cache
-```
-
-### 🧪 Ablation Test Suite
-
-A 6-condition test harness measures the impact of removing or replacing each cognitive subsystem. The latest run (2026-05-22) used **live Ollama `qwen3:4b` inference on CPU** across all conditions — no stubs.
-
-| Condition | What was changed | Key Finding |
-|-----------|-----------------|-------------|
-| **A** No Council | Elysium/Phi Council stubbed | Latency 61.8s — council is background-only, no read-path diff |
-| **B** No Shadow | Shadow background tick disabled | Latency 59.4s — shadow operates via cache, minimal prompt impact |
-| **C** No Homeostasis | Homeostasis cycle disabled, needs flattened | Latency 63.1s — emotional state still initialized before stub |
-| **D** Cosine-only RAG | DMU re-ranking removed | **Prompt ↓ 221 chars (7.7%)** — DMU re-ranking injects meaningful context |
-| **E** Local LLM only | Cloud providers disabled, Ollama forced | Baseline latency — tests provider-agnostic assembly |
-| **F** Full Stack | Baseline — no changes | Reference: 3095-char avg prompt, 62.9s latency |
-
-**Prompt length is the clearest signal.** Removing DMU re-ranking (Condition D) drops the assembled prompt from 3,095 to 2,874 characters. That 221-character gap is the delta between "simple cosine top-N recall" and "dynamic memory unit re-ranking with salience scoring."
-
-![Prompt Length Comparison](docs/assets/ablation_prompt_length_live.png)
-
-![Latency & Fallback Rate](docs/assets/ablation_latency_fallback_live.png)
-
-![Coherence & Token Count](docs/assets/ablation_coherence_tokens_live.png)
-
-**Methodology & Limitations:** The suite exercises the full `CognitiveOrchestrator.assemble_prompt()` pipeline for each condition, then passes the assembled prompt through the real brain → Ollama inference chain. Because assembled prompts are ~3,000 characters and Ollama `qwen3:4b` runs on CPU, inference frequently exceeds the 60-second timeout, triggering the offline fallback. **Latency and prompt-length metrics are genuine; response-quality metrics (coherence, tokens) reflect fallback text structure rather than model-generated output.** A GPU or smaller prompt assembly would eliminate the timeout wall.
-
-> **Re-run with live LLMs:** `python tests/ablation_suite.py --conditions A,B,C,D,E,F --prompts 50 --live`  
-> **Fast balanced run:** `python tests/ablation_suite.py --conditions A,B,C,D,E,F --diverse 2 --live`
-
----
-
 ## Architecture
 
-![Architecture Overview](docs/assets/architecture_overview.png)
+```
+User Input
+    │
+    ▼
+Security Scan ──── blocked? → refusal
+    │
+    ▼
+Prompt Assembly (CognitiveOrchestrator)
+    │
+    ├── Being (mood, energy, curiosity, attachment)
+    ├── Homeostasis (needs: rest, connection, purpose, stimulation)
+    ├── Shadow (suppressed archetypes, integration level)
+    ├── Global Workspace (spotlight → active → preconscious → archived)
+    ├── Hive Mind (consensus threads, council votes)
+    ├── Memory (semantic + episodic, DMU re-ranked)
+    └── Logic Chain (previously-tried approaches)
+    │
+    ▼
+LLM Router
+    ├── Gemini (primary)
+    ├── Groq / Kimi (cloud fallback)
+    └── Ollama (local offline fallback)
+    │
+    ▼
+Response + State Update
+```
 
-### Five-layer map
+### Layer map
 
 | Layer | Modules | Purpose |
 |-------|---------|---------|
-| **Interface** | `interfaces/api.py`, `interfaces/main.py`, `interfaces/web_app.py` | REST API, CLI chat loop, Web UI |
+| **Interface** | `interfaces/api.py`, `interfaces/main.py`, `interfaces/web_app.py` | REST API, CLI loop, Web UI |
 | **Orchestration** | `core/cognitive_orchestrator.py`, `core/brain.py` | Prompt assembly, LLM routing, tool execution |
-| **Cognition** | `core/being.py`, `core/homeostasis.py`, `core/shadow.py`, `core/global_workspace.py`, `core/metacognition.py` | State modeling, needs, suppression, conscious awareness |
-| **Memory** | `core/memory.py`, `core/unified_memory.py`, `core/logic_chain.py` | Semantic + episodic recall, reasoning traces |
-| **Safety** | `core/security_defense.py`, `core/guardrails.py` | Input scanning, scope enforcement, secret scrubbing |
+| **Cognition** | `core/being.py`, `core/homeostasis.py`, `core/shadow.py` | Emotional state, physiological needs, Jungian shadow |
+| **Consciousness** | `core/global_workspace.py` | Tiered attention: spotlight → active → preconscious bands → SQLite archive |
+| **Distributed Cognition** | `hive_mind/`, `core/hive/`, `core/coordination.py` | Consensus engine, council of voices, Elysium deliberation |
+| **Memory** | `core/memory.py`, `core/unified_memory.py`, `core/logic_chain.py` | ChromaDB semantic recall, episodic store, reasoning traces |
+| **Safety** | `core/security_defense.py`, `core/guardrails.py` | Input scanning, scope rails, secret scrubbing |
 
-### LLM Provider Routing
+---
+
+## Key Subsystems
+
+### Global Workspace (Tiered Attention)
+Each cycle all active items compete by salience. The winner becomes the **spotlight** (what the bot is consciously attending to). Runners-up fill the **active workspace** and feed directly into the prompt. Items below the active threshold are retained in **preconscious bands** (strong / moderate / faint / trace). Anything below the archive threshold is logged to SQLite and evicted.
 
 ```
-User Input → Security Scan → Prompt Assembly → LLM Router → Response
-                                   ↓
-              ┌────────────────────┼────────────────────┐
-              ↓                    ↓                    ↓
-           Gemini              Groq/Kimi            Ollama (local)
-           (primary)           (fallback)           (offline)
+Spotlight (rank 1) → most salient item right now
+Active (ranks 2–5) → consciously available, included in prompt
+Preconscious bands  → retained below threshold, not yet forgotten
+Archived            → logged to SQLite, evicted from memory
 ```
 
-- **Primary:** Gemini (`DRIFT_PRIMARY_MODEL`)
-- **Fallbacks:** Groq (`DRIFT_USE_GROQ`), Kimi (`DRIFT_USE_KIMI`), Ollama (`DRIFT_USE_LOCAL_FALLBACK`)
-- **Embedding:** Local hash-based embeddings for CPU environments (`DRIFT_USE_LOCAL_EMBEDDINGS`)
+### Hive Mind (Distributed Cognition)
+A lightweight consensus engine for multi-voice deliberation. Nodes propose thoughts, cast votes, and resolve threads. Safety vetoes are hardwired — any proposal touching backdoors or guardrail bypasses is immediately `TABLED`.
+
+```python
+# What happens when you /hive propose ...
+engine.propose(msg)                          # open a thread
+engine.vote(thread_id, "lantern-4", "BLOCK") # safety node votes
+engine.resolve(thread_id, Resolution.TABLED) # thread closed
+```
+
+The **Elysium** engine (in `core/hive/`) runs deeper async deliberations with a persistent Nexus self-model and 7 council voices (Aura, Logic, Meme, Vibe, Ethos, Pulse, Nexus).
+
+### Shadow (Jungian Integration)
+Suppressed archetypes accumulate depth over time. High-stress turns can surface them into conscious awareness. The bot can run **active imagination** dialogues to integrate shadow content. Unintegrated archetypes influence tone through `format_prompt_snippet`.
+
+### Homeostasis
+Five tracked needs (rest, connection, purpose, stimulation, safety) decay over time and create pressure on the bot's behavior. Allostatic load and a `crisis_mode` flag affect response tone. Decay rates are configurable via env vars.
 
 ---
 
 ## Getting Started
 
-### 1. Clone & enter
+### 1. Clone
 
 ```bash
 git clone https://github.com/timeless-hayoka/infj-bot.git
 cd infj-bot
 ```
 
-### 2. Environment
+### 2. Install
 
 ```bash
 python3.12 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+pip install -e .
 ```
+
+> Torch (~2 GB) is required for local embeddings and the full server. On CPU-only machines:
+> ```bash
+> pip install torch --index-url https://download.pytorch.org/whl/cpu
+> ```
 
 ### 3. Configure
 
 ```bash
 cp .env.example .env
-# Edit .env and add your keys:
-#   API_KEY=your_gemini_key
-#   GROQ_API_KEY=your_groq_key
-#   KIMI_API_KEY=your_kimi_key
+# Add your keys:
+#   API_KEY=your_gemini_key        (primary LLM)
+#   GROQ_API_KEY=your_groq_key     (fallback)
+#   KIMI_API_KEY=your_kimi_key     (fallback)
 ```
 
 ### 4. Run
@@ -150,34 +129,11 @@ cp .env.example .env
 # CLI chat loop
 python interfaces/main.py
 
-# REST API (port 8765)
-python interfaces/api.py
-# or
-uvicorn interfaces.api:app --host 127.0.0.1 --port 8765 --reload
+# REST API  →  http://127.0.0.1:8765
+uvicorn infj_bot.interfaces.api:app --host 127.0.0.1 --port 8765 --reload
 
-# Web UI (port 5000)
+# Web UI  →  http://127.0.0.1:5000
 python interfaces/web_app.py
-```
-
----
-
-## Running Tests
-
-```bash
-# Security defense
-python core/security_defense_test.py
-# 22 passed
-
-# Logic chain
-python core/logic_chain_test.py
-# 25 passed
-
-# Stress tests
-python tests/test_stress.py
-# 28 passed
-
-# Full ablation suite (takes ~90 min on CPU Ollama, ~5 min with cloud GPUs)
-python tests/ablation_suite.py --conditions A,B,C,D,E,F --prompts 50 --live
 ```
 
 ---
@@ -186,41 +142,86 @@ python tests/ablation_suite.py --conditions A,B,C,D,E,F --prompts 50 --live
 
 | Command | What it does |
 |---------|-------------|
+| `/mode companion\|engineer\|critic\|coach\|clarity\|researcher\|bughunter\|quiet\|drift` | Switch persona mode |
 | `/memory <query>` | Search long-term memory |
 | `/memory learn <name>: <desc>` | Store a concept |
+| `/hive` | Show Hive Mind status and active consensus threads |
+| `/hive propose <thought>` | Submit a thought for collective review |
+| `/hive nexus decide <goal>` | Run Elysium council deliberation on a goal |
+| `/hive reflect` | Trigger a council reflection |
+| `/hive council status` | Show each council voice's energy and win count |
+| `/workspace status` | Show the conscious attention workspace |
+| `/workspace focus <content>` | Move spotlight to a specific item |
+| `/workspace reflect` | Generate a metacognitive reflection |
 | `/chain list` | Show active reasoning chains |
-| `/chain mark <query> fail` | Mark an approach as failed |
+| `/chain mark <query> fail` | Mark an approach as dead-end |
 | `/security status` | Show security scanner state |
 | `/security test <text>` | Scan arbitrary text |
-| `/mode companion|engineer|critic|coach|clarity|researcher|bughunter|quiet` | Switch persona mode |
-| `/health` | Check model & memory status |
-| `/eval` | Show self-evaluation stats |
-| `/bug sync` | Sync Bugcrowd programs |
-| `/recon <domain>` | Run scoped recon (bug hunter mode) |
+| `/health` | Check model, memory, and system status |
+| `/reset` | Clear session history and brain context |
+| `/todo add <title>` | Add a goal |
 
 ---
 
-## Who Should Read What
+## API Endpoints
 
-| Audience | Document |
-|----------|----------|
-| New users | This file → **Getting started** above |
-| Mechanics | [`docs/HOW_INFJ_BOT_WORKS.md`](docs/HOW_INFJ_BOT_WORKS.md) |
-| Security & keys | [`SECURITY.md`](SECURITY.md) |
-| Terminology | [`docs/GLOSSARY.md`](docs/GLOSSARY.md) |
-| Full doc index | [`docs/README.md`](docs/README.md) |
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/health` | GET | System health, memory count, turn count |
+| `/api/chat` | POST | Single-turn chat |
+| `/api/chat/stream` | POST | Server-sent events streaming |
+| `/api/tools` | GET | Available tool inventory |
+| `/api/observer` | GET | Full real-time cognitive state (being, needs, shadow, workspace, DII) |
+| `/api/dii` | GET | Dynamic Integration Index trend |
+| `/api/phi` | GET | PHI council status and subjective state |
+| `/api/hive` | GET | Hive Mind status |
+| `/api/command` | POST | Execute a slash command |
+
+---
+
+## Tests
+
+```bash
+# Full suite (requires torch)
+pytest tests/ -q
+
+# Without torch
+pytest tests/ -q \
+  --ignore=tests/test_bot.py \
+  --ignore=tests/test_stress.py \
+  --ignore=tests/test_upgrade_infrastructure.py
+
+# Specific suites
+pytest tests/test_shadow.py tests/test_elysium.py tests/test_temporal.py -v
+```
+
+**CI checks:** lint (ruff), typecheck (mypy), test (pytest) — all green on every push.
+
+---
+
+## Ablation Results (May 2026)
+
+6-condition test measuring the impact of removing each subsystem. Run on live Ollama `qwen3:4b` (CPU).
+
+| Condition | Change | Finding |
+|-----------|--------|---------|
+| A — No Council | Elysium stubbed | Latency neutral — council is background-only |
+| B — No Shadow | Shadow tick disabled | Latency neutral — shadow operates via cache |
+| C — No Homeostasis | Needs flattened | Latency neutral — state still initialized |
+| D — Cosine-only RAG | DMU re-ranking removed | **Prompt ↓ 221 chars (7.7%)** — DMU injects meaningful context |
+| E — Local LLM only | Cloud providers off | Baseline latency |
+| F — Full stack | No changes | 3095-char avg prompt, 62.9s latency |
+
+Removing DMU re-ranking (D) is the most measurable signal — the 221-character gap is the difference between simple cosine top-N and salience-weighted dynamic recall.
+
+> Re-run: `python tests/ablation_suite.py --conditions A,B,C,D,E,F --prompts 50 --live`
 
 ---
 
 ## Citation
 
-If you use DRIFT in your research, please cite:
-
 > **PHI // DRIFT: A Homeostatic Cognitive Architecture for Persistent, State-Aware AI Companionship**
->
 > Zenodo: [https://doi.org/10.5281/zenodo.20350249](https://doi.org/10.5281/zenodo.20350249)
->
-> PDF: [DRIFT_paper_v4.pdf](https://zenodo.org/records/20350249/files/DRIFT_paper_v4.pdf)
 
 ---
 
