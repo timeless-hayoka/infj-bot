@@ -115,6 +115,27 @@ Representative wired modules (instances live largely in **`main.py`**):
 
 ---
 
+## 4.1 Distributed cognition (Hive Mind + Elysium)
+
+The bot also runs a two-tier distributed cognition stack:
+
+- **Consensus tier** (`hive_mind/`) — in-process `ConsensusEngine` for thread
+  voting. Used by `/hive propose` and the self-modification review path in
+  `core/coordination.py`. No persistence.
+- **Elysium tier** (`core/hive/`) — persistent `NexusSelfModel` plus a
+  Council of 7 (`Aura`, `Logic`, `Meme`, `Vibe`, `Ethos`, `Pulse`, `Nexus`)
+  driving the 5-stage Nexus Loop (`Ignition → Proposal → Critique →
+  Integration → Resolution`). State persists in `nexus.db`, `council.db`,
+  and `elysium.db` under `INFJ_DATA_DIR`.
+
+Slash commands: `/hive`, `/hive propose <thought>`, `/hive nexus decide
+<goal>`, `/hive reflect`, `/hive council status`. The `/api/hive` endpoint
+returns the orchestrator node-status payload.
+
+See [HIVE_MIND.md](HIVE_MIND.md) for the full operator + developer guide.
+
+---
+
 ## 5. Performance & Networking Upgrade (May 2024)
 
 ### 5.1 Gevent-SocketIO Engine
@@ -238,9 +259,11 @@ Targeted subsets: `pytest tests/test_shadow.py tests/test_embeddings.py tests/te
 | [README.md](../README.md) | Quick start, layered map, who should read what |
 | [docs/README.md](README.md) | Full documentation index & reading paths |
 | [docs/GLOSSARY.md](GLOSSARY.md) | Definitions for codebase-specific terms |
+| [docs/HIVE_MIND.md](HIVE_MIND.md) | Hive Mind / Elysium operator guide: commands, API, Nexus Loop, SQLite state |
+| [docs/HIVE_ROADMAP.md](HIVE_ROADMAP.md) | Phase-by-phase roadmap for distributed cognition |
+| [docs/AI_MORALITY_RULES.md](AI_MORALITY_RULES.md) | The six hard-coded morality rules |
+| [docs/FALSIFIABILITY.md](FALSIFIABILITY.md) | Locked falsifiability statement |
 | [SECURITY.md](../SECURITY.md) | Secret hygiene & reporting posture |
-| [DRIFT_AI_INTEGRATION.md](DRIFT_AI_INTEGRATION.md) | How seeded Drift concepts map into memory-only integration |
-| [DELL_HANDOFF.md](DELL_HANDOFF.md) | Longer ops notes (devices, backups, quirks) |
 
 ---
 
