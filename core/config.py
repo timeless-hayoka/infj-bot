@@ -82,6 +82,15 @@ DRIFT_USE_LOCAL_FALLBACK = os.getenv(
 ).lower() in ("1", "true", "yes", "on")
 OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
 
+# Prefer local models (when available) over cloud for latency-sensitive usage.
+DRIFT_PREFER_LOCAL = os.getenv("DRIFT_PREFER_LOCAL", os.getenv("INFJ_PREFER_LOCAL", "true")).lower() in ("1", "true", "yes", "on")
+
+# Runtime tuning: smaller history reduces prompt size and latency.
+DRIFT_HISTORY_SIZE = int(os.getenv("DRIFT_HISTORY_SIZE", os.getenv("INFJ_HISTORY_SIZE", "16")))
+
+# Simple in-memory generation cache size to avoid repeat calls for identical prompts.
+DRIFT_GEN_CACHE_SIZE = int(os.getenv("DRIFT_GEN_CACHE_SIZE", "128"))
+
 # Groq High-Speed Inference Config
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 DRIFT_GROQ_MODEL = os.getenv("DRIFT_GROQ_MODEL", "llama-3.3-70b-versatile")
@@ -108,3 +117,8 @@ BACKGROUND_CYCLE_SECONDS = int(os.getenv("BACKGROUND_CYCLE_SECONDS", "20"))
 SHADOW_INFLUENCE_WEIGHT = float(os.getenv("SHADOW_INFLUENCE_WEIGHT", "0.7"))
 HOMEOSTASIS_DECAY_SLOW = os.getenv("HOMEOSTASIS_DECAY_SLOW", "true").lower() in ("1", "true", "yes", "on")
 
+
+# Hugging Face Pro Inference Config
+HF_PRO_TOKEN = os.getenv("HF_PRO_TOKEN")
+DRIFT_HF_MODEL = os.getenv("DRIFT_HF_MODEL", "meta-llama/Meta-Llama-3-8B-Instruct")
+DRIFT_USE_HF = os.getenv("DRIFT_USE_HF", "false").lower() in ("1", "true", "yes", "on")
