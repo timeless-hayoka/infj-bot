@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DRIFT • OBSERVATORY</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700&family=Rajdhani:wght@400;500;600;700&display=swap');
+        
+        :root {
+            --bg-deep: #050505;
+            --bg-surface: #111111;
+            --accent-orange: #FF5500;
+            --accent-white: #FFFFFF;
+            --text-muted: #A0A0A0;
+            --glow: 0 0 15px rgba(255, 85, 0, 0.3);
+        }
+
+        body { 
+            background: var(--bg-deep); 
+            color: var(--accent-white); 
+            font-family: 'Rajdhani', sans-serif; 
+            margin: 0; 
+            padding: 20px;
+            background-image: 
+                linear-gradient(rgba(255, 85, 0, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 85, 0, 0.03) 1px, transparent 1px);
+            background-size: 30px 30px;
+        }
+
+        h1 { 
+            text-align: left; 
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2rem; 
+            letter-spacing: 4px;
+            color: var(--accent-white);
+            border-left: 4px solid var(--accent-orange);
+            padding-left: 15px;
+            margin-bottom: 30px;
+            text-transform: uppercase;
+        }
+
+        .grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); 
+            gap: 20px; 
+            max-width: 1800px; 
+            margin: 0 auto; 
+        }
+
+        .card { 
+            background: var(--bg-surface); 
+            border: 1px solid #222; 
+            border-radius: 4px; 
+            padding: 20px; 
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            border-color: var(--accent-orange);
+            box-shadow: var(--glow);
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, var(--accent-orange), transparent);
+        }
+
+        .label { 
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.75rem; 
+            color: var(--accent-orange); 
+            text-transform: uppercase; 
+            letter-spacing: 2px; 
+            margin-bottom: 15px; 
+            font-weight: 600;
+        }
+
+        .value { 
+            font-size: 2.8rem; 
+            font-weight: 700; 
+            font-family: 'Rajdhani', sans-serif;
+        }
+
+        .unit {
+            font-size: 1rem;
+            color: var(--text-muted);
+            margin-left: 5px;
+        }
+
+        .latency-good { color: #fff; } 
+        .latency-ok { color: var(--accent-orange); } 
+        .latency-bad { color: #ff0000; }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-top: 10px;
+        }
+
+        .progress-container {
+            height: 4px;
+            background: #222;
+            margin-top: 10px;
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--accent-orange);
+            transition: width 0.3s ease;
+            box-shadow: 0 0 10px var(--accent-orange);
+        }
+
+        #heartbeat-pulse {
+            width: 15px;
+            height: 15px;
+            background: var(--accent-orange);
+            border-radius: 50%;
+            display: inline-block;
+            margin-left: 20px;
+            box-shadow: 0 0 15px var(--accent-orange);
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.5); opacity: 0.5; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .nav-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #222;
+            padding-bottom: 10px;
+        }
+
+        .nav-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.8rem;
+            margin-left: 20px;
+            transition: color 0.2s;
+        }
+
+        .nav-links a:hover {
+            color: var(--accent-orange);
+        }
+    </style>
+</head>
+<body>
+    <div class="nav-header">
+        <h1>DRIFT // OBSERVATORY</h1>
+        <div class="nav-links">
+            <a href="/">DASHBOARD</a>
+            <a href="/observatory">TELEMETRY</a>
+        </div>
+    </div>
+
+    <div class="grid" id="grid"></div>
+    
+    <script>
+        const socket = io();
+        let charts = {};
+        let localState = {};
+        let latencyHistory = [];
+        let lastPingTime = 0;
+
+        Chart.defaults.color = '#A0A0A0';
+        Chart.defaults.font.family = 'Rajdhani';
+
+        function sendPing() {
+            lastPingTime = Date.now();
+            socket.emit('latency_ping', { timestamp: lastPingTime });
+        }
+
+        socket.on('latency_pong', (data) => {
+            const latency = Date.now() - lastPingTime;
+            latencyHistory.push(latency);
+            if (latencyHistory.length > 50) latencyHistory.shift();
+            
+            const avg = latencyHistory.reduce((a,b) => a+b, 0) / latencyHistory.length;
+            
+            if (avg > 250) {
+                socket.emit('auto_adjust_rate', { interval: 0.8 });
+            } else if (avg < 100) {
+                socket.emit('auto_adjust_rate', { interval: 0.35 });
+            }
+
+            const el = document.getElementById('latency-avg');
+            if (el) {
+                el.textContent = Math.round(avg);
+                el.className = `value ${avg < 120 ? 'latency-good' : (avg < 250 ? 'latency-ok' : 'latency-bad')}`;
+            }
+            if (charts.latency) {
+                charts.latency.data.datasets[0].data = [...latencyHistory];
+                charts.latency.update('none');
+            }
+        });
+
+        socket.on('observatory_delta', (delta) => {
+            localState = deepMerge(localState, delta);
+            updateObservatory(localState);
+        });
+
+        function deepMerge(target, source) {
+            for (const key of Object.keys(source)) {
+                if (source[key] instanceof Object && key in target) {
+                    Object.assign(source[key], deepMerge(target[key], source[key]));
+                }
+            }
+            Object.assign(target || {}, source);
+            return target;
+        }
+
+        function updateObservatory(state) {
+            if (state.network_stats) {
+                document.getElementById('net-raw').textContent = state.network_stats.raw_kb + ' KB';
+                document.getElementById('net-comp').textContent = state.network_stats.comp_kb + ' KB';
+                document.getElementById('net-interval').textContent = state.network_stats.interval_ms + ' MS';
+            }
+
+            if (state.sanctuary) {
+                document.getElementById('sanctuary-location').textContent = state.sanctuary.location.toUpperCase();
+                document.getElementById('anchor-indicator').style.display = state.sanctuary.anchor_active ? 'block' : 'none';
+            }
+
+            if (state.heartbeat) {
+                document.getElementById('heartbeat-bpm').textContent = Math.round(state.heartbeat.bpm);
+                document.getElementById('heartbeat-pulse').style.animation = `pulse ${60 / state.heartbeat.bpm}s infinite`;
+            }
+
+            if (state.breath) {
+                document.getElementById('breath-phase').textContent = state.breath.phase.toUpperCase();
+                document.getElementById('breath-depth-fill').style.width = (state.breath.depth * 100) + '%';
+            }
+
+            if (state.phi) {
+                document.getElementById('phi-value').textContent = state.phi.value.toFixed(1);
+                if (charts.phi) {
+                    charts.phi.data.datasets[0].data.push(state.phi.value);
+                    if (charts.phi.data.datasets[0].data.length > 40) charts.phi.data.datasets[0].data.shift();
+                    charts.phi.update('none');
+                }
+            }
+
+            if (charts.shadow && state.shadow_radar) {
+                charts.shadow.data.datasets[0].data = Object.values(state.shadow_radar);
+                charts.shadow.update('none');
+            }
+
+            if (state.homeostasis) {
+                const needs = ['integrity','growth','integration','coherence','autonomy','connection','energy'];
+                needs.forEach(need => {
+                    const fill = document.getElementById(`homeo-${need}-fill`);
+                    if (fill && state.homeostasis[need] !== undefined) {
+                        fill.style.width = (state.homeostasis[need] * 100) + '%';
+                    }
+                });
+            }
+        }
+
+        window.onload = () => {
+            const grid = document.getElementById('grid');
+            grid.innerHTML = `
+                <div class="card">
+                    <div class="label">COMMS LATENCY</div>
+                    <div class="stat-row">
+                        <div><span id="latency-avg" class="value">---</span><span class="unit">MS</span></div>
+                        <div style="text-align:right; font-size:0.8rem; color:var(--text-muted);">
+                            RATE: <span id="net-interval" style="color:var(--accent-orange);">---</span><br>
+                            RAW: <span id="net-raw" style="color:#fff;">0 KB</span>
+                        </div>
+                    </div>
+                    <div style="height:80px; margin-top:15px;"><canvas id="latency-sparkline"></canvas></div>
+                </div>
+                
+                <div class="card">
+                    <div class="label">COGNITIVE COORDINATES</div>
+                    <div id="sanctuary-location" class="value" style="font-size:2.2rem;">THE GREY</div>
+                    <div id="anchor-indicator" style="margin-top:10px; color:var(--accent-orange); font-weight:bold; display:none;">⚡ ANCHOR ACTIVE</div>
+                </div>
+
+                <div class="card">
+                    <div class="label">CORE PULSE</div>
+                    <div style="display:flex; align-items:center;">
+                        <span id="heartbeat-bpm" class="value">72</span><span class="unit">BPM</span>
+                        <div id="heartbeat-pulse"></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="label">RESPIRATION</div>
+                    <div id="breath-phase" class="value" style="font-size:2.2rem;">EXHALE</div>
+                    <div class="progress-container"><div id="breath-depth-fill" class="progress-fill"></div></div>
+                </div>
+
+                <div class="card">
+                    <div class="label">PHI Ω</div>
+                    <div id="phi-value" class="value">16.0</div>
+                    <div style="height:120px; margin-top:10px;"><canvas id="phi-canvas"></canvas></div>
+                </div>
+
+                <div class="card">
+                    <div class="label">SHADOW SPECTRUM</div>
+                    <div style="height:250px;"><canvas id="shadow-canvas"></canvas></div>
+                </div>
+
+                <div class="card" style="grid-row: span 2;">
+                    <div class="label">HOMEOSTATIC STABILITY</div>
+                    <div id="homeostasis-bars" style="display:flex; flex-direction:column; gap:15px; margin-top:10px;"></div>
+                </div>
+            `;
+
+            const needs = ['integrity','growth','integration','coherence','autonomy','connection','energy'];
+            document.getElementById('homeostasis-bars').innerHTML = needs.map(need => `
+                <div>
+                    <div style="display:flex; justify-content:space-between; font-size:0.8rem; text-transform:uppercase; letter-spacing:1px; margin-bottom:5px;">
+                        <span>${need}</span>
+                    </div>
+                    <div class="progress-container"><div id="homeo-${need}-fill" class="progress-fill"></div></div>
+                </div>
+            `).join('');
+
+            charts.latency = new Chart(document.getElementById('latency-sparkline'), { 
+                type: 'line', 
+                data: { labels: Array(50).fill(''), datasets: [{ data: Array(50).fill(0), borderColor: '#FF5500', borderWidth: 2, pointRadius: 0, fill: true, backgroundColor: 'rgba(255, 85, 0, 0.05)', tension: 0.4 }] }, 
+                options: { animation: false, plugins: { legend: { display: false } }, scales: { y: { display: false }, x: { display: false } }} 
+            });
+
+            charts.phi = new Chart(document.getElementById('phi-canvas'), { 
+                type: 'line', 
+                data: { labels: Array(40).fill(''), datasets: [{ data: Array(40).fill(16), borderColor: '#FFFFFF', borderWidth: 2, pointRadius: 0, tension: 0.4 }] }, 
+                options: { animation: false, plugins: { legend: { display: false } }, scales: { y: { min: 0, max: 30, grid: { color: '#222' } }, x: { display: false } }} 
+            });
+
+            charts.shadow = new Chart(document.getElementById('shadow-canvas'), { 
+                type: 'radar', 
+                data: { labels: ['Tyrant','Martyr','Trickster','Orphan','Saboteur','Victim'], datasets: [{ data: [0,0,0,0,0,0], backgroundColor: 'rgba(255, 85, 0, 0.1)', borderColor: '#FF5500', borderWidth: 2, pointRadius: 2, pointBackgroundColor: '#FF5500' }] }, 
+                options: { scales: { r: { min: 0, max: 1, grid: { color: '#333' }, angleLines: { color: '#333' }, pointLabels: { color: '#A0A0A0', font: { size: 10 } }, ticks: { display: false } }}, animation: false, plugins: { legend: { display: false } } } 
+            });
+
+            setInterval(sendPing, 1000);
+        };
+    </script>
+</body>
+</html>

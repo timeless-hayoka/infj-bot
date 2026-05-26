@@ -334,8 +334,9 @@ INDEX_HTML = """<!doctype html>
       <button id="search" style="width:100%; padding:8px 0;">SEARCH</button>
     </div>
 
-    <div class="panel" style="border:none; padding:0;">
+    <div class="panel" style="border:none; padding:0; display:flex; flex-direction:column; gap:8px;">
       <a href="/observatory" target="_blank" class="obs-link">OPEN OBSERVATORY</a>
+      <a href="/glyph" target="_blank" class="obs-link" style="background:#111; color:var(--accent-orange); border:1px solid var(--accent-orange);">GLYPH SYSTEM</a>
     </div>
   </aside>
 </main>
@@ -652,7 +653,24 @@ def api_email():
 @app.route("/observatory")
 def observatory():
     try:
-        with open("/home/crexs/templates/observatory.html", "r") as f:
+        path = Path(__file__).resolve().parent / "templates" / "observatory.html"
+        if not path.exists():
+            path = Path("/home/crexs/templates/observatory.html")
+        with open(path, "r", encoding="utf-8") as f:
+            content = f.read()
+        return render_template_string(content)
+    except Exception as e:
+        return str(e), 500
+
+
+@app.route("/glyph")
+@app.route("/phi-glyph")
+def glyph():
+    try:
+        path = Path(__file__).resolve().parent / "templates" / "phi_glyph_system.html"
+        if not path.exists():
+            path = Path("/home/crexs/Downloads/PHI Glyph System.html")
+        with open(path, "r", encoding="utf-8") as f:
             content = f.read()
         return render_template_string(content)
     except Exception as e:
