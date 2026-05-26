@@ -25,8 +25,10 @@ from infj_bot.core.memory import LocalEmbeddingFunction, DriftMemory
 
 # Hive Mind lives on an external SSD; skip tests when unavailable
 try:
+    from infj_bot.hive_mind.consensus_engine import ConsensusEngine as _CE  # noqa: F401
+
     HIVE_AVAILABLE = True
-except Exception:
+except (ImportError, ModuleNotFoundError):
     HIVE_AVAILABLE = False
 from infj_bot.core.plugins.growth import growth_profile
 from infj_bot.core.plugins.proactive import ProactiveState
