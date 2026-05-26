@@ -30,9 +30,9 @@ from infj_bot.core.config import DATA_DIR
 logger = logging.getLogger("drift")
 WORKSPACE_DB = DATA_DIR / "workspace.db"
 
-ACTIVE_CAPACITY = 5        # max items in the conscious workspace
-PRECONSCIOUS_CAPACITY = 20 # max items retained across all preconscious tiers
-ARCHIVE_THRESHOLD = 0.05   # salience below this → archived to DB and evicted
+ACTIVE_CAPACITY = 5  # max items in the conscious workspace
+PRECONSCIOUS_CAPACITY = 20  # max items retained across all preconscious tiers
+ARCHIVE_THRESHOLD = 0.05  # salience below this → archived to DB and evicted
 
 # Salience band labels used for preconscious grouping (high → low)
 _BANDS = [
@@ -53,6 +53,7 @@ def _band_for(salience: float) -> str:
 @dataclass
 class Broadcast:
     """A piece of information competing for workspace access."""
+
     source: str
     content: str
     salience: float = 0.5
@@ -103,7 +104,10 @@ class GlobalWorkspace:
         self.state = WorkspaceState(capacity=capacity)
         self._pool: List[Broadcast] = []  # incoming submissions awaiting next cycle
         self.preconscious: Dict[str, List[Broadcast]] = {
-            "strong": [], "moderate": [], "faint": [], "trace": []
+            "strong": [],
+            "moderate": [],
+            "faint": [],
+            "trace": [],
         }
         self._lock = threading.Lock()
         self._init_db()
@@ -170,7 +174,10 @@ class GlobalWorkspace:
             with sqlite3.connect(self.db_path) as conn:
                 conn.executemany(
                     "INSERT INTO workspace_history (timestamp, source, content, salience, tier) VALUES (?, ?, ?, ?, ?)",
-                    [(b.timestamp, b.source, b.content[:500], b.salience, tier) for b, tier in entries],
+                    [
+                        (b.timestamp, b.source, b.content[:500], b.salience, tier)
+                        for b, tier in entries
+                    ],
                 )
                 conn.commit()
         except Exception as e:
@@ -178,17 +185,25 @@ class GlobalWorkspace:
 
     # ── Public API ────────────────────────────────────────────────────────
 
-    def submit(self, source: str, content: str, salience: float = 0.5,
-               emotion_tag: Optional[str] = None, intensity: float = 0.0):
+    def submit(
+        self,
+        source: str,
+        content: str,
+        salience: float = 0.5,
+        emotion_tag: Optional[str] = None,
+        intensity: float = 0.0,
+    ):
         """Add a new broadcast to the pool for the next competition cycle."""
         with self._lock:
-            self._pool.append(Broadcast(
-                source=source,
-                content=content,
-                salience=salience,
-                emotion_tag=emotion_tag,
-                intensity=intensity,
-            ))
+            self._pool.append(
+                Broadcast(
+                    source=source,
+                    content=content,
+                    salience=salience,
+                    emotion_tag=emotion_tag,
+                    intensity=intensity,
+                )
+            )
 
     def set_spotlight(self, content: str, source: str = "", strength: float = 1.0):
         """Manually override the spotlight (used by external callers)."""
@@ -225,12 +240,17 @@ class GlobalWorkspace:
                 if key not in seen or b.salience > seen[key].salience:
                     seen[key] = b
 
-            ranked = sorted(seen.values(), key=lambda x: x.current_salience(now), reverse=True)
+            ranked = sorted(
+                seen.values(), key=lambda x: x.current_salience(now), reverse=True
+            )
 
             # Partition into tiers
             new_active: List[Broadcast] = []
             new_preconscious: Dict[str, List[Broadcast]] = {
-                "strong": [], "moderate": [], "faint": [], "trace": []
+                "strong": [],
+                "moderate": [],
+                "faint": [],
+                "trace": [],
             }
             to_archive: List[tuple] = []
             preconscious_count = 0
@@ -260,12 +280,14 @@ class GlobalWorkspace:
                 self.state.spotlight = winner
                 self.state.spotlight_source = winner.source
                 self.state.last_ignition = now
-                self.state.broadcast_history.append({
-                    "content": winner.content,
-                    "source": winner.source,
-                    "strength": winner.current_salience(now),
-                    "timestamp": now.isoformat(),
-                })
+                self.state.broadcast_history.append(
+                    {
+                        "content": winner.content,
+                        "source": winner.source,
+                        "strength": winner.current_salience(now),
+                        "timestamp": now.isoformat(),
+                    }
+                )
                 if len(self.state.broadcast_history) > 50:
                     self.state.broadcast_history.pop(0)
                 self.state.total_broadcasts += len(new_active)
@@ -290,7 +312,9 @@ class GlobalWorkspace:
         if secondary:
             lines.append("Active awareness:")
             for b in secondary:
-                lines.append(f"  · [{b.source}] {b.content[:120]} ({b.current_salience(now):.2f})")
+                lines.append(
+                    f"  · [{b.source}] {b.content[:120]} ({b.current_salience(now):.2f})"
+                )
 
         # Show strongest populated preconscious band
         for band in ("strong", "moderate"):
@@ -306,8 +330,10 @@ class GlobalWorkspace:
     def get_preconscious_summary(self) -> Dict:
         """Returns each preconscious tier's items as a dict (for inspection/debug)."""
         return {
-            band: [{"source": b.source, "content": b.content[:80], "salience": b.salience}
-                   for b in items]
+            band: [
+                {"source": b.source, "content": b.content[:80], "salience": b.salience}
+                for b in items
+            ]
             for band, items in self.preconscious.items()
         }
 
@@ -325,22 +351,28 @@ def get_workspace() -> GlobalWorkspace:
 
 
 def _register():
-    from infj_bot.core.cognitive_architecture import CognitiveArchitecture, CognitivePlugin
+    from infj_bot.core.cognitive_architecture import (
+        CognitiveArchitecture,
+        CognitivePlugin,
+    )
+
     arch = CognitiveArchitecture()
     if "global_workspace" not in arch.list_plugins():
-        arch.register(CognitivePlugin(
-            name="global_workspace",
-            description="Tiered attention workspace: spotlight → active → preconscious bands → archived",
-            module_path="global_workspace",
-            instance_factory=get_workspace,
-            cycle_handler="cycle",
-            cycle_frequency=1,
-            cycle_priority=3,
-            prompt_formatter="format_prompt_snippet",
-            prompt_priority=3,
-            prompt_section="core",
-            is_core=True,
-        ))
+        arch.register(
+            CognitivePlugin(
+                name="global_workspace",
+                description="Tiered attention workspace: spotlight → active → preconscious bands → archived",
+                module_path="global_workspace",
+                instance_factory=get_workspace,
+                cycle_handler="cycle",
+                cycle_frequency=1,
+                cycle_priority=3,
+                prompt_formatter="format_prompt_snippet",
+                prompt_priority=3,
+                prompt_section="core",
+                is_core=True,
+            )
+        )
 
 
 _register()
