@@ -36,8 +36,17 @@ Regulates simulated **needs** over time (**`homeostasis.py`** + SQLite). Influen
 ### **`INFJ_DATA_DIR`**  
 If set, relocates durable state (Chroma, SQLite DBs, `history.jsonl`, audits, etc.). Code stays in **`PROJECT_ROOT`**. Keeps clones portable and avoids stuffing the repo with runtime data.
 
-### IIT / Φ (“phi”)  
-**Integrated-information–inspired metrics** and qualia-axis bookkeeping in **`iit_consciousness.py`**. Computed proxies for introspection/diagnostics—not a clinical or physics claim.
+### IIT / Φ (“phi”) / PhiProxy
+**Integrated-information–inspired metrics** and qualia-axis bookkeeping in **`core/phi_proxy.py`** (renamed from `iit_consciousness.py`). Computed proxies for introspection/diagnostics—not a clinical or physics claim. Surfaces as `Φ Ω` on the Observatory dashboard. See [WEB_INTERFACE.md](WEB_INTERFACE.md).
+
+### Continuity Vector (three-axis triad)
+The live `[memory, state, novelty]` 3-bit telemetry computed every cycle by **`core/continuity_vector.py`**. Each axis is a threshold over `CognitiveContext` (retrieved notes/history depth, coherence/variance, shadow influence/new entities). The 8 patterns get named labels (COMPANION, REGULATED, EXPLORER, TASK, RESONANT, FRONTIER, FULL COUNCIL, QUIET). Distinct from the five-axis ablation continuity vector that also lives in the same file. See [SUBSYSTEMS.md](SUBSYSTEMS.md#5-continuity-vector--memory--state--novelty-triad).
+
+### Distributed Cognition Protocol (DCP)
+Lightweight in-process message format under **`hive_mind/protocol/dcp.py`**: `DCPMessage`, `NodeRole` (`PRIMARY|CRITIC|BACKUP|OBSERVER`), and `Resolution` (`ADOPTED|TABLED|REJECTED|PENDING`). The substrate for the Hive Mind’s propose/vote/resolve loop.
+
+### Hive Mind / Consensus Engine
+The package at **`hive_mind/`** with `HiveOrchestrator` (node registry + status), `ConsensusEngine` (in-memory propose → vote → resolve threads), and the DCP message types. Exposed live via FastAPI `/api/hive` and `/api/health`. The longer-term plan lives in [HIVE_ROADMAP.md](HIVE_ROADMAP.md).
 
 ### **`InfjBrain`**  
 Primary LLM wrapper in **`brain.py`**: Gemini (and optional Ollama fallback), streaming, tooling hooks where enabled.
@@ -60,6 +69,15 @@ Caps prompt growth by tier (core / cognitive / analysis / context) toward **`INF
 ### Shadow (`shadow.py`)  
 Structured **prompt-time excerpts** from **`shadow.db`**, bounded by env caps (**`INFJ_SHADOW_PROMPT_*`**). Jung-influenced metaphor; **not** diagnosis.
 
+### Shadow governance (`shadow_governance.py`)
+Mode-aware control layer **on top of** `shadow.py`: enforces TTL exponential decay, a per-mode accumulation cap, and a promotion threshold gated on `consistency_window`. The active mode (`SECURITY`/`BALANCED`/`CONSERVATIVE`) is derived from the current DRIFT chat mode via `resolve_mode()`. Output is a single `shadow_influence ∈ [0, MAX]` that Nexus uses to **penalize** confidence (never veto). See [SUBSYSTEMS.md § 1](SUBSYSTEMS.md#1-shadow-governance--coreshadow_governancepy).
+
+### Task mutator (`task_mutator.py`)
+Auto-evolve layer for DriftSurface tasks. When shadow influence exceeds the promotion threshold and `intent_stability < 0.6`, runs a mode-dependent mutation: `SECURITY` archives, `BALANCED` rewrites the task as a reflection note, `CONSERVATIVE` marks it `GHOST` with an insight flag. Forgiveness restores `GHOST` tasks to `OPEN` once shadow decays. See [SUBSYSTEMS.md § 2](SUBSYSTEMS.md#2-task-mutator--coretask_mutatorpy).
+
+### Retry wrapper (`retry_wrapper.py`)
+Dynamic-timeout + exponential-backoff wrapper around LLM generation calls. Computes `max(60, 20 + 25 × ⌊prompt_length / 1000⌋)` seconds in standard mode and a fixed `150s/300tok/T=0.3` profile in ablation mode. Only retries `TimeoutError`; everything else fails fast. Sets `DRIFT_LOCAL_TIMEOUT` for downstream runners. See [SUBSYSTEMS.md § 3](SUBSYSTEMS.md#3-retry-wrapper--coreretry_wrapperpy).
+
 ### **SQLite “state brains”**  
 Many subsystems (**being**, **embodiment**, **homeostasis**, **shadow**, etc.) persist orthogonal state as **`.db`** files under **`INFJ_DATA_DIR`** or **`PROJECT_ROOT`**.
 
@@ -68,4 +86,6 @@ Many subsystems (**being**, **embodiment**, **homeostasis**, **shadow**, etc.) p
 ## Related
 
 - Mechanics and flow: [HOW_INFJ_BOT_WORKS.md](HOW_INFJ_BOT_WORKS.md)  
+- Subsystem deep dives: [SUBSYSTEMS.md](SUBSYSTEMS.md)  
+- Web interface and Observatory: [WEB_INTERFACE.md](WEB_INTERFACE.md)  
 - Terms for credentials and scope: [SECURITY.md](../SECURITY.md)  
