@@ -404,18 +404,6 @@ class DriftBrain:
             self.logger.addHandler(handler)
         self.logger.setLevel(logging.INFO)
 
-    # ----------------- Scope management -----------------
-    def set_scope(self, scope: Optional[str]):
-        """Set the current conversation scope (conversation id, project id, etc.).
-
-        Use `None` for the global scope.
-        """
-        self.scope = scope
-        self.logger.info(f"Scope set to: {scope}")
-
-    def get_scope(self) -> Optional[str]:
-        return self.scope
-
         # Fast-path: prefer a local bridge if configured and available (lowest latency)
         if self._prefer_local and self._use_local_fallback and self.local_bridge.is_available():
             self.sdk = "local"
@@ -458,6 +446,18 @@ class DriftBrain:
         self.primary_model = None
         self.critic_model = None
         self.chat = None
+
+    # ----------------- Scope management -----------------
+    def set_scope(self, scope: Optional[str]):
+        """Set the current conversation scope (conversation id, project id, etc.).
+
+        Use `None` for the global scope.
+        """
+        self.scope = scope
+        self.logger.info(f"Scope set to: {scope}")
+
+    def get_scope(self) -> Optional[str]:
+        return self.scope
 
     # ------------------------------------------------------------------
     # Internal generation helpers
