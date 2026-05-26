@@ -20,9 +20,8 @@ COPY . .
 # Data directory — override with INFJ_DATA_DIR env var to use PortableSSD
 RUN mkdir -p /app/chroma_db /app/data
 
-# Default port for web UI
-EXPOSE 8765
+# Default port for web UI (Hugging Face Spaces routes here)
+EXPOSE 7860
 
 # Default: run web interface
-# Override with: docker run ... python cli.py chat  (for terminal)
-CMD ["python", "web_app.py"]
+CMD ["python", "interfaces/web_app.py"]

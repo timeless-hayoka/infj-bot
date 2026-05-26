@@ -660,9 +660,12 @@ def observatory():
 
 
 def main():
+    import os
     print("🚀 DRIFT Web App: Gevent + Compression + Delta Logic Active")
-    socketio.run(app, host="0.0.0.0", port=5000, debug=False, use_reloader=False)
+    port = int(os.getenv("PORT", 7860))
+    socketio.run(app, host="0.0.0.0", port=port, debug=False, use_reloader=False)
 
 
 if __name__ == "__main__":
     main()
+
