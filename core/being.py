@@ -718,7 +718,7 @@ class Being:
                     if isinstance(ws.spotlight, dict):
                         workspace_context = ws.spotlight.get("content", "")[:100]
                     else:
-                        workspace_context = str(ws.spotlight)[:100]
+                        workspace_context = ws.spotlight.content[:100]
                 elif ws.contents:
                     workspace_context = ws.contents[0].content[:100]
             except Exception:

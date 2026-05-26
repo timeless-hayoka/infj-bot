@@ -625,7 +625,14 @@ Use this to clarify inner conflict without pathologizing it.
         winner = self.workspace.state.spotlight
         if not winner:
             return
-        content = winner.get("content", "") if isinstance(winner, dict) else str(winner)
+        if isinstance(winner, dict):
+            content = winner.get("content", "")
+            source = winner.get("source", "unknown")
+            strength = winner.get("strength", 0.5)
+        else:
+            content = winner.content
+            source = winner.source
+            strength = winner.salience
         if not content:
             return
 
@@ -643,8 +650,8 @@ Use this to clarify inner conflict without pathologizing it.
             "workspace_broadcast",
             {
                 "content": content,
-                "source": winner.get("source", "unknown"),
-                "strength": winner.get("strength", 0.5),
+                "source": source,
+                "strength": strength,
             },
             source="orchestrator",
         )
