@@ -111,7 +111,9 @@ Representative wired modules (instances live largely in **`main.py`**):
 - **`being`** — longitudinal mood/agency/coherence-style state (`being.db`).
 - **`emotional_field`** — resonance stance + intensity; **partially tempered by live host CPU/RAM** via `host_load.py` (`psutil`) when enabled.
 - **`embodiment`** — heartbeat/breath/posture metaphors persisted to **`embodiment.db`**.
-- **`homeostasis`**, **`iit_consciousness`**, **`intuition`**, **`shadow`**, **`values`**, **`relationship`**, **`predictor`**, **`temporal`**, **`explorer`**, **`creativity`**, **`aspirations`**, **`metacognition`**, **`self_modify`**, **`growth_trajectory`**, **`physics`**, **`humanity`** — specialized loops and prompt fragments.
+- **`homeostasis`**, **`phi_proxy`** (formerly `iit_consciousness`), **`intuition`**, **`shadow`**, **`values`**, **`relationship`**, **`predictor`**, **`temporal`**, **`explorer`**, **`creativity`**, **`aspirations`**, **`metacognition`**, **`self_modify`**, **`growth_trajectory`**, **`physics`**, **`humanity`** — specialized loops and prompt fragments.
+
+> See [SUBSYSTEMS.md](SUBSYSTEMS.md) for the newer modules layered on top: **shadow governance** (mode-aware decay/promotion), **task mutator** (auto-evolve under shadow tension), **retry wrapper** (dynamic-timeout LLM calls), **hive mind** (DCP + consensus engine), and the **[Memory, State, Novelty] continuity-vector triad**.
 
 ---
 
@@ -140,7 +142,7 @@ Plugins submit salient snippets to **`global_workspace.py`**, loosely inspired b
 
 ---
 
-## 5. “Depth psychology” style layers (informal but structured)
+## 6. “Depth psychology” style layers (informal but structured)
 
 These are **not** clinical instruments; they are **structured state machines + prompt text** shaping tone and continuity.
 
@@ -156,7 +158,7 @@ These are **not** clinical instruments; they are **structured state machines + p
 
 ---
 
-## 6. Modes & Drift
+## 7. Modes & Drift
 
 - **Modes** (e.g. `companion`, `engineer`, `drift`, `quiet`) change **scopes and rails** via `guardrails.mode_scope_rail` and behavioral briefs.
 
@@ -164,7 +166,7 @@ These are **not** clinical instruments; they are **structured state machines + p
 
 ---
 
-## 7. Tools, safety posture, MCP
+## 8. Tools, safety posture, MCP
 
 ### `tools.py`
 
@@ -177,7 +179,7 @@ Separate Python processes under **`mcp/`** (for example Gmail hybrid/http client
 
 ---
 
-## 8. Resilience & host awareness
+## 9. Resilience & host awareness
 
 - **`resilience.py`**: lightweight **circuit breakers** wrap flaky plugins during cycles.
 - **`host_load.py`**: samples **CPU + RAM** (`psutil`, cached intervals) when not disabled (`INFJ_DISABLE_HOST_LOAD`).
@@ -185,7 +187,7 @@ Separate Python processes under **`mcp/`** (for example Gmail hybrid/http client
 
 ---
 
-## 9. Configuration & portability
+## 10. Configuration & portability
 
 Key environment variables (`config.py` aggregates these):
 
@@ -200,16 +202,17 @@ Key environment variables (`config.py` aggregates these):
 
 ---
 
-## 10. Interfaces
+## 11. Interfaces
 
 | Surface | Entry |
 |--------|--------|
-| CLI | `cli.py` — `chat`, `ask`, `tui`, `web`, `health`, `backup`, `restore` |
-| HTTP | **`api.py`** + **`web_app.py`** (`uvicorn` on `127.0.0.1:8765` by convention) |
+| CLI | `interfaces/cli.py` — `chat`, `ask`, `tui`, `web`, `health`, `backup`, `restore` |
+| HTTP (dev, FastAPI) | **`interfaces/api.py`** — `uvicorn interfaces.api:app --host 127.0.0.1 --port 8765 --reload` |
+| HTTP (deployed, Flask + SocketIO) | **`interfaces/web_app.py`** — `python interfaces/web_app.py` on `0.0.0.0:7860`; also the Docker / Hugging Face Spaces target. See [WEB_INTERFACE.md](WEB_INTERFACE.md). |
 
 ---
 
-## 11. Verification
+## 12. Verification
 
 ```bash
 source venv/bin/activate
@@ -222,28 +225,29 @@ Targeted subsets: `pytest tests/test_shadow.py tests/test_embeddings.py tests/te
 
 ---
 
-## 12. Honest boundaries (what this is *not*)
+## 13. Honest boundaries (what this is *not*)
 
 - **Not** autonomous AGI — it coordinates **explicit services** plus **offline tick loops** ahead/after Gemini.
-- **Not** human consciousness — IIT-inspired metrics (`iit_consciousness.py`), embodiment, shadow, etc., are **useful structuring metaphors**, not neuroscience claims.
+- **Not** human consciousness — IIT-inspired metrics (`phi_proxy.py`), embodiment, shadow, etc., are **useful structuring metaphors**, not neuroscience claims.
 - **Not** a substitute for medicine/therapy crisis care — interpersonal depth features are conversational scaffolding.
 - **Not** covert exfiltration: memory writes intentionally **scrub secrets** but **determined operators can still mishandle `.env`; treat exports as sensitive** (see `../SECURITY.md` in repo).
 
 ---
 
-## 13. Further reading inside the repo
+## 14. Further reading inside the repo
 
 | File | Purpose |
 |------|---------|
 | [README.md](../README.md) | Quick start, layered map, who should read what |
 | [docs/README.md](README.md) | Full documentation index & reading paths |
 | [docs/GLOSSARY.md](GLOSSARY.md) | Definitions for codebase-specific terms |
+| [docs/SUBSYSTEMS.md](SUBSYSTEMS.md) | Shadow governance, task mutator, retry wrapper, hive mind, continuity-vector triad |
+| [docs/WEB_INTERFACE.md](WEB_INTERFACE.md) | Flask web app routes, Observatory SocketIO stream, glyph, trial sandbox, compatibility shims |
 | [SECURITY.md](../SECURITY.md) | Secret hygiene & reporting posture |
-| [DRIFT_AI_INTEGRATION.md](DRIFT_AI_INTEGRATION.md) | How seeded Drift concepts map into memory-only integration |
-| [DELL_HANDOFF.md](DELL_HANDOFF.md) | Longer ops notes (devices, backups, quirks) |
+| [docs/HIVE_ROADMAP.md](HIVE_ROADMAP.md) | Where the hive subsystem is heading |
 
 ---
 
-## 14. Version note
+## 15. Version note
 
 Architecture details drift with commits; cross-check **`config.py`** and **`requirements.txt`** for ground truth when versions matter. Generated as a descriptive snapshot intended for outward sharing—adapt sections if your fork disables modules or adds new plugins.
