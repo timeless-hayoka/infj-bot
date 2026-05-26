@@ -205,7 +205,8 @@ Key environment variables (`config.py` aggregates these):
 | Surface | Entry |
 |--------|--------|
 | CLI | `cli.py` — `chat`, `ask`, `tui`, `web`, `health`, `backup`, `restore` |
-| HTTP | **`api.py`** + **`web_app.py`** (`uvicorn` on `127.0.0.1:8765` by convention) |
+| FastAPI | **`interfaces/api.py`** — `uvicorn` on `0.0.0.0:8765` (REST + SSE streaming) |
+| Flask + SocketIO dashboard | **`interfaces/web_app.py`** — port `7860` by default, container/Hugging Face entrypoint; see [DEPLOYMENT.md](DEPLOYMENT.md) for routes, observatory stream, and the Docker image. |
 
 ---
 
@@ -239,8 +240,7 @@ Targeted subsets: `pytest tests/test_shadow.py tests/test_embeddings.py tests/te
 | [docs/README.md](README.md) | Full documentation index & reading paths |
 | [docs/GLOSSARY.md](GLOSSARY.md) | Definitions for codebase-specific terms |
 | [SECURITY.md](../SECURITY.md) | Secret hygiene & reporting posture |
-| [DRIFT_AI_INTEGRATION.md](DRIFT_AI_INTEGRATION.md) | How seeded Drift concepts map into memory-only integration |
-| [DELL_HANDOFF.md](DELL_HANDOFF.md) | Longer ops notes (devices, backups, quirks) |
+| [DEPLOYMENT.md](DEPLOYMENT.md) | Docker image, Hugging Face Spaces config, `web_app.py` routes, troubleshooting |
 
 ---
 

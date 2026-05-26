@@ -167,7 +167,7 @@ python interfaces/api.py
 # or
 uvicorn interfaces.api:app --host 127.0.0.1 --port 8765 --reload
 
-# Web UI (port 5000)
+# Web UI / dashboard (port 7860 — Hugging Face Spaces default; override with PORT)
 python interfaces/web_app.py
 ```
 
@@ -218,6 +218,7 @@ python tests/ablation_suite.py --conditions A,B,C,D,E,F --prompts 50 --live
 |----------|----------|
 | New users | This file → **Getting started** above |
 | Mechanics | [`docs/HOW_INFJ_BOT_WORKS.md`](docs/HOW_INFJ_BOT_WORKS.md) |
+| Docker / Hugging Face Spaces deploy | [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) |
 | Security & keys | [`SECURITY.md`](SECURITY.md) |
 | Terminology | [`docs/GLOSSARY.md`](docs/GLOSSARY.md) |
 | Full doc index | [`docs/README.md`](docs/README.md) |
