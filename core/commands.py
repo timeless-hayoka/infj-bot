@@ -173,6 +173,24 @@ def command_help(command=None):
             "/chain mark <query> success|fail — mark the last approach on a chain.\n"
             "/chain clear — clear in-session chain cache."
         )
+    if command == "bug":
+        return (
+            "/bug sync — sync Bugcrowd programs.\n"
+            "/bug programs — list enrolled programs.\n"
+            "/bug recon <program_id> [tool] — run scoped recon.\n"
+            "/bug add <title> | <severity> | <asset> | <description> — add finding (pipe format).\n"
+            "/bug add title=... severity=... asset=... desc=... [type=... impact=... repro=... fix=...] — add finding (key=value format).\n"
+            "/bug list — list all findings.\n"
+            "/bug get <id> — get finding detail.\n"
+            "/bug evidence <id> <path> [description] — attach evidence to a finding.\n"
+            "/bug dashboard — show summary dashboard.\n"
+            "/bug report <id> — generate and save a report.\n"
+            "/bug preview <id> — preview report in chat.\n"
+            "/bug ai <id> — AI-enhanced report draft.\n"
+            "/bug submit <id> — submit to Bugcrowd.\n"
+            "/bug stats — show statistics.\n"
+            "/bug health — API and DB health check."
+        )
     return """Commands:
 /memory <query> | learn <name>: <description> | forget <name> | count | export [path] | import <path> | compact [days] | edit <name>: <desc>
 /mode companion|engineer|critic|coach|clarity|researcher|bughunter|quiet
@@ -551,7 +569,38 @@ def handle_meow_command(args, state):
     return meow_hunt(str(Path(__file__).parent.parent))
 
 
-def handle_bug_command(args, state):
+def _parse_kv_bug_add(text: str) -> dict:
+    """Parse key=value pairs from a /bug add string.
+
+    Supports keys: title, severity, asset, desc, type, impact, repro, fix.
+    Values run until the next key= token or end of string.
+    """
+    import re
+
+    known_keys = (
+        "title",
+        "severity",
+        "asset",
+        "desc",
+        "type",
+        "impact",
+        "repro",
+        "fix",
+    )
+    pattern = r"(" + "|".join(known_keys) + r")="
+    tokens = re.split(pattern, text)
+    result: dict = {}
+    # tokens: [pre, key, value, key, value, ...]
+    i = 1
+    while i < len(tokens) - 1:
+        key = tokens[i].strip()
+        value = tokens[i + 1].strip()
+        result[key] = value
+        i += 2
+    return result
+
+
+def handle_bug_command(args, state, brain=None, memory=None):
     if not args:
         return command_help("bug")
     from infj_bot.core.bug_bot import BugBot
@@ -571,24 +620,58 @@ def handle_bug_command(args, state):
             prog_id, tool = prog_id.rsplit(" ", 1)
         return bot.recon(prog_id, tool)
     if subcmd == "add":
-        # /bug add <title> | <severity> | <asset> | <description>
-        parts = [p.strip() for p in rest.split("|")]
-        if len(parts) < 4:
-            return "Use: /bug add <title> | <severity> | <asset> | <description>"
-        return bot.add_finding(
-            title=parts[0],
-            severity=parts[1],
-            asset=parts[2],
-            description=parts[3],
-        )
+        if "|" in rest:
+            # Pipe-separated format: title | severity | asset | description
+            parts = [p.strip() for p in rest.split("|")]
+            if len(parts) < 4:
+                return "Use: /bug add <title> | <severity> | <asset> | <description>"
+            return bot.add_finding(
+                title=parts[0],
+                severity=parts[1],
+                asset=parts[2],
+                description=parts[3],
+            )
+        elif "=" in rest:
+            # Key=value format
+            kv = _parse_kv_bug_add(rest)
+            if not kv.get("title"):
+                return command_help("bug")
+            return bot.add_finding(
+                title=kv.get("title", ""),
+                severity=kv.get("severity", "P5"),
+                asset=kv.get("asset", ""),
+                description=kv.get("desc", ""),
+                vuln_type=kv.get("type", ""),
+                impact=kv.get("impact", ""),
+                reproduction=kv.get("repro", ""),
+                fix=kv.get("fix", ""),
+            )
+        else:
+            # Treat entire rest as title with defaults
+            title = rest.strip()
+            if not title:
+                return command_help("bug")
+            return bot.add_finding(title=title)
     if subcmd == "list":
         return bot.list_findings()
     if subcmd == "get":
         return bot.get_finding(rest.strip())
+    if subcmd == "evidence":
+        parts = rest.split(" ", 2)
+        fid = parts[0] if parts else ""
+        path = parts[1] if len(parts) > 1 else ""
+        desc = parts[2] if len(parts) > 2 else ""
+        if not fid or not path:
+            return "Use: /bug evidence <finding_id> <path> [description]"
+        return bot.attach_evidence(fid, path, description=desc)
+    if subcmd == "dashboard":
+        return bot.dashboard()
     if subcmd == "report":
         return bot.generate_report(rest.strip())
     if subcmd == "preview":
         return bot.preview_report(rest.strip())
+    if subcmd == "ai":
+        return bot.draft_with_ai(rest.strip(), brain=brain if brain else None)
     if subcmd == "submit":
         return bot.submit(rest.strip())
     if subcmd == "stats":
@@ -1779,7 +1862,7 @@ def handle_command(
     if command == "recon-fuzz":
         return handle_recon_fuzz_command(args, state)
     if command == "bug":
-        return handle_bug_command(args, state)
+        return handle_bug_command(args, state, brain=brain, memory=memory)
     if command == "meow":
         return handle_meow_command(args, state)
     if command == "computer-use":
