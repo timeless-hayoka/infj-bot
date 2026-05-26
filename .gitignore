@@ -67,3 +67,8 @@ hive_mind/
 .obsidian/
 *.html
 ablation_results/
+
+# Python build artifacts
+*.egg-info/
+dist/
+build/
