@@ -238,9 +238,11 @@ Targeted subsets: `pytest tests/test_shadow.py tests/test_embeddings.py tests/te
 | [README.md](../README.md) | Quick start, layered map, who should read what |
 | [docs/README.md](README.md) | Full documentation index & reading paths |
 | [docs/GLOSSARY.md](GLOSSARY.md) | Definitions for codebase-specific terms |
+| [docs/SECURITY_AND_LOGIC_CHAIN.md](SECURITY_AND_LOGIC_CHAIN.md) | Security defense layer + logic-chain reasoning trace |
+| [docs/DMU_PEDI_TEST_PLAN.md](DMU_PEDI_TEST_PLAN.md) | Dynamic Memory Unit re-ranking and PEDI continuity scoring |
+| [docs/README_UPGRADE.md](README_UPGRADE.md) | Ordered execution guide for the DRIFT upgrade infrastructure |
+| [docs/FALSIFIABILITY.md](FALSIFIABILITY.md) | Committed falsifiability statement for ablation testing |
 | [SECURITY.md](../SECURITY.md) | Secret hygiene & reporting posture |
-| [DRIFT_AI_INTEGRATION.md](DRIFT_AI_INTEGRATION.md) | How seeded Drift concepts map into memory-only integration |
-| [DELL_HANDOFF.md](DELL_HANDOFF.md) | Longer ops notes (devices, backups, quirks) |
 
 ---
 
