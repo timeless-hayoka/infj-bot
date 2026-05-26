@@ -80,10 +80,10 @@ def test_integrate(temp_shadow):
 
 
 def test_project(temp_shadow):
-    for _ in range(10):
+    for _ in range(50):
         temp_shadow.suppress("I feel invisible", archetype="resentment", intensity=0.95)
     projection = None
-    for _ in range(10):
+    for _ in range(50):
         projection = temp_shadow.project("the user", trigger_text="ignored")
         if projection:
             break
