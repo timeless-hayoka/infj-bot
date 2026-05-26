@@ -11,6 +11,8 @@
 
 **PHI // DRIFT** (Distributed Response & Integrated Functional Thought) is a homeostatic cognitive architecture with persistent state, salience-weighted memory, and falsifiable behavioral continuity metrics. It gives a language model a persistent inner life: emotion, memory, needs, shadow, consciousness, and distributed cognition — all assembled into the prompt on every turn.
 
+📄 **[Read the paper →](https://doi.org/10.5281/zenodo.20350249)**
+
 > The LLM does not secretly execute arbitrary code. Distinct behavior comes from **what is assembled into the prompt**, **what is retrieved from memory**, and **what structured state** is updated before and after each turn.
 
 ---
@@ -221,7 +223,9 @@ Removing DMU re-ranking (D) is the most measurable signal — the 221-character 
 ## Citation
 
 > **PHI // DRIFT: A Homeostatic Cognitive Architecture for Persistent, State-Aware AI Companionship**
+>
 > Zenodo: [https://doi.org/10.5281/zenodo.20350249](https://doi.org/10.5281/zenodo.20350249)
+> PDF: [DRIFT_paper_v4.pdf](https://zenodo.org/records/20350249/files/DRIFT_paper_v4.pdf)
 
 ---
 
