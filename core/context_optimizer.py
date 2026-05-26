@@ -1,6 +1,8 @@
 """Context Optimizer — Regulates token homeostasis to prevent API cost overflow."""
+
 import math
 from typing import List, Dict
+
 
 class TokenHomeostasis:
     def __init__(self, max_tokens: int = 4000, decay_rate: float = 0.1):
@@ -17,17 +19,20 @@ class TokenHomeostasis:
         """
         if not history:
             return []
-            
+
         # Sort by (Importance / Time_Elapsed)
         # This is the "Ebbinghaus Forgetting Curve" applied to tokens.
         optimized = sorted(
-            history, 
-            key=lambda x: x.get('importance', 0.5) * math.exp(-self.decay_rate * x.get('age', 0)),
-            reverse=True
+            history,
+            key=lambda x: (
+                x.get("importance", 0.5) * math.exp(-self.decay_rate * x.get("age", 0))
+            ),
+            reverse=True,
         )
-        
+
         # Only keep what fits in the 'survival budget'
-        return optimized[:10] # Hard limit to 10 key context nodes
+        return optimized[:10]  # Hard limit to 10 key context nodes
+
 
 def compress_prompt(text: str) -> str:
     """Removes filler words and conversational fluff before sending to API."""

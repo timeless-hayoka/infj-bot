@@ -23,7 +23,7 @@ def _make_emotion(label: str, intensity: float) -> dict:
 
 class TestPredictiveNeeds:
     def test_init_creates_db(self, tmp_db):
-        p = PredictiveNeeds(db_path=tmp_db)
+        PredictiveNeeds(db_path=tmp_db)
         assert tmp_db.exists()
 
     def test_record_interaction(self, tmp_db):

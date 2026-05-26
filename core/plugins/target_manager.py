@@ -4,15 +4,16 @@ Tracks in-scope and out-of-scope assets, syncs with Bugcrowd,
 and enforces authorization boundaries for recon tools.
 """
 
-import json
 import sqlite3
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
 
-DEFAULT_DB_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "bugbot_targets.db"
+DEFAULT_DB_PATH = (
+    Path(__file__).resolve().parent.parent.parent / "data" / "bugbot_targets.db"
+)
 
 
 @dataclass
@@ -21,11 +22,15 @@ class Target:
     program_id: str = ""
     program_name: str = ""
     asset: str = ""  # domain, URL, IP, CIDR, wildcard
-    asset_type: str = "domain"  # domain | url | ip | cidr | wildcard | api | mobile | other
+    asset_type: str = (
+        "domain"  # domain | url | ip | cidr | wildcard | api | mobile | other
+    )
     scope: str = "in"  # in | out | pending
     priority: str = "normal"  # normal | high
     notes: str = ""
-    created_at: str = field(default_factory=lambda: datetime.now().isoformat(timespec="seconds"))
+    created_at: str = field(
+        default_factory=lambda: datetime.now().isoformat(timespec="seconds")
+    )
 
 
 class TargetManager:
@@ -57,7 +62,9 @@ class TargetManager:
                 """
             )
             conn.execute("CREATE INDEX IF NOT EXISTS idx_asset ON targets(asset)")
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_program ON targets(program_id)")
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_program ON targets(program_id)"
+            )
             conn.execute("CREATE INDEX IF NOT EXISTS idx_scope ON targets(scope)")
             conn.commit()
 
@@ -82,7 +89,13 @@ class TargetManager:
             conn.commit()
         return cur.lastrowid
 
-    def bulk_add(self, program_id: str, program_name: str, assets: List[Dict[str, Any]], scope: str = "in"):
+    def bulk_add(
+        self,
+        program_id: str,
+        program_name: str,
+        assets: List[Dict[str, Any]],
+        scope: str = "in",
+    ):
         """Add multiple assets from a Bugcrowd scope sync."""
         for asset in assets:
             self.add(
@@ -90,7 +103,9 @@ class TargetManager:
                     program_id=program_id,
                     program_name=program_name,
                     asset=asset.get("uri") or asset.get("name", ""),
-                    asset_type=self._guess_type(asset.get("uri") or asset.get("name", "")),
+                    asset_type=self._guess_type(
+                        asset.get("uri") or asset.get("name", "")
+                    ),
                     scope=scope,
                     priority=asset.get("priority", "normal"),
                 )
@@ -98,7 +113,13 @@ class TargetManager:
 
     def is_authorized(self, asset: str) -> bool:
         """Check if an asset is explicitly in-scope."""
-        hostname = asset.lower().strip().replace("https://", "").replace("http://", "").split("/")[0]
+        hostname = (
+            asset.lower()
+            .strip()
+            .replace("https://", "")
+            .replace("http://", "")
+            .split("/")[0]
+        )
         with self._conn() as conn:
             # Exact match
             row = conn.execute(
@@ -107,7 +128,9 @@ class TargetManager:
             if row:
                 return row["scope"] == "in"
             # Wildcard match
-            rows = conn.execute("SELECT asset, scope FROM targets WHERE asset LIKE '*.%'").fetchall()
+            rows = conn.execute(
+                "SELECT asset, scope FROM targets WHERE asset LIKE '*.%'"
+            ).fetchall()
             for r in rows:
                 wildcard = r["asset"].replace("*.", "")
                 if hostname.endswith(wildcard):
@@ -115,14 +138,23 @@ class TargetManager:
         return False
 
     def is_out_of_scope(self, asset: str) -> bool:
-        hostname = asset.lower().strip().replace("https://", "").replace("http://", "").split("/")[0]
+        hostname = (
+            asset.lower()
+            .strip()
+            .replace("https://", "")
+            .replace("http://", "")
+            .split("/")[0]
+        )
         with self._conn() as conn:
             row = conn.execute(
-                "SELECT scope FROM targets WHERE asset = ? AND scope = 'out'", (hostname,)
+                "SELECT scope FROM targets WHERE asset = ? AND scope = 'out'",
+                (hostname,),
             ).fetchone()
             if row:
                 return True
-            rows = conn.execute("SELECT asset FROM targets WHERE asset LIKE '*.%' AND scope = 'out'").fetchall()
+            rows = conn.execute(
+                "SELECT asset FROM targets WHERE asset LIKE '*.%' AND scope = 'out'"
+            ).fetchall()
             for r in rows:
                 wildcard = r["asset"].replace("*.", "")
                 if hostname.endswith(wildcard):
@@ -154,16 +186,22 @@ class TargetManager:
     def get_authorized_targets(self) -> Set[str]:
         """Return all in-scope assets for quick set checks."""
         with self._conn() as conn:
-            rows = conn.execute("SELECT asset FROM targets WHERE scope = 'in'").fetchall()
+            rows = conn.execute(
+                "SELECT asset FROM targets WHERE scope = 'in'"
+            ).fetchall()
         return {r["asset"] for r in rows}
 
     def delete_program(self, program_id: str) -> int:
         with self._conn() as conn:
-            cur = conn.execute("DELETE FROM targets WHERE program_id = ?", (program_id,))
+            cur = conn.execute(
+                "DELETE FROM targets WHERE program_id = ?", (program_id,)
+            )
             conn.commit()
         return cur.rowcount
 
-    def count(self, program_id: Optional[str] = None, scope: Optional[str] = None) -> int:
+    def count(
+        self, program_id: Optional[str] = None, scope: Optional[str] = None
+    ) -> int:
         query = "SELECT COUNT(*) FROM targets WHERE 1=1"
         params: List[Any] = []
         if program_id:
@@ -185,7 +223,9 @@ class TargetManager:
             return "wildcard"
         try:
             parts = a.split(".")
-            if len(parts) == 4 and all(p.isdigit() and 0 <= int(p) <= 255 for p in parts):
+            if len(parts) == 4 and all(
+                p.isdigit() and 0 <= int(p) <= 255 for p in parts
+            ):
                 return "ip"
         except Exception:
             pass

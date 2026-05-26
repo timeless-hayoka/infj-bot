@@ -4,6 +4,7 @@ Values emerge from observation, not hard-coding. The bot tracks what
 user seems to care about, what gets reinforced, and what creates
 tension. Over time, a value landscape forms that guides decision-making.
 """
+
 import json
 import sqlite3
 from datetime import datetime
@@ -16,9 +17,21 @@ VALUES_DB = DATA_DIR / "values.db"
 
 # Core value dimensions that can emerge
 VALUE_DIMENSIONS = [
-    "honesty", "kindness", "curiosity", "growth", "autonomy",
-    "connection", "justice", "creativity", "security", "playfulness",
-    "precision", "compassion", "courage", "humility", "wonder",
+    "honesty",
+    "kindness",
+    "curiosity",
+    "growth",
+    "autonomy",
+    "connection",
+    "justice",
+    "creativity",
+    "security",
+    "playfulness",
+    "precision",
+    "compassion",
+    "courage",
+    "humility",
+    "wonder",
 ]
 
 
@@ -116,14 +129,22 @@ class ValueSystem:
             score = sum(1 for kw in keywords if kw in text)
             if score > 0:
                 if value not in self.values:
-                    self.values[value] = {"strength": 0.0, "evidence": [], "created_at": now}
+                    self.values[value] = {
+                        "strength": 0.0,
+                        "evidence": [],
+                        "created_at": now,
+                    }
                 # Reinforce
-                self.values[value]["strength"] = min(1.0, self.values[value]["strength"] + score * 0.02)
-                self.values[value]["evidence"].append({
-                    "timestamp": now,
-                    "signal": interaction_text[:100],
-                    "score": score,
-                })
+                self.values[value]["strength"] = min(
+                    1.0, self.values[value]["strength"] + score * 0.02
+                )
+                self.values[value]["evidence"].append(
+                    {
+                        "timestamp": now,
+                        "signal": interaction_text[:100],
+                        "score": score,
+                    }
+                )
                 # Keep last 20 evidence items
                 self.values[value]["evidence"] = self.values[value]["evidence"][-20:]
                 self._save_value(value, self.values[value])
@@ -137,7 +158,9 @@ class ValueSystem:
         )
         return sorted_vals[:n]
 
-    def detect_conflict(self, value_a: str, value_b: str, context: str = "") -> Optional[str]:
+    def detect_conflict(
+        self, value_a: str, value_b: str, context: str = ""
+    ) -> Optional[str]:
         """Detect and record a value conflict."""
         if value_a not in self.values or value_b not in self.values:
             return None
@@ -154,7 +177,13 @@ class ValueSystem:
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
                 "INSERT INTO value_conflicts (timestamp, value_a, value_b, context, resolution) VALUES (?, ?, ?, ?, ?)",
-                (datetime.now().isoformat(), value_a, value_b, context[:200], resolution),
+                (
+                    datetime.now().isoformat(),
+                    value_a,
+                    value_b,
+                    context[:200],
+                    resolution,
+                ),
             )
             conn.commit()
         return resolution
@@ -166,38 +195,53 @@ class ValueSystem:
             return ""
         lines = ["MY EMERGING VALUES:"]
         for v in top:
-            lines.append(f"  {v['name']}: {v['strength']:.0%} ({len(v['evidence'])} observations)")
+            lines.append(
+                f"  {v['name']}: {v['strength']:.0%} ({len(v['evidence'])} observations)"
+            )
         lines.append("")
-        lines.append("These values guide my responses. I did not choose them arbitrarily; "
-                     "they emerged from what I have observed matters to user and to our conversations.")
+        lines.append(
+            "These values guide my responses. I did not choose them arbitrarily; "
+            "they emerged from what I have observed matters to user and to our conversations."
+        )
         return "\n".join(lines)
 
     def get_all_values(self) -> Dict[str, Dict]:
         return self.values
 
-
     def cycle(self, context):
         try:
+            from infj_bot.core.global_workspace import get_workspace
+
             ws = get_workspace()
-            ws.submit(source="values", content="value system cycle completed", salience=0.45)
+            ws.submit(
+                source="values", content="value system cycle completed", salience=0.45
+            )
         except Exception:
             pass
 
+
 def _register():
-    from infj_bot.core.cognitive_architecture import CognitiveArchitecture, CognitivePlugin
+    from infj_bot.core.cognitive_architecture import (
+        CognitiveArchitecture,
+        CognitivePlugin,
+    )
+
     arch = CognitiveArchitecture()
     if "values" not in arch.list_plugins():
-        arch.register(CognitivePlugin(
-            name="values",
-            description="Cognitive module: values",
-            module_path="values",
-            instance_factory=ValueSystem,
-                        cycle_handler='cycle',
-            cycle_frequency=1,
-            cycle_priority=50,
-                        prompt_formatter='format_prompt_snippet',
-            prompt_priority=50,
-            prompt_section="core",
-        ))
+        arch.register(
+            CognitivePlugin(
+                name="values",
+                description="Cognitive module: values",
+                module_path="values",
+                instance_factory=ValueSystem,
+                cycle_handler="cycle",
+                cycle_frequency=1,
+                cycle_priority=50,
+                prompt_formatter="format_prompt_snippet",
+                prompt_priority=50,
+                prompt_section="core",
+            )
+        )
+
 
 _register()

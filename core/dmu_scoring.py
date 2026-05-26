@@ -25,12 +25,12 @@ import time
 # ------------------------------------------------------------------ #
 
 MPS_WEIGHTS = {
-    "decay":        0.25,
-    "reinf":        0.20,
-    "contextual":   0.20,
+    "decay": 0.25,
+    "reinf": 0.20,
+    "contextual": 0.20,
     "recency_bias": 0.15,
-    "novelty":      0.10,
-    "state_align":  0.10,
+    "novelty": 0.10,
+    "state_align": 0.10,
 }
 
 # Gamma for decay shaping.
@@ -40,8 +40,8 @@ MPS_WEIGHTS = {
 DECAY_GAMMA = 0.5
 
 # Recency window and time constant (in turns)
-RECENCY_K = 10          # how many recent memory uses to track
-RECENCY_TAU = 20.0      # half-life in turns for recency weight decay
+RECENCY_K = 10  # how many recent memory uses to track
+RECENCY_TAU = 20.0  # half-life in turns for recency weight decay
 
 # Novelty similarity threshold — novelty only boosts within relevant context
 NOVELTY_SIM_THRESHOLD = 0.4
@@ -54,7 +54,7 @@ def compute_mps(
     memory,
     current_state: dict,
     current_mode: str = "relational",
-    recent_memory_usage: list = None,     # list of (memory_id, turn_delta) tuples
+    recent_memory_usage: list = None,  # list of (memory_id, turn_delta) tuples
     experiment_control=None,
     tau: float = DEFAULT_TAU,
 ) -> float:
@@ -78,10 +78,10 @@ def compute_mps(
     # ---- Decay (gamma-shaped) ---- #
     t = time.time() - memory.timestamp
     raw_decay = math.exp(-t / tau)
-    decay = raw_decay ** DECAY_GAMMA  # shape the upper range
+    decay = raw_decay**DECAY_GAMMA  # shape the upper range
 
     # ---- Reinforcement (sub-linear) ---- #
-    reinf = min(memory.reinforcement_score ** 0.75, 1.0)
+    reinf = min(memory.reinforcement_score**0.75, 1.0)
 
     # ---- Contextual similarity ---- #
     # Replace with your actual embedding/keyword similarity function.
@@ -91,7 +91,7 @@ def compute_mps(
     recency_bias = _get_decaying_recency_weight(memory.id, recent_memory_usage or [])
 
     # ---- Mode-aware, context-gated novelty ---- #
-    novelty_raw = getattr(memory, 'novelty_score', 0.0)
+    novelty_raw = getattr(memory, "novelty_score", 0.0)
 
     # Gate: novelty only boosts if contextual similarity is above threshold
     # (prevents pulling irrelevant-but-novel memories)
@@ -113,25 +113,25 @@ def compute_mps(
 
     # ---- Additive MPS ---- #
     mps = (
-        MPS_WEIGHTS["decay"]        * decay        +
-        MPS_WEIGHTS["reinf"]        * reinf        +
-        MPS_WEIGHTS["contextual"]   * contextual   +
-        MPS_WEIGHTS["recency_bias"] * recency_bias +
-        MPS_WEIGHTS["novelty"]      * novelty_gated +
-        MPS_WEIGHTS["state_align"]  * state_align
+        MPS_WEIGHTS["decay"] * decay
+        + MPS_WEIGHTS["reinf"] * reinf
+        + MPS_WEIGHTS["contextual"] * contextual
+        + MPS_WEIGHTS["recency_bias"] * recency_bias
+        + MPS_WEIGHTS["novelty"] * novelty_gated
+        + MPS_WEIGHTS["state_align"] * state_align
     )
     mps = max(0.0, min(1.0, mps))
 
     # ---- Attach components for logging (always, even if 0) ---- #
     memory.score_components = {
-        "decay":         decay,
-        "reinf":         reinf,
-        "contextual":    contextual,
-        "recency_bias":  recency_bias,
-        "novelty":       novelty_gated,
-        "state_align":   state_align,
-        "final_mps":     mps,
-        "mode":          current_mode,
+        "decay": decay,
+        "reinf": reinf,
+        "contextual": contextual,
+        "recency_bias": recency_bias,
+        "novelty": novelty_gated,
+        "state_align": state_align,
+        "final_mps": mps,
+        "mode": current_mode,
     }
 
     return mps
@@ -141,6 +141,7 @@ def compute_mps(
 #  Helper Functions                                                    #
 #  Replace stubs with your actual implementations.                    #
 # ------------------------------------------------------------------ #
+
 
 def _get_decaying_recency_weight(memory_id: str, last_k_used: list) -> float:
     """
@@ -166,8 +167,9 @@ def _normalized_contextual_sim(memory, current_state: dict) -> float:
     Returns float in [0.0, 1.0].
     """
     from infj_bot.core.embeddings import LocalEmbeddingFunction
+
     emb = LocalEmbeddingFunction()
-    mem_vec = emb.embed_query(getattr(memory, 'content', str(memory)))
+    mem_vec = emb.embed_query(getattr(memory, "content", str(memory)))
     state_vec = emb.embed_query(str(current_state))
     # Cosine similarity
     dot = sum(a * b for a, b in zip(mem_vec, state_vec))
@@ -186,7 +188,7 @@ def _state_alignment_score(memory, current_state: dict) -> float:
     Simple heuristic: if memory tags overlap with current_state keys, higher alignment.
     Returns float in [0.0, 1.0].
     """
-    mem_tags = set(getattr(memory, 'tags', []) or [])
+    mem_tags = set(getattr(memory, "tags", []) or [])
     state_keys = set(current_state.keys())
     if not mem_tags or not state_keys:
         return 0.5
@@ -198,6 +200,7 @@ def _state_alignment_score(memory, current_state: dict) -> float:
 # ------------------------------------------------------------------ #
 #  Two-Stage Retrieval Wrapper                                         #
 # ------------------------------------------------------------------ #
+
 
 def retrieve_and_rank(
     query_state: dict,
@@ -219,18 +222,14 @@ def retrieve_and_rank(
     """
     # Stage 1: wide pull
     candidates_raw = chromadb_collection.query(
-        query_texts=[str(query_state)],
-        n_results=wide_k
+        query_texts=[str(query_state)], n_results=wide_k
     )
     # Convert ChromaDB results to your memory objects here.
     # This is a stub — wire to your actual memory object factory.
     candidates = _chromadb_results_to_memories(candidates_raw)
 
     # Hard gate before scoring: skip obviously irrelevant memories
-    candidates = [
-        m for m in candidates
-        if not _is_hard_gated(m)
-    ]
+    candidates = [m for m in candidates if not _is_hard_gated(m)]
 
     # Stage 2: DMU rerank
     for memory in candidates:
@@ -245,7 +244,7 @@ def retrieve_and_rank(
     candidates.sort(key=lambda m: m.score, reverse=True)
 
     selected = candidates[:final_k]
-    rejected_top5 = candidates[final_k:final_k + 5]
+    rejected_top5 = candidates[final_k : final_k + 5]
 
     return selected, rejected_top5
 
@@ -266,9 +265,17 @@ def _is_hard_gated(memory) -> bool:
 
 class _DMUMemory:
     """Lightweight memory adapter for DMU scoring."""
-    def __init__(self, content: str, memory_id: str = "", timestamp: float = 0.0,
-                 reinforcement_score: float = 0.5, novelty_score: float = 0.5,
-                 tags: list = None, extra_flags: dict = None):
+
+    def __init__(
+        self,
+        content: str,
+        memory_id: str = "",
+        timestamp: float = 0.0,
+        reinforcement_score: float = 0.5,
+        novelty_score: float = 0.5,
+        tags: list = None,
+        extra_flags: dict = None,
+    ):
         self.content = content
         self.id = memory_id or str(hash(content))[:8]
         self.timestamp = timestamp
@@ -295,15 +302,18 @@ def _chromadb_results_to_memories(chromadb_results):
         if isinstance(ts, str):
             try:
                 from datetime import datetime
+
                 ts = datetime.fromisoformat(ts).timestamp()
             except Exception:
                 ts = 0.0
-        memories.append(_DMUMemory(
-            content=doc,
-            memory_id=mem_id,
-            timestamp=ts,
-            reinforcement_score=meta.get("reinforcement_score", 0.5),
-            novelty_score=meta.get("novelty_score", 0.5),
-            tags=meta.get("tags", []),
-        ))
+        memories.append(
+            _DMUMemory(
+                content=doc,
+                memory_id=mem_id,
+                timestamp=ts,
+                reinforcement_score=meta.get("reinforcement_score", 0.5),
+                novelty_score=meta.get("novelty_score", 0.5),
+                tags=meta.get("tags", []),
+            )
+        )
     return memories

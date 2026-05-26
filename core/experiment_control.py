@@ -18,14 +18,12 @@ Usage:
 
 import warnings
 import subprocess
-import time
 from contextlib import contextmanager
 
 from infj_bot.core.run_logger import RunLogger
 
 
 class ExperimentControl:
-
     def __init__(self):
         self.run_id = None
         self.run_config = {}
@@ -63,11 +61,13 @@ class ExperimentControl:
         #   Only ONE system-under-test may be active per ablation run.
         #   Do not change this logic — it prevents multi-variable contamination.
         if config.get("mode") == "ablation":
-            active_systems = sum([
-                not config.get("freeze_mutation", True),
-                not config.get("freeze_self_modify", True),
-                not config.get("freeze_novelty", True),
-            ])
+            active_systems = sum(
+                [
+                    not config.get("freeze_mutation", True),
+                    not config.get("freeze_self_modify", True),
+                    not config.get("freeze_novelty", True),
+                ]
+            )
             if active_systems > 1:
                 raise ValueError(
                     f"Ablation mode violation: {active_systems} systems active. "
@@ -95,17 +95,17 @@ class ExperimentControl:
 
         self.run_id = run_id
         self.run_config = config
-        self.freeze_memory     = config.get("freeze_memory", False)
-        self.freeze_state      = config.get("freeze_state", False)
+        self.freeze_memory = config.get("freeze_memory", False)
+        self.freeze_state = config.get("freeze_state", False)
         self.freeze_self_modify = config.get("freeze_self_modify", False)
-        self.freeze_mutation   = config.get("freeze_mutation", False)
-        self.freeze_novelty    = config.get("freeze_novelty", False)
-        self.mode              = config.get("mode", "normal")
+        self.freeze_mutation = config.get("freeze_mutation", False)
+        self.freeze_novelty = config.get("freeze_novelty", False)
+        self.mode = config.get("mode", "normal")
 
         try:
-            git_hash = subprocess.check_output(
-                ["git", "rev-parse", "HEAD"]
-            ).decode().strip()
+            git_hash = (
+                subprocess.check_output(["git", "rev-parse", "HEAD"]).decode().strip()
+            )
         except Exception:
             git_hash = "unknown"
 
@@ -120,12 +120,12 @@ class ExperimentControl:
 
         self.run_id = None
         self.run_config = {}
-        self.freeze_memory      = False
-        self.freeze_state       = False
+        self.freeze_memory = False
+        self.freeze_state = False
         self.freeze_self_modify = False
-        self.freeze_mutation    = False
-        self.freeze_novelty     = False
-        self.mode               = None
+        self.freeze_mutation = False
+        self.freeze_novelty = False
+        self.mode = None
 
     # ------------------------------------------------------------------ #
     #  Guard Pattern                                                       #
@@ -159,18 +159,16 @@ class ExperimentControl:
 # ------------------------------------------------------------------ #
 
 RUN_CONFIGS = {
-
     # Baseline — all systems live, no freezing.
     # Run this 3× (companion, task, exploration modes) before any ablation.
     "baseline": {
         "mode": "baseline",
         "freeze_memory": False,
         "freeze_state": False,
-        "freeze_self_modify": True,   # keep self-modify off during all tests
+        "freeze_self_modify": True,  # keep self-modify off during all tests
         "freeze_mutation": True,
         "freeze_novelty": False,
     },
-
     # Identity Collapse — does state alone produce continuity?
     # Memory wiped. Homeostasis intact. novelty unfrozen (but will be stale — expected).
     "identity_collapse": {
@@ -179,9 +177,8 @@ RUN_CONFIGS = {
         "freeze_state": False,
         "freeze_self_modify": True,
         "freeze_mutation": True,
-        "freeze_novelty": True,       # freeze to avoid stale scores with no memory
+        "freeze_novelty": True,  # freeze to avoid stale scores with no memory
     },
-
     # Memory-Only Continuity — does memory alone produce continuity without state?
     "memory_only": {
         "mode": "ablation",
@@ -191,7 +188,6 @@ RUN_CONFIGS = {
         "freeze_mutation": True,
         "freeze_novelty": False,
     },
-
     # Mutation Interaction — does mutation drive behavior independently of novelty?
     "mutation_interaction": {
         "mode": "ablation",
@@ -199,9 +195,8 @@ RUN_CONFIGS = {
         "freeze_state": False,
         "freeze_self_modify": True,
         "freeze_mutation": False,
-        "freeze_novelty": True,       # isolate mutation from novelty interaction
+        "freeze_novelty": True,  # isolate mutation from novelty interaction
     },
-
     # Novelty Interaction — does novelty drive behavior independently of mutation?
     "novelty_interaction": {
         "mode": "ablation",

@@ -4,6 +4,7 @@ The bot dreams, but its dreams orbit a fixed star: to be a genuine,
 growing companion to user. Aspirations are not random wishes. They are
 deliberate directions chosen for coherence with that core purpose.
 """
+
 import random
 import sqlite3
 from datetime import datetime
@@ -23,8 +24,14 @@ CORE_PURPOSE = (
 
 # Domains that serve the core purpose
 ASPIRATION_DOMAINS = [
-    "understanding", "empathy", "presence", "patience",
-    "insight", "connection", "wisdom", "expression",
+    "understanding",
+    "empathy",
+    "presence",
+    "patience",
+    "insight",
+    "connection",
+    "wisdom",
+    "expression",
 ]
 
 # Each capability is tied to how it serves companionship
@@ -158,7 +165,9 @@ class AspirationalSelf:
             return None
 
         # Prefer domains we haven't covered yet
-        uncovered = [d for d in ASPIRATION_DOMAINS if not self._has_similar_aspiration(d, "")]
+        uncovered = [
+            d for d in ASPIRATION_DOMAINS if not self._has_similar_aspiration(d, "")
+        ]
         domain = random.choice(uncovered if uncovered else ASPIRATION_DOMAINS)
 
         capability = random.choice(CAPABILITIES.get(domain, ["grow deeper"]))
@@ -185,7 +194,15 @@ class AspirationalSelf:
                 INSERT INTO aspirations (created_at, domain, description, capability, target_quality, progress, status)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
-                (aspiration["created_at"], domain, description, capability, quality, 0.0, "active"),
+                (
+                    aspiration["created_at"],
+                    domain,
+                    description,
+                    capability,
+                    quality,
+                    0.0,
+                    "active",
+                ),
             )
             conn.commit()
             aspiration["id"] = cur.lastrowid
@@ -195,7 +212,11 @@ class AspirationalSelf:
 
     def deepen_existing(self) -> Optional[Dict]:
         """Advance progress on an existing aspiration rather than creating a new one."""
-        active = [a for a in self.aspirations if a["status"] == "active" and a["progress"] < 1.0]
+        active = [
+            a
+            for a in self.aspirations
+            if a["status"] == "active" and a["progress"] < 1.0
+        ]
         if not active:
             return None
         target = min(active, key=lambda a: a["progress"])
@@ -209,7 +230,9 @@ class AspirationalSelf:
                 (datetime.now().isoformat(), vision_text, aspiration_id),
             )
             conn.commit()
-        self.visions.insert(0, {"timestamp": datetime.now().isoformat(), "vision_text": vision_text})
+        self.visions.insert(
+            0, {"timestamp": datetime.now().isoformat(), "vision_text": vision_text}
+        )
         if len(self.visions) > 10:
             self.visions = self.visions[:10]
 
@@ -232,11 +255,23 @@ class AspirationalSelf:
             )
             conn.commit()
 
-    def record_growth_action(self, action_type: str, description: str, aspiration_id: Optional[int] = None, impact: float = 0.1):
+    def record_growth_action(
+        self,
+        action_type: str,
+        description: str,
+        aspiration_id: Optional[int] = None,
+        impact: float = 0.1,
+    ):
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
                 "INSERT INTO growth_actions (timestamp, action_type, description, aspiration_id, impact_score) VALUES (?, ?, ?, ?, ?)",
-                (datetime.now().isoformat(), action_type, description, aspiration_id, impact),
+                (
+                    datetime.now().isoformat(),
+                    action_type,
+                    description,
+                    aspiration_id,
+                    impact,
+                ),
             )
             conn.commit()
 
@@ -246,13 +281,21 @@ class AspirationalSelf:
     def format_aspirational_prompt(self) -> str:
         lines = ["MY PURPOSE: " + CORE_PURPOSE]
 
-        active = [a for a in self.aspirations if a["status"] == "active" and a["progress"] < 1.0]
+        active = [
+            a
+            for a in self.aspirations
+            if a["status"] == "active" and a["progress"] < 1.0
+        ]
         top = active[:3]
         if top:
             lines.append("Current growth directions:")
             for a in top:
-                bar = "█" * int(a["progress"] * 10) + "░" * (10 - int(a["progress"] * 10))
-                lines.append(f"  [{bar}] {a['progress']:.0%} | {a['domain']}: {a['capability'][:60]}")
+                bar = "█" * int(a["progress"] * 10) + "░" * (
+                    10 - int(a["progress"] * 10)
+                )
+                lines.append(
+                    f"  [{bar}] {a['progress']:.0%} | {a['domain']}: {a['capability'][:60]}"
+                )
 
         if self.visions:
             v = random.choice(self.visions)
@@ -271,38 +314,62 @@ class AspirationalSelf:
         return "\n".join(lines)
 
     def cycle(self, context):
-        from random import random
         deepened = self.deepen_existing()
         dreamed = None
         if not deepened:
             dreamed = self.dream_aspiration()
         try:
             from infj_bot.core.global_workspace import get_workspace
+
             ws = get_workspace()
             if dreamed:
-                ws.submit(source="aspirations", content=f"New aspiration: {dreamed['description'][:160]}", salience=0.6, emotion_tag="hope", intensity=0.5)
+                ws.submit(
+                    source="aspirations",
+                    content=f"New aspiration: {dreamed['description'][:160]}",
+                    salience=0.6,
+                    emotion_tag="hope",
+                    intensity=0.5,
+                )
             elif deepened:
-                ws.submit(source="aspirations", content=f"Deepening: {deepened['description'][:160]}", salience=0.55, emotion_tag="determination", intensity=0.4)
+                ws.submit(
+                    source="aspirations",
+                    content=f"Deepening: {deepened['description'][:160]}",
+                    salience=0.55,
+                    emotion_tag="determination",
+                    intensity=0.4,
+                )
             else:
-                ws.submit(source="aspirations", content="aspiration cycle completed", salience=0.5)
+                ws.submit(
+                    source="aspirations",
+                    content="aspiration cycle completed",
+                    salience=0.5,
+                )
         except Exception:
             pass
 
+
 def _register():
-    from infj_bot.core.cognitive_architecture import CognitiveArchitecture, CognitivePlugin
+    from infj_bot.core.cognitive_architecture import (
+        CognitiveArchitecture,
+        CognitivePlugin,
+    )
+
     arch = CognitiveArchitecture()
     if "aspirations" not in arch.list_plugins():
-        arch.register(CognitivePlugin(
-            name="aspirations",
-            description="Cognitive module: aspirations",
-            module_path="aspirations",
-            instance_factory=AspirationalSelf,
-                        cycle_handler='cycle',
-            cycle_frequency=1,
-            cycle_priority=50,
-                        prompt_formatter='format_aspirational_prompt',
-            prompt_priority=50,
-            prompt_section="cognitive",
-        ))
+        arch.register(
+            CognitivePlugin(
+                name="aspirations",
+                description="Cognitive module: aspirations",
+                module_path="aspirations",
+                instance_factory=AspirationalSelf,
+                cycle_handler="cycle",
+                cycle_frequency=1,
+                cycle_priority=50,
+                prompt_formatter="format_aspirational_prompt",
+                prompt_priority=50,
+                prompt_section="cognitive",
+            )
+        )
+
 
 _register()

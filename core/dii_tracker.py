@@ -10,12 +10,10 @@ In practice we compute a rolling discrete approximation using exponential
 moving averages sampled on each background cycle.
 """
 
-import math
 import sqlite3
 import threading
 import time
-from dataclasses import dataclass, field
-from datetime import datetime
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -27,6 +25,7 @@ DII_DB = DATA_DIR / "dii_history.db"
 @dataclass
 class DIISample:
     """One DII measurement snapshot."""
+
     timestamp: float
     persistence: float = 0.0
     ignition: float = 0.0
@@ -150,7 +149,7 @@ class DIITracker:
 
             self.recent_samples.append(sample)
             if len(self.recent_samples) > self.max_samples:
-                self.recent_samples = self.recent_samples[-self.max_samples:]
+                self.recent_samples = self.recent_samples[-self.max_samples :]
 
             self._log_sample(sample)
             return sample
@@ -164,7 +163,7 @@ class DIITracker:
         attachment = being.state.attachment
         # Working memory size as proxy for state complexity persisting
         wm_size = min(len(being.working_memory) / 20.0, 1.0)
-        return (energy * 0.4 + attachment * 0.3 + wm_size * 0.3)
+        return energy * 0.4 + attachment * 0.3 + wm_size * 0.3
 
     def _compute_ignition(self, workspace) -> float:
         """Ignition: Global Workspace winner strength."""
@@ -269,7 +268,12 @@ class DIITracker:
         """Return trend summary over last n samples."""
         with self._lock:
             if not self.recent_samples:
-                return {"dii_current": 0.0, "dii_avg": 0.0, "dii_peak": 0.0, "trend": "flat"}
+                return {
+                    "dii_current": 0.0,
+                    "dii_avg": 0.0,
+                    "dii_peak": 0.0,
+                    "trend": "flat",
+                }
             samples = self.recent_samples[-n:]
             diis = [s.dii for s in samples]
             current = diis[-1]

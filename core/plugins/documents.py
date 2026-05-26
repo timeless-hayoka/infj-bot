@@ -1,5 +1,5 @@
 """Document ingestion and retrieval for the DRIFT companion."""
-import json
+
 import re
 import uuid
 from pathlib import Path
@@ -8,9 +8,33 @@ from typing import List, Optional
 import chromadb
 
 from infj_bot.core.config import PROJECT_ROOT, DATA_DIR
-from infj_bot.core.embeddings import get_default_embedding_function, LocalEmbeddingFunction
+from infj_bot.core.embeddings import (
+    get_default_embedding_function,
+    LocalEmbeddingFunction,
+)
 
-SUPPORTED_TEXT = {".txt", ".md", ".py", ".js", ".ts", ".jsx", ".tsx", ".json", ".yaml", ".yml", ".csv", ".sh", ".html", ".css", ".rs", ".go", ".java", ".c", ".cpp", ".h"}
+SUPPORTED_TEXT = {
+    ".txt",
+    ".md",
+    ".py",
+    ".js",
+    ".ts",
+    ".jsx",
+    ".tsx",
+    ".json",
+    ".yaml",
+    ".yml",
+    ".csv",
+    ".sh",
+    ".html",
+    ".css",
+    ".rs",
+    ".go",
+    ".java",
+    ".c",
+    ".cpp",
+    ".h",
+}
 MAX_INGEST_FILE_BYTES = 2_000_000
 MAX_DIRECTORY_FILES = 300
 
@@ -64,6 +88,7 @@ def _chunk_text(text: str, chunk_size: int = 800, overlap: int = 100) -> List[st
 def _read_pdf(path: Path) -> str:
     try:
         import PyPDF2
+
         reader = PyPDF2.PdfReader(str(path))
         parts = []
         for page in reader.pages:
@@ -77,7 +102,9 @@ def _read_pdf(path: Path) -> str:
 
 def _read_file(path: Path) -> str:
     if path.stat().st_size > MAX_INGEST_FILE_BYTES:
-        raise ValueError(f"File too large for ingestion: {path} ({path.stat().st_size} bytes)")
+        raise ValueError(
+            f"File too large for ingestion: {path} ({path.stat().st_size} bytes)"
+        )
     suffix = path.suffix.lower()
     if suffix == ".pdf":
         return _read_pdf(path)
@@ -85,7 +112,9 @@ def _read_file(path: Path) -> str:
 
 
 class DocumentStore:
-    def __init__(self, persist_directory=None, embedding_function=None, use_semantic=True):
+    def __init__(
+        self, persist_directory=None, embedding_function=None, use_semantic=True
+    ):
         if persist_directory is None:
             persist_directory = str(DATA_DIR / "chroma_db")
         if embedding_function is None:
@@ -134,7 +163,9 @@ class DocumentStore:
         )
         return len(chunks)
 
-    def ingest_directory(self, dir_path: Path, tags: Optional[List[str]] = None, recursive: bool = True) -> int:
+    def ingest_directory(
+        self, dir_path: Path, tags: Optional[List[str]] = None, recursive: bool = True
+    ) -> int:
         total = 0
         scanned = 0
         pattern = "**/*" if recursive else "*"
@@ -142,7 +173,9 @@ class DocumentStore:
             if child.is_file() and child.suffix.lower() in SUPPORTED_TEXT | {".pdf"}:
                 scanned += 1
                 if scanned > MAX_DIRECTORY_FILES:
-                    raise ValueError(f"Directory ingestion stopped after {MAX_DIRECTORY_FILES} supported files.")
+                    raise ValueError(
+                        f"Directory ingestion stopped after {MAX_DIRECTORY_FILES} supported files."
+                    )
                 try:
                     n = self.ingest(str(child), tags=tags)
                     total += n
@@ -158,12 +191,14 @@ class DocumentStore:
         out = []
         for i, doc in enumerate(results["documents"][0]):
             meta = results["metadatas"][0][i]
-            out.append({
-                "document": doc,
-                "source": meta.get("source", "?"),
-                "filename": meta.get("filename", "?"),
-                "chunk_index": meta.get("chunk_index", 0),
-            })
+            out.append(
+                {
+                    "document": doc,
+                    "source": meta.get("source", "?"),
+                    "filename": meta.get("filename", "?"),
+                    "chunk_index": meta.get("chunk_index", 0),
+                }
+            )
         return out
 
     def list_sources(self) -> List[str]:
@@ -193,7 +228,9 @@ def format_doc_results(results: List[dict]) -> str:
         return "No matching documents found."
     lines = []
     for r in results:
-        lines.append(f"[{r['filename']} chunk {r['chunk_index']}]\n{r['document'][:600]}")
+        lines.append(
+            f"[{r['filename']} chunk {r['chunk_index']}]\n{r['document'][:600]}"
+        )
     return "\n---\n".join(lines)
 
 

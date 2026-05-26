@@ -2,18 +2,16 @@
 
 Run with: python tui.py
 """
+
 import queue
 import sys
 import threading
-import time
-from datetime import datetime
 from typing import Any, List
 
 from rich.align import Align
 from rich.console import Console
 from rich.layout import Layout
 from rich.live import Live
-from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.rule import Rule
 from rich.text import Text
@@ -63,8 +61,8 @@ class DriftTUI:
         health = self.brain.health_check()
         lines.append(Text("Health", style="bold yellow"))
         g = "[green]●[/]" if health["gemini"]["ok"] else "[red]●[/]"
-        l = "[green]●[/]" if health["local"]["ok"] else "[red]●[/]"
-        lines.append(Text.from_markup(f"  Gemini {g}  Ollama {l}"))
+        local_dot = "[green]●[/]" if health["local"]["ok"] else "[red]●[/]"
+        lines.append(Text.from_markup(f"  Gemini {g}  Ollama {local_dot}"))
         lines.append(Text(""))
 
         # Growth
@@ -101,12 +99,18 @@ class DriftTUI:
     def _make_chat(self) -> Panel:
         content: Any
         if not self.messages:
-            content = Align.center(Text("Start a conversation...", style="dim italic"), vertical="middle")
+            content = Align.center(
+                Text("Start a conversation...", style="dim italic"), vertical="middle"
+            )
         else:
             parts: List[Text] = []
             for role, text in self.messages[-50:]:
                 if role == "user":
-                    parts.append(Text.from_markup(f"[bold blue]user[/]  {text[:300]}{'…' if len(text) > 300 else ''}"))
+                    parts.append(
+                        Text.from_markup(
+                            f"[bold blue]user[/]  {text[:300]}{'…' if len(text) > 300 else ''}"
+                        )
+                    )
                 elif role == "bot":
                     parts.append(Text(text))
                 elif role == "system":
@@ -158,15 +162,25 @@ class DriftTUI:
         if is_command(user_input):
             command, args = parse_command(user_input)
             output = handle_command(
-                command, args, self.state, self.brain, self.memory,
-                self.history, self.goals_db, self.doc_store,
+                command,
+                args,
+                self.state,
+                self.brain,
+                self.memory,
+                self.history,
+                self.goals_db,
+                self.doc_store,
             )
             self.add_message("system", output)
             return
 
         prompt, emotion, dissonance = build_chat_prompt(
-            user_input, self.state, self.memory,
-            goals_db=self.goals_db, doc_store=self.doc_store, prefs=self.state.prefs,
+            user_input,
+            self.state,
+            self.memory,
+            goals_db=self.goals_db,
+            doc_store=self.doc_store,
+            prefs=self.state.prefs,
         )
         output = self.brain.agent_turn(prompt, tools_enabled=True)
         try:
@@ -174,10 +188,16 @@ class DriftTUI:
         except Exception:
             pass
 
-        importance = min(0.95, 0.45 + emotion["intensity"] * 0.3 + dissonance["score"] * 0.15)
+        importance = min(
+            0.95, 0.45 + emotion["intensity"] * 0.3 + dissonance["score"] * 0.15
+        )
         self.memory.save_interaction(
-            user_input, output, mode=self.state.mode,
-            emotion=emotion, importance=importance, dissonance=dissonance,
+            user_input,
+            output,
+            mode=self.state.mode,
+            emotion=emotion,
+            importance=importance,
+            dissonance=dissonance,
         )
         self.history.append(user_input, output, self.state.mode, emotion, dissonance)
         self.state.turns += 1
@@ -194,7 +214,9 @@ class DriftTUI:
         input_thread = threading.Thread(target=self._input_thread, daemon=True)
         input_thread.start()
 
-        with Live(self.render(), console=console, refresh_per_second=4, screen=False) as live:
+        with Live(
+            self.render(), console=console, refresh_per_second=4, screen=False
+        ) as live:
             self._live = live
             while self.running:
                 try:
@@ -210,7 +232,9 @@ class DriftTUI:
                 self._process_input(user_input)
                 live.update(self.render())
 
-        console.print("\n[dim]I'll be here in the quiet if you need me again. Goodbye, user.[/]")
+        console.print(
+            "\n[dim]I'll be here in the quiet if you need me again. Goodbye, user.[/]"
+        )
 
 
 if __name__ == "__main__":

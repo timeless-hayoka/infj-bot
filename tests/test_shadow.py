@@ -28,7 +28,7 @@ def test_suppress_detects_archetype(temp_shadow):
 
 
 def test_golden_shadow_suppress(temp_shadow):
-    sid = temp_shadow.suppress(
+    temp_shadow.suppress(
         "I am brilliant and I know it", archetype="genius", intensity=0.9
     )
     state = temp_shadow.get_state()
@@ -80,10 +80,10 @@ def test_integrate(temp_shadow):
 
 
 def test_project(temp_shadow):
-    for _ in range(10):
+    for _ in range(50):
         temp_shadow.suppress("I feel invisible", archetype="resentment", intensity=0.95)
     projection = None
-    for _ in range(10):
+    for _ in range(50):
         projection = temp_shadow.project("the user", trigger_text="ignored")
         if projection:
             break

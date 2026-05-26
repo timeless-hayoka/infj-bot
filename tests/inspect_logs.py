@@ -45,7 +45,9 @@ def connect():
 
 
 def list_runs(conn):
-    cur = conn.execute("SELECT run_id, git_hash, start_time, config FROM runs ORDER BY start_time DESC")
+    cur = conn.execute(
+        "SELECT run_id, git_hash, start_time, config FROM runs ORDER BY start_time DESC"
+    )
     rows = cur.fetchall()
     print(f"\n[Runs] Found {len(rows)} runs:\n")
     for run_id, git_hash, start_time, config_str in rows:
@@ -66,15 +68,15 @@ def inspect_run(conn, run_id: str):
     cur = conn.execute("SELECT * FROM runs WHERE run_id = ?", (run_id,))
     run = cur.fetchone()
     if not run:
-        print(f"  ❌ Run not found in runs table.")
+        print("  ❌ Run not found in runs table.")
         return
 
-    print(f"  ✅ Run record found.")
+    print("  ✅ Run record found.")
 
     # Check git hash
     git_hash = run[2]  # column index
     if git_hash == "unknown":
-        print(f"  ⚠️  git_hash = 'unknown'. Not in a git repo or git not available.")
+        print("  ⚠️  git_hash = 'unknown'. Not in a git repo or git not available.")
     else:
         print(f"  ✅ git_hash: {git_hash}")
 
@@ -83,7 +85,7 @@ def inspect_run(conn, run_id: str):
         "SELECT DISTINCT event_type FROM events WHERE run_id = ?", (run_id,)
     )
     found_types = {row[0] for row in cur.fetchall()}
-    print(f"\n  [Event Types Found]")
+    print("\n  [Event Types Found]")
     for et in REQUIRED_EVENT_TYPES:
         status = "✅" if et in found_types else "❌ MISSING"
         print(f"    {status}  {et}")
@@ -93,20 +95,22 @@ def inspect_run(conn, run_id: str):
     # Check run_end exists
     cur = conn.execute(
         "SELECT COUNT(*) FROM events WHERE run_id = ? AND event_type = 'run_end'",
-        (run_id,)
+        (run_id,),
     )
     has_end = cur.fetchone()[0] > 0
-    print(f"\n  [Run End] {'✅ Clean run_end logged' if has_end else '❌ No run_end found — run may have crashed'}")
+    print(
+        f"\n  [Run End] {'✅ Clean run_end logged' if has_end else '❌ No run_end found — run may have crashed'}"
+    )
 
     # Sample a memory_selection event
     cur = conn.execute(
         "SELECT payload FROM events WHERE run_id = ? AND event_type = 'memory_selection' LIMIT 1",
-        (run_id,)
+        (run_id,),
     )
     row = cur.fetchone()
     if row:
         payload = json.loads(row[0])
-        print(f"\n  [Sample memory_selection]")
+        print("\n  [Sample memory_selection]")
         selected = payload.get("selected", [])
         rejected = payload.get("rejected", [])
         print(f"    selected:  {len(selected)} memories")
@@ -117,34 +121,38 @@ def inspect_run(conn, run_id: str):
             if components:
                 print(f"    ✅ score_components present: {list(components.keys())}")
             else:
-                print(f"    ❌ score_components MISSING from selected[0]")
+                print("    ❌ score_components MISSING from selected[0]")
     else:
-        print(f"\n  ⚠️  No memory_selection events found.")
+        print("\n  ⚠️  No memory_selection events found.")
 
     # Sample a continuity_metrics event
     cur = conn.execute(
         "SELECT payload FROM events WHERE run_id = ? AND event_type = 'continuity_metrics' LIMIT 1",
-        (run_id,)
+        (run_id,),
     )
     row = cur.fetchone()
     if row:
         payload = json.loads(row[0])
-        print(f"\n  [Sample continuity_metrics]")
+        print("\n  [Sample continuity_metrics]")
         normalized = payload.get("normalized", {})
         raw = payload.get("raw", {})
-        axes = ["entity_overlap", "goal_overlap", "tone_similarity", "memory_reference_rate", "state_influence"]
+        axes = [
+            "entity_overlap",
+            "goal_overlap",
+            "tone_similarity",
+            "memory_reference_rate",
+            "state_influence",
+        ]
         for axis in axes:
             n_val = normalized.get(axis, "MISSING")
             r_val = raw.get(axis, "MISSING")
             status = "✅" if n_val != "MISSING" else "❌"
             print(f"    {status}  {axis}: raw={r_val}, normalized={n_val}")
     else:
-        print(f"\n  ⚠️  No continuity_metrics events found.")
+        print("\n  ⚠️  No continuity_metrics events found.")
 
     # Event count
-    cur = conn.execute(
-        "SELECT COUNT(*) FROM events WHERE run_id = ?", (run_id,)
-    )
+    cur = conn.execute("SELECT COUNT(*) FROM events WHERE run_id = ?", (run_id,))
     count = cur.fetchone()[0]
     print(f"\n  [Total Events] {count}")
 
@@ -154,10 +162,12 @@ def summary(conn):
     n_runs = cur.fetchone()[0]
     cur = conn.execute("SELECT COUNT(*) FROM events")
     n_events = cur.fetchone()[0]
-    cur = conn.execute("SELECT COUNT(DISTINCT run_id) FROM events WHERE event_type = 'run_end'")
+    cur = conn.execute(
+        "SELECT COUNT(DISTINCT run_id) FROM events WHERE event_type = 'run_end'"
+    )
     n_clean = cur.fetchone()[0]
 
-    print(f"\n[Summary]")
+    print("\n[Summary]")
     print(f"  Total runs:        {n_runs}")
     print(f"  Total events:      {n_events}")
     print(f"  Clean completions: {n_clean}")

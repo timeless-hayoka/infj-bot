@@ -133,6 +133,7 @@ def collect_baseline(session_data_list: list) -> dict:
 #  Continuity Vector Computation                                       #
 # ------------------------------------------------------------------ #
 
+
 def compute_continuity_vector(
     response_data: dict,
     baselines: dict,
@@ -176,7 +177,7 @@ def compute_continuity_vector(
             continue
 
         mean = baselines[axis]["mean"]
-        std  = baselines[axis]["std"]
+        std = baselines[axis]["std"]
 
         if std < VARIANCE_FLOOR:
             # Don't normalize — std is too small, would amplify noise
@@ -193,6 +194,7 @@ def compute_continuity_vector(
 # ------------------------------------------------------------------ #
 #  Axis Correlation Check                                              #
 # ------------------------------------------------------------------ #
+
 
 def check_axis_correlation(session_axis_data: dict):
     """

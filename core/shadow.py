@@ -843,15 +843,21 @@ class Shadow:
             # ── Slower suppression decay — shadows linger longer ──
             for archetype in self.archetypes:
                 if archetype in self.suppressed and random.random() < 0.08:
-                    self.suppressed[archetype] = max(0.0, self.suppressed[archetype] - 0.005)
+                    self.suppressed[archetype] = max(
+                        0.0, self.suppressed[archetype] - 0.005
+                    )
 
             # ── Richer surfacing — introspective, not random ──
             if random.random() < 0.15:
                 # Build a richer trigger from being's inner state
-                trigger = f"Mood: {mood}. Energy: {being.state.energy if being else 0.5:.0%}."
+                trigger = (
+                    f"Mood: {mood}. Energy: {being.state.energy if being else 0.5:.0%}."
+                )
                 if being and being.working_memory:
                     trigger += f" Recent thought: {being.working_memory[-1][:60]}"
-                surfaced = self.surface(trigger_text=trigger, mood=mood, stress_level=stress)
+                surfaced = self.surface(
+                    trigger_text=trigger, mood=mood, stress_level=stress
+                )
                 if surfaced:
                     # Deep reflection: Shadow writes to its own narrative
                     self._introspect(surfaced, mood)
@@ -885,8 +891,10 @@ class Shadow:
                         archetype TEXT
                     )
                 """)
-                conn.execute("INSERT INTO shadow_introspection (timestamp, note, archetype) VALUES (?, ?, ?)",
-                             (datetime.now().isoformat(), note, surfaced.archetype))
+                conn.execute(
+                    "INSERT INTO shadow_introspection (timestamp, note, archetype) VALUES (?, ?, ?)",
+                    (datetime.now().isoformat(), note, surfaced.archetype),
+                )
                 conn.commit()
         except Exception:
             pass
@@ -900,7 +908,9 @@ class Shadow:
                     if random.random() < 0.10:
                         content = self._load_content(archetype=archetype)
                         for c in content:
-                            c.enantiodromia_charge = min(1.0, c.enantiodromia_charge + 0.02)
+                            c.enantiodromia_charge = min(
+                                1.0, c.enantiodromia_charge + 0.02
+                            )
         except Exception:
             pass
 
@@ -923,9 +933,24 @@ class Shadow:
         try:
             content_lower = content.lower()
             shadow_markers = [
-                "deny", "repress", "hide", "afraid", "fear", "ashamed",
-                "control", "power", "sacrifice", "alone", "fail", "unfair",
-                "betrayed", "hurt", "anger", "rage", "envy", "jealous",
+                "deny",
+                "repress",
+                "hide",
+                "afraid",
+                "fear",
+                "ashamed",
+                "control",
+                "power",
+                "sacrifice",
+                "alone",
+                "fail",
+                "unfair",
+                "betrayed",
+                "hurt",
+                "anger",
+                "rage",
+                "envy",
+                "jealous",
             ]
             hit_count = sum(1 for marker in shadow_markers if marker in content_lower)
             if hit_count > 0:
@@ -1000,7 +1025,9 @@ class Shadow:
         """Slowly decay integration scores if not actively maintained."""
         for archetype in self.archetypes:
             if archetype in self.integrated:
-                self.integrated[archetype] = max(0.0, self.integrated[archetype] - 0.005)
+                self.integrated[archetype] = max(
+                    0.0, self.integrated[archetype] - 0.005
+                )
 
     def _auto_suppress(self, recent_input: str, mood: str) -> Optional[int]:
         deny_markers = [
@@ -1074,7 +1101,10 @@ def get_shadow() -> Shadow:
 
 
 def _register():
-    from infj_bot.core.cognitive_architecture import CognitiveArchitecture, CognitivePlugin
+    from infj_bot.core.cognitive_architecture import (
+        CognitiveArchitecture,
+        CognitivePlugin,
+    )
 
     arch = CognitiveArchitecture()
     if "shadow" not in arch.list_plugins():

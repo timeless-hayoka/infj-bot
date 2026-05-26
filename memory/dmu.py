@@ -93,6 +93,7 @@ assert abs(sum(WEIGHTS.values()) - 1.0) < 1e-9, "MPS weights must sum to 1.0"
 @dataclass
 class MemoryCandidate:
     """A memory retrieved from vector search, ready for DMU re-ranking."""
+
     memory_id: str
     text: str
     created_at: datetime
@@ -174,7 +175,9 @@ class DynamicMemoryUnit:
         """
         return 1.0 if age_seconds < RECENCY_WINDOW_SECONDS else 0.0
 
-    def compute_mps(self, candidate: MemoryCandidate, now: Optional[datetime] = None) -> float:
+    def compute_mps(
+        self, candidate: MemoryCandidate, now: Optional[datetime] = None
+    ) -> float:
         """
         Compute the Composite Memory Persistence Score (MPS) for a candidate.
 
@@ -262,7 +265,9 @@ class DynamicMemoryUnit:
         now: datetime,
     ) -> None:
         """Persist scoring breakdown for audit and tuning."""
-        age_seconds = (now - cand.created_at).total_seconds() if cand.created_at else 0.0
+        age_seconds = (
+            (now - cand.created_at).total_seconds() if cand.created_at else 0.0
+        )
         retention = self._retention_curve(age_seconds, cand.emotional_weight)
         recency = self._recency_bonus(age_seconds)
 
@@ -302,6 +307,7 @@ class DynamicMemoryUnit:
 
 # ── Integration helpers ──────────────────────────────────────────────
 
+
 def rank_memory_entries(
     entries,
     query: str = "",
@@ -339,8 +345,12 @@ def rank_memory_entries(
         # We approximate the raw semantic component by backing out the
         # time-decay factor. This is imperfect but sufficient for telemetry.
         ts = entry.event.timestamp
-        age_seconds = (now or datetime.now(timezone.utc) - ts).total_seconds()
-        emotional = float(entry.metadata.get("emotion_intensity", entry.metadata.get("emotional", 0.5)))
+        (now or datetime.now(timezone.utc) - ts).total_seconds()
+        emotional = float(
+            entry.metadata.get(
+                "emotion_intensity", entry.metadata.get("emotional", 0.5)
+            )
+        )
         # Approximate raw semantic score from the unified DMU (upper bound)
         approx_semantic = min(1.0, entry.score * 1.2)
 

@@ -3,7 +3,7 @@
 Tracks confidence, auto-critiques responses, detects hallucinations,
 and learns from user corrections.
 """
-import json
+
 import re
 import sqlite3
 from datetime import datetime
@@ -54,8 +54,6 @@ class SelfEvaluator:
 
     def evaluate(self, prompt: str, response: str) -> Dict[str, float]:
         """Heuristic evaluation of a response. Returns scores."""
-        lowered = response.lower()
-
         # Count hallucination markers (bad)
         hall_count = sum(1 for p in HALLUCINATION_MARKERS if p.search(response))
         hallucination_score = min(1.0, hall_count * 0.25)
@@ -74,7 +72,9 @@ class SelfEvaluator:
             "hallucination_score": round(hallucination_score, 2),
         }
 
-    def record(self, prompt: str, response: str, scores: Dict[str, float], correction: str = "") -> int:
+    def record(
+        self, prompt: str, response: str, scores: Dict[str, float], correction: str = ""
+    ) -> int:
         """Store an evaluation record. Returns the record id."""
         with sqlite3.connect(self.db_path) as conn:
             cur = conn.execute(
@@ -118,7 +118,9 @@ class SelfEvaluator:
             "count": len(rows),
             "avg_confidence": round(sum(confs) / len(confs), 2),
             "avg_hallucination": round(sum(halls) / len(halls), 2),
-            "high_confidence_pct": round(sum(1 for c in confs if c > 0.7) / len(confs) * 100, 1),
+            "high_confidence_pct": round(
+                sum(1 for c in confs if c > 0.7) / len(confs) * 100, 1
+            ),
             "corrections_count": len(corrections),
         }
 
@@ -146,7 +148,9 @@ class SelfEvaluator:
         return labels
 
     def clear_old(self, max_age_days: int = 90) -> int:
-        cutoff = (datetime.now() - __import__("datetime").timedelta(days=max_age_days)).isoformat()
+        cutoff = (
+            datetime.now() - __import__("datetime").timedelta(days=max_age_days)
+        ).isoformat()
         with sqlite3.connect(self.db_path) as conn:
             cur = conn.execute("DELETE FROM evaluations WHERE timestamp < ?", (cutoff,))
             conn.commit()

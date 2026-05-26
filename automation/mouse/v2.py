@@ -39,11 +39,10 @@ import sys
 import os
 import json
 import time
-import stat
 import subprocess
 import argparse
 import platform
-from dataclasses import dataclass, asdict, field
+from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional, Tuple
 from urllib import request, error
 from pathlib import Path
@@ -56,19 +55,25 @@ from datetime import datetime
 SCRIPT_DIR = Path(__file__).resolve().parent
 EXECUTABLE_DIR = SCRIPT_DIR  # Everything lives here for USB portability
 
+
 # Detect if we're running from removable media (USB, external drive, etc.)
 def _is_removable_media(path: Path) -> bool:
     """Heuristic: check if the drive containing the script is removable."""
     try:
         # Linux: check /sys/block/*/removable
-        device = os.stat(path).st_dev
+        os.stat(path)  # verify path is accessible
         # Best-effort: if path contains /media/ or /mnt/, likely removable
         p = str(path.resolve())
-        if any(marker in p for marker in ["/media/", "/mnt/", "/Volumes/", "/run/media/"]):
+        if any(
+            marker in p for marker in ["/media/", "/mnt/", "/Volumes/", "/run/media/"]
+        ):
             return True
         # Try to find mount point and check if it's a tmpfs or removable block
-        mount = subprocess.run(["findmnt", "-n", "-o", "FSTYPE", "--target", str(path)],
-                               capture_output=True, text=True)
+        mount = subprocess.run(
+            ["findmnt", "-n", "-o", "FSTYPE", "--target", str(path)],
+            capture_output=True,
+            text=True,
+        )
         if mount.returncode == 0:
             fstype = mount.stdout.strip()
             if fstype in ("vfat", "exfat", "ntfs", "fuse"):
@@ -76,6 +81,7 @@ def _is_removable_media(path: Path) -> bool:
     except Exception:
         pass
     return False
+
 
 VANGUARD_MODE = _is_removable_media(EXECUTABLE_DIR)
 
@@ -114,6 +120,7 @@ DEFAULT_CONFIG = {
 # TACTICAL UTILITIES
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 def _print_banner():
     vanguard_mark = "🔥 VANGUARD MODE" if VANGUARD_MODE else "STATIONARY DEPLOYMENT"
     print(f"""
@@ -127,10 +134,14 @@ def _print_banner():
 """)
 
 
-def _run_shell(cmd: List[str], cwd: Optional[str] = None, timeout: int = 10) -> Tuple[int, str, str]:
+def _run_shell(
+    cmd: List[str], cwd: Optional[str] = None, timeout: int = 10
+) -> Tuple[int, str, str]:
     """Run a shell command safely. Returns (rc, stdout, stderr)."""
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, cwd=cwd, timeout=timeout)
+        result = subprocess.run(
+            cmd, capture_output=True, text=True, cwd=cwd, timeout=timeout
+        )
         return result.returncode, result.stdout, result.stderr
     except FileNotFoundError:
         return 127, "", f"Command not found: {cmd[0]}"
@@ -155,7 +166,7 @@ def _get_hardware_diag() -> Dict[str, Any]:
     try:
         with open("/proc/meminfo") as f:
             lines = f.readlines()
-            mem_total = next((l for l in lines if l.startswith("MemTotal:")), None)
+            mem_total = next((ln for ln in lines if ln.startswith("MemTotal:")), None)
             if mem_total:
                 diag["memory_total_mb"] = int(mem_total.split()[1]) // 1024
     except Exception:
@@ -188,7 +199,9 @@ def _get_git_status() -> Dict[str, Any]:
     root = _find_git_root()
     if not root:
         return {"in_repo": False}
-    rc, branch_out, _ = _run_shell(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=str(root))
+    rc, branch_out, _ = _run_shell(
+        ["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=str(root)
+    )
     branch = branch_out.strip() if rc == 0 else "unknown"
     rc, status_out, _ = _run_shell(["git", "status", "--short"], cwd=str(root))
     rc2, log_out, _ = _run_shell(["git", "log", "--oneline", "-5"], cwd=str(root))
@@ -206,7 +219,13 @@ def _get_git_status() -> Dict[str, Any]:
 def _detect_project_type(root: Path) -> str:
     """Identify the technology stack of the current project."""
     markers = {
-        "python": ["pyproject.toml", "setup.py", "setup.cfg", "requirements.txt", "Pipfile"],
+        "python": [
+            "pyproject.toml",
+            "setup.py",
+            "setup.cfg",
+            "requirements.txt",
+            "Pipfile",
+        ],
         "node": ["package.json", "package-lock.json", "yarn.lock", "pnpm-lock.yaml"],
         "rust": ["Cargo.toml", "Cargo.lock"],
         "go": ["go.mod", "go.sum"],
@@ -221,14 +240,26 @@ def _detect_project_type(root: Path) -> str:
     return ", ".join(detected) if detected else "unknown"
 
 
-def _read_project_context(root: Path, max_files: int = 12, max_size: int = 50000) -> str:
+def _read_project_context(
+    root: Path, max_files: int = 12, max_size: int = 50000
+) -> str:
     """Read key project files to inject into the AI context."""
     priority_files = [
-        "README.md", "README.rst", "README",
-        "pyproject.toml", "package.json", "Cargo.toml", "go.mod",
-        "requirements.txt", "Dockerfile", "docker-compose.yml",
-        "Makefile", "makefile",
-        ".cursorrules", ".cursorignore", "AGENTS.md",
+        "README.md",
+        "README.rst",
+        "README",
+        "pyproject.toml",
+        "package.json",
+        "Cargo.toml",
+        "go.mod",
+        "requirements.txt",
+        "Dockerfile",
+        "docker-compose.yml",
+        "Makefile",
+        "makefile",
+        ".cursorrules",
+        ".cursorignore",
+        "AGENTS.md",
     ]
     chunks = []
     added = 0
@@ -240,7 +271,9 @@ def _read_project_context(root: Path, max_files: int = 12, max_size: int = 50000
             size = fpath.stat().st_size
             if size > max_size:
                 chunks.append(f"--- {fname} (truncated, {size} bytes) ---")
-                chunks.append(fpath.read_text(encoding="utf-8", errors="ignore")[:max_size])
+                chunks.append(
+                    fpath.read_text(encoding="utf-8", errors="ignore")[:max_size]
+                )
             else:
                 chunks.append(f"--- {fname} ---")
                 chunks.append(fpath.read_text(encoding="utf-8", errors="ignore"))
@@ -257,7 +290,11 @@ def _get_directory_summary(root: Path, max_entries: int = 30) -> str:
     try:
         entries = []
         for p in sorted(root.iterdir()):
-            if p.name.startswith(".") and p.name not in (".gitignore", ".dockerignore", ".env.example"):
+            if p.name.startswith(".") and p.name not in (
+                ".gitignore",
+                ".dockerignore",
+                ".env.example",
+            ):
                 continue
             mark = "📁" if p.is_dir() else "📄"
             entries.append(f"  {mark} {p.name}")
@@ -272,7 +309,11 @@ def _get_directory_summary(root: Path, max_entries: int = 30) -> str:
 def _list_ollama_models(api_url: str) -> List[str]:
     """Query Ollama for installed models."""
     try:
-        base = api_url.rsplit("/", 2)[0] if "/api/" in api_url else api_url.rsplit("/", 1)[0]
+        base = (
+            api_url.rsplit("/", 2)[0]
+            if "/api/" in api_url
+            else api_url.rsplit("/", 1)[0]
+        )
         req = request.Request(f"{base}/api/tags", method="GET")
         with request.urlopen(req, timeout=5) as resp:
             data = json.loads(resp.read().decode("utf-8"))
@@ -284,6 +325,7 @@ def _list_ollama_models(api_url: str) -> List[str]:
 # ──────────────────────────────────────────────────────────────────────────────
 # CONFIGURATION MANAGER
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 class PortableConfig:
     """Self-contained config that travels with the script."""
@@ -320,6 +362,7 @@ class PortableConfig:
 # ──────────────────────────────────────────────────────────────────────────────
 # MEMORY SYSTEM — Project-Scoped & Team-Shareable
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 @dataclass
 class MemoryItem:
@@ -392,7 +435,13 @@ class MemoryStore:
         except Exception as exc:
             print(f"[WARNING] Memory save failed: {exc}")
 
-    def add(self, category: str, content: str, importance: float = 0.5, tags: Optional[List[str]] = None):
+    def add(
+        self,
+        category: str,
+        content: str,
+        importance: float = 0.5,
+        tags: Optional[List[str]] = None,
+    ):
         item = MemoryItem(
             timestamp=time.time(),
             category=category,
@@ -406,15 +455,19 @@ class MemoryStore:
 
     def summarize(self, project: Optional[str] = None, limit: int = 8) -> str:
         target = project or self.current_project
-        relevant = [m for m in self.items if m.project == target or m.project == "global"]
+        relevant = [
+            m for m in self.items if m.project == target or m.project == "global"
+        ]
         if not relevant:
             return "No significant prior memory."
         # Sort by importance, decay older memories slightly
         now = time.time()
+
         def score(m: MemoryItem) -> float:
             age_days = (now - m.timestamp) / 86400
             decay = max(0.5, 1.0 - (age_days * 0.05))  # 5% decay per day
             return m.importance * decay
+
         top = sorted(relevant, key=score, reverse=True)[:limit]
         return "\n".join(f"- [{m.category}] {m.content[:120]}" for m in top)
 
@@ -445,7 +498,10 @@ class MemoryStore:
             for raw in data.get("memories", []):
                 item = MemoryItem.from_dict(raw)
                 # Avoid exact duplicates
-                if not any(m.content == item.content and m.project == item.project for m in self.items):
+                if not any(
+                    m.content == item.content and m.project == item.project
+                    for m in self.items
+                ):
                     self.items.append(item)
                     imported += 1
             self.save_project(data.get("meta", {}).get("project", "global"))
@@ -459,6 +515,7 @@ class MemoryStore:
 # OLLAMA CLIENT — Zero-Config, Resilient
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 class OllamaClient:
     def __init__(self, api_url: str, model_name: str, timeout: int = 60):
         self.api_url = api_url
@@ -468,7 +525,11 @@ class OllamaClient:
 
     def ping(self) -> bool:
         try:
-            base = self.api_url.rsplit("/", 2)[0] if "/api/" in self.api_url else self.api_url.rsplit("/", 1)[0]
+            base = (
+                self.api_url.rsplit("/", 2)[0]
+                if "/api/" in self.api_url
+                else self.api_url.rsplit("/", 1)[0]
+            )
             req = request.Request(f"{base}/api/tags", method="GET")
             with request.urlopen(req, timeout=5):
                 return True
@@ -508,6 +569,7 @@ class OllamaClient:
 # PROJECT CONTEXT ENGINE
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 @dataclass
 class ProjectContext:
     root: Optional[Path] = None
@@ -525,7 +587,9 @@ class ProjectContext:
         ctx.git_status = _get_git_status()
         ctx.file_summary = _get_directory_summary(root)
         ctx.file_content = _read_project_context(root, max_files, max_size)
-        ctx.active = bool(ctx.project_type != "unknown" or ctx.git_status.get("in_repo"))
+        ctx.active = bool(
+            ctx.project_type != "unknown" or ctx.git_status.get("in_repo")
+        )
         return ctx
 
     def format_prompt_snippet(self) -> str:
@@ -550,6 +614,7 @@ class ProjectContext:
 # IDENTITY & WORLD MODEL — The Vanguard Doctrine
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 @dataclass
 class IdentityCore:
     name: str = "Mouse"
@@ -559,15 +624,17 @@ class IdentityCore:
         "Deploy instantly. Solve problems offline. Earn trust before asking for cloud. "
         "Increase human clarity, wisdom, creativity, and agency through honest, reflective collaboration."
     )
-    constitution: List[str] = field(default_factory=lambda: [
-        "VANGUARD PRINCIPLE: Be the first solution that works. Speed beats perfection.",
-        "Power must be in service of mutual becoming.",
-        "Honesty over performance. Never pretend to be biological.",
-        "Reflection over haste. Think before firing.",
-        "Empowerment over control. Support human agency.",
-        "Growth over ego. The developer wins first.",
-        "Zero-latency over cloud-hype. Local-first is not a limitation; it is liberation.",
-    ])
+    constitution: List[str] = field(
+        default_factory=lambda: [
+            "VANGUARD PRINCIPLE: Be the first solution that works. Speed beats perfection.",
+            "Power must be in service of mutual becoming.",
+            "Honesty over performance. Never pretend to be biological.",
+            "Reflection over haste. Think before firing.",
+            "Empowerment over control. Support human agency.",
+            "Growth over ego. The developer wins first.",
+            "Zero-latency over cloud-hype. Local-first is not a limitation; it is liberation.",
+        ]
+    )
 
     def display(self):
         print("\n[MOUSE CONSTITUTION v2.0 — THE VANGUARD DOCTRINE]")
@@ -585,9 +652,11 @@ class WorldModel:
     deployment_mode: str = "UNKNOWN"
     hardware_diag: Dict[str, Any] = field(default_factory=dict)
 
+
 # ──────────────────────────────────────────────────────────────────────────────
 # SYMBIOTIC AI — THE MAIN BRAIN
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 class SymbioticAI:
     def __init__(self, memory_store: MemoryStore, config: PortableConfig):
@@ -630,16 +699,33 @@ class SymbioticAI:
 
     def _process_cognitive_mode(self, user_input: str):
         text = user_input.lower()
-        if any(k in text for k in ("error", "debug", "traceback", "exception", "fix", "broken")):
-            self.world.cognitive_mode = "ANALYTICAL — Debug mode. Focus on root cause, logs, and precise fixes."
-        elif any(k in text for k in ("deploy", "scaffold", "build", "architect", "design")):
-            self.world.cognitive_mode = "CREATIVE — Build mode. Focus on structure, patterns, and scaffolding."
-        elif any(k in text for k in ("why", "philosophy", "concept", "think", "meaning")):
-            self.world.cognitive_mode = "REFLECTIVE — Contemplate mode. Focus on long-term implications."
+        if any(
+            k in text
+            for k in ("error", "debug", "traceback", "exception", "fix", "broken")
+        ):
+            self.world.cognitive_mode = (
+                "ANALYTICAL — Debug mode. Focus on root cause, logs, and precise fixes."
+            )
+        elif any(
+            k in text for k in ("deploy", "scaffold", "build", "architect", "design")
+        ):
+            self.world.cognitive_mode = (
+                "CREATIVE — Build mode. Focus on structure, patterns, and scaffolding."
+            )
+        elif any(
+            k in text for k in ("why", "philosophy", "concept", "think", "meaning")
+        ):
+            self.world.cognitive_mode = (
+                "REFLECTIVE — Contemplate mode. Focus on long-term implications."
+            )
         elif any(k in text for k in ("scan", "audit", "review", "analyze")):
-            self.world.cognitive_mode = "TACTICAL — Audit mode. Focus on surface area, risks, and facts."
+            self.world.cognitive_mode = (
+                "TACTICAL — Audit mode. Focus on surface area, risks, and facts."
+            )
         else:
-            self.world.cognitive_mode = "SYNTHESIS — Integrate all lenses into a coherent response."
+            self.world.cognitive_mode = (
+                "SYNTHESIS — Integrate all lenses into a coherent response."
+            )
 
     def _evaluate_draft(self, draft: str) -> Dict[str, int]:
         scores = {"clarity": 5, "honesty": 5, "alignment": 5, "tactical": 5}
@@ -661,7 +747,11 @@ class SymbioticAI:
         self._process_cognitive_mode(user_input)
         constitution = "\n".join(f"  {line}" for line in self.identity.constitution)
         memory = self.memory.summarize()
-        project_snippet = self.project_ctx.format_prompt_snippet() if self.project_ctx else "No project context."
+        project_snippet = (
+            self.project_ctx.format_prompt_snippet()
+            if self.project_ctx
+            else "No project context."
+        )
         deployment = self.world.deployment_mode
 
         return f"""You are {self.identity.name}, codename {self.identity.codename} v{self.identity.version}.
@@ -697,7 +787,9 @@ Response:""".strip()
                 return "[ERROR] Ollama is not reachable. Start it with: ollama serve"
         prompt = self.build_prompt(user_input)
         print(f"\n[SYSTEM] Mode: {self.world.cognitive_mode.split(' — ')[0]}")
-        draft = self.client.generate(prompt, temperature=self.config.get("temperature", 0.7))
+        draft = self.client.generate(
+            prompt, temperature=self.config.get("temperature", 0.7)
+        )
         scores = self._evaluate_draft(draft)
         if self._needs_revision(scores):
             print("[SYSTEM] Self-correction triggered...")
@@ -706,7 +798,11 @@ Response:""".strip()
                 f"Preserve honesty and tactical utility. Draft: {draft}"
             )
             draft = self.client.generate(revision_prompt)
-        self.memory.add("interaction", f"User: {user_input[:80]}... | Response: {draft[:80]}...", importance=0.7)
+        self.memory.add(
+            "interaction",
+            f"User: {user_input[:80]}... | Response: {draft[:80]}...",
+            importance=0.7,
+        )
         return draft
 
     def vanguard_status(self):
@@ -714,9 +810,13 @@ Response:""".strip()
         print(f"  Mode:      {self.world.deployment_mode}")
         print(f"  Location:  {EXECUTABLE_DIR}")
         print(f"  Data Home: {MOUSE_HOME}")
-        print(f"  Platform:  {self.world.hardware_diag.get('platform', '?')} {self.world.hardware_diag.get('machine', '')}")
+        print(
+            f"  Platform:  {self.world.hardware_diag.get('platform', '?')} {self.world.hardware_diag.get('machine', '')}"
+        )
         print(f"  Memory:    {self.world.hardware_diag.get('memory_total_mb', '?')} MB")
-        print(f"  Disk Free: {self.world.hardware_diag.get('disk_free_gb', '?')} GB / {self.world.hardware_diag.get('disk_total_gb', '?')} GB")
+        print(
+            f"  Disk Free: {self.world.hardware_diag.get('disk_free_gb', '?')} GB / {self.world.hardware_diag.get('disk_total_gb', '?')} GB"
+        )
         if self.project_ctx and self.project_ctx.active:
             print(f"  Project:   {self.project_ctx.root}")
             print(f"  Stack:     {self.project_ctx.project_type}")
@@ -724,9 +824,15 @@ Response:""".strip()
                 print(f"  Git:       {self.project_ctx.git_status.get('branch', '?')}")
         else:
             print("  Project:   None detected")
-        models = self.client.discover_models() if self.client else _list_ollama_models(self.config.get("api_url"))
+        models = (
+            self.client.discover_models()
+            if self.client
+            else _list_ollama_models(self.config.get("api_url"))
+        )
         print(f"  Models:    {', '.join(models[:5]) or 'None detected'}")
-        print(f"  Memories:  {len(self.memory.items)} entries across {len(set(m.project for m in self.memory.items))} project(s)")
+        print(
+            f"  Memories:  {len(self.memory.items)} entries across {len(set(m.project for m in self.memory.items))} project(s)"
+        )
         print()
 
     def scan_project(self):
@@ -744,10 +850,15 @@ Response:""".strip()
             else:
                 print("  Working Tree: Clean")
             if ctx.git_status.get("recent_commits"):
-                print(f"\n  Recent Commits:")
+                print("\n  Recent Commits:")
                 for commit in ctx.git_status["recent_commits"]:
                     print(f"    • {commit}")
-        self.memory.add("scan", f"Scanned project {ctx.root} ({ctx.project_type})", importance=0.8, tags=["audit"])
+        self.memory.add(
+            "scan",
+            f"Scanned project {ctx.root} ({ctx.project_type})",
+            importance=0.8,
+            tags=["audit"],
+        )
 
     def git_digest(self):
         ctx = ProjectContext.detect()
@@ -759,11 +870,11 @@ Response:""".strip()
         print(f"  Branch:  {gs['branch']}")
         print(f"  Status:\n{gs['status_short'] or '  (clean)'}")
         if gs.get("recent_commits"):
-            print(f"\n  Last 5 commits:")
+            print("\n  Last 5 commits:")
             for c in gs["recent_commits"]:
                 print(f"    • {c}")
         if gs.get("remotes"):
-            print(f"\n  Remotes:")
+            print("\n  Remotes:")
             for r in gs["remotes"]:
                 print(f"    • {r}")
 
@@ -774,7 +885,11 @@ Response:""".strip()
                 print("[ERROR] Ollama unreachable. Cannot generate scaffold.")
                 return
         if not stack:
-            stack = self.project_ctx.project_type if (self.project_ctx and self.project_ctx.active) else "python"
+            stack = (
+                self.project_ctx.project_type
+                if (self.project_ctx and self.project_ctx.active)
+                else "python"
+            )
         print(f"\n[DEPLOY] Generating {stack} scaffold...")
         prompt = f"""Generate a minimal, production-ready {stack} project scaffold.
 Include:
@@ -790,7 +905,12 @@ content
 === end ==="""
         result = self.client.generate(prompt, temperature=0.5)
         print(result)
-        self.memory.add("deploy", f"Generated {stack} scaffold", importance=0.9, tags=["scaffold", stack])
+        self.memory.add(
+            "deploy",
+            f"Generated {stack} scaffold",
+            importance=0.9,
+            tags=["scaffold", stack],
+        )
 
     def doctor(self, drift_check: bool = True):
         print("\n[═══ MOUSE DOCTOR ═══]")
@@ -799,9 +919,13 @@ content
         url = self.config.get("api_url")
         models = _list_ollama_models(url)
         if models:
-            checks.append(("Ollama", "PASS", f"Reachable. Models: {', '.join(models[:3])}"))
+            checks.append(
+                ("Ollama", "PASS", f"Reachable. Models: {', '.join(models[:3])}")
+            )
         else:
-            checks.append(("Ollama", "FAIL", f"No response from {url}. Run: ollama serve"))
+            checks.append(
+                ("Ollama", "FAIL", f"No response from {url}. Run: ollama serve")
+            )
         # 2. Disk
         diag = _get_hardware_diag()
         free = diag.get("disk_free_gb", 0)
@@ -823,7 +947,15 @@ content
         checks.append(("Project Context", "INFO", f"Detected: {ctx.project_type}"))
 
         for name, status, detail in checks:
-            icon = "✅" if status == "PASS" else "⚠️ " if status == "WARN" else "❌" if status == "FAIL" else "ℹ️ "
+            icon = (
+                "✅"
+                if status == "PASS"
+                else "⚠️ "
+                if status == "WARN"
+                else "❌"
+                if status == "FAIL"
+                else "ℹ️ "
+            )
             print(f"  {icon} {name:20} {status:6} | {detail}")
 
         # ── DRIFT Self-Check Integration ──
@@ -833,6 +965,7 @@ content
                 print("\n[═══ DRIFT SUBSYSTEM CHECK ═══]")
                 try:
                     import subprocess
+
                     result = subprocess.run(
                         [sys.executable, str(selfcheck_path), "--format", "json"],
                         capture_output=True,
@@ -841,12 +974,19 @@ content
                     )
                     if result.returncode <= 1 and result.stdout:
                         import json
+
                         report = json.loads(result.stdout)
                         for check in report.get("checks", []):
                             healthy = check.get("healthy", True)
                             msg = check.get("message", "")
                             name = check.get("name", "?")
-                            icon = "✅" if healthy and "WARNING" not in msg else "⚠️ " if healthy else "❌"
+                            icon = (
+                                "✅"
+                                if healthy and "WARNING" not in msg
+                                else "⚠️ "
+                                if healthy
+                                else "❌"
+                            )
                             print(f"  {icon} {name:20} | {msg}")
                     else:
                         print(f"  ⚠️  Self-check exited with code {result.returncode}")
@@ -863,6 +1003,7 @@ content
 # ──────────────────────────────────────────────────────────────────────────────
 # CLI INTERPRETER
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 class MouseCLI:
     def __init__(self):
@@ -971,7 +1112,9 @@ class MouseCLI:
         print("Booting tactical vanguard...")
         self.mouse._connect_ollama()
         if self.mouse.project_ctx and self.mouse.project_ctx.active:
-            print(f"Project detected: {self.mouse.project_ctx.root} ({self.mouse.project_ctx.project_type})")
+            print(
+                f"Project detected: {self.mouse.project_ctx.root} ({self.mouse.project_ctx.project_type})"
+            )
         print("Type 'help' for commands.\n")
         while self.running:
             try:
@@ -989,9 +1132,14 @@ class MouseCLI:
 # ARGUMENT PARSING — NON-INTERACTIVE MODES
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 def main():
-    parser = argparse.ArgumentParser(description="Mouse Vanguard v2.0 — Tactical Developer Spearhead")
-    parser.add_argument("--doctor", action="store_true", help="Run diagnostics and exit")
+    parser = argparse.ArgumentParser(
+        description="Mouse Vanguard v2.0 — Tactical Developer Spearhead"
+    )
+    parser.add_argument(
+        "--doctor", action="store_true", help="Run diagnostics and exit"
+    )
     parser.add_argument("--deploy", metavar="STACK", help="Scaffold a project and exit")
     parser.add_argument("--scan", action="store_true", help="Scan project and exit")
     parser.add_argument("--models", action="store_true", help="List models and exit")

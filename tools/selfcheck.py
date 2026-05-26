@@ -17,8 +17,7 @@ import os
 import sqlite3
 import sys
 import time
-from dataclasses import asdict
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
@@ -29,6 +28,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 def _import_config() -> Tuple[Any, Any]:
     try:
         from infj_bot.core.config import DATA_DIR, SQLITE_DIR, CHROMA_DIR
+
         return DATA_DIR, SQLITE_DIR, CHROMA_DIR
     except Exception:
         return None, None, None
@@ -37,6 +37,7 @@ def _import_config() -> Tuple[Any, Any]:
 def _import_resilience() -> Any:
     try:
         from infj_bot.core.resilience import HealthCheck, HealthMonitor
+
         return HealthCheck, HealthMonitor
     except Exception:
         return None, None
@@ -45,6 +46,7 @@ def _import_resilience() -> Any:
 def _import_architecture() -> Any:
     try:
         from infj_bot.core.cognitive_architecture import CognitiveArchitecture
+
         return CognitiveArchitecture
     except Exception:
         return None
@@ -53,6 +55,7 @@ def _import_architecture() -> Any:
 def _import_being() -> Any:
     try:
         from infj_bot.core.being import get_being
+
         return get_being
     except Exception:
         return None
@@ -61,6 +64,7 @@ def _import_being() -> Any:
 def _import_shadow() -> Any:
     try:
         from infj_bot.core.shadow import get_shadow
+
         return get_shadow
     except Exception:
         return None
@@ -69,6 +73,7 @@ def _import_shadow() -> Any:
 def _import_homeostasis() -> Any:
     try:
         from infj_bot.core.homeostasis import get_homeostasis
+
         return get_homeostasis
     except Exception:
         return None
@@ -89,7 +94,9 @@ class SelfCheckRunner:
     def register(self, name: str, fn: CheckFn):
         self._checks[name] = fn
 
-    def run(self, names: Optional[List[str]] = None, verbose: bool = False) -> Tuple[List[Any], int]:
+    def run(
+        self, names: Optional[List[str]] = None, verbose: bool = False
+    ) -> Tuple[List[Any], int]:
         """Run checks and return (results, max_severity).
 
         Severity: 0 = healthy, 1 = warning, 2 = critical
@@ -107,7 +114,10 @@ class SelfCheckRunner:
                 max_severity = max(max_severity, 2)
             else:
                 if not getattr(result, "healthy", True):
-                    max_severity = max(max_severity, 2 if "CRITICAL" in getattr(result, "message", "") else 1)
+                    max_severity = max(
+                        max_severity,
+                        2 if "CRITICAL" in getattr(result, "message", "") else 1,
+                    )
                 elif "WARNING" in getattr(result, "message", ""):
                     max_severity = max(max_severity, 1)
             results.append(result)
@@ -131,6 +141,7 @@ class SelfCheckRunner:
                     self.message = message
                     self.latency_ms = latency_ms
                     self.timestamp = datetime.now().isoformat()
+
             return _FallbackCheck(name, healthy, message, (time.time() - start) * 1000)
         return HealthCheck(
             name=name,
@@ -140,7 +151,11 @@ class SelfCheckRunner:
         )
 
     def report_text(self) -> str:
-        lines = ["=== DRIFT SELF-CHECK REPORT ===", f"Timestamp: {datetime.now().isoformat()}", ""]
+        lines = [
+            "=== DRIFT SELF-CHECK REPORT ===",
+            f"Timestamp: {datetime.now().isoformat()}",
+            "",
+        ]
         healthy_count = 0
         warning_count = 0
         fail_count = 0
@@ -156,7 +171,9 @@ class SelfCheckRunner:
                 lines.append(f"  [FAIL] {r.name}: {r.message}")
                 fail_count += 1
         lines.append("")
-        lines.append(f"Summary: {healthy_count} healthy, {warning_count} warnings, {fail_count} critical")
+        lines.append(
+            f"Summary: {healthy_count} healthy, {warning_count} warnings, {fail_count} critical"
+        )
         return "\n".join(lines)
 
     def report_json(self) -> str:
@@ -178,15 +195,22 @@ class SelfCheckRunner:
 
 # ── Individual check implementations ──────────────────────────────────────────
 
+
 def check_data_directories() -> Any:
     """Verify data root and subdirectories exist and are writable."""
     start = time.time()
     DATA_DIR, SQLITE_DIR, CHROMA_DIR = _import_config()
     if DATA_DIR is None:
-        return _quick_check("data_directories", False, "Cannot import config (DATA_DIR unknown)", start)
+        return _quick_check(
+            "data_directories", False, "Cannot import config (DATA_DIR unknown)", start
+        )
 
     issues = []
-    for label, path in [("data", DATA_DIR), ("sqlite", SQLITE_DIR), ("chroma", CHROMA_DIR)]:
+    for label, path in [
+        ("data", DATA_DIR),
+        ("sqlite", SQLITE_DIR),
+        ("chroma", CHROMA_DIR),
+    ]:
         if path is None:
             issues.append(f"{label} path is None")
             continue
@@ -210,11 +234,15 @@ def check_sqlite_databases() -> Any:
 
     sqlite_dir = Path(SQLITE_DIR)
     if not sqlite_dir.exists():
-        return _quick_check("sqlite_databases", False, f"SQLITE_DIR does not exist: {sqlite_dir}", start)
+        return _quick_check(
+            "sqlite_databases", False, f"SQLITE_DIR does not exist: {sqlite_dir}", start
+        )
 
     dbs = list(sqlite_dir.glob("*.db"))
     if not dbs:
-        return _quick_check("sqlite_databases", True, "No .db files found yet (fresh install)", start)
+        return _quick_check(
+            "sqlite_databases", True, "No .db files found yet (fresh install)", start
+        )
 
     failures = []
     warnings = []
@@ -235,7 +263,12 @@ def check_sqlite_databases() -> Any:
             failures.append(f"{db_path.name}: {e}")
 
     if failures:
-        return _quick_check("sqlite_databases", False, f"{len(failures)} DB issue(s): {failures[0]}", start)
+        return _quick_check(
+            "sqlite_databases",
+            False,
+            f"{len(failures)} DB issue(s): {failures[0]}",
+            start,
+        )
     msg = f"{len(dbs)} database(s) healthy"
     if warnings:
         msg += f"; {len(warnings)} warning(s)"
@@ -250,10 +283,20 @@ def check_required_tables() -> Any:
         return _quick_check("required_tables", False, "SQLITE_DIR unknown", start)
 
     required = {
-        "being.db": ["being_state", "thoughts", "insights", "narrative", "autonomous_choices"],
+        "being.db": [
+            "being_state",
+            "thoughts",
+            "insights",
+            "narrative",
+            "autonomous_choices",
+        ],
         "shadow.db": ["shadow_content", "shadow_state"],
         "homeostasis.db": ["need_history", "survival_events", "regulation_actions"],
-        "cognitive_architecture.db": ["cognitive_plugins", "plugin_proposals", "architecture_events"],
+        "cognitive_architecture.db": [
+            "cognitive_plugins",
+            "plugin_proposals",
+            "architecture_events",
+        ],
         "health.db": ["health_checks"],
     }
 
@@ -277,7 +320,9 @@ def check_required_tables() -> Any:
             failures.append(f"{db_name}: {e}")
 
     if failures:
-        return _quick_check("required_tables", False, f"{len(failures)} issue(s): {failures[0]}", start)
+        return _quick_check(
+            "required_tables", False, f"{len(failures)} issue(s): {failures[0]}", start
+        )
     msg = "All required tables present"
     if warnings_list:
         msg += f"; {len(warnings_list)} DB(s) not yet initialized"
@@ -289,16 +334,25 @@ def check_plugin_registry() -> Any:
     start = time.time()
     CognitiveArchitecture = _import_architecture()
     if CognitiveArchitecture is None:
-        return _quick_check("plugin_registry", False, "Cannot import CognitiveArchitecture", start)
+        return _quick_check(
+            "plugin_registry", False, "Cannot import CognitiveArchitecture", start
+        )
 
     try:
         arch = CognitiveArchitecture()
         registered = set(arch.list_plugins())
         from infj_bot.core.cognitive_architecture import CORE_PLUGINS
+
         missing_core = CORE_PLUGINS - registered
-        disabled_core = {p for p in CORE_PLUGINS if p in registered and not arch.get_plugin(p).enabled}
+        disabled_core = {
+            p
+            for p in CORE_PLUGINS
+            if p in registered and not arch.get_plugin(p).enabled
+        }
     except Exception as e:
-        return _quick_check("plugin_registry", False, f"Registry load failed: {e}", start)
+        return _quick_check(
+            "plugin_registry", False, f"Registry load failed: {e}", start
+        )
 
     issues = []
     warnings_list = []
@@ -356,15 +410,25 @@ def check_shadow_state() -> Any:
         shadow = get_shadow()
         st = shadow.get_state()
         issues = []
-        for field_name in ("depth", "integration_level", "projection_strength", "enantiodromia_risk", "golden_shadow_ratio"):
+        for field_name in (
+            "depth",
+            "integration_level",
+            "projection_strength",
+            "enantiodromia_risk",
+            "golden_shadow_ratio",
+        ):
             val = getattr(st, field_name, None)
             if val is None:
                 issues.append(f"{field_name}=None")
             elif not (0.0 <= val <= 1.0):
                 issues.append(f"{field_name}={val:.2f} out of range")
-        msg = "; ".join(issues) if issues else (
-            f"depth={st.depth:.0%}, integration={st.integration_level:.0%}, "
-            f"dominant={st.dominant_archetype or 'none'}"
+        msg = (
+            "; ".join(issues)
+            if issues
+            else (
+                f"depth={st.depth:.0%}, integration={st.integration_level:.0%}, "
+                f"dominant={st.dominant_archetype or 'none'}"
+            )
         )
         healthy = len(issues) == 0
         return _quick_check("shadow_state", healthy, msg, start)
@@ -377,7 +441,9 @@ def check_homeostasis_state() -> Any:
     start = time.time()
     get_homeostasis = _import_homeostasis()
     if get_homeostasis is None:
-        return _quick_check("homeostasis_state", False, "Cannot import homeostasis module", start)
+        return _quick_check(
+            "homeostasis_state", False, "Cannot import homeostasis module", start
+        )
 
     try:
         reg = get_homeostasis()
@@ -394,7 +460,9 @@ def check_homeostasis_state() -> Any:
         healthy = len(issues) == 0
         return _quick_check("homeostasis_state", healthy, msg, start)
     except Exception as e:
-        return _quick_check("homeostasis_state", False, f"Homeostasis check failed: {e}", start)
+        return _quick_check(
+            "homeostasis_state", False, f"Homeostasis check failed: {e}", start
+        )
 
 
 def check_chroma_health() -> Any:
@@ -402,25 +470,41 @@ def check_chroma_health() -> Any:
     start = time.time()
     DATA_DIR, _, CHROMA_DIR = _import_config()
     if CHROMA_DIR is None:
-        return _quick_check("chroma_health", True, "CHROMA_DIR not configured (optional)", start)
+        return _quick_check(
+            "chroma_health", True, "CHROMA_DIR not configured (optional)", start
+        )
 
     chroma_path = Path(CHROMA_DIR)
     if not chroma_path.exists():
-        return _quick_check("chroma_health", False, f"ChromaDB directory missing: {chroma_path}", start)
+        return _quick_check(
+            "chroma_health", False, f"ChromaDB directory missing: {chroma_path}", start
+        )
     if not os.access(chroma_path, os.W_OK):
-        return _quick_check("chroma_health", False, f"ChromaDB directory not writable: {chroma_path}", start)
+        return _quick_check(
+            "chroma_health",
+            False,
+            f"ChromaDB directory not writable: {chroma_path}",
+            start,
+        )
 
     # Try to actually connect if chromadb is installed
     try:
         import chromadb
+
         client = chromadb.PersistentClient(path=str(chroma_path))
         # A lightweight heartbeat equivalent
         client.heartbeat()
-        return _quick_check("chroma_health", True, f"ChromaDB responsive at {chroma_path}", start)
+        return _quick_check(
+            "chroma_health", True, f"ChromaDB responsive at {chroma_path}", start
+        )
     except ImportError:
-        return _quick_check("chroma_health", True, f"Directory OK (chromadb not installed)", start)
+        return _quick_check(
+            "chroma_health", True, "Directory OK (chromadb not installed)", start
+        )
     except Exception as e:
-        return _quick_check("chroma_health", False, f"ChromaDB connection failed: {e}", start)
+        return _quick_check(
+            "chroma_health", False, f"ChromaDB connection failed: {e}", start
+        )
 
 
 def check_disk_space() -> Any:
@@ -430,14 +514,23 @@ def check_disk_space() -> Any:
     path = Path(DATA_DIR) if DATA_DIR else Path.home()
     try:
         stat = os.statvfs(path)
-        free_gb = (stat.f_bavail * stat.f_frsize) / (1024 ** 3)
-        total_gb = (stat.f_blocks * stat.f_frsize) / (1024 ** 3)
+        free_gb = (stat.f_bavail * stat.f_frsize) / (1024**3)
+        total_gb = (stat.f_blocks * stat.f_frsize) / (1024**3)
         pct_free = free_gb / total_gb * 100 if total_gb else 0
         if free_gb < 1.0:
-            return _quick_check("disk_space", False, f"CRITICAL: only {free_gb:.1f} GB free", start)
+            return _quick_check(
+                "disk_space", False, f"CRITICAL: only {free_gb:.1f} GB free", start
+            )
         if pct_free < 10:
-            return _quick_check("disk_space", True, f"WARNING: {free_gb:.1f} GB free ({pct_free:.0f}%)", start)
-        return _quick_check("disk_space", True, f"{free_gb:.1f} GB free ({pct_free:.0f}%)", start)
+            return _quick_check(
+                "disk_space",
+                True,
+                f"WARNING: {free_gb:.1f} GB free ({pct_free:.0f}%)",
+                start,
+            )
+        return _quick_check(
+            "disk_space", True, f"{free_gb:.1f} GB free ({pct_free:.0f}%)", start
+        )
     except Exception as e:
         return _quick_check("disk_space", False, f"Cannot check disk: {e}", start)
 
@@ -452,12 +545,15 @@ def check_environment() -> Any:
             warnings_list.append(f"{key} not set")
     # API keys: at least one should be present for full functionality
     has_api = any(
-        os.getenv(k) for k in ("API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY", "GROQ_API_KEY")
+        os.getenv(k)
+        for k in ("API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY", "GROQ_API_KEY")
     )
     if not has_api:
         warnings_list.append("No API key found (offline/local-only mode)")
     if warnings_list:
-        return _quick_check("environment", True, f"WARNING: {'; '.join(warnings_list)}", start)
+        return _quick_check(
+            "environment", True, f"WARNING: {'; '.join(warnings_list)}", start
+        )
     return _quick_check("environment", True, "Environment OK", start)
 
 
@@ -475,18 +571,27 @@ def check_mouse_config() -> Any:
     start = time.time()
     mouse_home = _mouse_home()
     if mouse_home is None:
-        return _quick_check("mouse_config", True, "MOUSE not initialized yet (optional)", start)
+        return _quick_check(
+            "mouse_config", True, "MOUSE not initialized yet (optional)", start
+        )
 
     config_path = mouse_home / "config.json"
     if not config_path.exists():
-        return _quick_check("mouse_config", True, "WARNING: config.json missing (will use defaults)", start)
+        return _quick_check(
+            "mouse_config",
+            True,
+            "WARNING: config.json missing (will use defaults)",
+            start,
+        )
 
     try:
         with open(config_path, "r", encoding="utf-8") as f:
             cfg = json.load(f)
         api_url = cfg.get("api_url", "")
         if not api_url.startswith("http"):
-            return _quick_check("mouse_config", False, f"Invalid api_url: {api_url}", start)
+            return _quick_check(
+                "mouse_config", False, f"Invalid api_url: {api_url}", start
+            )
         return _quick_check("mouse_config", True, f"api_url={api_url}", start)
     except Exception as e:
         return _quick_check("mouse_config", False, f"Config unreadable: {e}", start)
@@ -497,7 +602,9 @@ def check_mouse_ollama() -> Any:
     start = time.time()
     mouse_home = _mouse_home()
     if mouse_home is None:
-        return _quick_check("mouse_ollama", True, "MOUSE not initialized (optional)", start)
+        return _quick_check(
+            "mouse_ollama", True, "MOUSE not initialized (optional)", start
+        )
 
     config_path = mouse_home / "config.json"
     url = "http://localhost:11434/api/generate"
@@ -510,12 +617,15 @@ def check_mouse_ollama() -> Any:
 
     try:
         from urllib import request
+
         base = url.rsplit("/", 2)[0] if "/api/" in url else url.rsplit("/", 1)[0]
         req = request.Request(f"{base}/api/tags", method="GET")
         with request.urlopen(req, timeout=5) as resp:
             data = json.loads(resp.read().decode("utf-8"))
             models = [m["name"] for m in data.get("models", [])]
-        msg = f"Reachable. {len(models)} model(s)" + (f": {', '.join(models[:3])}" if models else "")
+        msg = f"Reachable. {len(models)} model(s)" + (
+            f": {', '.join(models[:3])}" if models else ""
+        )
         return _quick_check("mouse_ollama", True, msg, start)
     except Exception as e:
         return _quick_check("mouse_ollama", False, f"Not reachable ({url}): {e}", start)
@@ -526,11 +636,15 @@ def check_mouse_memory() -> Any:
     start = time.time()
     mouse_home = _mouse_home()
     if mouse_home is None:
-        return _quick_check("mouse_memory", True, "MOUSE not initialized (optional)", start)
+        return _quick_check(
+            "mouse_memory", True, "MOUSE not initialized (optional)", start
+        )
 
     mem_dir = mouse_home / "memories"
     if not mem_dir.exists():
-        return _quick_check("mouse_memory", True, "WARNING: memory dir missing (will be created)", start)
+        return _quick_check(
+            "mouse_memory", True, "WARNING: memory dir missing (will be created)", start
+        )
 
     try:
         files = list(mem_dir.glob("*.json"))
@@ -541,36 +655,51 @@ def check_mouse_memory() -> Any:
                     total_entries += len(json.load(fh))
             except Exception:
                 pass
-        return _quick_check("mouse_memory", True, f"{len(files)} file(s), {total_entries} entr{'y' if total_entries == 1 else 'ies'}", start)
+        return _quick_check(
+            "mouse_memory",
+            True,
+            f"{len(files)} file(s), {total_entries} entr{'y' if total_entries == 1 else 'ies'}",
+            start,
+        )
     except Exception as e:
         return _quick_check("mouse_memory", False, f"Memory check failed: {e}", start)
 
 
 # ── Helper ────────────────────────────────────────────────────────────────────
 
+
 def _quick_check(name: str, healthy: bool, message: str, start: float):
     """Build a HealthCheck result with timing."""
     HealthCheck, _ = _import_resilience()
     latency_ms = (time.time() - start) * 1000
     if HealthCheck is None:
+
         class _Fallback:
-            def __init__(self, n, h, m, l):
+            def __init__(self, n, h, m, lat):
                 self.name = n
                 self.healthy = h
                 self.message = m
-                self.latency_ms = l
+                self.latency_ms = lat
                 self.timestamp = datetime.now().isoformat()
+
         return _Fallback(name, healthy, message, latency_ms)
-    return HealthCheck(name=name, healthy=healthy, latency_ms=latency_ms, message=message)
+    return HealthCheck(
+        name=name, healthy=healthy, latency_ms=latency_ms, message=message
+    )
 
 
 # ── Fix helpers ───────────────────────────────────────────────────────────────
+
 
 def _fix_missing_dirs() -> List[str]:
     """Create missing data directories."""
     DATA_DIR, SQLITE_DIR, CHROMA_DIR = _import_config()
     fixes = []
-    for label, path in [("data", DATA_DIR), ("sqlite", SQLITE_DIR), ("chroma", CHROMA_DIR)]:
+    for label, path in [
+        ("data", DATA_DIR),
+        ("sqlite", SQLITE_DIR),
+        ("chroma", CHROMA_DIR),
+    ]:
         if path is None:
             continue
         p = Path(path)
@@ -588,24 +717,28 @@ def _fix_missing_tables() -> List[str]:
     fixes = []
     try:
         from infj_bot.core.cognitive_architecture import CognitiveArchitecture
+
         CognitiveArchitecture()
         fixes.append("Initialized cognitive_architecture schema")
     except Exception as e:
         fixes.append(f"cognitive_architecture init failed: {e}")
     try:
         from infj_bot.core.being import get_being
+
         get_being()
         fixes.append("Initialized being schema")
     except Exception as e:
         fixes.append(f"being init failed: {e}")
     try:
         from infj_bot.core.shadow import get_shadow
+
         get_shadow()
         fixes.append("Initialized shadow schema")
     except Exception as e:
         fixes.append(f"shadow init failed: {e}")
     try:
         from infj_bot.core.homeostasis import get_homeostasis
+
         get_homeostasis()
         fixes.append("Initialized homeostasis schema")
     except Exception as e:
@@ -614,6 +747,7 @@ def _fix_missing_tables() -> List[str]:
 
 
 # ── Main entry point ──────────────────────────────────────────────────────────
+
 
 def build_runner() -> SelfCheckRunner:
     """Create a runner with all standard checks registered."""
@@ -637,11 +771,23 @@ def build_runner() -> SelfCheckRunner:
 def main():
     parser = argparse.ArgumentParser(description="DRIFT comprehensive self-check")
     parser.add_argument("--json", action="store_true", help="Output JSON report")
-    parser.add_argument("--format", choices=["text", "json"], default="text", help="Report format")
-    parser.add_argument("--fix", action="store_true", help="Attempt to fix minor issues (create dirs, init schemas)")
-    parser.add_argument("--verbose", "-v", action="store_true", help="Print per-check progress")
-    parser.add_argument("--check", action="append", dest="checks", help="Run only named check(s)")
-    parser.add_argument("--list-checks", action="store_true", help="List available checks and exit")
+    parser.add_argument(
+        "--format", choices=["text", "json"], default="text", help="Report format"
+    )
+    parser.add_argument(
+        "--fix",
+        action="store_true",
+        help="Attempt to fix minor issues (create dirs, init schemas)",
+    )
+    parser.add_argument(
+        "--verbose", "-v", action="store_true", help="Print per-check progress"
+    )
+    parser.add_argument(
+        "--check", action="append", dest="checks", help="Run only named check(s)"
+    )
+    parser.add_argument(
+        "--list-checks", action="store_true", help="List available checks and exit"
+    )
     args = parser.parse_args()
 
     if args.list_checks:

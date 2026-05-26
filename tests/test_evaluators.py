@@ -82,7 +82,7 @@ class TestModeDiscriminator(unittest.TestCase):
 
     def test_evaluate_from_history(self):
         # Simulate a small corpus from history
-        logs = [
+        _logs = [
             {"mode": "companion", "bot": "I hear you and I am here with you."},
             {"mode": "companion", "bot": "That sounds really difficult."},
             {"mode": "researcher", "bot": "Let me examine the evidence carefully."},

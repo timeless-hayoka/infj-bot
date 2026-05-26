@@ -4,8 +4,14 @@ import pytest
 import tempfile
 from pathlib import Path
 
-from infj_bot.core.hive.nexus import NexusSelfModel, NexusState, MoralStance, NarrativeArc, ActiveTension
-from infj_bot.core.hive.council_member import CouncilMember, CouncilRole, Council, MemoryViewFilter, Proposal
+from infj_bot.core.hive.nexus import NexusSelfModel, ActiveTension
+from infj_bot.core.hive.council_member import (
+    CouncilMember,
+    CouncilRole,
+    Council,
+    MemoryViewFilter,
+    Proposal,
+)
 from infj_bot.core.hive.elysium import ElysiumEngine, DeliberationResult
 
 
@@ -40,7 +46,9 @@ class TestNexusSelfModel:
         with tempfile.TemporaryDirectory() as tmp:
             db = Path(tmp) / "nexus.db"
             nexus = NexusSelfModel(db_path=db)
-            nexus.state.active_tensions.append(ActiveTension(name="safety vs growth", poles=["safety", "growth"]))
+            nexus.state.active_tensions.append(
+                ActiveTension(name="safety vs growth", poles=["safety", "growth"])
+            )
             nexus._save_state()
             nexus.resolve_tension("safety vs growth", "compromise")
             assert len(nexus.state.active_tensions) == 0
@@ -63,6 +71,7 @@ class TestCouncilMember:
 
             class FakeBrain:
                 primary_model_name = "fake-model"
+
                 def _generate(self, model, system, prompt):
                     return "We should prioritize harm reduction."
 
@@ -74,14 +83,18 @@ class TestCouncilMember:
         with tempfile.TemporaryDirectory() as tmp:
             db = Path(tmp) / "council.db"
             member = CouncilMember(role=CouncilRole.ETHOS, db_path=db)
-            target = Proposal(role="Logic", text="do it", confidence=0.9, moral_weight=0.3)
+            target = Proposal(
+                role="Logic", text="do it", confidence=0.9, moral_weight=0.3
+            )
             crit = member.critique("Logic", target)
             assert crit.from_role == "Ethos"
             assert crit.target_role == "Logic"
             assert 0 <= crit.score <= 1
 
     def test_memory_filter(self):
-        f = MemoryViewFilter(topic_boosts=["shadow"], emotional_bias=-0.2, excluded_tags=["spam"])
+        f = MemoryViewFilter(
+            topic_boosts=["shadow"], emotional_bias=-0.2, excluded_tags=["spam"]
+        )
         score = f.score_memory({"tags": ["shadow"], "emotional": 0.2})
         assert score > 0
         score_excluded = f.score_memory({"tags": ["spam"], "emotional": 0.5})
@@ -116,7 +129,10 @@ class TestElysiumEngine:
             result = await elysium.decide("should we write more tests")
             assert isinstance(result, DeliberationResult)
             assert result.goal == "should we write more tests"
-            assert result.winning_role in list(result.council_votes.keys()) + ["none", "Nexus"]
+            assert result.winning_role in list(result.council_votes.keys()) + [
+                "none",
+                "Nexus",
+            ]
             assert result.resolution
 
     @pytest.mark.anyio
@@ -158,6 +174,7 @@ class TestElysiumEngine:
 
             class FakeBrain:
                 primary_model_name = "fake-model"
+
                 def _generate(self, model, system, prompt):
                     return f"Proposal from {system.split(chr(10))[0]}: proceed with caution."
 
@@ -185,11 +202,19 @@ class TestElysiumEngine:
                         type = "test"
                         content = "memory about shadow"
                         timestamp = __import__("datetime").datetime.now()
+
                     class FakeEntry:
                         unified_id = "1"
                         event = FakeEvent()
-                        metadata = {"salience": 0.8, "emotional": 0.2, "tags": ["shadow"], "dmu": 0.7}
+                        metadata = {
+                            "salience": 0.8,
+                            "emotional": 0.2,
+                            "tags": ["shadow"],
+                            "dmu": 0.7,
+                        }
+
                     return [FakeEntry()]
+
                 async def remember(self, event, metadata):
                     return "id-1"
 

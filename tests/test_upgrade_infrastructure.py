@@ -9,7 +9,6 @@ Covers:
 
 from __future__ import annotations
 
-import json
 import os
 import sys
 import tempfile
@@ -20,14 +19,14 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-import numpy as np
-
 
 # ── run_logger tests ────────────────────────────────────────────────
+
 
 class TestRunLogger:
     def test_singleton(self):
         from infj_bot.core.run_logger import RunLogger
+
         # Use a temp db to avoid conflicts
         with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
             db_path = tmp.name
@@ -41,6 +40,7 @@ class TestRunLogger:
 
     def test_log_run_start_and_event(self):
         from infj_bot.core.run_logger import RunLogger
+
         with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
             db_path = tmp.name
         try:
@@ -51,6 +51,7 @@ class TestRunLogger:
             logger.flush()
 
             import sqlite3
+
             conn = sqlite3.connect(db_path)
             runs = conn.execute("SELECT * FROM runs").fetchall()
             events = conn.execute("SELECT * FROM events").fetchall()
@@ -67,6 +68,7 @@ class TestRunLogger:
 
     def test_log_run_end(self):
         from infj_bot.core.run_logger import RunLogger
+
         with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
             db_path = tmp.name
         try:
@@ -75,8 +77,11 @@ class TestRunLogger:
             logger.log_run_end("run_002")
 
             import sqlite3
+
             conn = sqlite3.connect(db_path)
-            events = conn.execute("SELECT event_type FROM events WHERE run_id='run_002'").fetchall()
+            events = conn.execute(
+                "SELECT event_type FROM events WHERE run_id='run_002'"
+            ).fetchall()
             conn.close()
 
             assert any(e[0] == "run_end" for e in events)
@@ -88,9 +93,11 @@ class TestRunLogger:
 
 # ── experiment_control tests ────────────────────────────────────────
 
+
 class TestExperimentControl:
     def test_start_end_run(self):
         from infj_bot.core.experiment_control import ExperimentControl
+
         control = ExperimentControl()
         control.start_run("test_run", {"mode": "baseline"})
         assert control.run_id == "test_run"
@@ -100,6 +107,7 @@ class TestExperimentControl:
 
     def test_double_start_raises(self):
         from infj_bot.core.experiment_control import ExperimentControl
+
         control = ExperimentControl()
         control.start_run("run_a", {})
         try:
@@ -111,6 +119,7 @@ class TestExperimentControl:
 
     def test_is_active_freeze(self):
         from infj_bot.core.experiment_control import ExperimentControl
+
         control = ExperimentControl()
         control.start_run("run", {"freeze_memory": True, "freeze_state": False})
         assert not control.is_active("memory")
@@ -119,6 +128,7 @@ class TestExperimentControl:
 
     def test_ablation_discipline_violation(self):
         from infj_bot.core.experiment_control import ExperimentControl
+
         control = ExperimentControl()
         bad_config = {
             "mode": "ablation",
@@ -134,6 +144,7 @@ class TestExperimentControl:
 
     def test_guard_context_manager(self):
         from infj_bot.core.experiment_control import ExperimentControl
+
         control = ExperimentControl()
         control.start_run("run", {"freeze_memory": True})
         with control.guard("memory") as active:
@@ -143,9 +154,11 @@ class TestExperimentControl:
 
 # ── continuity_vector tests ─────────────────────────────────────────
 
+
 class TestContinuityVector:
     def test_compute_continuity_vector(self):
         from infj_bot.core.continuity_vector import compute_continuity_vector
+
         baselines = {
             "entity_overlap": {"mean": 0.5, "std": 0.2},
             "goal_overlap": {"mean": 0.4, "std": 0.15},
@@ -168,15 +181,21 @@ class TestContinuityVector:
 
     def test_collect_baseline(self):
         from infj_bot.core.continuity_vector import collect_baseline
+
         session_data = [
-            {"entity_overlap": [0.4, 0.5, 0.6], "goal_overlap": [0.3, 0.4, 0.5],
-             "tone_similarity": [0.5, 0.6, 0.7], "memory_reference_rate": [0.2, 0.3, 0.4],
-             "state_influence": [0.1, 0.2, 0.3]},
+            {
+                "entity_overlap": [0.4, 0.5, 0.6],
+                "goal_overlap": [0.3, 0.4, 0.5],
+                "tone_similarity": [0.5, 0.6, 0.7],
+                "memory_reference_rate": [0.2, 0.3, 0.4],
+                "state_influence": [0.1, 0.2, 0.3],
+            },
         ]
         with tempfile.TemporaryDirectory() as tmpdir:
-            orig_path = Path("drift_baseline_stats.json")
+            _orig_path = Path("drift_baseline_stats.json")
             # Patch baseline path temporarily
             import infj_bot.core.continuity_vector as cv_mod
+
             old_path = cv_mod.BASELINE_PATH
             cv_mod.BASELINE_PATH = Path(tmpdir) / "drift_baseline_stats.json"
             try:
@@ -189,6 +208,7 @@ class TestContinuityVector:
 
     def test_validate_baselines_pass(self):
         from infj_bot.core.continuity_vector import validate_baselines
+
         stats = {
             "entity_overlap": {"mean": 0.5, "std": 0.2},
             "goal_overlap": {"mean": 0.4, "std": 0.15},
@@ -198,6 +218,7 @@ class TestContinuityVector:
 
     def test_validate_baselines_fail_low_variance(self):
         from infj_bot.core.continuity_vector import validate_baselines
+
         stats = {
             "entity_overlap": {"mean": 0.5, "std": 0.0},
         }
@@ -207,11 +228,19 @@ class TestContinuityVector:
 
 # ── dmu_scoring tests ───────────────────────────────────────────────
 
+
 class TestDMUScoring:
     def test_compute_mps_basic(self):
         from infj_bot.core.dmu_scoring import compute_mps, _DMUMemory
-        mem = _DMUMemory(content="test memory", memory_id="m1", timestamp=time.time(),
-                         reinforcement_score=0.8, novelty_score=0.3, tags=["test"])
+
+        mem = _DMUMemory(
+            content="test memory",
+            memory_id="m1",
+            timestamp=time.time(),
+            reinforcement_score=0.8,
+            novelty_score=0.3,
+            tags=["test"],
+        )
         state = {"test": 0.5}
         score = compute_mps(mem, state)
         assert 0.0 <= score <= 1.0
@@ -222,54 +251,82 @@ class TestDMUScoring:
 
     def test_mps_components_sum_reasonably(self):
         from infj_bot.core.dmu_scoring import compute_mps, _DMUMemory
-        mem = _DMUMemory(content="hello world", memory_id="m2", timestamp=time.time(),
-                         reinforcement_score=0.5, novelty_score=0.5, tags=["greeting"])
+
+        mem = _DMUMemory(
+            content="hello world",
+            memory_id="m2",
+            timestamp=time.time(),
+            reinforcement_score=0.5,
+            novelty_score=0.5,
+            tags=["greeting"],
+        )
         state = {"mood": 0.5}
         score = compute_mps(mem, state)
         comps = mem.score_components
         # All components should be in [0, 1]
-        for key in ["decay", "reinf", "contextual", "recency_bias", "novelty", "state_align"]:
+        for key in [
+            "decay",
+            "reinf",
+            "contextual",
+            "recency_bias",
+            "novelty",
+            "state_align",
+        ]:
             assert 0.0 <= comps[key] <= 1.0, f"{key} out of range: {comps[key]}"
         # Final MPS should be weighted sum
         expected = (
-            0.25 * comps["decay"] +
-            0.20 * comps["reinf"] +
-            0.20 * comps["contextual"] +
-            0.15 * comps["recency_bias"] +
-            0.10 * comps["novelty"] +
-            0.10 * comps["state_align"]
+            0.25 * comps["decay"]
+            + 0.20 * comps["reinf"]
+            + 0.20 * comps["contextual"]
+            + 0.15 * comps["recency_bias"]
+            + 0.10 * comps["novelty"]
+            + 0.10 * comps["state_align"]
         )
         assert abs(score - expected) < 0.001
 
     def test_mps_freeze_novelty(self):
         from infj_bot.core.dmu_scoring import compute_mps, _DMUMemory
         from infj_bot.core.experiment_control import ExperimentControl
+
         control = ExperimentControl()
         control.start_run("run", {"freeze_novelty": True})
-        mem = _DMUMemory(content="test", memory_id="m3", timestamp=time.time(),
-                         reinforcement_score=0.5, novelty_score=0.9, tags=[])
-        score = compute_mps(mem, {"test": 0.5}, experiment_control=control)
+        mem = _DMUMemory(
+            content="test",
+            memory_id="m3",
+            timestamp=time.time(),
+            reinforcement_score=0.5,
+            novelty_score=0.9,
+            tags=[],
+        )
+        compute_mps(mem, {"test": 0.5}, experiment_control=control)
         assert mem.score_components["novelty"] == 0.0
         control.end_run()
 
     def test_recency_weight(self):
         from infj_bot.core.dmu_scoring import _get_decaying_recency_weight
+
         recent = [("m1", 0), ("m2", 1), ("m1", 2)]
         w = _get_decaying_recency_weight("m1", recent)
         assert w >= 0.0
 
     def test_hard_gate_old_weak_memory(self):
         from infj_bot.core.dmu_scoring import _is_hard_gated, _DMUMemory
-        old_mem = _DMUMemory(content="old", timestamp=time.time() - 40 * 24 * 3600,
-                             reinforcement_score=0.1)
+
+        old_mem = _DMUMemory(
+            content="old",
+            timestamp=time.time() - 40 * 24 * 3600,
+            reinforcement_score=0.1,
+        )
         assert _is_hard_gated(old_mem)
 
-        fresh_mem = _DMUMemory(content="fresh", timestamp=time.time(),
-                               reinforcement_score=0.5)
+        fresh_mem = _DMUMemory(
+            content="fresh", timestamp=time.time(), reinforcement_score=0.5
+        )
         assert not _is_hard_gated(fresh_mem)
 
     def test_contextual_similarity_range(self):
         from infj_bot.core.dmu_scoring import _normalized_contextual_sim, _DMUMemory
+
         mem = _DMUMemory(content="hello world test memory")
         state = {"topic": "hello world"}
         sim = _normalized_contextual_sim(mem, state)
@@ -277,6 +334,7 @@ class TestDMUScoring:
 
     def test_state_alignment_range(self):
         from infj_bot.core.dmu_scoring import _state_alignment_score, _DMUMemory
+
         mem = _DMUMemory(content="test", tags=["mood", "energy"])
         state = {"mood": 0.5, "energy": 0.3}
         align = _state_alignment_score(mem, state)

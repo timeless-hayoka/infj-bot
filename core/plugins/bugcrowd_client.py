@@ -4,7 +4,6 @@ import json
 import os
 import time
 from dataclasses import dataclass, field
-from datetime import datetime
 from typing import Any, Dict, List, Optional
 from urllib import request
 from urllib.error import HTTPError
@@ -44,7 +43,11 @@ class BugcrowdClient:
     Set BUGCROWD_API_KEY in your environment.
     """
 
-    def __init__(self, api_key: Optional[str] = None, rate_limit_delay: float = DEFAULT_RATE_LIMIT_DELAY):
+    def __init__(
+        self,
+        api_key: Optional[str] = None,
+        rate_limit_delay: float = DEFAULT_RATE_LIMIT_DELAY,
+    ):
         self.api_key = api_key or os.getenv("BUGCROWD_API_KEY", "")
         self.rate_limit_delay = rate_limit_delay
         self._last_request_time = 0.0
@@ -56,7 +59,9 @@ class BugcrowdClient:
             "Content-Type": "application/json",
         }
 
-    def _request(self, method: str, path: str, data: Optional[bytes] = None) -> Dict[str, Any]:
+    def _request(
+        self, method: str, path: str, data: Optional[bytes] = None
+    ) -> Dict[str, Any]:
         if not self.api_key:
             raise RuntimeError("BUGCROWD_API_KEY is not set. Add it to your .env file.")
 
@@ -139,7 +144,9 @@ class BugcrowdClient:
             raw=data,
         )
 
-    def list_submissions(self, program_uuid: Optional[str] = None) -> List[BugcrowdSubmission]:
+    def list_submissions(
+        self, program_uuid: Optional[str] = None
+    ) -> List[BugcrowdSubmission]:
         """Fetch submissions. Optionally filter by program."""
         path = "/submissions"
         if program_uuid:
@@ -180,7 +187,9 @@ class BugcrowdClient:
                 "type": "submission",
                 "attributes": {
                     "title": title,
-                    "vrt_lineage": vulnerability_type.split(" > ") if " > " in vulnerability_type else [vulnerability_type],
+                    "vrt_lineage": vulnerability_type.split(" > ")
+                    if " > " in vulnerability_type
+                    else [vulnerability_type],
                     "severity": severity.lower(),
                     "description": description,
                     "reproduction": reproduction,
@@ -194,7 +203,9 @@ class BugcrowdClient:
         if asset:
             payload["data"]["attributes"]["asset"] = asset
 
-        resp = self._request("POST", "/submissions", data=json.dumps(payload).encode("utf-8"))
+        resp = self._request(
+            "POST", "/submissions", data=json.dumps(payload).encode("utf-8")
+        )
         return resp.get("data", {}).get("id", "")
 
     def health(self) -> str:

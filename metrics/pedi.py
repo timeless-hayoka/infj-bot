@@ -121,6 +121,7 @@ NEED_DIMENSIONS: List[str] = [
 @dataclass
 class StateSnapshot:
     """A point-in-time capture of the homeostatic state vector."""
+
     timestamp: datetime
     turn_id: int
     needs: Dict[str, float]  # dimension → value in [0, 1]
@@ -130,6 +131,7 @@ class StateSnapshot:
 @dataclass
 class ResetEvent:
     """A context-window reset boundary."""
+
     turn_id: int
     timestamp: datetime
     reason: str  # e.g., "token_budget", "session_resume", "manual_reset"
@@ -138,6 +140,7 @@ class ResetEvent:
 @dataclass
 class FluidityReport:
     """Output of a single PEDI evaluation cycle."""
+
     turn_id: int
     timestamp: datetime
     state_jump: float  # Δ_k, Euclidean distance

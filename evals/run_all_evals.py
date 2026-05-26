@@ -6,7 +6,6 @@ Runs consistency, mode discrimination, self-modify audit, and stress tests.
 Generates a consolidated report and exits with non-zero code on failure thresholds.
 """
 
-import json
 import subprocess
 import sys
 from datetime import datetime
@@ -14,6 +13,7 @@ from pathlib import Path
 
 EVAL_DIR = Path(__file__).parent
 PROJECT_ROOT = EVAL_DIR.parent
+
 
 def run_eval(script: str, name: str) -> dict:
     """Run a single eval script and capture result."""
@@ -24,9 +24,13 @@ def run_eval(script: str, name: str) -> dict:
             capture_output=True,
             text=True,
             timeout=120,
-            cwd=PROJECT_ROOT
+            cwd=PROJECT_ROOT,
         )
-        status = "PASS" if result.returncode == 0 or "passed" in result.stdout.lower() else "FAIL"
+        status = (
+            "PASS"
+            if result.returncode == 0 or "passed" in result.stdout.lower()
+            else "FAIL"
+        )
         print(result.stdout[-2000:] if len(result.stdout) > 2000 else result.stdout)
         if result.stderr:
             print("STDERR:", result.stderr[-500:])
@@ -55,7 +59,10 @@ def main():
     try:
         stress = subprocess.run(
             [sys.executable, "-m", "pytest", "tests/test_stress.py", "-q", "--tb=no"],
-            capture_output=True, text=True, timeout=60, cwd=PROJECT_ROOT
+            capture_output=True,
+            text=True,
+            timeout=60,
+            cwd=PROJECT_ROOT,
         )
         stress_status = "PASS" if stress.returncode == 0 else "FAIL"
         print(stress.stdout)

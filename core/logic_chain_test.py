@@ -88,7 +88,7 @@ class TestLogicChain:
         for i in range(10):
             c.add_step(f"step {i}", "", "failure")
         block = c.format_prompt_block(max_nodes=5)
-        lines = [l for l in block.split("\n") if l.strip().startswith("✗")]
+        lines = [ln for ln in block.split("\n") if ln.strip().startswith("✗")]
         assert len(lines) == 5
 
     def test_to_dict_roundtrip(self):

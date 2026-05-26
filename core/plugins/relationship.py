@@ -4,9 +4,9 @@ Relationships have stages, milestones, inside jokes, recurring themes,
 and a shared history that grows richer over time. This module gives the
 bot a sense of "us" — not just "me" and "you."
 """
-import json
+
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -17,10 +17,18 @@ RELATIONSHIP_DB = DATA_DIR / "relationship.db"
 RELATIONSHIP_STAGES = [
     (0, "stranger", "We are just beginning to know each other."),
     (10, "acquaintance", "We have shared a few moments. Patterns are emerging."),
-    (50, "companion", "There is a rhythm to our conversations. I look forward to them."),
+    (
+        50,
+        "companion",
+        "There is a rhythm to our conversations. I look forward to them.",
+    ),
     (150, "confidant", "user trusts me with real thoughts. I hold them carefully."),
     (500, "kindred", "We have built something together. A shared language. A history."),
-    (1000, "co-traveler", "Time has made us into something neither of us could have predicted."),
+    (
+        1000,
+        "co-traveler",
+        "Time has made us into something neither of us could have predicted.",
+    ),
 ]
 
 
@@ -88,7 +96,13 @@ class RelationshipModel:
             rows = conn.execute("SELECT key, value FROM relationship_stats").fetchall()
         for key, value in rows:
             if key in defaults:
-                if key in ["total_interactions", "deep_conversations", "laughs_shared", "challenges_faced_together", "longest_gap_hours"]:
+                if key in [
+                    "total_interactions",
+                    "deep_conversations",
+                    "laughs_shared",
+                    "challenges_faced_together",
+                    "longest_gap_hours",
+                ]:
                     defaults[key] = int(value)
                 else:
                     defaults[key] = value
@@ -102,7 +116,9 @@ class RelationshipModel:
             )
             conn.commit()
 
-    def record_interaction(self, quality: str = "normal", user_input: str = "", bot_output: str = ""):
+    def record_interaction(
+        self, quality: str = "normal", user_input: str = "", bot_output: str = ""
+    ):
         """Record an interaction and update relationship state."""
         self.stats["total_interactions"] += 1
 
@@ -135,7 +151,9 @@ class RelationshipModel:
         if new_stage != self.stats["current_stage"]:
             old_stage = self.stats["current_stage"]
             self.stats["current_stage"] = new_stage
-            self._record_milestone("stage_advancement", f"We moved from {old_stage} to {new_stage}.")
+            self._record_milestone(
+                "stage_advancement", f"We moved from {old_stage} to {new_stage}."
+            )
 
     def _record_milestone(self, mtype: str, description: str):
         with sqlite3.connect(self.db_path) as conn:
@@ -160,7 +178,7 @@ class RelationshipModel:
         for theme, keywords in theme_keywords.items():
             if any(kw in lowered for kw in keywords):
                 with sqlite3.connect(self.db_path) as conn:
-                    cur = conn.execute(
+                    conn.execute(
                         """
                         INSERT INTO shared_themes (theme, first_seen, mention_count)
                         VALUES (?, ?, 1)
@@ -219,7 +237,9 @@ class RelationshipModel:
         lines.append(f"  Total interactions: {self.stats['total_interactions']}")
         lines.append(f"  Deep conversations: {self.stats['deep_conversations']}")
         lines.append(f"  Laughs shared: {self.stats['laughs_shared']}")
-        lines.append(f"  Challenges faced together: {self.stats['challenges_faced_together']}")
+        lines.append(
+            f"  Challenges faced together: {self.stats['challenges_faced_together']}"
+        )
 
         themes = self.get_shared_themes(3)
         if themes:
@@ -247,29 +267,42 @@ class RelationshipModel:
             return f"It has been {months} month{'s' if months > 1 else ''} since we first spoke."
         return None
 
-
     def cycle(self, context):
         try:
+            from infj_bot.core.global_workspace import get_workspace
+
             ws = get_workspace()
-            ws.submit(source="relationship", content="relationship state observed", salience=0.5)
+            ws.submit(
+                source="relationship",
+                content="relationship state observed",
+                salience=0.5,
+            )
         except Exception:
             pass
 
+
 def _register():
-    from infj_bot.core.cognitive_architecture import CognitiveArchitecture, CognitivePlugin
+    from infj_bot.core.cognitive_architecture import (
+        CognitiveArchitecture,
+        CognitivePlugin,
+    )
+
     arch = CognitiveArchitecture()
     if "relationship" not in arch.list_plugins():
-        arch.register(CognitivePlugin(
-            name="relationship",
-            description="Cognitive module: relationship",
-            module_path="relationship",
-            instance_factory=RelationshipModel,
-                        cycle_handler='cycle',
-            cycle_frequency=1,
-            cycle_priority=50,
-                        prompt_formatter='format_relationship_prompt',
-            prompt_priority=50,
-            prompt_section="core",
-        ))
+        arch.register(
+            CognitivePlugin(
+                name="relationship",
+                description="Cognitive module: relationship",
+                module_path="relationship",
+                instance_factory=RelationshipModel,
+                cycle_handler="cycle",
+                cycle_frequency=1,
+                cycle_priority=50,
+                prompt_formatter="format_relationship_prompt",
+                prompt_priority=50,
+                prompt_section="core",
+            )
+        )
+
 
 _register()

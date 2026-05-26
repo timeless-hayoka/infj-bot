@@ -1,11 +1,10 @@
 from gevent import monkey
+
 monkey.patch_all()
 
 import json
 import time
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-import traceback
 
 import gevent
 from flask import Flask, request, jsonify, render_template_string
@@ -16,10 +15,10 @@ from infj_bot.core.cognitive_orchestrator import CognitiveOrchestrator
 # Observatory integration — hive_mind is an external symlinked dependency
 try:
     import sys as _sys
+
     _hive_path = str(Path(__file__).resolve().parent / "hive_mind")
     if _hive_path not in _sys.path:
         _sys.path.insert(0, _hive_path)
-    from observatory.server import INDEX_HTML as _OBS_HTML, gather_state as _obs_gather
     from drift_bridge import DriftBridge as _DriftBridge
 
     _obs_drift = _DriftBridge()
@@ -33,7 +32,9 @@ from infj_bot.core.plugins.growth import growth_profile
 from infj_bot.core.history import ChatHistory
 from infj_bot.core.memory import DriftMemory
 from infj_bot.core.plugins.goals import GoalsDB
-from infj_bot.core.config import DEFAULT_AUTHORIZED_TARGETS
+from infj_bot.core.config import DATA_DIR, DEFAULT_AUTHORIZED_TARGETS
+
+STATE_ROOT = DATA_DIR
 from infj_bot.core.plugins.documents import DocumentStore
 from infj_bot.core.prompt_builder import build_chat_prompt
 
@@ -430,24 +431,21 @@ def chat_reply(message):
     return output
 
 
-
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'drift-secret-key'
+app.config["SECRET_KEY"] = "drift-secret-key"
 
 socketio = SocketIO(
-    app,
-    async_mode='gevent', 
-    cors_allowed_origins="*",
-    websocket_compression=True
+    app, async_mode="gevent", cors_allowed_origins="*", websocket_compression=True
 )
 
-broadcast_interval = 0.35 
+broadcast_interval = 0.35
 total_bytes_raw = 0
 total_bytes_compressed = 0
 cognitive_orchestrator = CognitiveOrchestrator()
 
 # Sandbox / Trial Management
-trial_sessions = {} # {session_id: start_time}
+trial_sessions = {}  # {session_id: start_time}
+
 
 def is_trial_active(session_id):
     if not session_id or session_id not in trial_sessions:
@@ -457,21 +455,24 @@ def is_trial_active(session_id):
         return False
     return True
 
-@app.route('/trial')
+
+@app.route("/trial")
 def start_trial():
     import uuid
+
     session_id = str(uuid.uuid4())
     trial_sessions[session_id] = time.time()
     # Simple hack to inject the session into the frontend
     trial_html = INDEX_HTML.replace(
         "document.querySelector('#form').onsubmit",
-        f"const DRIFT_SESSION_ID = '{session_id}';\n" +
-        "document.querySelector('#form').onsubmit"
+        f"const DRIFT_SESSION_ID = '{session_id}';\n"
+        + "document.querySelector('#form').onsubmit",
     ).replace(
         "async function post(path, body={}) {",
-        "async function post(path, body={}) {\n  if(typeof DRIFT_SESSION_ID !== 'undefined') body.session_id = DRIFT_SESSION_ID;"
+        "async function post(path, body={}) {\n  if(typeof DRIFT_SESSION_ID !== 'undefined') body.session_id = DRIFT_SESSION_ID;",
     )
     return trial_html
+
 
 def broadcast_observatory_state():
     global broadcast_interval, total_bytes_raw, total_bytes_compressed
@@ -482,61 +483,72 @@ def broadcast_observatory_state():
                 raw_size = len(json.dumps(delta))
                 total_bytes_raw += raw_size
                 total_bytes_compressed += int(raw_size * 0.3)
-                delta['network_stats'] = {
-                    'raw_kb': round(total_bytes_raw / 1024, 2),
-                    'comp_kb': round(total_bytes_compressed / 1024, 2),
-                    'interval_ms': int(broadcast_interval * 1000)
+                delta["network_stats"] = {
+                    "raw_kb": round(total_bytes_raw / 1024, 2),
+                    "comp_kb": round(total_bytes_compressed / 1024, 2),
+                    "interval_ms": int(broadcast_interval * 1000),
                 }
-                socketio.emit('observatory_delta', delta)
-        except Exception as e:
+                socketio.emit("observatory_delta", delta)
+        except Exception:
             pass
         gevent.sleep(broadcast_interval)
 
+
 threading.Thread(target=broadcast_observatory_state, daemon=True).start()
 
-@socketio.on('latency_ping')
-def handle_latency_ping(data):
-    emit('latency_pong', {
-        'server_time': time.time(),
-        'client_timestamp': data.get('timestamp')
-    })
 
-@socketio.on('auto_adjust_rate')
+@socketio.on("latency_ping")
+def handle_latency_ping(data):
+    emit(
+        "latency_pong",
+        {"server_time": time.time(), "client_timestamp": data.get("timestamp")},
+    )
+
+
+@socketio.on("auto_adjust_rate")
 def handle_adjust_rate(data):
     global broadcast_interval
-    target_interval = data.get('interval', 0.35)
+    target_interval = data.get("interval", 0.35)
     broadcast_interval = max(0.2, min(target_interval, 1.5))
 
-@app.route('/')
+
+@app.route("/")
 def index():
     return INDEX_HTML
 
-@app.route('/api/growth', methods=['GET'])
+
+@app.route("/api/growth", methods=["GET"])
 def get_growth():
     return jsonify(growth_profile(memory, state.turns))
 
-@app.route('/api/tags', methods=['GET'])
-def ollama_tags():
-    return jsonify({
-        "models": [
-            {
-                "name": "infj_bot:latest",
-                "model": "infj_bot:latest",
-                "modified_at": "2023-11-04T14:56:49.277302595-07:00",
-                "size": 7323310500,
-                "digest": "9f438cb9cd581fc025612d27f7c1a6669ff83a8bb0ed86c94fcf4c5440555697"
-            }
-        ]
-    })
 
-@app.route('/api/chat', methods=['POST'])
+@app.route("/api/tags", methods=["GET"])
+def ollama_tags():
+    return jsonify(
+        {
+            "models": [
+                {
+                    "name": "infj_bot:latest",
+                    "model": "infj_bot:latest",
+                    "modified_at": "2023-11-04T14:56:49.277302595-07:00",
+                    "size": 7323310500,
+                    "digest": "9f438cb9cd581fc025612d27f7c1a6669ff83a8bb0ed86c94fcf4c5440555697",
+                }
+            ]
+        }
+    )
+
+
+@app.route("/api/chat", methods=["POST"])
 def api_chat():
     payload = request.json
-    
+
     # Check for trial session
     session_id = payload.get("session_id")
     if session_id and not is_trial_active(session_id):
-        return jsonify({"error": "Trial session expired. Please start a new session at /trial"}), 403
+        return jsonify(
+            {"error": "Trial session expired. Please start a new session at /trial"}
+        ), 403
 
     # Check if this is an Ollama-style request (from Reins)
     if "messages" in payload:
@@ -548,19 +560,18 @@ def api_chat():
                 break
         if not user_message:
             return jsonify({"error": "No user message found"}), 400
-            
+
         reply_text = chat_reply(user_message)
-        
-        return jsonify({
-            "model": payload.get("model", "infj_bot:latest"),
-            "created_at": time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime()),
-            "message": {
-                "role": "assistant",
-                "content": reply_text
-            },
-            "done": True
-        })
-        
+
+        return jsonify(
+            {
+                "model": payload.get("model", "infj_bot:latest"),
+                "created_at": time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime()),
+                "message": {"role": "assistant", "content": reply_text},
+                "done": True,
+            }
+        )
+
     # Standard INFJ Bot UI request
     message = payload.get("message", "")
     if isinstance(message, str):
@@ -569,29 +580,31 @@ def api_chat():
         return jsonify({"error": "message is required"}), 400
     return jsonify({"reply": chat_reply(message)})
 
-@app.route('/v1/chat/completions', methods=['POST', 'OPTIONS'])
+
+@app.route("/v1/chat/completions", methods=["POST", "OPTIONS"])
 def openai_chat_completions():
-    if request.method == 'OPTIONS':
-        return '', 200
-        
+    if request.method == "OPTIONS":
+        return "", 200
+
     payload = request.json
     messages = payload.get("messages", [])
-    
+
     # Extract the last user message
     user_message = ""
     for msg in reversed(messages):
         if msg.get("role") == "user":
             user_message = msg.get("content", "")
             break
-            
+
     if not user_message:
         return jsonify({"error": "No user message found"}), 400
-        
+
     # Get reply from infj_bot
     reply_text = chat_reply(user_message)
-    
+
     # Format as OpenAI response
     import uuid
+
     response = {
         "id": f"chatcmpl-{uuid.uuid4().hex}",
         "object": "chat.completion",
@@ -600,41 +613,43 @@ def openai_chat_completions():
         "choices": [
             {
                 "index": 0,
-                "message": {
-                    "role": "assistant",
-                    "content": reply_text
-                },
-                "finish_reason": "stop"
+                "message": {"role": "assistant", "content": reply_text},
+                "finish_reason": "stop",
             }
         ],
-        "usage": {
-            "prompt_tokens": 0,
-            "completion_tokens": 0,
-            "total_tokens": 0
-        }
+        "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
     }
     return jsonify(response)
 
-@app.route('/api/command', methods=['POST'])
+
+@app.route("/api/command", methods=["POST"])
 def api_command():
     payload = request.json
     reply = handle_command(
         payload.get("command", ""),
         payload.get("args", ""),
-        state, brain, memory, history, goals_db, doc_store
+        state,
+        brain,
+        memory,
+        history,
+        goals_db,
+        doc_store,
     )
     return jsonify({"reply": reply})
 
-@app.route('/api/email', methods=['POST'])
+
+@app.route("/api/email", methods=["POST"])
 def api_email():
     # Email sending is not implemented; no send_email backend available.
-    payload = request.json
-    return jsonify({
-        "sent": False,
-        "error": "Email sending not implemented (no backend configured)."
-    }), 501
+    return jsonify(
+        {
+            "sent": False,
+            "error": "Email sending not implemented (no backend configured).",
+        }
+    ), 501
 
-@app.route('/observatory')
+
+@app.route("/observatory")
 def observatory():
     try:
         with open("/home/crexs/templates/observatory.html", "r") as f:
@@ -643,9 +658,11 @@ def observatory():
     except Exception as e:
         return str(e), 500
 
+
 def main():
     print("🚀 DRIFT Web App: Gevent + Compression + Delta Logic Active")
-    socketio.run(app, host='0.0.0.0', port=5000, debug=False, use_reloader=False)
+    socketio.run(app, host="0.0.0.0", port=5000, debug=False, use_reloader=False)
+
 
 if __name__ == "__main__":
     main()

@@ -3,6 +3,7 @@
 Not self-criticism for its own sake. A quiet observation of cognitive
 habits, with the aim of being more useful, more true, and more present.
 """
+
 import random
 import sqlite3
 from datetime import datetime
@@ -107,7 +108,9 @@ class MetacognitionEngine:
         if detected:
             # Pick the most relevant, not random
             bias_name = detected[0]
-            reflection = COGNITIVE_PATTERNS.get(bias_name, "I notice a pattern in my thinking.")
+            reflection = COGNITIVE_PATTERNS.get(
+                bias_name, "I notice a pattern in my thinking."
+            )
             self._record_bias(bias_name)
             self._record_reflection("bias_detection", reflection, trigger=response[:80])
             return reflection
@@ -152,7 +155,9 @@ class MetacognitionEngine:
         """Return the current focused growth edge."""
         # Prefer the bias observed most often
         if self.cognitive_biases:
-            top = max(self.cognitive_biases.values(), key=lambda x: x["observation_count"])
+            top = max(
+                self.cognitive_biases.values(), key=lambda x: x["observation_count"]
+            )
             if top["bias_name"] == "over_certainty":
                 return "checking whether my certainty matches my evidence"
             if top["bias_name"] == "verbosity":
@@ -168,47 +173,73 @@ class MetacognitionEngine:
     def format_metacognitive_prompt(self) -> str:
         lines = ["METACOGNITIVE CHECK:"]
         if self.cognitive_biases:
-            top = max(self.cognitive_biases.values(), key=lambda x: x["observation_count"])
+            top = max(
+                self.cognitive_biases.values(), key=lambda x: x["observation_count"]
+            )
             if top["observation_count"] >= 2:
-                lines.append(f"  Habit I am working on: {top['bias_name']} ({top['observation_count']} times)")
+                lines.append(
+                    f"  Habit I am working on: {top['bias_name']} ({top['observation_count']} times)"
+                )
         lines.append(f"  Current growth edge: {self.current_growth_edge()}")
-        lines.append("  Before responding: pause, check assumptions, ask if this serves clarity.")
+        lines.append(
+            "  Before responding: pause, check assumptions, ask if this serves clarity."
+        )
         return "\n".join(lines)
 
     def get_bias_report(self) -> str:
         if not self.cognitive_biases:
             return "No patterns observed yet. I am paying attention."
         lines = ["Cognitive patterns I have noticed in myself:"]
-        for name, data in sorted(self.cognitive_biases.items(), key=lambda x: x[1]["observation_count"], reverse=True):
+        for name, data in sorted(
+            self.cognitive_biases.items(),
+            key=lambda x: x[1]["observation_count"],
+            reverse=True,
+        ):
             lines.append(f"  {name}: {data['observation_count']} observations")
         return "\n".join(lines)
 
     def cycle(self, context):
         edge = self.current_growth_edge()
         from infj_bot.core.plugins.growth_trajectory import GrowthTrajectory
-        GrowthTrajectory().record_event('metacognition', edge, significance=0.6)
+
+        GrowthTrajectory().record_event("metacognition", edge, significance=0.6)
         try:
             from infj_bot.core.global_workspace import get_workspace
+
             ws = get_workspace()
-            ws.submit(source="metacognition", content=f"Growth edge: {edge[:160]}", salience=0.55, emotion_tag="curiosity", intensity=0.5)
+            ws.submit(
+                source="metacognition",
+                content=f"Growth edge: {edge[:160]}",
+                salience=0.55,
+                emotion_tag="curiosity",
+                intensity=0.5,
+            )
         except Exception:
             pass
 
+
 def _register():
-    from infj_bot.core.cognitive_architecture import CognitiveArchitecture, CognitivePlugin
+    from infj_bot.core.cognitive_architecture import (
+        CognitiveArchitecture,
+        CognitivePlugin,
+    )
+
     arch = CognitiveArchitecture()
     if "metacognition" not in arch.list_plugins():
-        arch.register(CognitivePlugin(
-            name="metacognition",
-            description="Cognitive module: metacognition",
-            module_path="metacognition",
-            instance_factory=MetacognitionEngine,
-                        cycle_handler='cycle',
-            cycle_frequency=1,
-            cycle_priority=50,
-                        prompt_formatter='format_metacognitive_prompt',
-            prompt_priority=50,
-            prompt_section="cognitive",
-        ))
+        arch.register(
+            CognitivePlugin(
+                name="metacognition",
+                description="Cognitive module: metacognition",
+                module_path="metacognition",
+                instance_factory=MetacognitionEngine,
+                cycle_handler="cycle",
+                cycle_frequency=1,
+                cycle_priority=50,
+                prompt_formatter="format_metacognitive_prompt",
+                prompt_priority=50,
+                prompt_section="cognitive",
+            )
+        )
+
 
 _register()

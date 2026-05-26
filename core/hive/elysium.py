@@ -30,6 +30,7 @@ ELYSIUM_DB = DATA_DIR / "elysium.db"
 @dataclass
 class DeliberationResult:
     """Output of a complete Nexus Loop."""
+
     goal: str
     resolution: str
     council_votes: Dict[str, float]
@@ -163,7 +164,11 @@ class ElysiumEngine:
         # Quick council temperature check
         statuses = self.council.status()
         lowest_energy = min((s["energy_level"], name) for name, s in statuses.items())
-        highest_tension = self.nexus.state.active_tensions[0].name if self.nexus.state.active_tensions else "none"
+        highest_tension = (
+            self.nexus.state.active_tensions[0].name
+            if self.nexus.state.active_tensions
+            else "none"
+        )
 
         insight = (
             f"Council energy lowest in {lowest_energy[1]} ({lowest_energy[0]:.2f}). "
@@ -208,34 +213,44 @@ class ElysiumEngine:
             memories = []
             for entry in entries:
                 meta = entry.metadata if isinstance(entry.metadata, dict) else {}
-                memories.append({
-                    "unified_id": entry.unified_id,
-                    "event_type": entry.event.type if entry.event else "unknown",
-                    "content": entry.event.content if entry.event else "",
-                    "timestamp": entry.event.timestamp.isoformat() if entry.event and hasattr(entry.event, "timestamp") else "",
-                    "metadata": {
-                        "salience": meta.get("salience", 0.5),
-                        "emotional": meta.get("emotional", 0.5),
-                        "goal": meta.get("goal", 0.5),
-                        "social": meta.get("social", 0.5),
-                        "narrative": meta.get("narrative", 0.5),
-                        "moral": meta.get("moral", 0.5),
-                        "dmu": meta.get("dmu", 0.5),
-                        "tags": meta.get("tags", []),
+                memories.append(
+                    {
+                        "unified_id": entry.unified_id,
+                        "event_type": entry.event.type if entry.event else "unknown",
+                        "content": entry.event.content if entry.event else "",
+                        "timestamp": entry.event.timestamp.isoformat()
+                        if entry.event and hasattr(entry.event, "timestamp")
+                        else "",
+                        "metadata": {
+                            "salience": meta.get("salience", 0.5),
+                            "emotional": meta.get("emotional", 0.5),
+                            "goal": meta.get("goal", 0.5),
+                            "social": meta.get("social", 0.5),
+                            "narrative": meta.get("narrative", 0.5),
+                            "moral": meta.get("moral", 0.5),
+                            "dmu": meta.get("dmu", 0.5),
+                            "tags": meta.get("tags", []),
+                        },
                     }
-                })
+                )
             logger.info("[Elysium] Ignition recalled %s memories", len(memories))
             return memories
         except Exception:
             logger.exception("[Elysium] Ignition memory recall failed")
             return []
 
-    async def _generate_proposals(self, goal: str, memories: List[Dict[str, Any]]) -> Dict[str, Proposal]:
+    async def _generate_proposals(
+        self, goal: str, memories: List[Dict[str, Any]]
+    ) -> Dict[str, Proposal]:
         """Stage 2: Each council member generates a proposal with fractal memory filtering."""
         proposals: Dict[str, Proposal] = {}
         for member in self.council.all():
             # Fractal subspace: each member sees only what resonates through their filter
-            filtered = [m for m in memories if member.filter.score_memory(m.get("metadata", {})) > 0.3]
+            filtered = [
+                m
+                for m in memories
+                if member.filter.score_memory(m.get("metadata", {})) > 0.3
+            ]
             try:
                 prop = await asyncio.to_thread(
                     member.generate_proposal, goal, filtered, self.brain
@@ -245,7 +260,9 @@ class ElysiumEngine:
                 logger.exception("Proposal generation failed for %s", member.name)
         return proposals
 
-    async def _critique_tournament(self, proposals: Dict[str, Proposal]) -> Dict[str, List[Critique]]:
+    async def _critique_tournament(
+        self, proposals: Dict[str, Proposal]
+    ) -> Dict[str, List[Critique]]:
         """Stage 3: Each member critiques every other member's proposal."""
         critiques: Dict[str, List[Critique]] = {name: [] for name in proposals}
         for member in self.council.all():
@@ -258,7 +275,9 @@ class ElysiumEngine:
                     )
                     critiques[target_name].append(crit)
                 except Exception:
-                    logger.exception("Critique failed from %s -> %s", member.name, target_name)
+                    logger.exception(
+                        "Critique failed from %s -> %s", member.name, target_name
+                    )
         return critiques
 
     def _nexus_integrate(
@@ -315,7 +334,9 @@ class ElysiumEngine:
             # No clear winner — Nexus weaves a composite
             top_three = sorted(votes.items(), key=lambda x: x[1], reverse=True)[:3]
             composite = " | ".join(f"{r} ({p:.0%})" for r, p in top_three)
-            resolution = f"[Composite] No single voice dominated. Blended view: {composite}"
+            resolution = (
+                f"[Composite] No single voice dominated. Blended view: {composite}"
+            )
             winning_role = "Nexus"
 
         return DeliberationResult(
