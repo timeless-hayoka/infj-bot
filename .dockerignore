@@ -6,7 +6,6 @@ __pycache__/
 *.db
 chroma_db/
 data/
-evals/
 history.jsonl
 tool_audit.jsonl
 voices/*.onnx
