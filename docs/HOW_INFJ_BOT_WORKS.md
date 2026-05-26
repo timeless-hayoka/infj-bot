@@ -118,29 +118,52 @@ Representative wired modules (instances live largely in **`main.py`**):
 ## 5. Performance & Networking Upgrade (May 2024)
 
 ### 5.1 Gevent-SocketIO Engine
-The web interface now runs on a high-performance **Gevent** async server (`web_app.py`). This allows for:
+The web interface runs on a high-performance **Gevent** async server (`web_app.py`):
 - **Real-time Observability:** Constant WebSocket updates without blocking the main chat.
 - **RFC 7692 Compression:** Transparent WebSocket compression (`permessage-deflate`) reduces bandwidth usage by ~70%.
 
 ### 5.2 Delta-State Broadcasting
-The `CognitiveOrchestrator` now generates **delta maps** for the system state.
+The `CognitiveOrchestrator` generates **delta maps** for the system state.
 - **Mechanism:** The server tracks the `last_state` sent to each client. It only transmits fields that have changed (except for a required `timestamp`).
 - **Impact:** Drastic reduction in packet size and client-side processing overhead.
 
 ### 5.3 Auto-Throttling & Latency Management
-The system now detects network bottlenecks in real-time.
+The system detects network bottlenecks in real-time.
 - **Feedback Loop:** The client pings the server every second.
-- **Dynamic Rate:** If average latency exceeds 250ms, the server slows down the broadcast rate (up to 1.5s). If latency is low (<100ms), it speeds up (down to 200ms).
+- **Dynamic Rate:** If average latency exceeds 250 ms, the server slows down the broadcast rate (up to 1.5 s). If latency is low (<100 ms), it speeds up (down to 200 ms).
 
 ### 5.4 Hybrid Inference (Groq + Gemini)
-- **High-Speed Tier:** Support for **Groq LPU** inference (OpenAI-compatible) has been integrated into `DriftBrain`. 
+- **High-Speed Tier:** Support for **Groq LPU** inference (OpenAI-compatible) is integrated into the brain layer.
 - **Speed:** Responses can reach 500+ tokens/second, making the bot's "inner thoughts" feel instantaneous.
-
-Plugins submit salient snippets to **`global_workspace.py`**, loosely inspired by Global Workspace Theory: limited capacity competition, decay, persistence in **`workspace.db`**.
 
 ---
 
-## 5. “Depth psychology” style layers (informal but structured)
+## 6. Global Workspace (tiered attention)
+
+`core/global_workspace.py` is **not** a Baars-style single-spotlight buffer
+anymore. Plugins submit salient snippets every cycle and the workspace runs a
+real competition by current salience (with real wall-clock decay):
+
+| Tier | Rank | Role |
+|------|------|------|
+| **Spotlight** | 1 | What the bot is consciously attending to right now |
+| **Active workspace** | 2 – 5 | Consciously available, included verbatim in the prompt |
+| **Preconscious bands** (`strong` / `moderate` / `faint` / `trace`) | below active, above floor | Retained, not forgotten |
+| **Archived** | below `ARCHIVE_THRESHOLD` (0.05) | Written to `workspace.db` and evicted |
+
+Decay is exponential in minutes (`decay_rate = 0.08 / min`), high-intensity
+items receive a bounded boost (≤ 0.25), and there is **no repetition boost** —
+identical submissions deduplicate by `(source, content[:80])`. Items are not
+silently discarded; they sink through the bands first.
+
+`format_prompt_snippet()` injects the spotlight, the rest of active awareness,
+and the strongest populated background band into the prompt. See
+[`GLOBAL_WORKSPACE.md`](GLOBAL_WORKSPACE.md) for the full reference, operator
+commands (`/workspace status | history | stats | focus | reflect`), and gotchas.
+
+---
+
+## 7. “Depth psychology” style layers (informal but structured)
 
 These are **not** clinical instruments; they are **structured state machines + prompt text** shaping tone and continuity.
 
@@ -156,7 +179,7 @@ These are **not** clinical instruments; they are **structured state machines + p
 
 ---
 
-## 6. Modes & Drift
+## 8. Modes & Drift
 
 - **Modes** (e.g. `companion`, `engineer`, `drift`, `quiet`) change **scopes and rails** via `guardrails.mode_scope_rail` and behavioral briefs.
 
@@ -164,7 +187,7 @@ These are **not** clinical instruments; they are **structured state machines + p
 
 ---
 
-## 7. Tools, safety posture, MCP
+## 9. Tools, safety posture, MCP
 
 ### `tools.py`
 
@@ -177,7 +200,7 @@ Separate Python processes under **`mcp/`** (for example Gmail hybrid/http client
 
 ---
 
-## 8. Resilience & host awareness
+## 10. Resilience & host awareness
 
 - **`resilience.py`**: lightweight **circuit breakers** wrap flaky plugins during cycles.
 - **`host_load.py`**: samples **CPU + RAM** (`psutil`, cached intervals) when not disabled (`INFJ_DISABLE_HOST_LOAD`).
@@ -185,7 +208,7 @@ Separate Python processes under **`mcp/`** (for example Gmail hybrid/http client
 
 ---
 
-## 9. Configuration & portability
+## 11. Configuration & portability
 
 Key environment variables (`config.py` aggregates these):
 
@@ -200,7 +223,7 @@ Key environment variables (`config.py` aggregates these):
 
 ---
 
-## 10. Interfaces
+## 12. Interfaces
 
 | Surface | Entry |
 |--------|--------|
@@ -209,20 +232,20 @@ Key environment variables (`config.py` aggregates these):
 
 ---
 
-## 11. Verification
+## 13. Verification
 
 ```bash
-source venv/bin/activate
-pytest
-./scripts/health_check.sh           # broader smoke
+source .venv/bin/activate
+pytest tests/ -q
+./scripts/health_check.sh                    # broader smoke
 LIVE_API_CHECK=1 ./scripts/health_check.sh   # hits provider once when keys exist
 ```
 
-Targeted subsets: `pytest tests/test_shadow.py tests/test_embeddings.py tests/test_prompt_budget.py`, etc.
+Targeted subsets: `pytest tests/test_shadow.py tests/test_elysium.py tests/test_temporal.py -v`, etc. CI runs ruff + mypy + pytest on every push — see `.github/workflows/ci.yml`.
 
 ---
 
-## 12. Honest boundaries (what this is *not*)
+## 14. Honest boundaries (what this is *not*)
 
 - **Not** autonomous AGI — it coordinates **explicit services** plus **offline tick loops** ahead/after Gemini.
 - **Not** human consciousness — IIT-inspired metrics (`iit_consciousness.py`), embodiment, shadow, etc., are **useful structuring metaphors**, not neuroscience claims.
@@ -231,19 +254,20 @@ Targeted subsets: `pytest tests/test_shadow.py tests/test_embeddings.py tests/te
 
 ---
 
-## 13. Further reading inside the repo
+## 15. Further reading inside the repo
 
 | File | Purpose |
 |------|---------|
 | [README.md](../README.md) | Quick start, layered map, who should read what |
 | [docs/README.md](README.md) | Full documentation index & reading paths |
 | [docs/GLOSSARY.md](GLOSSARY.md) | Definitions for codebase-specific terms |
+| [docs/GLOBAL_WORKSPACE.md](GLOBAL_WORKSPACE.md) | Tiered attention system reference (spotlight, active, preconscious, archived) |
+| [docs/HIVE_MIND.md](HIVE_MIND.md) | `hive_mind/` package + `/hive` commands |
+| [docs/HIVE_ROADMAP.md](HIVE_ROADMAP.md) | Phased plan for distributed cognition features |
 | [SECURITY.md](../SECURITY.md) | Secret hygiene & reporting posture |
-| [DRIFT_AI_INTEGRATION.md](DRIFT_AI_INTEGRATION.md) | How seeded Drift concepts map into memory-only integration |
-| [DELL_HANDOFF.md](DELL_HANDOFF.md) | Longer ops notes (devices, backups, quirks) |
 
 ---
 
-## 14. Version note
+## 16. Version note
 
 Architecture details drift with commits; cross-check **`config.py`** and **`requirements.txt`** for ground truth when versions matter. Generated as a descriptive snapshot intended for outward sharing—adapt sections if your fork disables modules or adds new plugins.

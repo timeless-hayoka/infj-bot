@@ -27,8 +27,19 @@ A **`/mode`** option with specific **guardrail scope** (`guardrails.mode_scope_r
 ### **`drift.py`**  
 Deterministic helpers: posture brief text and **targeted retrieval** queries for seeded Drift concepts. Does not pull code from external private repos.
 
-### Global Workspace (`global_workspace.py`)  
-Baars-inspired **spotlight**: limited simultaneous “conscious” entries; modules submit snippets with salience. Persisted via **`workspace.db`** when using the default data layout.
+### Global Workspace (`global_workspace.py`)
+Tiered attention system rather than a single spotlight. Each cycle, all
+submissions and surviving items compete by **current salience** (real
+wall-clock decay). Ranks split into **spotlight** (1), **active** (2 – 5),
+**preconscious bands** (`strong` / `moderate` / `faint` / `trace`), and
+**archived** rows in `workspace.db`. See [`GLOBAL_WORKSPACE.md`](GLOBAL_WORKSPACE.md).
+
+### Hive Mind (`hive_mind/`)
+Lightweight in-process consensus layer: `ConsensusEngine` opens threads on
+`DCPMessage`s, collects votes, and resolves to `ADOPTED` / `TABLED` /
+`REJECTED`. Wired into the bot via `core/coordination.py` (cognitive plugin).
+The deeper deliberation engine that consumes it lives in `core/hive/`
+(Elysium). See [`HIVE_MIND.md`](HIVE_MIND.md).
 
 ### Homeostasis (module)  
 Regulates simulated **needs** over time (**`homeostasis.py`** + SQLite). Influences prompts and dashboards; informal metaphor, not a medical model.
