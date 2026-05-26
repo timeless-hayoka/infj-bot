@@ -1,13 +1,23 @@
 """Emotion detection using a local transformer model with lexicon fallback."""
+
 import os
-from typing import Dict, List
+from typing import Dict
 
 # ---------------------------------------------------------------------------
 # Lexicon fallback (offline, zero-dependency)
 # ---------------------------------------------------------------------------
 
 EMOTION_KEYWORDS = {
-    "anxious": {"worried", "nervous", "scared", "stress", "stressed", "panic", "afraid", "deadline"},
+    "anxious": {
+        "worried",
+        "nervous",
+        "scared",
+        "stress",
+        "stressed",
+        "panic",
+        "afraid",
+        "deadline",
+    },
     "angry": {"angry", "mad", "furious", "annoyed", "irritated", "rage", "unfair"},
     "sad": {"sad", "hurt", "grief", "down", "depressed", "empty"},
     "lonely": {"lonely", "alone", "isolated", "unseen"},
@@ -85,6 +95,7 @@ def _load_classifier():
         return _TRANSFORMER_CLASSIFIER
     try:
         from transformers import pipeline
+
         # Suppress noisy download logs
         os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
         _TRANSFORMER_CLASSIFIER = pipeline(
@@ -95,7 +106,9 @@ def _load_classifier():
         )
         return _TRANSFORMER_CLASSIFIER
     except Exception as exc:
-        print(f"[emotion] Transformer model unavailable ({exc}), using lexicon fallback.")
+        print(
+            f"[emotion] Transformer model unavailable ({exc}), using lexicon fallback."
+        )
         _TRANSFORMER_CLASSIFIER = False
         return _TRANSFORMER_CLASSIFIER
 
@@ -146,17 +159,21 @@ def _detect_transformer(text: str) -> Dict:
 # Lexicon fallback
 # ---------------------------------------------------------------------------
 
+
 def _detect_lexicon(text: str) -> Dict:
     words = {word.strip(".,!?;:\"'()[]{}").lower() for word in text.split()}
     scores = {
-        label: len(words & keywords)
-        for label, keywords in EMOTION_KEYWORDS.items()
+        label: len(words & keywords) for label, keywords in EMOTION_KEYWORDS.items()
     }
     label, score = max(scores.items(), key=lambda item: item[1])
     if score == 0:
         label = "neutral"
     sorted_scores = sorted(scores.items(), key=lambda item: item[1], reverse=True)
-    secondary = sorted_scores[1][0] if len(sorted_scores) > 1 and sorted_scores[1][1] else "neutral"
+    secondary = (
+        sorted_scores[1][0]
+        if len(sorted_scores) > 1 and sorted_scores[1][1]
+        else "neutral"
+    )
     intensity = min(1.0, 0.25 + score * 0.18 + text.count("!") * 0.05)
     confidence = 0.2 if score == 0 else min(0.95, 0.35 + score * 0.12)
     valence, arousal, needs = EMOTION_DIMENSIONS[label]
@@ -177,6 +194,7 @@ def _detect_lexicon(text: str) -> Dict:
 # Unified API
 # ---------------------------------------------------------------------------
 
+
 def detect_emotion(text: str) -> Dict:
     result = _detect_transformer(text)
     if result is not None:
@@ -195,7 +213,9 @@ def emotion_prompt_hint(emotion):
         "confused": "Compress the situation into simple handles, then rebuild clarity.",
         "focused": "Be direct, operational, and concise; prioritize execution.",
     }
-    return hints.get(label, "Respond naturally; infer the needed mode from the message and context.")
+    return hints.get(
+        label, "Respond naturally; infer the needed mode from the message and context."
+    )
 
 
 if __name__ == "__main__":
@@ -210,4 +230,6 @@ if __name__ == "__main__":
     ]
     for s in samples:
         r = detect_emotion(s)
-        print(f"{s[:40]:40s} -> {r['label']:10s} (conf={r['confidence']:.2f}, val={r['valence']:.2f}, ar={r['arousal']:.2f}, det={r['detector']})")
+        print(
+            f"{s[:40]:40s} -> {r['label']:10s} (conf={r['confidence']:.2f}, val={r['valence']:.2f}, ar={r['arousal']:.2f}, det={r['detector']})"
+        )

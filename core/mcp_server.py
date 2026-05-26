@@ -411,14 +411,26 @@ def hive_status() -> str:
         hive = HiveOrchestrator()
         status = hive.get_status()
         # Demo lightweight consensus using the engine
-        demo = hive.consensus.run_simple_consensus(
+        hive.consensus.run_simple_consensus(
             topic="Current hive health check",
             proposals=[
-                {"node": "spark-0", "role": "PRIMARY", "position": "healthy", "confidence": 0.9},
-                {"node": "seed-1", "role": "CRITIC", "position": "healthy", "confidence": 0.75},
+                {
+                    "node": "spark-0",
+                    "role": "PRIMARY",
+                    "position": "healthy",
+                    "confidence": 0.9,
+                },
+                {
+                    "node": "seed-1",
+                    "role": "CRITIC",
+                    "position": "healthy",
+                    "confidence": 0.75,
+                },
             ],
         )
-        alive_nodes = hive.list_alive_nodes() if hasattr(hive, "list_alive_nodes") else []
+        alive_nodes = (
+            hive.list_alive_nodes() if hasattr(hive, "list_alive_nodes") else []
+        )
         return (
             f"Hive nodes: {status.get('nodes', 0)} ({status.get('alive', 0)} alive)\n"
             f"Active: {', '.join(alive_nodes[:4]) if alive_nodes else 'none'}\n"

@@ -10,8 +10,6 @@ Finds bugs through:
 """
 
 import json
-import os
-import sys
 import threading
 import time
 import random
@@ -145,7 +143,10 @@ class TestRapidFire:
 
     def test_100_interactions_memory(self, tmp_path):
         from infj_bot.core.embeddings import LocalEmbeddingFunction
-        memory = DriftMemory(persist_directory=str(tmp_path), embedding_function=LocalEmbeddingFunction())
+
+        memory = DriftMemory(
+            persist_directory=str(tmp_path), embedding_function=LocalEmbeddingFunction()
+        )
         start = time.time()
         for i in range(100):
             memory.save_interaction(
@@ -412,7 +413,7 @@ class TestEndToEndStress:
             budget.add("cognitive", physics.format_prompt_snippet())
             budget.add("cognitive", humanity.format_prompt_snippet())
             budget.check_overlaps()
-            prompt = budget.trim_to_budget()
+            budget.trim_to_budget()
 
             # Simulate consciousness cycle
             ctx = CycleContext(

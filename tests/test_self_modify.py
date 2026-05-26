@@ -6,7 +6,11 @@ from pathlib import Path
 
 import pytest
 
-from infj_bot.core.self_modify import SelfModification, IMPROVEMENT_AREAS, MAX_PENDING_PROPOSALS
+from infj_bot.core.self_modify import (
+    SelfModification,
+    IMPROVEMENT_AREAS,
+    MAX_PENDING_PROPOSALS,
+)
 
 
 @pytest.fixture
@@ -19,7 +23,7 @@ def tmp_db():
 
 class TestSelfModification:
     def test_init_creates_db(self, tmp_db):
-        sm = SelfModification(db_path=tmp_db)
+        SelfModification(db_path=tmp_db)
         assert tmp_db.exists()
 
     def test_propose_improvement(self, tmp_db):

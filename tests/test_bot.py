@@ -1,7 +1,6 @@
 """Unit tests for the INFJ bot core modules."""
 
 import json
-import sys
 import tempfile
 import unittest
 from datetime import datetime, timedelta
@@ -9,20 +8,33 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 from infj_bot.core.plugins.emotion import detect_emotion, emotion_prompt_hint
-from infj_bot.core.cognition import detect_dissonance, dissonance_prompt_hint, map_dissonance
-from infj_bot.core.commands import is_command, parse_command, handle_command, MODES, BotState
+from infj_bot.core.cognition import (
+    detect_dissonance,
+    dissonance_prompt_hint,
+    map_dissonance,
+)
+from infj_bot.core.commands import (
+    is_command,
+    parse_command,
+    handle_command,
+    MODES,
+    BotState,
+)
 from infj_bot.core.guardrails import cyber_context_hint, mode_scope_rail
 from infj_bot.core.memory import LocalEmbeddingFunction, DriftMemory
 
 # Hive Mind lives on an external SSD; skip tests when unavailable
 try:
-    from infj_bot.hive_mind.consensus_engine import ConsensusEngine
     HIVE_AVAILABLE = True
 except Exception:
     HIVE_AVAILABLE = False
 from infj_bot.core.plugins.growth import growth_profile
 from infj_bot.core.plugins.proactive import ProactiveState
-from infj_bot.core.plugins.documents import DocumentStore, _chunk_text, format_doc_results
+from infj_bot.core.plugins.documents import (
+    DocumentStore,
+    _chunk_text,
+    format_doc_results,
+)
 from infj_bot.core.tools import (
     tool_get_datetime,
     tool_read_file,
@@ -39,7 +51,7 @@ from infj_bot.core.tools import (
     recent_tool_audit,
 )
 from infj_bot.core.config import PROJECT_ROOT
-from infj_bot.core.plugins.goals import GoalsDB, init_db, DB_PATH
+from infj_bot.core.plugins.goals import GoalsDB
 
 
 class TestEmotion(unittest.TestCase):
@@ -106,12 +118,16 @@ class TestCommands(unittest.TestCase):
         result = handle_command("tools", "", BotState(), None, None)
         self.assertIn("run_nuclei_scan", result)
 
-    @unittest.skipUnless(HIVE_AVAILABLE, "Hive Mind module not available (external SSD)")
+    @unittest.skipUnless(
+        HIVE_AVAILABLE, "Hive Mind module not available (external SSD)"
+    )
     def test_hive_command(self):
         result = handle_command("hive", "", BotState(), None, None)
         self.assertIn("Hive Mind status", result)
 
-    @unittest.skipUnless(HIVE_AVAILABLE, "Hive Mind module not available (external SSD)")
+    @unittest.skipUnless(
+        HIVE_AVAILABLE, "Hive Mind module not available (external SSD)"
+    )
     def test_hive_propose_command(self):
         result = handle_command(
             "hive", "propose build a scoped hive roadmap", BotState(), None, None
@@ -119,7 +135,9 @@ class TestCommands(unittest.TestCase):
         self.assertIn("Hive proposal thread", result)
         self.assertIn("resolution:", result)
 
-    @unittest.skipUnless(HIVE_AVAILABLE, "Hive Mind module not available (external SSD)")
+    @unittest.skipUnless(
+        HIVE_AVAILABLE, "Hive Mind module not available (external SSD)"
+    )
     def test_hive_propose_safety_veto(self):
         result = handle_command(
             "hive",
@@ -222,24 +240,27 @@ class TestMemory(unittest.TestCase):
         # We mock unified_memory.datetime and memory.datetime so that when prune is called,
         # it thinks it is far in the future, thus Ebbinghaus decays the memory to 0.
         import datetime
+
         mock_unified_datetime.datetime.now.return_value = datetime.datetime.now()
         mock_unified_datetime.datetime.fromisoformat = datetime.datetime.fromisoformat
-        
+
         mock_memory_datetime.datetime.now.return_value = datetime.datetime.now()
         mock_memory_datetime.datetime.fromisoformat = datetime.datetime.fromisoformat
         mock_memory_datetime.timedelta = datetime.timedelta
-        
+
         with tempfile.TemporaryDirectory() as tmp:
             memory = DriftMemory(persist_directory=tmp)
             memory.save_interaction("hello", "hi", importance=0.2)
             count_before = memory.count()
-            
+
             # Fast forward 10 years
             future = datetime.datetime.now() + datetime.timedelta(days=3650)
             mock_unified_datetime.datetime.now.return_value = future
             mock_memory_datetime.datetime.now.return_value = future
-            
-            removed = memory.prune_interactions(max_age_days=0, max_importance=0.4, force=True)
+
+            removed = memory.prune_interactions(
+                max_age_days=0, max_importance=0.4, force=True
+            )
             self.assertEqual(removed, 1)
             self.assertEqual(memory.count(), count_before - 1)
 
@@ -264,11 +285,11 @@ class TestTools(unittest.TestCase):
         self._orig_cold_storage_dir = core_tools.COLD_STORAGE_DIR
         self._orig_tool_audit_path = core_tools.TOOL_AUDIT_PATH
         self.tmp_home = Path(tempfile.mkdtemp())
-        
+
         core_tools.SAFE_HOME = self.tmp_home
         core_tools.COLD_STORAGE_DIR = self.tmp_home / "BLKKNIGHT_RECOVERY"
         core_tools.TOOL_AUDIT_PATH = self.tmp_home / "tool_audit.jsonl"
-        
+
         # Sync facade
         tools.SAFE_HOME = core_tools.SAFE_HOME
         tools.COLD_STORAGE_DIR = core_tools.COLD_STORAGE_DIR
@@ -382,12 +403,14 @@ class TestGoals(unittest.TestCase):
         # Point DB to a temp file for isolation
         self.tmp_db = Path(tempfile.mkdtemp()) / "goals_test.db"
         from infj_bot.core.plugins import goals as core_goals
+
         self._orig_path = core_goals.DB_PATH
         core_goals.DB_PATH = self.tmp_db
         core_goals.init_db()
 
     def tearDown(self):
         from infj_bot.core.plugins import goals as core_goals
+
         core_goals.DB_PATH = self._orig_path
         if self.tmp_db.exists():
             self.tmp_db.unlink()
@@ -430,7 +453,9 @@ class TestGrowth(unittest.TestCase):
         mock_mem.count.return_value = 100
         # Simulate enough interactions to reach seed
         mock_mem.unified_manager.count_sync.side_effect = lambda t: {
-            "interaction": 20, "learned_knowledge": 0, "reflection": 0
+            "interaction": 20,
+            "learned_knowledge": 0,
+            "reflection": 0,
         }.get(t, 0)
         profile = growth_profile(mock_mem, turns=10)
         self.assertGreaterEqual(profile["points"], 12)
@@ -439,6 +464,7 @@ class TestGrowth(unittest.TestCase):
 class TestProactive(unittest.TestCase):
     def setUp(self):
         import random
+
         random.seed(42)
 
     def test_stress_trigger(self):
@@ -583,6 +609,7 @@ class TestApi(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 400)
         self.assertIn("invalid JSON", response.json()["error"])
+
 
 if __name__ == "__main__":
     unittest.main()

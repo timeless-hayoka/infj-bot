@@ -529,7 +529,7 @@ class MemoryArchive:
             dissonance={"score": artifact.dissonance_score},
         )
         # Retrieve the ID of the most recently added memory
-        recent = self.digital.recent_interactions(limit=1)
+        self.digital.recent_interactions(limit=1)
         # Chroma doesn't expose the ID directly, so we fingerprint
         artifact.layer = MemoryLayer.LONG_TERM
         artifact.memory_id = hashlib.sha256(
@@ -612,7 +612,7 @@ class MemoryArchive:
         return self._artifact_registry.get(artifact_id)
 
     def stats(self) -> Dict[str, Any]:
-        layers = {l: 0 for l in MemoryLayer}
+        layers = {layer: 0 for layer in MemoryLayer}
         for a in self._artifact_registry.values():
             layers[a.layer] += 1
         return {

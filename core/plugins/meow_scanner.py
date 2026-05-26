@@ -9,7 +9,6 @@ import glob
 import os
 import re
 from datetime import datetime
-from pathlib import Path
 from typing import Dict, List, Tuple
 
 MEOW = r"""
@@ -30,7 +29,16 @@ PATTERNS = {
     "hardcoded secret": r"(api_key|apikey|password|secret|token)\s*=\s*['\"][^'\"]{8,}['\"]",
 }
 
-SKIP_DIRS = {"venv", ".venv", "__pycache__", "node_modules", ".git", "chroma_db", "dist", "build"}
+SKIP_DIRS = {
+    "venv",
+    ".venv",
+    "__pycache__",
+    "node_modules",
+    ".git",
+    "chroma_db",
+    "dist",
+    "build",
+}
 
 
 def meow_banner() -> str:
@@ -54,12 +62,14 @@ def scan_codebase(root: str = ".") -> Tuple[List[Dict], Dict[str, int]]:
             for i, line in enumerate(lines, 1):
                 for name, regex in PATTERNS.items():
                     if re.search(regex, line, re.IGNORECASE):
-                        findings.append({
-                            "file": rel_path,
-                            "line": i,
-                            "pattern": name,
-                            "code": line.strip()[:120],
-                        })
+                        findings.append(
+                            {
+                                "file": rel_path,
+                                "line": i,
+                                "pattern": name,
+                                "code": line.strip()[:120],
+                            }
+                        )
                         summary[name] += 1
         except Exception:
             continue
@@ -69,7 +79,9 @@ def scan_codebase(root: str = ".") -> Tuple[List[Dict], Dict[str, int]]:
 
 def format_meow_report(findings: List[Dict], summary: Dict[str, int]) -> str:
     lines = [meow_banner()]
-    lines.append(f"😼 Scanned codebase... found **{len(findings)}** suspicious meows:\n")
+    lines.append(
+        f"😼 Scanned codebase... found **{len(findings)}** suspicious meows:\n"
+    )
 
     # Group by pattern
     by_pattern: Dict[str, List[Dict]] = {}
@@ -81,7 +93,9 @@ def format_meow_report(findings: List[Dict], summary: Dict[str, int]) -> str:
         for item in items[:5]:
             lines.append(f"   🐾 {item['file']}:{item['line']} → {item['code']}")
         if len(items) > 5:
-            lines.append(f"   ... and {len(items) - 5} more hiding in the shadows nyaa~")
+            lines.append(
+                f"   ... and {len(items) - 5} more hiding in the shadows nyaa~"
+            )
 
     lines.append("\n📊 Summary:")
     for name, count in sorted(summary.items(), key=lambda x: -x[1]):

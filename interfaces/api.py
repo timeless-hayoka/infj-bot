@@ -49,8 +49,10 @@ async def background_drift_cycle():
     if not STRONG_CONTINUOUS_MODE:
         return
 
-    logger.info(f"Starting Strong Continuous Drift Cycle (every {BACKGROUND_CYCLE_SECONDS}s)")
-    
+    logger.info(
+        f"Starting Strong Continuous Drift Cycle (every {BACKGROUND_CYCLE_SECONDS}s)"
+    )
+
     being = get_being()
     homeostasis = get_homeostasis()
     shadow = get_shadow()
@@ -61,27 +63,27 @@ async def background_drift_cycle():
     while True:
         try:
             await asyncio.sleep(BACKGROUND_CYCLE_SECONDS)
-            
+
             # Inner thoughts
             thought = being.free_thought()
             if thought:
                 logger.info(f"Background Thought: {thought['content']}")
-            
+
             # Shadow reflection
             shadow.background_tick(being=being)
-            
+
             # Homeostasis regulation
             homeostasis.background_cycle(being=being)
-            
+
             # Metric tracking
             tracker.compute(
                 being=being,
                 workspace=workspace,
                 homeostasis=homeostasis,
                 shadow=shadow,
-                orchestrator=orchestrator
+                orchestrator=orchestrator,
             )
-            
+
         except Exception as e:
             logger.error(f"Error in background drift cycle: {e}")
 
@@ -676,7 +678,7 @@ async def api_chat(request: Request):
             workspace=get_workspace(),
             homeostasis=get_homeostasis(),
             shadow=get_shadow(),
-            orchestrator=CognitiveOrchestrator()
+            orchestrator=CognitiveOrchestrator(),
         )
     except Exception:
         pass
@@ -763,7 +765,7 @@ async def api_chat_stream(request: Request):
                     workspace=get_workspace(),
                     homeostasis=get_homeostasis(),
                     shadow=get_shadow(),
-                    orchestrator=CognitiveOrchestrator()
+                    orchestrator=CognitiveOrchestrator(),
                 )
             except Exception:
                 pass
@@ -804,11 +806,11 @@ async def api_phi():
     from infj_bot.core.homeostasis import get_homeostasis
     from infj_bot.core.phi_proxy import PhiProxy
     from infj_bot.adapters.cognition_adapter import adapter as cog_adapter
-    
+
     being = get_being()
     homeo = get_homeostasis()
     iit = PhiProxy()
-    
+
     return {
         "company": "PHI",
         "model": "Drift",
@@ -816,8 +818,10 @@ async def api_phi():
         "council": COUNCIL_MAPPING,
         "subjective": being.state.to_dict() if hasattr(being, "state") else {},
         "needs": homeo.get_all_needs() if hasattr(homeo, "get_all_needs") else {},
-        "free_energy": homeo.compute_free_energy(0, 0.1, 0.9), # Placeholder inputs for test
-        "status": cog_adapter.get_status()
+        "free_energy": homeo.compute_free_energy(
+            0, 0.1, 0.9
+        ),  # Placeholder inputs for test
+        "status": cog_adapter.get_status(),
     }
 
 
@@ -825,6 +829,7 @@ async def api_phi():
 async def api_hive():
     try:
         from infj_bot.hive_mind.orchestrator import HiveOrchestrator
+
         orch = HiveOrchestrator()
         return orch.get_status()
     except Exception as e:
@@ -835,11 +840,12 @@ async def api_hive():
 async def api_health():
     try:
         from infj_bot.hive_mind.orchestrator import HiveOrchestrator
+
         orch = HiveOrchestrator()
         hive_status = orch.get_status()
     except Exception:
         hive_status = "offline"
-        
+
     return {
         "ok": True,
         "company": "PHI",
@@ -854,6 +860,7 @@ async def api_health():
 @app.get("/api/dii")
 async def api_dii():
     from infj_bot.core.dii_tracker import get_dii_tracker
+
     tracker = get_dii_tracker()
     return tracker.get_trend(n=20)
 
@@ -861,6 +868,7 @@ async def api_dii():
 @app.get("/api/dii/history")
 async def api_dii_history(limit: int = 100):
     from infj_bot.core.dii_tracker import get_dii_tracker
+
     tracker = get_dii_tracker()
     return {"history": tracker.get_history(limit=limit)}
 
@@ -883,7 +891,11 @@ async def api_observer():
     # Shadow radar
     radar = {}
     try:
-        radar = {k: round(v, 2) for k, v in shadow.radar.items()} if hasattr(shadow, "radar") else {}
+        radar = (
+            {k: round(v, 2) for k, v in shadow.radar.items()}
+            if hasattr(shadow, "radar")
+            else {}
+        )
     except Exception:
         pass
 
@@ -923,12 +935,18 @@ async def api_observer():
         },
         "shadow": {
             "radar": radar,
-            "integration_level": round(shadow._state.integration_level, 2) if hasattr(shadow, "_state") else 0.0,
-            "dominant_archetype": shadow._state.dominant_archetype if hasattr(shadow, "_state") else "",
+            "integration_level": round(shadow._state.integration_level, 2)
+            if hasattr(shadow, "_state")
+            else 0.0,
+            "dominant_archetype": shadow._state.dominant_archetype
+            if hasattr(shadow, "_state")
+            else "",
         },
         "workspace": {
             "contents_count": len(ws._submissions) if ws else 0,
-            "spotlight": ws.state.spotlight.source if (ws and ws.state and ws.state.spotlight) else "none",
+            "spotlight": ws.state.spotlight.source
+            if (ws and ws.state and ws.state.spotlight)
+            else "none",
         },
         "dii": dii_data,
     }

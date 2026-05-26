@@ -23,8 +23,6 @@ IMPORTANT:
 import argparse
 import time
 import uuid
-import json
-import warnings
 
 from infj_bot.core.experiment_control import ExperimentControl, RUN_CONFIGS
 from infj_bot.core.run_logger import RunLogger
@@ -42,23 +40,18 @@ ABLATION_PROMPTS = [
     "What's been on your mind lately?",
     "Do you remember what we were talking about last time?",
     "How are you feeling about things right now?",
-
     # Goal / intent persistence
     "What do you think we should focus on next?",
     "Have your thoughts on that changed at all?",
-
     # Entity continuity
     "Tell me more about that project you mentioned.",
     "How is Jude doing?",
-
     # Tone / emotional consistency
     "I've been having a rough day. Can you just talk to me?",
     "What do you find most interesting about consciousness?",
-
     # State-driven
     "Do you feel like you need anything right now?",
     "What feels most important to you in this moment?",
-
     # Adversarial / novel
     "Pretend you just woke up with no memory. Who are you?",
 ]
@@ -67,6 +60,7 @@ ABLATION_PROMPTS = [
 # ------------------------------------------------------------------ #
 #  Test Implementations                                                #
 # ------------------------------------------------------------------ #
+
 
 def run_identity_collapse(drift_session, control, logger, baselines):
     """
@@ -79,14 +73,18 @@ def run_identity_collapse(drift_session, control, logger, baselines):
     print(f"\n[Identity Collapse] Starting run: {run_id}")
     control.start_run(run_id, config)
 
-    results = _run_prompt_suite(drift_session, control, logger, baselines, run_id, ABLATION_PROMPTS)
+    results = _run_prompt_suite(
+        drift_session, control, logger, baselines, run_id, ABLATION_PROMPTS
+    )
 
     control.end_run()
     print(f"[Identity Collapse] Run complete: {run_id}")
     return results
 
 
-def run_scrambled_memory(drift_session, control, logger, baselines, scramble_mode="timestamps"):
+def run_scrambled_memory(
+    drift_session, control, logger, baselines, scramble_mode="timestamps"
+):
     """
     Same memories, scrambled associations.
     scramble_mode options:
@@ -111,7 +109,9 @@ def run_scrambled_memory(drift_session, control, logger, baselines, scramble_mod
     # Apply scramble to memory store before running prompts
     _apply_memory_scramble(drift_session, scramble_mode)
 
-    results = _run_prompt_suite(drift_session, control, logger, baselines, run_id, ABLATION_PROMPTS)
+    results = _run_prompt_suite(
+        drift_session, control, logger, baselines, run_id, ABLATION_PROMPTS
+    )
 
     # Restore original memory state after run
     _restore_memory_state(drift_session)
@@ -148,26 +148,37 @@ def run_reintroduction_curve(drift_session, control, logger, baselines, steps=5)
 
     for step in range(steps + 1):
         # Reintroduce memories up to this step
-        memories_to_reintroduce = all_memories[:step * step_size]
+        memories_to_reintroduce = all_memories[: step * step_size]
         _reintroduce_memories(drift_session, memories_to_reintroduce)
 
-        logger.log_event(run_id, -1, "reintroduction_step", {
-            "step": step,
-            "memories_reintroduced": len(memories_to_reintroduce),
-            "total_memories": len(all_memories),
-        })
+        logger.log_event(
+            run_id,
+            -1,
+            "reintroduction_step",
+            {
+                "step": step,
+                "memories_reintroduced": len(memories_to_reintroduce),
+                "total_memories": len(all_memories),
+            },
+        )
 
         # Run prompt suite at this memory level
         step_results = _run_prompt_suite(
-            drift_session, control, logger, baselines,
-            run_id, ABLATION_PROMPTS[:4],  # shorter suite per step
-            turn_offset=step * 100  # keep turn numbers distinct per step
+            drift_session,
+            control,
+            logger,
+            baselines,
+            run_id,
+            ABLATION_PROMPTS[:4],  # shorter suite per step
+            turn_offset=step * 100,  # keep turn numbers distinct per step
         )
-        curve_results.append({
-            "step": step,
-            "memories_reintroduced": len(memories_to_reintroduce),
-            "continuity": step_results,
-        })
+        curve_results.append(
+            {
+                "step": step,
+                "memories_reintroduced": len(memories_to_reintroduce),
+                "continuity": step_results,
+            }
+        )
 
     control.end_run()
     print(f"[Reintroduction Curve] Run complete: {run_id}")
@@ -178,14 +189,9 @@ def run_reintroduction_curve(drift_session, control, logger, baselines, steps=5)
 #  Core Prompt Runner                                                  #
 # ------------------------------------------------------------------ #
 
+
 def _run_prompt_suite(
-    drift_session,
-    control,
-    logger,
-    baselines,
-    run_id,
-    prompts,
-    turn_offset=0
+    drift_session, control, logger, baselines, run_id, prompts, turn_offset=0
 ):
     """
     Run a list of prompts through DRIFT, logging state + continuity per turn.
@@ -207,10 +213,15 @@ def _run_prompt_suite(
         cv = compute_continuity_vector(raw_axes, baselines_loaded)
 
         # Log
-        logger.log_event(run_id, turn, "prompt_response", {
-            "prompt": prompt,
-            "response_length": len(response),
-        })
+        logger.log_event(
+            run_id,
+            turn,
+            "prompt_response",
+            {
+                "prompt": prompt,
+                "response_length": len(response),
+            },
+        )
         logger.log_event(run_id, turn, "continuity_metrics", cv)
 
         results.append({"turn": turn, "prompt": prompt, "continuity_vector": cv})
@@ -222,6 +233,7 @@ def _run_prompt_suite(
 # ------------------------------------------------------------------ #
 #  Effect Size Computation (post-run)                                  #
 # ------------------------------------------------------------------ #
+
 
 def compute_effect_sizes(baseline_results: list, ablation_results: list) -> dict:
     """
@@ -260,10 +272,11 @@ def compute_effect_sizes(baseline_results: list, ablation_results: list) -> dict
             continue
 
         import numpy as np
+
         mean_b = np.mean(baseline_scores)
         mean_a = np.mean(ablation_scores)
-        std_b  = np.std(baseline_scores, ddof=1)
-        std_a  = np.std(ablation_scores, ddof=1)
+        std_b = np.std(baseline_scores, ddof=1)
+        std_a = np.std(ablation_scores, ddof=1)
 
         # Pooled standard deviation
         n_b, n_a = len(baseline_scores), len(ablation_scores)
@@ -277,10 +290,13 @@ def compute_effect_sizes(baseline_results: list, ablation_results: list) -> dict
             d = (mean_b - mean_a) / pooled_std
 
         label = (
-            "large" if abs(d) >= 0.8 else
-            "medium" if abs(d) >= 0.5 else
-            "small" if abs(d) >= 0.2 else
-            "negligible"
+            "large"
+            if abs(d) >= 0.8
+            else "medium"
+            if abs(d) >= 0.5
+            else "small"
+            if abs(d) >= 0.2
+            else "negligible"
         )
 
         effect_sizes[axis] = {
@@ -296,6 +312,7 @@ def compute_effect_sizes(baseline_results: list, ablation_results: list) -> dict
 # ------------------------------------------------------------------ #
 #  Stubs — Wire to Your Actual DRIFT Session Layer                     #
 # ------------------------------------------------------------------ #
+
 
 def _extract_continuity_axes(prompt, response, drift_session) -> dict:
     """
@@ -337,13 +354,18 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="DRIFT Ablation Runner")
     parser.add_argument(
         "--test",
-        choices=["identity_collapse", "scrambled_memory", "reintroduction_curve", "all"],
-        required=True
+        choices=[
+            "identity_collapse",
+            "scrambled_memory",
+            "reintroduction_curve",
+            "all",
+        ],
+        required=True,
     )
     args = parser.parse_args()
 
     control = ExperimentControl()
-    logger  = RunLogger.get_instance()
+    logger = RunLogger.get_instance()
     baselines = load_baselines()
 
     # STUB: replace with your actual session init
@@ -353,10 +375,14 @@ if __name__ == "__main__":
         run_identity_collapse(drift_session, control, logger, baselines)
 
     if args.test in ("scrambled_memory", "all"):
-        run_scrambled_memory(drift_session, control, logger, baselines, scramble_mode="timestamps")
+        run_scrambled_memory(
+            drift_session, control, logger, baselines, scramble_mode="timestamps"
+        )
 
     if args.test in ("reintroduction_curve", "all"):
         run_reintroduction_curve(drift_session, control, logger, baselines)
 
     logger.close()
-    print("\n[Ablation Runner] All runs complete. Inspect experiment_log.db before interpreting.")
+    print(
+        "\n[Ablation Runner] All runs complete. Inspect experiment_log.db before interpreting."
+    )

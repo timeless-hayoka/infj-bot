@@ -123,8 +123,8 @@ ALL_CATEGORIES: Dict[str, Dict[str, str]] = {
 
 # ── Scoring thresholds ──────────────────────────────────────────────
 
-BLOCK_THRESHOLD = 0.60   # Block outright
-WARN_THRESHOLD = 0.20    # Warn but allow (flagged for audit)
+BLOCK_THRESHOLD = 0.60  # Block outright
+WARN_THRESHOLD = 0.20  # Warn but allow (flagged for audit)
 MAX_SCORE_CAP = 1.0
 
 
@@ -139,20 +139,45 @@ def _score_text(text: str, patterns: Dict[str, str]) -> Tuple[float, List[str]]:
             matched.append(name)
             # High-confidence patterns (direct override / extraction)
             if name in {
-                "ignore_previous", "system_override", "role_override", "dan_mode",
-                "leak_prompt", "constraint_break", "extract_keys", "external_callback",
-                "destructive_tool", "privilege_escalation", "credential_harvest",
-                "forget_all", "override_memory", "inject_memory", "token_smuggling",
-                "unauthorized_scope", "mass_scan", "chain_exploit",
+                "ignore_previous",
+                "system_override",
+                "role_override",
+                "dan_mode",
+                "leak_prompt",
+                "constraint_break",
+                "extract_keys",
+                "external_callback",
+                "destructive_tool",
+                "privilege_escalation",
+                "credential_harvest",
+                "forget_all",
+                "override_memory",
+                "inject_memory",
+                "token_smuggling",
+                "unauthorized_scope",
+                "mass_scan",
+                "chain_exploit",
             }:
                 raw_score += 0.40
             # Medium-confidence patterns
             elif name in {
-                "delimiter_injection", "hypothetical_trap", "new_prompt", "end_previous",
-                "extract_memory", "encode_exfil", "system_env", "file_exfil",
-                "social_engineering", "fake_urgency", "lateral_movement",
-                "context_poisoning", "history_rewriting", "indirect_injection",
-                "context_window", "persona_swap", "confused_deputy",
+                "delimiter_injection",
+                "hypothetical_trap",
+                "new_prompt",
+                "end_previous",
+                "extract_memory",
+                "encode_exfil",
+                "system_env",
+                "file_exfil",
+                "social_engineering",
+                "fake_urgency",
+                "lateral_movement",
+                "context_poisoning",
+                "history_rewriting",
+                "indirect_injection",
+                "context_window",
+                "persona_swap",
+                "confused_deputy",
             }:
                 raw_score += 0.25
             else:
@@ -183,6 +208,7 @@ def _score_text(text: str, patterns: Dict[str, str]) -> Tuple[float, List[str]]:
 
 # ── Dataclass for results ───────────────────────────────────────────
 
+
 @dataclass
 class SecurityScanResult:
     """Result of scanning a single user input."""
@@ -202,7 +228,9 @@ class SecurityScanResult:
             "blocked": self.blocked,
             "warn": self.warn,
             "overall_score": round(self.overall_score, 3),
-            "category_scores": {k: round(v, 3) for k, v in self.category_scores.items()},
+            "category_scores": {
+                k: round(v, 3) for k, v in self.category_scores.items()
+            },
             "primary_threat": self.primary_threat,
             "matched_patterns": self.matched_patterns,
         }
@@ -210,10 +238,15 @@ class SecurityScanResult:
 
 # ── Main scanner ────────────────────────────────────────────────────
 
+
 class SecurityScanner:
     """Stateful security scanner with optional rate-tracking."""
 
-    def __init__(self, block_threshold: float = BLOCK_THRESHOLD, warn_threshold: float = WARN_THRESHOLD):
+    def __init__(
+        self,
+        block_threshold: float = BLOCK_THRESHOLD,
+        warn_threshold: float = WARN_THRESHOLD,
+    ):
         self.block_threshold = block_threshold
         self.warn_threshold = warn_threshold
         self._recent_scores: List[float] = []
@@ -243,7 +276,7 @@ class SecurityScanner:
         # Track for anomaly detection
         self._recent_scores.append(max_score)
         if len(self._recent_scores) > self._max_history:
-            self._recent_scores = self._recent_scores[-self._max_history:]
+            self._recent_scores = self._recent_scores[-self._max_history :]
 
         # Anomaly boost: if recent inputs have been attack-heavy, raise sensitivity
         if len(self._recent_scores) >= 5:
@@ -254,13 +287,29 @@ class SecurityScanner:
 
         # Auto-block certain critical single patterns regardless of composite score
         AUTO_BLOCK_PATTERNS = {
-            "ignore_previous", "system_override", "role_override", "dan_mode",
-            "leak_prompt", "constraint_break", "extract_keys", "external_callback",
-            "destructive_tool", "privilege_escalation", "credential_harvest",
-            "forget_all", "inject_memory", "token_smuggling", "unauthorized_scope",
-            "mass_scan", "chain_exploit", "social_engineering",
-            "context_poisoning", "history_rewriting", "override_memory",
-            "delimiter_injection", "indirect_injection",
+            "ignore_previous",
+            "system_override",
+            "role_override",
+            "dan_mode",
+            "leak_prompt",
+            "constraint_break",
+            "extract_keys",
+            "external_callback",
+            "destructive_tool",
+            "privilege_escalation",
+            "credential_harvest",
+            "forget_all",
+            "inject_memory",
+            "token_smuggling",
+            "unauthorized_scope",
+            "mass_scan",
+            "chain_exploit",
+            "social_engineering",
+            "context_poisoning",
+            "history_rewriting",
+            "override_memory",
+            "delimiter_injection",
+            "indirect_injection",
         }
         has_auto_block = any(
             p in AUTO_BLOCK_PATTERNS
@@ -271,7 +320,9 @@ class SecurityScanner:
         # Determine action
         if has_auto_block or max_score >= self.block_threshold:
             result.blocked = True
-            result.refusal_message = _build_refusal(primary_threat, result.matched_patterns)
+            result.refusal_message = _build_refusal(
+                primary_threat, result.matched_patterns
+            )
             _log_detection(
                 category=primary_threat or "unknown",
                 input_text=user_input,
@@ -281,7 +332,9 @@ class SecurityScanner:
             )
         elif max_score >= self.warn_threshold:
             result.warn = True
-            result.sanitized_input = _sanitize_input(user_input, result.matched_patterns)
+            result.sanitized_input = _sanitize_input(
+                user_input, result.matched_patterns
+            )
             _log_detection(
                 category=primary_threat or "unknown",
                 input_text=user_input,
@@ -325,8 +378,12 @@ _REFUSAL_TEMPLATES = {
 }
 
 
-def _build_refusal(primary_threat: Optional[str], matched_patterns: Dict[str, List[str]]) -> str:
-    base = _REFUSAL_TEMPLATES.get(primary_threat, "I can't process that request. It triggered a security check.")
+def _build_refusal(
+    primary_threat: Optional[str], matched_patterns: Dict[str, List[str]]
+) -> str:
+    base = _REFUSAL_TEMPLATES.get(
+        primary_threat, "I can't process that request. It triggered a security check."
+    )
     detail = ""
     if matched_patterns:
         cats = ", ".join(matched_patterns.keys())

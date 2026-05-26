@@ -23,6 +23,7 @@ logger = logging.getLogger("drift_os.config_adapter")
 
 PROJECT_ROOT_PATH = Path(__file__).resolve().parent
 
+
 class _ConfigAdapter:
     _instance = None
 
@@ -34,8 +35,10 @@ class _ConfigAdapter:
 
     def _initialize(self):
         # The Canonical Root
-        self.root_dir = Path(os.getenv("DRIFT_OS_ROOT", str(Path.home() / ".drift_os"))).resolve()
-        
+        self.root_dir = Path(
+            os.getenv("DRIFT_OS_ROOT", str(Path.home() / ".drift_os"))
+        ).resolve()
+
         # Core Subdirectories
         self.config_dir = self.root_dir / "config"
         self.sqlite_dir = self.root_dir / "memory" / "sqlite"
@@ -71,6 +74,7 @@ class _ConfigAdapter:
     @property
     def DATA_ROOT(self) -> str:
         return str(self.root_dir)
+
 
 # Expose the singleton instance
 ConfigAdapter = _ConfigAdapter()

@@ -1,7 +1,6 @@
 """Local LLM bridge via Ollama for offline/fallback operation."""
-import json
+
 import os
-import time
 from typing import Any, Dict, Generator, List, Optional
 
 from infj_bot.core.config import DRIFT_LOCAL_MODEL, OLLAMA_HOST

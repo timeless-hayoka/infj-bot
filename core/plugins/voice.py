@@ -1,8 +1,9 @@
 """Voice layer: STT via faster-whisper, TTS via piper, recording via sounddevice."""
+
 import io
 import wave
 from pathlib import Path
-from typing import Iterator, Optional
+from typing import Optional
 
 from infj_bot.core.config import PROJECT_ROOT
 
@@ -19,6 +20,7 @@ def _get_whisper():
     global _whisper_model
     if _whisper_model is None:
         from faster_whisper import WhisperModel
+
         _whisper_model = WhisperModel("base", device="cpu", compute_type="int8")
     return _whisper_model
 
@@ -27,9 +29,12 @@ def _get_piper():
     global _piper_voice
     if _piper_voice is None:
         from piper import PiperVoice
+
         voice_path = str(DEFAULT_VOICE) if DEFAULT_VOICE.exists() else None
         if voice_path is None:
-            raise RuntimeError(f"No Piper voice found at {DEFAULT_VOICE}. Run: mkdir -p voices && curl ...")
+            raise RuntimeError(
+                f"No Piper voice found at {DEFAULT_VOICE}. Run: mkdir -p voices && curl ..."
+            )
         _piper_voice = PiperVoice.load(voice_path)
     return _piper_voice
 
@@ -42,20 +47,24 @@ def _resolve_audio_path(path: str, must_exist: bool = True) -> Path:
     try:
         target.relative_to(Path.home().resolve())
     except ValueError:
-        raise PermissionError(f"Audio path {path} is outside the allowed home directory.")
+        raise PermissionError(
+            f"Audio path {path} is outside the allowed home directory."
+        )
     if must_exist:
         if not target.exists():
             raise FileNotFoundError(path)
         if target.stat().st_size > MAX_AUDIO_BYTES:
-            raise ValueError(f"Audio file is too large; max is {MAX_AUDIO_BYTES} bytes.")
+            raise ValueError(
+                f"Audio file is too large; max is {MAX_AUDIO_BYTES} bytes."
+            )
     return target
 
 
-def record_audio(duration: float = 5.0, sample_rate: int = 16000, channels: int = 1) -> bytes:
+def record_audio(
+    duration: float = 5.0, sample_rate: int = 16000, channels: int = 1
+) -> bytes:
     """Record audio from the microphone and return WAV bytes."""
     import sounddevice as sd
-    import soundfile as sf
-    import numpy as np
 
     frames = int(duration * sample_rate)
     recording = sd.rec(frames, samplerate=sample_rate, channels=channels, dtype="int16")
@@ -104,14 +113,16 @@ def synthesize_to_file(text: str, path: str):
         voice.synthesize_wav(text, wav)
 
 
-def listen_and_transcribe(audio_path: str, wake_word: str = "companion") -> Optional[str]:
+def listen_and_transcribe(
+    audio_path: str, wake_word: str = "companion"
+) -> Optional[str]:
     """Transcribe audio and return text only if wake word is present."""
     text = transcribe(audio_path)
     if wake_word.lower() in text.lower():
         lowered = text.lower()
         idx = lowered.find(wake_word.lower())
         if idx >= 0:
-            text = text[idx + len(wake_word):].strip()
+            text = text[idx + len(wake_word) :].strip()
         return text
     return None
 
@@ -128,7 +139,6 @@ def play_audio(wav_bytes: bytes):
     """Play WAV bytes through the default audio output."""
     import sounddevice as sd
     import soundfile as sf
-    import numpy as np
 
     buffer = io.BytesIO(wav_bytes)
     data, sr = sf.read(buffer, dtype="int16")
@@ -138,5 +148,5 @@ def play_audio(wav_bytes: bytes):
 
 if __name__ == "__main__":
     print("Voice module ready.")
-    print(f"Whisper model: base (CPU, int8)")
+    print("Whisper model: base (CPU, int8)")
     print(f"Piper voice: {DEFAULT_VOICE}")

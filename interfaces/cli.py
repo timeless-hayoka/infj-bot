@@ -132,12 +132,14 @@ def cmd_path(_args):
 
 def cmd_meow(_args):
     from infj_bot.core.plugins.meow_scanner import meow_hunt
+
     print(meow_hunt(str(PROJECT_ROOT)))
     return 0
 
 
 def cmd_bug(args):
     from infj_bot.core.bug_bot import BugBot
+
     bot = BugBot()
     subcmd = args.subcmd or "health"
     if subcmd == "sync":
@@ -231,12 +233,25 @@ def build_parser():
     path = sub.add_parser("path", help="Print the bot project path.")
     path.set_defaults(func=cmd_path)
 
-    bug = sub.add_parser("bug", help="Bug bounty engine — sync, recon, findings, reports.")
-    bug.add_argument("subcmd", nargs="?", help="sync | programs | recon | list | get | report | preview | submit | stats | health")
+    bug = sub.add_parser(
+        "bug", help="Bug bounty engine — sync, recon, findings, reports."
+    )
+    bug.add_argument(
+        "subcmd",
+        nargs="?",
+        help="sync | programs | recon | list | get | report | preview | submit | stats | health",
+    )
     bug.add_argument("--program", "-p", default="", help="Program ID for recon/list.")
-    bug.add_argument("--tool", "-t", default="all", help="Recon tool: all | subdomains | nuclei | fuzz")
+    bug.add_argument(
+        "--tool",
+        "-t",
+        default="all",
+        help="Recon tool: all | subdomains | nuclei | fuzz",
+    )
     bug.add_argument("--status", "-s", default="", help="Filter findings by status.")
-    bug.add_argument("--id", "-i", default="", help="Finding ID for get/report/preview/submit.")
+    bug.add_argument(
+        "--id", "-i", default="", help="Finding ID for get/report/preview/submit."
+    )
     bug.set_defaults(func=cmd_bug)
 
     meow = sub.add_parser("meow", help="Run the chaos gremlin code scanner.")

@@ -30,7 +30,6 @@ from infj_bot.core.plugins.relationship import RelationshipModel
 from infj_bot.core.self_modify import SelfModification
 from infj_bot.core.plugins.temporal import TemporalSense
 from infj_bot.core.plugins.values import ValueSystem
-from infj_bot.core.coordination import get_coordination
 from infj_bot.core.plugins.physics import PhysicsEngine
 from infj_bot.core.plugins.humanity import HumanityEngine
 from infj_bot.core.intuition import IntuitionEngine
@@ -415,7 +414,6 @@ async def chat_loop():
     """)
 
     _temporal.record_session_start()
-    session_active = True
 
     while True:
         user_input = await asyncio.to_thread(input, "\n[JUDE]> ")
@@ -423,12 +421,13 @@ async def chat_loop():
         if user_input.lower() in ["exit", "quit"]:
             print("[*] I'll be here in the quiet if you need me again. Goodbye, Jude.")
             _temporal.record_session_end()
-            session_active = False
             break
 
         sec = scan_input(user_input)
         if sec.blocked:
-            print(f"\n[INFJ COMPANION]: {sec.refusal_message or 'I can\'t process that request.'}")
+            print(
+                f"\n[INFJ COMPANION]: {sec.refusal_message or "I can't process that request."}"
+            )
             continue
         if sec.warn:
             user_input = sec.sanitized_input or user_input
@@ -461,7 +460,7 @@ async def chat_loop():
 
         # Self-evaluation
         try:
-            scores = brain.evaluate_last(prompt, output)
+            brain.evaluate_last(prompt, output)
         except Exception:
             logger.exception("self-evaluation failed")
 
@@ -484,7 +483,11 @@ async def chat_loop():
         try:
             pruned = memory.auto_prune(turn_count=state.turns, force=False)
             if pruned > 0:
-                logger.info("Memory spine pruned %d low-value entries after turn %d", pruned, state.turns)
+                logger.info(
+                    "Memory spine pruned %d low-value entries after turn %d",
+                    pruned,
+                    state.turns,
+                )
         except Exception:
             logger.exception("turn-based memory prune failed")
 
@@ -587,6 +590,7 @@ async def chat_loop():
                 pass
 
         print(f"\n[INFJ COMPANION]: {output}")
+
 
 async def main():
     # Keep the bot's consciousness alive while the interactive chat is running.

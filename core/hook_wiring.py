@@ -25,6 +25,7 @@ control = ExperimentControl()  # replace with your actual singleton access
 # ================================================================== #
 # Find your memory storage call site and wrap it:
 
+
 def example_memory_store_hook(memory_system, memory_object, logger, run_id, turn):
     """
     Pattern for memory.py store call site.
@@ -33,11 +34,16 @@ def example_memory_store_hook(memory_system, memory_object, logger, run_id, turn
         memory_system.store(memory_object)
 
         # Log the storage event
-        logger.log_event(run_id, turn, "memory_stored", {
-            "memory_id": memory_object.id,
-            "reinforcement_score": memory_object.reinforcement_score,
-            "timestamp": memory_object.timestamp,
-        })
+        logger.log_event(
+            run_id,
+            turn,
+            "memory_stored",
+            {
+                "memory_id": memory_object.id,
+                "reinforcement_score": memory_object.reinforcement_score,
+                "timestamp": memory_object.timestamp,
+            },
+        )
     # If frozen: silently skip. Memory is the experimental condition.
 
 
@@ -45,6 +51,7 @@ def example_memory_store_hook(memory_system, memory_object, logger, run_id, turn
 # 2. homeostasis.py  —  State Update Hook                             #
 # ================================================================== #
 # Find your homeostasis state update call site and wrap it:
+
 
 def example_state_update_hook(homeostasis_system, state_delta, logger, run_id, turn):
     """
@@ -54,9 +61,14 @@ def example_state_update_hook(homeostasis_system, state_delta, logger, run_id, t
         homeostasis_system.update(state_delta)
 
         # Log the state snapshot after update
-        logger.log_event(run_id, turn, "state_snapshot", {
-            "homeostasis": homeostasis_system.get_current_state(),
-        })
+        logger.log_event(
+            run_id,
+            turn,
+            "state_snapshot",
+            {
+                "homeostasis": homeostasis_system.get_current_state(),
+            },
+        )
     # If frozen: state is locked. Used for memory-only continuity test.
 
 
@@ -66,6 +78,7 @@ def example_state_update_hook(homeostasis_system, state_delta, logger, run_id, t
 # CRITICAL: freeze novelty at computation time, not after caching.
 # Wrong: compute novelty → cache score → freeze later (stale cache preserves it)
 # Right: freeze check → then set on memory object → then MPS uses it
+
 
 def example_novelty_computation_hook(memory_object, recent_memories):
     """
@@ -100,29 +113,35 @@ def _compute_novelty(memory_object, recent_memories) -> float:
 # After retrieve_and_rank(), log both selected and rejected candidates.
 # Wire this wherever your DMU returns the final top-K memories.
 
+
 def log_memory_selection(logger, run_id, turn, selected, rejected_top5):
     """
     Log memory selection with full score breakdown.
     score_components must be set on each memory by compute_mps().
     """
-    logger.log_event(run_id, turn, "memory_selection", {
-        "selected": [
-            {
-                "id": m.id,
-                "score": m.score,
-                "components": getattr(m, "score_components", None),
-            }
-            for m in selected
-        ],
-        "rejected": [
-            {
-                "id": m.id,
-                "score": m.score,
-                "components": getattr(m, "score_components", None),
-            }
-            for m in rejected_top5
-        ],
-    })
+    logger.log_event(
+        run_id,
+        turn,
+        "memory_selection",
+        {
+            "selected": [
+                {
+                    "id": m.id,
+                    "score": m.score,
+                    "components": getattr(m, "score_components", None),
+                }
+                for m in selected
+            ],
+            "rejected": [
+                {
+                    "id": m.id,
+                    "score": m.score,
+                    "components": getattr(m, "score_components", None),
+                }
+                for m in rejected_top5
+            ],
+        },
+    )
 
 
 # ================================================================== #
@@ -130,15 +149,29 @@ def log_memory_selection(logger, run_id, turn, selected, rejected_top5):
 # ================================================================== #
 # Call this at the end of each turn processing loop.
 
-def log_turn(logger, run_id, turn, homeostasis_system, selected, rejected_top5, continuity_vector=None):
+
+def log_turn(
+    logger,
+    run_id,
+    turn,
+    homeostasis_system,
+    selected,
+    rejected_top5,
+    continuity_vector=None,
+):
     """
     Standard per-turn log bundle.
     Call after state update, memory selection, and response generation.
     """
     # State snapshot
-    logger.log_event(run_id, turn, "state_snapshot", {
-        "homeostasis": homeostasis_system.get_current_state(),
-    })
+    logger.log_event(
+        run_id,
+        turn,
+        "state_snapshot",
+        {
+            "homeostasis": homeostasis_system.get_current_state(),
+        },
+    )
 
     # Memory selection
     log_memory_selection(logger, run_id, turn, selected, rejected_top5)

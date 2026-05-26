@@ -12,18 +12,16 @@ Safe by design:
 
 import json
 import subprocess
-import time
-import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 from infj_bot.core.config import PROJECT_ROOT
 from infj_bot.core.memory import DriftMemory
-from infj_bot.core.plugins.bugcrowd_client import BugcrowdClient, BugcrowdProgram
+from infj_bot.core.plugins.bugcrowd_client import BugcrowdClient
 from infj_bot.core.plugins.findings_db import Finding, FindingsDB
 from infj_bot.core.plugins.report_builder import ReportBuilder
-from infj_bot.core.plugins.target_manager import Target, TargetManager
+from infj_bot.core.plugins.target_manager import TargetManager
 
 
 RECON_DIR = Path(PROJECT_ROOT) / "recon"
@@ -74,7 +72,9 @@ class BugBot:
                 self.targets.delete_program(prog.uuid)
                 self.targets.bulk_add(prog.uuid, prog.name, full.scope, scope="in")
                 self.targets.bulk_add(prog.uuid, prog.name, full.oos, scope="out")
-                self._log(f"Synced program: {prog.name} ({len(full.scope)} in / {len(full.oos)} out)")
+                self._log(
+                    f"Synced program: {prog.name} ({len(full.scope)} in / {len(full.oos)} out)"
+                )
             except Exception as exc:
                 self._log(f"⚠️ Failed to sync {prog.name}: {exc}")
 
@@ -90,7 +90,9 @@ class BugBot:
             return "No programs found."
         lines = ["🎯 Bugcrowd Programs"]
         for p in programs:
-            lines.append(f"  • {p.name} — {p.status} ({p.rewards or 'no rewards info'})")
+            lines.append(
+                f"  • {p.name} — {p.status} ({p.rewards or 'no rewards info'})"
+            )
         return "\n".join(lines)
 
     # ── Recon ─────────────────────────────────────────────────────
@@ -103,7 +105,9 @@ class BugBot:
         """
         targets = self.targets.list_targets(program_id=program_id, scope="in")
         if not targets:
-            return f"❌ No in-scope targets for program {program_id}. Run /bug sync first."
+            return (
+                f"❌ No in-scope targets for program {program_id}. Run /bug sync first."
+            )
 
         domains = [t.asset for t in targets if t.asset_type in ("domain", "wildcard")]
         urls = [t.asset for t in targets if t.asset_type == "url"]
@@ -157,10 +161,15 @@ class BugBot:
         try:
             subprocess.run(
                 [
-                    "nuclei", "-l", str(target_file),
-                    "-severity", "critical,high,medium",
-                    "-rate-limit", "10",
-                    "-json-export", str(output),
+                    "nuclei",
+                    "-l",
+                    str(target_file),
+                    "-severity",
+                    "critical,high,medium",
+                    "-rate-limit",
+                    "10",
+                    "-json-export",
+                    str(output),
                     "-silent",
                 ],
                 capture_output=True,
@@ -169,7 +178,9 @@ class BugBot:
                 check=False,
             )
             if output.exists():
-                data = json.loads(output.read_text()) if output.stat().st_size > 0 else []
+                data = (
+                    json.loads(output.read_text()) if output.stat().st_size > 0 else []
+                )
                 # Auto-ingest critical/high findings
                 for item in data:
                     sev = item.get("info", {}).get("severity", "").lower()
@@ -183,7 +194,7 @@ class BugBot:
                             description=json.dumps(item.get("info", {}), indent=2),
                             confidence="medium",
                         )
-                return f"  🎯 nuclei: {len(data)} findings → {output.name} ({len([d for d in data if d.get('info',{}).get('severity') in ('critical','high')])} critical/high)"
+                return f"  🎯 nuclei: {len(data)} findings → {output.name} ({len([d for d in data if d.get('info', {}).get('severity') in ('critical', 'high')])} critical/high)"
             return "  🎯 nuclei: no output"
         except FileNotFoundError:
             return "  ⚠️ nuclei not installed"
@@ -197,11 +208,17 @@ class BugBot:
         try:
             subprocess.run(
                 [
-                    "ffuf", "-u", f"https://{domain}/FUZZ",
-                    "-w", "/usr/share/wordlists/dirb/common.txt",
-                    "-rate", "10",
-                    "-o", str(output),
-                    "-of", "json",
+                    "ffuf",
+                    "-u",
+                    f"https://{domain}/FUZZ",
+                    "-w",
+                    "/usr/share/wordlists/dirb/common.txt",
+                    "-rate",
+                    "10",
+                    "-o",
+                    str(output),
+                    "-of",
+                    "json",
                     "-s",
                 ],
                 capture_output=True,
@@ -210,7 +227,9 @@ class BugBot:
                 check=False,
             )
             if output.exists():
-                data = json.loads(output.read_text()) if output.stat().st_size > 0 else {}
+                data = (
+                    json.loads(output.read_text()) if output.stat().st_size > 0 else {}
+                )
                 results = data.get("results", [])
                 return f"  🌪️ ffuf: {len(results)} hits on {domain} → {output.name}"
             return "  🌪️ ffuf: no output"
@@ -273,12 +292,16 @@ class BugBot:
             f"  Severity: {f.severity} | Confidence: {f.confidence} | Status: {f.status}",
             f"  Asset: {f.asset or 'N/A'}",
             f"  Type: {f.vuln_type or 'N/A'}",
-            f"  Description: {f.description[:200]}..." if len(f.description) > 200 else f"  Description: {f.description}",
+            f"  Description: {f.description[:200]}..."
+            if len(f.description) > 200
+            else f"  Description: {f.description}",
             f"  Evidence: {len(ev)} item(s)",
         ]
         return "\n".join(lines)
 
-    def list_findings(self, program_id: Optional[str] = None, status: Optional[str] = None) -> str:
+    def list_findings(
+        self, program_id: Optional[str] = None, status: Optional[str] = None
+    ) -> str:
         items = self.findings.list(program_id=program_id, status=status, limit=100)
         if not items:
             return "No findings."
@@ -341,7 +364,12 @@ class BugBot:
                 impact=f.impact,
                 asset=f.asset,
             )
-            self.findings.update(finding_id, status="submitted", bugcrowd_submission_id=sub_id, submitted_at=datetime.now().isoformat(timespec="seconds"))
+            self.findings.update(
+                finding_id,
+                status="submitted",
+                bugcrowd_submission_id=sub_id,
+                submitted_at=datetime.now().isoformat(timespec="seconds"),
+            )
             return f"✅ Submitted to Bugcrowd! Submission ID: {sub_id}"
         except Exception as exc:
             return f"❌ Submission failed: {exc}"

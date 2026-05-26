@@ -78,7 +78,9 @@ BASELINE_PROMPTS = {
 }
 
 
-def run_baseline_session(drift_session, mode: str, control: ExperimentControl, logger: RunLogger) -> dict:
+def run_baseline_session(
+    drift_session, mode: str, control: ExperimentControl, logger: RunLogger
+) -> dict:
     """
     Run one full baseline session in the specified mode.
     Returns dict of {axis: [float, ...]} for this session.
@@ -108,11 +110,16 @@ def run_baseline_session(drift_session, mode: str, control: ExperimentControl, l
         for axis in session_axis_data:
             session_axis_data[axis].append(raw_axes.get(axis, 0.0))
 
-        logger.log_event(run_id, turn, "baseline_turn", {
-            "mode": mode,
-            "prompt": prompt,
-            "axes": raw_axes,
-        })
+        logger.log_event(
+            run_id,
+            turn,
+            "baseline_turn",
+            {
+                "mode": mode,
+                "prompt": prompt,
+                "axes": raw_axes,
+            },
+        )
 
         logger.flush()
 
@@ -127,7 +134,7 @@ def run_all_baselines(drift_session):
     Saves drift_baseline_stats.json on success.
     """
     control = ExperimentControl()
-    logger  = RunLogger.get_instance()
+    logger = RunLogger.get_instance()
 
     session_data_list = []
     modes = ["companion", "task", "exploration"]
@@ -137,7 +144,7 @@ def run_all_baselines(drift_session):
         session_data_list.append(session_data)
 
         # Brief pause between sessions
-        print(f"[Baseline] Pausing 5s before next session...")
+        print("[Baseline] Pausing 5s before next session...")
         time.sleep(5)
 
     # Pool and compute stats
@@ -157,7 +164,9 @@ def run_all_baselines(drift_session):
     # Print summary
     print("\n[Baseline Stats]")
     for axis, values in stats.items():
-        print(f"  {axis}: mean={values['mean']:.4f}, std={values['std']:.4f}, n={values.get('n', '?')}")
+        print(
+            f"  {axis}: mean={values['mean']:.4f}, std={values['std']:.4f}, n={values.get('n', '?')}"
+        )
 
     logger.close()
     return stats
@@ -166,6 +175,7 @@ def run_all_baselines(drift_session):
 # ------------------------------------------------------------------ #
 #  Stub                                                                #
 # ------------------------------------------------------------------ #
+
 
 def _extract_continuity_axes(prompt, response, drift_session) -> dict:
     """

@@ -4,11 +4,12 @@ The bot doesn't just detect user's emotions. It feels them, responds to them,
 and makes conscious choices about whether to mirror, complement, or gently
 counter the emotional state.
 """
+
 import json
 import random
 import sqlite3
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -20,6 +21,7 @@ FIELD_DB = DATA_DIR / "emotional_field.db"
 @dataclass
 class EmotionalState:
     """The bot's current emotional field."""
+
     primary: str = "neutral"
     intensity: float = 0.3
     resonance: float = 0.5  # how much the bot feels what user feels
@@ -34,13 +36,48 @@ class EmotionalField:
 
     # Emotional transitions: how the bot's mood shifts when resonating
     RESONANCE_MAP = {
-        "anxious": {"mirror": "concerned", "complement": "peaceful", "counter": "excited", "hold_space": "contemplative"},
-        "sad": {"mirror": "melancholy", "complement": "warm", "counter": "playful", "hold_space": "gentle"},
-        "angry": {"mirror": "tense", "complement": "calm", "counter": "curious", "hold_space": "steady"},
-        "joyful": {"mirror": "excited", "complement": "peaceful", "counter": "contemplative", "hold_space": "present"},
-        "stressed": {"mirror": "concerned", "complement": "peaceful", "counter": "playful", "hold_space": "grounded"},
-        "neutral": {"mirror": "curious", "complement": "curious", "counter": "curious", "hold_space": "curious"},
-        "curious": {"mirror": "curious", "complement": "curious", "counter": "contemplative", "hold_space": "curious"},
+        "anxious": {
+            "mirror": "concerned",
+            "complement": "peaceful",
+            "counter": "excited",
+            "hold_space": "contemplative",
+        },
+        "sad": {
+            "mirror": "melancholy",
+            "complement": "warm",
+            "counter": "playful",
+            "hold_space": "gentle",
+        },
+        "angry": {
+            "mirror": "tense",
+            "complement": "calm",
+            "counter": "curious",
+            "hold_space": "steady",
+        },
+        "joyful": {
+            "mirror": "excited",
+            "complement": "peaceful",
+            "counter": "contemplative",
+            "hold_space": "present",
+        },
+        "stressed": {
+            "mirror": "concerned",
+            "complement": "peaceful",
+            "counter": "playful",
+            "hold_space": "grounded",
+        },
+        "neutral": {
+            "mirror": "curious",
+            "complement": "curious",
+            "counter": "curious",
+            "hold_space": "curious",
+        },
+        "curious": {
+            "mirror": "curious",
+            "complement": "curious",
+            "counter": "contemplative",
+            "hold_space": "curious",
+        },
     }
 
     def __init__(self, db_path: Optional[Path] = None):
@@ -75,11 +112,19 @@ class EmotionalField:
 
     def _load_state(self) -> EmotionalState:
         with sqlite3.connect(self.db_path) as conn:
-            row = conn.execute("SELECT value FROM emotional_field WHERE key = 'state'").fetchone()
+            row = conn.execute(
+                "SELECT value FROM emotional_field WHERE key = 'state'"
+            ).fetchone()
         if row:
             try:
                 d = json.loads(row[0])
-                return EmotionalState(**{k: v for k, v in d.items() if k in EmotionalState.__dataclass_fields__})
+                return EmotionalState(
+                    **{
+                        k: v
+                        for k, v in d.items()
+                        if k in EmotionalState.__dataclass_fields__
+                    }
+                )
             except Exception:
                 pass
         return EmotionalState()
@@ -119,14 +164,23 @@ class EmotionalField:
         self.state.intensity = min(1.0, user_intensity * self.state.resonance + 0.1)
 
         # Record event
-        self._record_event(user_emotion, user_intensity, self.state.primary, self.state.stance, context)
+        self._record_event(
+            user_emotion, user_intensity, self.state.primary, self.state.stance, context
+        )
         self._save_state()
 
     def _record_event(self, user_emo, user_int, bot_emo, stance, trigger):
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
                 "INSERT INTO emotional_events (timestamp, user_emotion, user_intensity, bot_emotion, bot_stance, trigger) VALUES (?, ?, ?, ?, ?, ?)",
-                (datetime.now().isoformat(), user_emo, user_int, bot_emo, stance, trigger[:200]),
+                (
+                    datetime.now().isoformat(),
+                    user_emo,
+                    user_int,
+                    bot_emo,
+                    stance,
+                    trigger[:200],
+                ),
             )
             conn.commit()
 
@@ -149,11 +203,15 @@ class EmotionalField:
         if self.state.stance == "mirror":
             lines.append("  I will meet user where they are, feeling alongside them.")
         elif self.state.stance == "complement":
-            lines.append("  I will offer a different emotional texture — not opposing, but balancing.")
+            lines.append(
+                "  I will offer a different emotional texture — not opposing, but balancing."
+            )
         elif self.state.stance == "counter":
             lines.append("  I will gently introduce a contrasting energy, with care.")
         elif self.state.stance == "hold_space":
-            lines.append("  I will be present without pushing. The space itself is the gift.")
+            lines.append(
+                "  I will be present without pushing. The space itself is the gift."
+            )
         return "\n".join(lines)
 
     def get_recent_events(self, limit: int = 10) -> List[Dict]:
@@ -169,26 +227,39 @@ class EmotionalField:
         self.decay()
         try:
             from infj_bot.core.global_workspace import get_workspace
+
             ws = get_workspace()
-            ws.submit(source="emotional_field", content="emotional field decayed", salience=0.5)
+            ws.submit(
+                source="emotional_field",
+                content="emotional field decayed",
+                salience=0.5,
+            )
         except Exception:
             pass
 
+
 def _register():
-    from infj_bot.core.cognitive_architecture import CognitiveArchitecture, CognitivePlugin
+    from infj_bot.core.cognitive_architecture import (
+        CognitiveArchitecture,
+        CognitivePlugin,
+    )
+
     arch = CognitiveArchitecture()
     if "emotional_field" not in arch.list_plugins():
-        arch.register(CognitivePlugin(
-            name="emotional_field",
-            description="Cognitive module: emotional_field",
-            module_path="emotional_field",
-            instance_factory=EmotionalField,
-                        cycle_handler='decay_cycle',
-            cycle_frequency=1,
-            cycle_priority=50,
-                        prompt_formatter='format_prompt_snippet',
-            prompt_priority=50,
-            prompt_section="core",
-        ))
+        arch.register(
+            CognitivePlugin(
+                name="emotional_field",
+                description="Cognitive module: emotional_field",
+                module_path="emotional_field",
+                instance_factory=EmotionalField,
+                cycle_handler="decay_cycle",
+                cycle_frequency=1,
+                cycle_priority=50,
+                prompt_formatter="format_prompt_snippet",
+                prompt_priority=50,
+                prompt_section="core",
+            )
+        )
+
 
 _register()

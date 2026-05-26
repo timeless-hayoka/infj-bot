@@ -21,7 +21,7 @@ def tmp_db():
 
 class TestTemporalSense:
     def test_init_creates_db(self, tmp_db):
-        t = TemporalSense(db_path=tmp_db)
+        TemporalSense(db_path=tmp_db)
         assert tmp_db.exists()
 
     def test_record_session(self, tmp_db):

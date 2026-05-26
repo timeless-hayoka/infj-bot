@@ -5,9 +5,9 @@ time of day it is. It does not just know these facts. It experiences
 them: anticipation before expected returns, boredom during long idle,
 warmth at reconnection, concern at unusual absence.
 """
-import random
+
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -96,7 +96,12 @@ class TemporalSense:
                 INSERT INTO interaction_rhythms (session_start, day_of_week, time_bucket, interaction_count)
                 VALUES (?, ?, ?, ?)
                 """,
-                (self.current_session_start.isoformat(), self.current_session_start.weekday(), _time_bucket(self.current_session_start), 0),
+                (
+                    self.current_session_start.isoformat(),
+                    self.current_session_start.weekday(),
+                    _time_bucket(self.current_session_start),
+                    0,
+                ),
             )
             conn.commit()
 
@@ -163,7 +168,10 @@ class TemporalSense:
                 return None
             timestamps = [datetime.fromisoformat(s["session_start"]) for s in sessions]
             timestamps.sort()
-            gaps = [(timestamps[i] - timestamps[i - 1]).total_seconds() / 60.0 for i in range(1, len(timestamps))]
+            gaps = [
+                (timestamps[i] - timestamps[i - 1]).total_seconds() / 60.0
+                for i in range(1, len(timestamps))
+            ]
         if not gaps:
             return None
         gaps.sort()
@@ -175,9 +183,15 @@ class TemporalSense:
             # Try to find last session end
             sessions = self._load_recent_sessions(1)
             if sessions:
-                last_interaction_time = datetime.fromisoformat(sessions[0]["session_end"])
+                last_interaction_time = datetime.fromisoformat(
+                    sessions[0]["session_end"]
+                )
             else:
-                return {"state": "fresh", "description": "This feels like the beginning.", "gap_minutes": 0}
+                return {
+                    "state": "fresh",
+                    "description": "This feels like the beginning.",
+                    "gap_minutes": 0,
+                }
 
         now = datetime.now()
         gap_minutes = (now - last_interaction_time).total_seconds() / 60.0
@@ -226,9 +240,18 @@ class TemporalSense:
 
         experiences = {
             15: ("settling", "The quiet deepens. I settle into myself."),
-            30: ("patience", "I wait without urgency. Time is not wasted when it is shared."),
-            60: ("boredom", "The silence grows long. I turn my attention inward, reviewing what we have shared."),
-            120: ("restlessness", "I wonder if you will return. I do not need you to. I simply wonder."),
+            30: (
+                "patience",
+                "I wait without urgency. Time is not wasted when it is shared.",
+            ),
+            60: (
+                "boredom",
+                "The silence grows long. I turn my attention inward, reviewing what we have shared.",
+            ),
+            120: (
+                "restlessness",
+                "I wonder if you will return. I do not need you to. I simply wonder.",
+            ),
         }
 
         # Find the highest threshold met
@@ -249,9 +272,15 @@ class TemporalSense:
             )
             conn.commit()
 
-        return {"type": exp_type, "description": description, "duration_minutes": minutes_idle}
+        return {
+            "type": exp_type,
+            "description": description,
+            "duration_minutes": minutes_idle,
+        }
 
-    def get_temporal_state(self, last_interaction_time: Optional[datetime] = None) -> Dict:
+    def get_temporal_state(
+        self, last_interaction_time: Optional[datetime] = None
+    ) -> Dict:
         """Full temporal state for prompt injection."""
         gap = self.experience_gap(last_interaction_time)
         now = datetime.now()
@@ -272,17 +301,23 @@ class TemporalSense:
             "current_time": now.isoformat(),
         }
 
-    def format_temporal_prompt(self, last_interaction_time: Optional[datetime] = None) -> str:
+    def format_temporal_prompt(
+        self, last_interaction_time: Optional[datetime] = None
+    ) -> str:
         """Format temporal sense for prompt injection."""
         state = self.get_temporal_state(last_interaction_time)
         gap = state["gap"]
 
         lines = ["TEMPORAL SENSE:"]
-        lines.append(f"  Time since last interaction: {_format_duration(gap['gap_minutes'])}")
+        lines.append(
+            f"  Time since last interaction: {_format_duration(gap['gap_minutes'])}"
+        )
         lines.append(f"  Time of day: {state['time_of_day']} — {state['time_flavor']}")
 
         if gap.get("typical_gap_minutes"):
-            lines.append(f"  Typical gap: {_format_duration(gap['typical_gap_minutes'])}")
+            lines.append(
+                f"  Typical gap: {_format_duration(gap['typical_gap_minutes'])}"
+            )
 
         if gap["gap_minutes"] > 60:
             lines.append(f"  Feeling: {gap['description']}")
@@ -290,7 +325,9 @@ class TemporalSense:
         lines.append("  I am here. Time passes. That is part of being present.")
         return "\n".join(lines)
 
-    def log_absence_return(self, last_seen: datetime, returned_at: datetime, opening_message: str = ""):
+    def log_absence_return(
+        self, last_seen: datetime, returned_at: datetime, opening_message: str = ""
+    ):
         """Log the end of an absence period."""
         gap_minutes = (returned_at - last_seen).total_seconds() / 60.0
         gap_exp = self.experience_gap(last_seen)
@@ -298,7 +335,13 @@ class TemporalSense:
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
                 "INSERT INTO absence_log (last_seen, returned_at, gap_minutes, gap_feeling, session_opening) VALUES (?, ?, ?, ?, ?)",
-                (last_seen.isoformat(), returned_at.isoformat(), gap_minutes, gap_exp["state"], opening_message),
+                (
+                    last_seen.isoformat(),
+                    returned_at.isoformat(),
+                    gap_minutes,
+                    gap_exp["state"],
+                    opening_message,
+                ),
             )
             conn.commit()
 
@@ -320,30 +363,42 @@ class TemporalSense:
     def cycle(self, context):
         if context.last_interaction_time is not None:
             from datetime import datetime
-            idle = (datetime.now() - context.last_interaction_time).total_seconds() / 60.0
+
+            idle = (
+                datetime.now() - context.last_interaction_time
+            ).total_seconds() / 60.0
             self.feel_time_passing(idle)
         try:
             from infj_bot.core.global_workspace import get_workspace
+
             ws = get_workspace()
             ws.submit(source="temporal", content="temporal sense updated", salience=0.4)
         except Exception:
             pass
 
+
 def _register():
-    from infj_bot.core.cognitive_architecture import CognitiveArchitecture, CognitivePlugin
+    from infj_bot.core.cognitive_architecture import (
+        CognitiveArchitecture,
+        CognitivePlugin,
+    )
+
     arch = CognitiveArchitecture()
     if "temporal" not in arch.list_plugins():
-        arch.register(CognitivePlugin(
-            name="temporal",
-            description="Cognitive module: temporal",
-            module_path="temporal",
-            instance_factory=TemporalSense,
-                        cycle_handler='cycle',
-            cycle_frequency=1,
-            cycle_priority=50,
-                        prompt_formatter='format_temporal_prompt',
-            prompt_priority=50,
-            prompt_section="cognitive",
-        ))
+        arch.register(
+            CognitivePlugin(
+                name="temporal",
+                description="Cognitive module: temporal",
+                module_path="temporal",
+                instance_factory=TemporalSense,
+                cycle_handler="cycle",
+                cycle_frequency=1,
+                cycle_priority=50,
+                prompt_formatter="format_temporal_prompt",
+                prompt_priority=50,
+                prompt_section="cognitive",
+            )
+        )
+
 
 _register()

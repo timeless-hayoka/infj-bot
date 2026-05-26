@@ -103,7 +103,9 @@ def format_growth(profile):
         f"Memories: {stats['total_memories']} total | {stats['interactions']} chats | {stats['concepts']} concepts | {stats['reflections']} reflections",
     ]
     if profile["next_stage"]:
-        lines.append(f"Next stage: {profile['next_stage']} in {profile['points_to_next']} points")
+        lines.append(
+            f"Next stage: {profile['next_stage']} in {profile['points_to_next']} points"
+        )
     else:
         lines.append("Next stage: fully grown for now")
     return "\n".join(lines)

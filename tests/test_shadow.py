@@ -28,7 +28,7 @@ def test_suppress_detects_archetype(temp_shadow):
 
 
 def test_golden_shadow_suppress(temp_shadow):
-    sid = temp_shadow.suppress(
+    temp_shadow.suppress(
         "I am brilliant and I know it", archetype="genius", intensity=0.9
     )
     state = temp_shadow.get_state()

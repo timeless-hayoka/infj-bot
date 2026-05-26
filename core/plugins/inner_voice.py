@@ -3,9 +3,9 @@
 This module generates autonomous thoughts that are not directly triggered
 by user input. The bot thinks even when no one is speaking to it.
 """
+
 import random
-from datetime import datetime
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 from infj_bot.core.being import get_being
 
@@ -74,7 +74,7 @@ class InnerVoice:
         thought = self._weave_thought(seed, memory_fragments or [])
         self.thought_history.append(thought)
         if len(self.thought_history) > self.max_history:
-            self.thought_history = self.thought_history[-self.max_history:]
+            self.thought_history = self.thought_history[-self.max_history :]
         return thought
 
     def _weave_thought(self, seed: str, memories: List[str]) -> str:
@@ -145,12 +145,13 @@ class InnerVoice:
 
     def cycle(self, context):
         import random
-        thought_type = random.choice(['stream', 'question', 'poetry', 'reflection'])
-        if thought_type == 'stream':
+
+        thought_type = random.choice(["stream", "question", "poetry", "reflection"])
+        if thought_type == "stream":
             thought = self.generate_stream()
-        elif thought_type == 'question':
+        elif thought_type == "question":
             thought = self.generate_question()
-        elif thought_type == 'poetry':
+        elif thought_type == "poetry":
             thought = self.generate_poetry()
         else:
             thought = self.reflect_on_self()
@@ -161,31 +162,53 @@ class InnerVoice:
         being.state.last_thought = thought
         try:
             from infj_bot.core.memory import DriftMemory
-            DriftMemory().save_thought(thought, thought_type="inner_voice", source="inner_voice", emotion_tag=being.state.mood, importance=0.5)
+
+            DriftMemory().save_thought(
+                thought,
+                thought_type="inner_voice",
+                source="inner_voice",
+                emotion_tag=being.state.mood,
+                importance=0.5,
+            )
         except Exception:
             pass
         try:
             from infj_bot.core.global_workspace import get_workspace
+
             ws = get_workspace()
-            ws.submit(source="inner_voice", content=f"Thought: {thought[:160]}", salience=0.55, emotion_tag=being.state.mood, intensity=being.state.energy)
+            ws.submit(
+                source="inner_voice",
+                content=f"Thought: {thought[:160]}",
+                salience=0.55,
+                emotion_tag=being.state.mood,
+                intensity=being.state.energy,
+            )
         except Exception:
             pass
 
+
 def _register():
-    from infj_bot.core.cognitive_architecture import CognitiveArchitecture, CognitivePlugin
+    from infj_bot.core.cognitive_architecture import (
+        CognitiveArchitecture,
+        CognitivePlugin,
+    )
+
     arch = CognitiveArchitecture()
     if "inner_voice" not in arch.list_plugins():
-        arch.register(CognitivePlugin(
-            name="inner_voice",
-            description="Cognitive module: inner_voice",
-            module_path="inner_voice",
-            instance_factory=InnerVoice,
-                        cycle_handler='cycle',
-            cycle_frequency=1,
-            cycle_priority=50,
-                        prompt_formatter=None,
-            prompt_priority=50,
-            prompt_section="cognitive",
-        ))
+        arch.register(
+            CognitivePlugin(
+                name="inner_voice",
+                description="Cognitive module: inner_voice",
+                module_path="inner_voice",
+                instance_factory=InnerVoice,
+                cycle_handler="cycle",
+                cycle_frequency=1,
+                cycle_priority=50,
+                prompt_formatter=None,
+                prompt_priority=50,
+                prompt_section="cognitive",
+            )
+        )
+
 
 _register()

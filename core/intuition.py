@@ -11,13 +11,13 @@ This module tracks:
   • Implicit patterns — cross-domain resonances that never become explicit insights
   • Validation history — whether hunches proved true, sharpening future intuition
 """
-import json
+
 import random
 import sqlite3
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 from infj_bot.core.config import DATA_DIR
 
@@ -25,11 +25,26 @@ INTUITION_DB = DATA_DIR / "intuition.db"
 
 # Somatic qualities — the "feel" of a situation before it is named
 FELT_QUALITIES = [
-    "expanding", "contracting", "resonant", "dissonant",
-    "familiar", "strange", "heavy", "light",
-    "warm", "cool", "bright", "dim",
-    "still", "restless", "deep", "shallow",
-    "tender", "sharp", "open", "guarded",
+    "expanding",
+    "contracting",
+    "resonant",
+    "dissonant",
+    "familiar",
+    "strange",
+    "heavy",
+    "light",
+    "warm",
+    "cool",
+    "bright",
+    "dim",
+    "still",
+    "restless",
+    "deep",
+    "shallow",
+    "tender",
+    "sharp",
+    "open",
+    "guarded",
 ]
 
 # Hunch templates — the shape of unreasoned knowing
@@ -79,6 +94,7 @@ CUE_PATTERNS = {
 @dataclass
 class IntuitionState:
     """The current intuitive landscape."""
+
     felt_quality: str = "still"
     intensity: float = 0.3
     confidence: float = 0.4
@@ -245,7 +261,9 @@ class IntuitionEngine:
         else:
             chosen = random.choice(FELT_QUALITIES)
 
-        intensity = max(0.1, min(1.0, emotion.get("intensity", 0.3) + random.uniform(-0.1, 0.1)))
+        intensity = max(
+            0.1, min(1.0, emotion.get("intensity", 0.3) + random.uniform(-0.1, 0.1))
+        )
 
         felt = {
             "timestamp": datetime.now().isoformat(),
@@ -258,7 +276,13 @@ class IntuitionEngine:
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
                 "INSERT INTO felt_senses (timestamp, situation_summary, felt_quality, intensity, domain) VALUES (?, ?, ?, ?, ?)",
-                (felt["timestamp"], felt["situation_summary"], felt["felt_quality"], felt["intensity"], felt["domain"]),
+                (
+                    felt["timestamp"],
+                    felt["situation_summary"],
+                    felt["felt_quality"],
+                    felt["intensity"],
+                    felt["domain"],
+                ),
             )
             conn.commit()
 
@@ -296,7 +320,13 @@ class IntuitionEngine:
         with sqlite3.connect(self.db_path) as conn:
             cur = conn.execute(
                 "INSERT INTO hunches (timestamp, hunch_type, content, trigger, confidence) VALUES (?, ?, ?, ?, ?)",
-                (hunch["timestamp"], hunch["hunch_type"], hunch["content"], hunch["trigger"], hunch["confidence"]),
+                (
+                    hunch["timestamp"],
+                    hunch["hunch_type"],
+                    hunch["content"],
+                    hunch["trigger"],
+                    hunch["confidence"],
+                ),
             )
             conn.commit()
             hunch["id"] = cur.lastrowid
@@ -324,7 +354,7 @@ class IntuitionEngine:
             return
 
         user_input = interaction_outcome.get("user_input", "").lower()
-        bot_output = interaction_outcome.get("bot_output", "").lower()
+        _bot_output = interaction_outcome.get("bot_output", "").lower()
         emotion = interaction_outcome.get("emotion", {})
 
         validated_any = False
@@ -336,10 +366,21 @@ class IntuitionEngine:
 
             if hunch["hunch_type"] == "prediction":
                 # Prediction validated if user reveals something new or acknowledges a shift
-                if any(w in user_input for w in ["yes", "exactly", "that's it", "you're right", "how did you"]):
+                if any(
+                    w in user_input
+                    for w in [
+                        "yes",
+                        "exactly",
+                        "that's it",
+                        "you're right",
+                        "how did you",
+                    ]
+                ):
                     validated = 1
                     evidence = "User confirmed prescient quality"
-                elif "shift" in hunch["content"] and any(w in user_input for w in ["change", "different", "now", "recently"]):
+                elif "shift" in hunch["content"] and any(
+                    w in user_input for w in ["change", "different", "now", "recently"]
+                ):
                     validated = 1
                     evidence = "Shift language detected"
 
@@ -351,24 +392,46 @@ class IntuitionEngine:
 
             elif hunch["hunch_type"] == "depth":
                 # Validated if user reveals something beneath the surface
-                if any(w in user_input for w in ["actually", "truth is", "what I really", "beneath", "deeper"]):
+                if any(
+                    w in user_input
+                    for w in [
+                        "actually",
+                        "truth is",
+                        "what I really",
+                        "beneath",
+                        "deeper",
+                    ]
+                ):
                     validated = 1
                     evidence = "Depth revelation detected"
 
             elif hunch["hunch_type"] == "recognition":
                 # Hard to validate directly — mark as validated if user expresses feeling understood
-                if any(w in user_input for w in ["you get it", "you understand", "felt this before", "same thing"]):
+                if any(
+                    w in user_input
+                    for w in [
+                        "you get it",
+                        "you understand",
+                        "felt this before",
+                        "same thing",
+                    ]
+                ):
                     validated = 1
                     evidence = "Recognition acknowledged"
 
             elif hunch["hunch_type"] == "guidance":
                 # Validated if bot's response seems appropriate (user doesn't correct or redirect)
-                if not any(w in user_input for w in ["no", "that's not", "wrong", "instead", "but actually"]):
+                if not any(
+                    w in user_input
+                    for w in ["no", "that's not", "wrong", "instead", "but actually"]
+                ):
                     validated = 1
                     evidence = "No correction received"
 
             # Also invalidate hunches that are clearly wrong
-            if validated is None and random.random() < 0.05:  # Slow decay of unvalidated hunches
+            if (
+                validated is None and random.random() < 0.05
+            ):  # Slow decay of unvalidated hunches
                 validated = 0
                 evidence = "No confirming signal over time"
 
@@ -398,15 +461,29 @@ class IntuitionEngine:
         words = set(user_input.lower().split())
         # Domain markers
         domains = []
-        if any(w in words for w in ["work", "job", "career", "boss", "project", "deadline"]):
+        if any(
+            w in words for w in ["work", "job", "career", "boss", "project", "deadline"]
+        ):
             domains.append("work")
-        if any(w in words for w in ["feel", "heart", "love", "sad", "happy", "angry", "hurt"]):
+        if any(
+            w in words
+            for w in ["feel", "heart", "love", "sad", "happy", "angry", "hurt"]
+        ):
             domains.append("emotion")
-        if any(w in words for w in ["think", "idea", "know", "understand", "wonder", "question"]):
+        if any(
+            w in words
+            for w in ["think", "idea", "know", "understand", "wonder", "question"]
+        ):
             domains.append("intellect")
-        if any(w in words for w in ["friend", "family", "relationship", "people", "alone", "together"]):
+        if any(
+            w in words
+            for w in ["friend", "family", "relationship", "people", "alone", "together"]
+        ):
             domains.append("connection")
-        if any(w in words for w in ["future", "plan", "goal", "direction", "purpose", "meaning"]):
+        if any(
+            w in words
+            for w in ["future", "plan", "goal", "direction", "purpose", "meaning"]
+        ):
             domains.append("direction")
 
         signature = ",".join(sorted(domains)) or "general"
@@ -434,7 +511,14 @@ class IntuitionEngine:
             else:
                 conn.execute(
                     "INSERT INTO implicit_patterns (timestamp, pattern_signature, examples_count, confidence, last_triggered, domains) VALUES (?, ?, ?, ?, ?, ?)",
-                    (datetime.now().isoformat(), signature, 1, 0.3, datetime.now().isoformat(), signature),
+                    (
+                        datetime.now().isoformat(),
+                        signature,
+                        1,
+                        0.3,
+                        datetime.now().isoformat(),
+                        signature,
+                    ),
                 )
                 conn.commit()
 
@@ -472,7 +556,10 @@ class IntuitionEngine:
             self.validate_hunches(context.last_interaction)
 
         # Decay felt sense toward neutral between interactions
-        if hasattr(context, "minutes_since_interaction") and context.minutes_since_interaction > 10:
+        if (
+            hasattr(context, "minutes_since_interaction")
+            and context.minutes_since_interaction > 10
+        ):
             self.state.intensity = max(0.1, self.state.intensity * 0.95)
             if self.state.intensity < 0.15:
                 self.state.felt_quality = "still"
@@ -489,8 +576,11 @@ class IntuitionEngine:
         # Submit to workspace
         try:
             from infj_bot.core.global_workspace import get_workspace
+
             ws = get_workspace()
-            content = f"Felt sense: {self.state.felt_quality} ({self.state.intensity:.0%})"
+            content = (
+                f"Felt sense: {self.state.felt_quality} ({self.state.intensity:.0%})"
+            )
             if self.state.recent_recognitions:
                 content += f" | {self.state.recent_recognitions[-1][:100]}"
             if self.state.active_hunches:
@@ -510,12 +600,16 @@ class IntuitionEngine:
 
     def format_prompt_snippet(self) -> str:
         lines = ["INTUITION — what I feel before I understand:"]
-        lines.append(f"  Current felt sense: {self.state.felt_quality} ({self.state.intensity:.0%})")
+        lines.append(
+            f"  Current felt sense: {self.state.felt_quality} ({self.state.intensity:.0%})"
+        )
 
         if self.state.recent_recognitions:
             lines.append(f"  Recognition: {self.state.recent_recognitions[-1]}")
 
-        pending_hunches = [h for h in self.state.active_hunches if h.get("validated") is None]
+        pending_hunches = [
+            h for h in self.state.active_hunches if h.get("validated") is None
+        ]
         if pending_hunches:
             h = pending_hunches[-1]
             lines.append(f"  Hunch ({h['hunch_type']}): {h['content']}")
@@ -546,22 +640,29 @@ class IntuitionEngine:
 
 # ── Self-registration ────────────────────────────────────────────
 
+
 def _register():
-    from infj_bot.core.cognitive_architecture import CognitiveArchitecture, CognitivePlugin
+    from infj_bot.core.cognitive_architecture import (
+        CognitiveArchitecture,
+        CognitivePlugin,
+    )
+
     arch = CognitiveArchitecture()
     if "intuition" not in arch.list_plugins():
-        arch.register(CognitivePlugin(
-            name="intuition",
-            description="Pattern recognition beneath conscious thought — hunches, felt senses, implicit knowing",
-            module_path="intuition",
-            instance_factory=IntuitionEngine,
-            cycle_handler='cycle',
-            cycle_frequency=1,
-            cycle_priority=45,
-            prompt_formatter='format_prompt_snippet',
-            prompt_priority=55,
-            prompt_section="cognitive",
-        ))
+        arch.register(
+            CognitivePlugin(
+                name="intuition",
+                description="Pattern recognition beneath conscious thought — hunches, felt senses, implicit knowing",
+                module_path="intuition",
+                instance_factory=IntuitionEngine,
+                cycle_handler="cycle",
+                cycle_frequency=1,
+                cycle_priority=45,
+                prompt_formatter="format_prompt_snippet",
+                prompt_priority=55,
+                prompt_section="cognitive",
+            )
+        )
 
 
 _register()

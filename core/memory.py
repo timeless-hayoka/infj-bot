@@ -1,12 +1,10 @@
-import chromadb
 import uuid
 import datetime
-import hashlib
 import json
 import re
 import asyncio
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 from infj_bot.core.config import PERSIST_DIRECTORY, DRIFT_USE_LOCAL_EMBEDDINGS
 from infj_bot.core.embeddings import (
@@ -23,7 +21,9 @@ from infj_bot.core.unified_memory import MemoryManager, Event
 
 SECRET_PATTERNS = [
     # PEM private keys (most specific)
-    re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----", re.S),
+    re.compile(
+        r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----", re.S
+    ),
     # API key / token / password with common prefixes (highly specific)
     re.compile(
         r"(?i)(api[_-]?key|auth[_-]?token|access[_-]?token|bearer\s+|password|secret|private[_-]?key)\s*[=:]\s*['\"]?[A-Za-z0-9_\-/+=]{8,}['\"]?"
@@ -39,7 +39,9 @@ SECRET_PATTERNS = [
 
 # Patterns that look like secrets but are actually normal content
 LEGIT_HEX_ALLOWLIST = [
-    re.compile(r"^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$"),  # UUID
+    re.compile(
+        r"^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$"
+    ),  # UUID
     re.compile(r"^[a-f0-9]{7,40}$"),  # short git hashes
     re.compile(r"^0x[a-f0-9]+$"),  # Ethereum / hex addresses
 ]
@@ -68,7 +70,9 @@ class DriftMemory:
     LEGACY_COLLECTION = "infj_companion_memories"
     SEMANTIC_COLLECTION = "infj_semantic_memories"
 
-    def __init__(self, persist_directory=None, embedding_function=None, use_semantic=True):
+    def __init__(
+        self, persist_directory=None, embedding_function=None, use_semantic=True
+    ):
         if persist_directory is None:
             persist_directory = str(PERSIST_DIRECTORY)
 
@@ -82,11 +86,11 @@ class DriftMemory:
                 embedding_function = LocalEmbeddingFunction()
 
         self.embedding_function = embedding_function
-        
+
         # Phase 4.1/4.3: Initialize Unified Memory Spine directly
         self.unified_manager = MemoryManager(
             chroma_path=persist_directory,
-            db_path=str(Path(persist_directory) / "unified_memory.db")
+            db_path=str(Path(persist_directory) / "unified_memory.db"),
         )
 
         # For backwards compatibility with external scripts, expose the collection name
@@ -102,10 +106,22 @@ class DriftMemory:
             for match in pattern.finditer(scrubbed):
                 matched_text = match.group()
                 if _looks_like_secret(matched_text):
-                    scrubbed = scrubbed[: match.start()] + "[REDACTED]" + scrubbed[match.end() :]
+                    scrubbed = (
+                        scrubbed[: match.start()]
+                        + "[REDACTED]"
+                        + scrubbed[match.end() :]
+                    )
         return scrubbed
 
-    def save_interaction(self, user_input, bot_output, mode="companion", emotion=None, importance=0.5, dissonance=None):
+    def save_interaction(
+        self,
+        user_input,
+        bot_output,
+        mode="companion",
+        emotion=None,
+        importance=0.5,
+        dissonance=None,
+    ):
         timestamp = datetime.datetime.now().isoformat()
         safe_user_input = self.scrub_text(user_input)
         safe_bot_output = self.scrub_text(bot_output)
@@ -113,7 +129,7 @@ class DriftMemory:
 
         emotion = emotion or {"label": "neutral"}
         dissonance = dissonance or {"score": 0.0, "values": [], "markers": []}
-        
+
         metadata = {
             "type": "interaction",
             "timestamp": timestamp,
@@ -133,9 +149,13 @@ class DriftMemory:
             "dissonance_detector": dissonance.get("detector", "unknown"),
             "importance": float(importance),
         }
-        
+
         # Phase 4.3: Write to MemoryManager spine
-        event = Event(type="interaction", content=content, timestamp=datetime.datetime.fromisoformat(timestamp))
+        event = Event(
+            type="interaction",
+            content=content,
+            timestamp=datetime.datetime.fromisoformat(timestamp),
+        )
         _run_async(self.unified_manager.remember(event, metadata))
 
     def learn_concept(self, concept_name, description, tags=None, importance=0.8):
@@ -151,14 +171,18 @@ class DriftMemory:
             "importance": float(importance),
         }
 
-        event = Event(type="learned_knowledge", content=content, timestamp=datetime.datetime.fromisoformat(timestamp))
+        event = Event(
+            type="learned_knowledge",
+            content=content,
+            timestamp=datetime.datetime.fromisoformat(timestamp),
+        )
         _run_async(self.unified_manager.remember(event, metadata))
 
     def save_reflection(self, title, summary, tags=None, importance=0.9):
         timestamp = datetime.datetime.now().isoformat()
         title = title or f"reflection-{timestamp}"
         content = f"Reflection: {title}\nSummary: {summary}"
-        
+
         metadata = {
             "type": "reflection",
             "timestamp": timestamp,
@@ -167,16 +191,27 @@ class DriftMemory:
             "tags": ",".join(tags or []),
             "importance": float(importance),
         }
-        
-        event = Event(type="reflection", content=content, timestamp=datetime.datetime.fromisoformat(timestamp))
+
+        event = Event(
+            type="reflection",
+            content=content,
+            timestamp=datetime.datetime.fromisoformat(timestamp),
+        )
         _run_async(self.unified_manager.remember(event, metadata))
 
-    def save_thought(self, thought_text, thought_type="autonomous", source="being", emotion_tag=None, importance=0.6):
+    def save_thought(
+        self,
+        thought_text,
+        thought_type="autonomous",
+        source="being",
+        emotion_tag=None,
+        importance=0.6,
+    ):
         """Save a bot thought to semantic memory so it can be retrieved later."""
         timestamp = datetime.datetime.now().isoformat()
         safe_text = self.scrub_text(thought_text)
         content = f"Thought ({thought_type} from {source}): {safe_text}"
-        
+
         metadata = {
             "type": "thought",
             "timestamp": timestamp,
@@ -186,16 +221,26 @@ class DriftMemory:
             "emotion": emotion_tag or "neutral",
             "importance": float(importance),
         }
-        
-        event = Event(type="thought", content=content, timestamp=datetime.datetime.fromisoformat(timestamp))
+
+        event = Event(
+            type="thought",
+            content=content,
+            timestamp=datetime.datetime.fromisoformat(timestamp),
+        )
         _run_async(self.unified_manager.remember(event, metadata))
 
-    def save_bug_record(self, title, document, record_type="bug_note", tags=None, importance=0.85):
+    def save_bug_record(
+        self, title, document, record_type="bug_note", tags=None, importance=0.85
+    ):
         timestamp = datetime.datetime.now().isoformat()
         safe_title = title.strip() or f"{record_type}-{timestamp}"
         safe_document = self.scrub_text(document)
-        record_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"infj-{record_type}:{safe_title}:{timestamp}"))
-        
+        record_id = str(
+            uuid.uuid5(
+                uuid.NAMESPACE_DNS, f"infj-{record_type}:{safe_title}:{timestamp}"
+            )
+        )
+
         metadata = {
             "type": record_type,
             "timestamp": timestamp,
@@ -204,10 +249,14 @@ class DriftMemory:
             "tags": ",".join(tags or []),
             "importance": float(importance),
         }
-        
-        event = Event(type=record_type, content=safe_document, timestamp=datetime.datetime.fromisoformat(timestamp))
+
+        event = Event(
+            type=record_type,
+            content=safe_document,
+            timestamp=datetime.datetime.fromisoformat(timestamp),
+        )
         _run_async(self.unified_manager.remember(event, metadata))
-        
+
         return record_id
 
     def retrieve_thoughts(self, query="", n_results=5):
@@ -230,7 +279,7 @@ class DriftMemory:
         # MemoryManager recall already handles Ebbinghaus recency & hybrid scoring.
         # We can just fetch via recall_sync.
         entries = self.unified_manager.recall_sync(query, limit=n_results)
-        
+
         if not include_metadata:
             return "\n---\n".join([e.event.content for e in entries])
         return [(e.event.content, e.metadata) for e in entries]
@@ -247,6 +296,7 @@ class DriftMemory:
         """
         try:
             from infj_bot.memory.dmu import rank_memory_entries, format_ranked_entries
+
             entries = self.unified_manager.recall_sync(query, limit=n_results * 2)
             if not entries:
                 return ""
@@ -256,7 +306,9 @@ class DriftMemory:
             # Safe fallback: if DMU fails for any reason, use standard retrieval
             return self.retrieve_context(query, n_results=n_results)
 
-    def _rerank(self, documents, metadatas, distances, top_k=5) -> Tuple[List[str], List[dict]]:
+    def _rerank(
+        self, documents, metadatas, distances, top_k=5
+    ) -> Tuple[List[str], List[dict]]:
         # Deprecated: _rerank logic is now handled internally by MemoryManager.recall
         pass
 
@@ -277,7 +329,7 @@ class DriftMemory:
         """Update an existing concept's description."""
         # We first forget the old concept to avoid duplicates
         self.unified_manager.forget_concept_sync(concept_name)
-        
+
         timestamp = datetime.datetime.now().isoformat()
         content = f"Concept: {concept_name}\nDescription: {new_description}"
 
@@ -289,14 +341,18 @@ class DriftMemory:
             "tags": "edited",
             "importance": 0.8,
         }
-        
-        event = Event(type="learned_knowledge", content=content, timestamp=datetime.datetime.fromisoformat(timestamp))
+
+        event = Event(
+            type="learned_knowledge",
+            content=content,
+            timestamp=datetime.datetime.fromisoformat(timestamp),
+        )
         _run_async(self.unified_manager.remember(event, metadata))
 
     def export_json(self, path):
         # We export what we can from unified manager via recall
         # This is a bit of a hack for backwards compatibility
-        pass # Will implement fully later if needed, but for now we skip or return 0
+        pass  # Will implement fully later if needed, but for now we skip or return 0
         return 0
 
     def import_json(self, path):
@@ -306,7 +362,9 @@ class DriftMemory:
             return 0
         bad = [r for r in records if not all(k in r for k in ("id", "document"))]
         if bad:
-            raise ValueError(f"Import failed: {len(bad)} records missing required fields.")
+            raise ValueError(
+                f"Import failed: {len(bad)} records missing required fields."
+            )
         # Skipping for phase 4.2 unless required, but validation passed
         return 0
 
@@ -316,7 +374,9 @@ class DriftMemory:
     def prune_interactions(self, max_age_days=30, max_importance=0.4, force=False):
         """Remove old interactions with low importance. Returns count removed."""
         now = datetime.datetime.now()
-        stats = self.unified_manager.prune_sync(now=now, threshold=0.1, force=force) # Uses standard Ebbinghaus
+        stats = self.unified_manager.prune_sync(
+            now=now, threshold=0.1, force=force
+        )  # Uses standard Ebbinghaus
         return stats.sqlite_deleted
 
     def auto_prune(self, turn_count: int = 0, force: bool = False) -> int:

@@ -3,7 +3,7 @@
 
 import json
 import sys
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import requests
 

@@ -1,19 +1,20 @@
 """Tool registry for the DRIFT agent. Safe, sandboxed, and declarative."""
+
 import json
-import os
 import re
 import shutil
 import subprocess
 import sys
 import tempfile
-import traceback
 from datetime import datetime
 from ipaddress import ip_address
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 from urllib.parse import urlparse
 
-from infj_bot.core.config import PROJECT_ROOT
+from infj_bot.core.config import DATA_DIR, PROJECT_ROOT
+
+STATE_ROOT = DATA_DIR
 
 SAFE_HOME = Path.home()
 COLD_STORAGE_DIR = PROJECT_ROOT / "BLKKNIGHT_RECOVERY"
@@ -29,13 +30,34 @@ NUCLEI_TIMEOUT = 300
 FFUF_TIMEOUT = 300
 SUBFINDER_TIMEOUT = 120
 SHELL_BLOCKLIST = {
-    "rm -rf /", "rm -rf /*", "sudo", "su -", "mkfs", "dd if=/dev/zero",
-    ":(){ :|:& };:", "> /dev/sda", "shutdown", "reboot", "halt", "poweroff",
-    "curl | sh", "curl | bash", "wget | sh", "wget | bash",
+    "rm -rf /",
+    "rm -rf /*",
+    "sudo",
+    "su -",
+    "mkfs",
+    "dd if=/dev/zero",
+    ":(){ :|:& };:",
+    "> /dev/sda",
+    "shutdown",
+    "reboot",
+    "halt",
+    "poweroff",
+    "curl | sh",
+    "curl | bash",
+    "wget | sh",
+    "wget | bash",
 }
 PYTHON_BLOCKLIST = {
-    "os.system", "subprocess.", "shutil.rmtree", "Path('/').", 'Path("/").',
-    "rm -rf /", "mkfs", "sudo", "socket.", "requests.post",
+    "os.system",
+    "subprocess.",
+    "shutil.rmtree",
+    "Path('/').",
+    'Path("/").',
+    "rm -rf /",
+    "mkfs",
+    "sudo",
+    "socket.",
+    "requests.post",
 }
 
 
@@ -55,7 +77,11 @@ def _resolve_path(path: str) -> Path:
     safe_home = SAFE_HOME.resolve()
     project_root = PROJECT_ROOT.resolve()
     tmp_root = Path("/tmp").resolve()
-    if not (_is_relative_to(target, safe_home) or _is_relative_to(target, project_root) or _is_relative_to(target, tmp_root)):
+    if not (
+        _is_relative_to(target, safe_home)
+        or _is_relative_to(target, project_root)
+        or _is_relative_to(target, tmp_root)
+    ):
         raise PermissionError(f"Path {path} is outside the allowed directory.")
     return target
 
@@ -64,7 +90,9 @@ def _check_shell_safety(command: str) -> None:
     if not command or not command.strip():
         raise PermissionError("Empty shell command is not allowed.")
     if len(command) > MAX_COMMAND_CHARS:
-        raise PermissionError(f"Shell command too long; max is {MAX_COMMAND_CHARS} characters.")
+        raise PermissionError(
+            f"Shell command too long; max is {MAX_COMMAND_CHARS} characters."
+        )
     lowered = command.lower()
     for blocked in SHELL_BLOCKLIST:
         # Support both exact substring and pipe-chain variations
@@ -83,7 +111,9 @@ def _check_python_safety(code: str) -> None:
             raise PermissionError(f"Blocked Python pattern: {blocked}")
 
 
-def _coerce_timeout(timeout: int, default: int, maximum: int = MAX_TIMEOUT_SECONDS) -> int:
+def _coerce_timeout(
+    timeout: int, default: int, maximum: int = MAX_TIMEOUT_SECONDS
+) -> int:
     try:
         timeout = int(timeout)
     except (TypeError, ValueError):
@@ -124,7 +154,9 @@ def recent_tool_audit(limit: int = 10) -> str:
     if not TOOL_AUDIT_PATH.exists():
         return "No tool audit records yet."
     try:
-        lines = TOOL_AUDIT_PATH.read_text(encoding="utf-8", errors="replace").splitlines()[-limit:]
+        lines = TOOL_AUDIT_PATH.read_text(
+            encoding="utf-8", errors="replace"
+        ).splitlines()[-limit:]
         records = [json.loads(line) for line in lines if line.strip()]
     except Exception as exc:
         return f"Could not read tool audit log: {exc}"
@@ -140,7 +172,9 @@ def _safe_cold_storage_path(file_name: str) -> Path:
     if not file_name or Path(file_name).is_absolute():
         raise PermissionError("Cold storage file_name must be a relative file name.")
     if any(part in {"", ".", ".."} for part in Path(file_name).parts):
-        raise PermissionError("Cold storage file_name cannot contain empty, current, or parent path parts.")
+        raise PermissionError(
+            "Cold storage file_name cannot contain empty, current, or parent path parts."
+        )
     target = (COLD_STORAGE_DIR / file_name).resolve()
     if not _is_relative_to(target, COLD_STORAGE_DIR.resolve()):
         raise PermissionError("Cold storage path escaped the recovery directory.")
@@ -153,7 +187,10 @@ def _validate_scan_target(target_url: str) -> str:
         raise ValueError("target_url must begin with http:// or https://")
     if not parsed.netloc:
         raise ValueError("target_url must include a hostname.")
-    if any(char in target_url for char in ["\n", "\r", "\t", ";", "|", "&", "`", "$", "<", ">"]):
+    if any(
+        char in target_url
+        for char in ["\n", "\r", "\t", ";", "|", "&", "`", "$", "<", ">"]
+    ):
         raise ValueError("target_url contains unsafe shell/control characters.")
     return target_url
 
@@ -174,6 +211,7 @@ def _target_scope_hint(target_url: str) -> str:
 # ---------------------------------------------------------------------------
 # Tool implementations
 # ---------------------------------------------------------------------------
+
 
 def tool_read_file(path: str, offset: int = 0, max_lines: int = 200) -> str:
     """Read a text file from the allowed directory."""
@@ -217,6 +255,7 @@ def tool_shell(command: str, timeout: int = SHELL_TIMEOUT) -> str:
         return f"[error: {exc}]"
     try:
         import shlex
+
         argv = shlex.split(command)
         if not argv:
             return "[error: empty command after parsing]"
@@ -372,7 +411,13 @@ def tool_enumerate_subdomains(
             "manage, or have written permission to test. Use /authorize <domain> first.]"
         )
 
-    clean = domain.replace("https://", "").replace("http://", "").split("/")[0].split(":")[0].lower()
+    clean = (
+        domain.replace("https://", "")
+        .replace("http://", "")
+        .split("/")[0]
+        .split(":")[0]
+        .lower()
+    )
     if not clean:
         return "[error: domain is empty]"
 
@@ -424,6 +469,7 @@ def tool_computer_use(
         )
     try:
         from infj_bot.core.plugins.computer_use import run_computer_actions
+
         domains = set(authorized_domains) if authorized_domains else set()
         return run_computer_actions(actions, authorized_domains=domains)
     except Exception as exc:
@@ -434,6 +480,7 @@ def tool_computer_session_status() -> str:
     """Check the active browser session state."""
     try:
         from infj_bot.core.plugins.computer_use import get_computer_session_status
+
         return get_computer_session_status()
     except Exception as exc:
         return f"[error: {exc}]"
@@ -443,6 +490,7 @@ def tool_close_computer_session() -> str:
     """Close the active browser session."""
     try:
         from infj_bot.core.plugins.computer_use import close_computer_session
+
         return close_computer_session()
     except Exception as exc:
         return f"[error: {exc}]"
@@ -471,7 +519,9 @@ def tool_run_nuclei_scan(
     if not nuclei_path:
         return "[error: nuclei is not installed or not on PATH]"
 
-    with tempfile.NamedTemporaryFile("w+", suffix=".jsonl", delete=False) as output_file:
+    with tempfile.NamedTemporaryFile(
+        "w+", suffix=".jsonl", delete=False
+    ) as output_file:
         output_path = Path(output_file.name)
 
     command = [
@@ -496,9 +546,17 @@ def tool_run_nuclei_scan(
         if not output_path.exists():
             stderr = result.stderr.strip() or "scan did not create an output file"
             return f"[error: nuclei scan failed: {stderr}]"
-        lines = [line for line in output_path.read_text(encoding="utf-8", errors="replace").splitlines() if line.strip()]
+        lines = [
+            line
+            for line in output_path.read_text(
+                encoding="utf-8", errors="replace"
+            ).splitlines()
+            if line.strip()
+        ]
         if not lines:
-            stderr = f"\n[stderr]: {result.stderr.strip()}" if result.stderr.strip() else ""
+            stderr = (
+                f"\n[stderr]: {result.stderr.strip()}" if result.stderr.strip() else ""
+            )
             return f"[ok: scan complete for {scope} target; no high/critical findings]{stderr}"
         findings = []
         for line in lines[:50]:
@@ -525,6 +583,7 @@ def tool_web_search(query: str, max_results: int = 5) -> str:
     """Search the web using DuckDuckGo."""
     try:
         from duckduckgo_search import DDGS
+
         with DDGS(timeout=20) as ddgs:
             results = ddgs.text(query, max_results=max(max_results, 1))
         if not results:
@@ -689,6 +748,7 @@ def tool_call_api(
     host = urlparse(target_url).hostname or ""
     try:
         from ipaddress import ip_address
+
         ip = ip_address(host)
         if ip.is_private and not authorization_confirmed:
             return "[error: internal network API calls require authorization.]"
@@ -697,15 +757,23 @@ def tool_call_api(
 
     try:
         import requests
+
         timeout = _coerce_timeout(timeout, 30, 120)
         req_headers = headers or {}
         # Block sending of common auth headers without extra caution
         sensitive_headers = {"authorization", "cookie", "x-api-key", "api-key"}
         for h in req_headers:
             if h.lower() in sensitive_headers and not authorization_confirmed:
-                return f"[error: sending sensitive header '{h}' requires authorization.]"
+                return (
+                    f"[error: sending sensitive header '{h}' requires authorization.]"
+                )
 
-        kwargs = {"url": target_url, "method": method, "headers": req_headers, "timeout": timeout}
+        kwargs = {
+            "url": target_url,
+            "method": method,
+            "headers": req_headers,
+            "timeout": timeout,
+        }
         if body and method in {"POST", "PUT", "PATCH"}:
             kwargs["data"] = body.encode("utf-8") if isinstance(body, str) else body
 
@@ -747,17 +815,18 @@ def tool_snapshot_state(label: str) -> str:
     """Create a compressed snapshot of the current .drift_os state root."""
     if not label or not re.match(r"^[a-zA-Z0-9_-]+$", label):
         return "[error: label must be alphanumeric and non-empty]"
-    
+
     snapshot_dir = PROJECT_ROOT / "snapshots"
     snapshot_dir.mkdir(parents=True, exist_ok=True)
-    
+
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     filename = f"snapshot_{label}_{timestamp}.tar.gz"
     target_path = snapshot_dir / filename
-    
+
     # We use tar to compress the entire .drift_os directory
     try:
         import tarfile
+
         with tarfile.open(target_path, "w:gz") as tar:
             tar.add(str(STATE_ROOT), arcname=".drift_os")
         return f"[ok: snapshot created at {target_path}]"
@@ -769,23 +838,24 @@ def tool_rollback_state(snapshot_name: str) -> str:
     """Rollback the .drift_os state root to a previous snapshot."""
     snapshot_dir = PROJECT_ROOT / "snapshots"
     target_path = snapshot_dir / snapshot_name
-    
+
     if not target_path.exists():
         return f"[error: snapshot not found: {snapshot_name}]"
-    
+
     try:
         import tarfile
+
         # First, backup current state just in case
         tool_snapshot_state("pre_rollback")
-        
+
         # Remove current state root (safely)
         if STATE_ROOT.exists():
             shutil.rmtree(STATE_ROOT)
-        
+
         # Extract snapshot
         with tarfile.open(target_path, "r:gz") as tar:
             tar.extractall(path=STATE_ROOT.parent)
-        
+
         return f"[ok: state rolled back to {snapshot_name}. Refreshing session recommended.]"
     except Exception as exc:
         return f"[error rolling back: {exc}]"
@@ -796,12 +866,12 @@ def tool_list_snapshots() -> str:
     snapshot_dir = PROJECT_ROOT / "snapshots"
     if not snapshot_dir.exists():
         return "No snapshots found."
-    
+
     items = []
     for entry in snapshot_dir.glob("*.tar.gz"):
         size = entry.stat().st_size
         items.append(f"{entry.name} ({size / 1024 / 1024:.2f} MB)")
-    
+
     return "\n".join(sorted(items, reverse=True)) if items else "No snapshots found."
 
 
@@ -836,8 +906,16 @@ TOOL_SCHEMAS = {
         "description": "Read a text file. Provide a relative or absolute path.",
         "parameters": {
             "path": {"type": "string", "description": "File path to read."},
-            "offset": {"type": "integer", "description": "Line offset to start from.", "default": 0},
-            "max_lines": {"type": "integer", "description": "Maximum lines to return.", "default": 200},
+            "offset": {
+                "type": "integer",
+                "description": "Line offset to start from.",
+                "default": 0,
+            },
+            "max_lines": {
+                "type": "integer",
+                "description": "Maximum lines to return.",
+                "default": 200,
+            },
         },
         "required": ["path"],
     },
@@ -853,7 +931,11 @@ TOOL_SCHEMAS = {
         "description": "Run a shell command in the home directory with a timeout.",
         "parameters": {
             "command": {"type": "string", "description": "Shell command to execute."},
-            "timeout": {"type": "integer", "description": "Timeout in seconds.", "default": 30},
+            "timeout": {
+                "type": "integer",
+                "description": "Timeout in seconds.",
+                "default": 30,
+            },
         },
         "required": ["command"],
     },
@@ -861,14 +943,21 @@ TOOL_SCHEMAS = {
         "description": "Compatibility terminal tool. Runs a guarded shell command in the home directory with the same safety rules as shell.",
         "parameters": {
             "command": {"type": "string", "description": "Shell command to execute."},
-            "timeout": {"type": "integer", "description": "Timeout in seconds.", "default": 30},
+            "timeout": {
+                "type": "integer",
+                "description": "Timeout in seconds.",
+                "default": 30,
+            },
         },
         "required": ["command"],
     },
     "write_to_cold_storage": {
         "description": "Write notes, drafts, or artifacts into the project-local BLKKNIGHT_RECOVERY directory.",
         "parameters": {
-            "file_name": {"type": "string", "description": "Relative file name under BLKKNIGHT_RECOVERY."},
+            "file_name": {
+                "type": "string",
+                "description": "Relative file name under BLKKNIGHT_RECOVERY.",
+            },
             "content": {"type": "string", "description": "Text content to save."},
         },
         "required": ["file_name", "content"],
@@ -876,19 +965,45 @@ TOOL_SCHEMAS = {
     "fuzz_directories": {
         "description": "Run ffuf directory fuzzing against an explicitly authorized target. Maps exposed attack surface for hardening.",
         "parameters": {
-            "target_url": {"type": "string", "description": "Authorized http:// or https:// target URL."},
-            "authorization_confirmed": {"type": "boolean", "description": "Must be true only when user has authorization for this target.", "default": False},
-            "wordlist": {"type": "string", "description": "Path to wordlist file.", "default": "/usr/share/wordlists/dirb/common.txt"},
-            "timeout": {"type": "integer", "description": "Timeout in seconds, capped at 300.", "default": 300},
+            "target_url": {
+                "type": "string",
+                "description": "Authorized http:// or https:// target URL.",
+            },
+            "authorization_confirmed": {
+                "type": "boolean",
+                "description": "Must be true only when user has authorization for this target.",
+                "default": False,
+            },
+            "wordlist": {
+                "type": "string",
+                "description": "Path to wordlist file.",
+                "default": "/usr/share/wordlists/dirb/common.txt",
+            },
+            "timeout": {
+                "type": "integer",
+                "description": "Timeout in seconds, capped at 300.",
+                "default": 300,
+            },
         },
         "required": ["target_url", "authorization_confirmed"],
     },
     "enumerate_subdomains": {
         "description": "Run subfinder against an explicitly authorized domain. Expands known attack surface for defensive review.",
         "parameters": {
-            "domain": {"type": "string", "description": "Authorized domain to enumerate (e.g., example.com)."},
-            "authorization_confirmed": {"type": "boolean", "description": "Must be true only when user has authorization for this target.", "default": False},
-            "timeout": {"type": "integer", "description": "Timeout in seconds, capped at 120.", "default": 120},
+            "domain": {
+                "type": "string",
+                "description": "Authorized domain to enumerate (e.g., example.com).",
+            },
+            "authorization_confirmed": {
+                "type": "boolean",
+                "description": "Must be true only when user has authorization for this target.",
+                "default": False,
+            },
+            "timeout": {
+                "type": "integer",
+                "description": "Timeout in seconds, capped at 120.",
+                "default": 120,
+            },
         },
         "required": ["domain", "authorization_confirmed"],
     },
@@ -897,10 +1012,18 @@ TOOL_SCHEMAS = {
         "parameters": {
             "actions": {
                 "type": "array",
-                "description": "List of action objects. Each action has a 'type' key and relevant params. Types: navigate, click, double_click, type, keypress, scroll, move, drag, wait, screenshot. Example: [{\"type\": \"navigate\", \"url\": \"https://example.com\"}, {\"type\": \"screenshot\"}]",
+                "description": 'List of action objects. Each action has a \'type\' key and relevant params. Types: navigate, click, double_click, type, keypress, scroll, move, drag, wait, screenshot. Example: [{"type": "navigate", "url": "https://example.com"}, {"type": "screenshot"}]',
             },
-            "authorization_confirmed": {"type": "boolean", "description": "Must be true only when user has authorization for this target.", "default": False},
-            "authorized_domains": {"type": "array", "description": "Optional list of authorized domains for navigation.", "default": []},
+            "authorization_confirmed": {
+                "type": "boolean",
+                "description": "Must be true only when user has authorization for this target.",
+                "default": False,
+            },
+            "authorized_domains": {
+                "type": "array",
+                "description": "Optional list of authorized domains for navigation.",
+                "default": [],
+            },
         },
         "required": ["actions", "authorization_confirmed"],
     },
@@ -917,22 +1040,60 @@ TOOL_SCHEMAS = {
     "call_api": {
         "description": "Make an HTTP request to an authorized external API. Requires authorization.",
         "parameters": {
-            "url": {"type": "string", "description": "Target URL (http:// or https://)."},
-            "method": {"type": "string", "description": "HTTP method.", "default": "GET"},
-            "headers": {"type": "object", "description": "Optional request headers.", "default": {}},
-            "body": {"type": "string", "description": "Optional request body.", "default": ""},
-            "authorization_confirmed": {"type": "boolean", "description": "Must be true for external APIs.", "default": False},
-            "timeout": {"type": "integer", "description": "Timeout in seconds.", "default": 30},
+            "url": {
+                "type": "string",
+                "description": "Target URL (http:// or https://).",
+            },
+            "method": {
+                "type": "string",
+                "description": "HTTP method.",
+                "default": "GET",
+            },
+            "headers": {
+                "type": "object",
+                "description": "Optional request headers.",
+                "default": {},
+            },
+            "body": {
+                "type": "string",
+                "description": "Optional request body.",
+                "default": "",
+            },
+            "authorization_confirmed": {
+                "type": "boolean",
+                "description": "Must be true for external APIs.",
+                "default": False,
+            },
+            "timeout": {
+                "type": "integer",
+                "description": "Timeout in seconds.",
+                "default": 30,
+            },
         },
         "required": ["url", "authorization_confirmed"],
     },
     "run_nuclei_scan": {
         "description": "Run a high/critical Nuclei scan against a target you own or are explicitly authorized to test.",
         "parameters": {
-            "target_url": {"type": "string", "description": "Authorized http:// or https:// target URL."},
-            "authorization_confirmed": {"type": "boolean", "description": "Must be true only when user has authorization for this target.", "default": False},
-            "scope_note": {"type": "string", "description": "Short authorization note required for external targets.", "default": ""},
-            "timeout": {"type": "integer", "description": "Timeout in seconds, capped at 300.", "default": 300},
+            "target_url": {
+                "type": "string",
+                "description": "Authorized http:// or https:// target URL.",
+            },
+            "authorization_confirmed": {
+                "type": "boolean",
+                "description": "Must be true only when user has authorization for this target.",
+                "default": False,
+            },
+            "scope_note": {
+                "type": "string",
+                "description": "Short authorization note required for external targets.",
+                "default": "",
+            },
+            "timeout": {
+                "type": "integer",
+                "description": "Timeout in seconds, capped at 300.",
+                "default": 300,
+            },
         },
         "required": ["target_url", "authorization_confirmed"],
     },
@@ -940,7 +1101,11 @@ TOOL_SCHEMAS = {
         "description": "Search the web using DuckDuckGo.",
         "parameters": {
             "query": {"type": "string", "description": "Search query."},
-            "max_results": {"type": "integer", "description": "Number of results.", "default": 5},
+            "max_results": {
+                "type": "integer",
+                "description": "Number of results.",
+                "default": 5,
+            },
         },
         "required": ["query"],
     },
@@ -948,7 +1113,11 @@ TOOL_SCHEMAS = {
         "description": "Execute Python code in a sandboxed subprocess.",
         "parameters": {
             "code": {"type": "string", "description": "Python code to run."},
-            "timeout": {"type": "integer", "description": "Timeout in seconds.", "default": 15},
+            "timeout": {
+                "type": "integer",
+                "description": "Timeout in seconds.",
+                "default": 15,
+            },
         },
         "required": ["code"],
     },
@@ -960,21 +1129,31 @@ TOOL_SCHEMAS = {
     "list_directory": {
         "description": "List files in a directory.",
         "parameters": {
-            "path": {"type": "string", "description": "Directory path.", "default": "."},
+            "path": {
+                "type": "string",
+                "description": "Directory path.",
+                "default": ".",
+            },
         },
         "required": [],
     },
     "snapshot_state": {
         "description": "Create a compressed snapshot of the current .drift_os state root.",
         "parameters": {
-            "label": {"type": "string", "description": "A label for the snapshot (e.g., 'before_upgrade')."},
+            "label": {
+                "type": "string",
+                "description": "A label for the snapshot (e.g., 'before_upgrade').",
+            },
         },
         "required": ["label"],
     },
     "rollback_state": {
         "description": "Rollback the .drift_os state root to a previous snapshot.",
         "parameters": {
-            "snapshot_name": {"type": "string", "description": "The exact name of the snapshot file to restore."},
+            "snapshot_name": {
+                "type": "string",
+                "description": "The exact name of the snapshot file to restore.",
+            },
         },
         "required": ["snapshot_name"],
     },
@@ -999,10 +1178,14 @@ def format_tool_inventory() -> str:
 
 def build_tool_prompt() -> str:
     """Build a prompt snippet describing available tools."""
-    lines = ["AVAILABLE TOOLS:", "When you need a tool, output ONE JSON block like this:", ""]
+    lines = [
+        "AVAILABLE TOOLS:",
+        "When you need a tool, output ONE JSON block like this:",
+        "",
+    ]
     for name, schema in TOOL_SCHEMAS.items():
         params = ", ".join(schema["required"]) if schema["required"] else "none"
-        lines.append(f'- {name}: {schema["description"]} (required params: {params})')
+        lines.append(f"- {name}: {schema['description']} (required params: {params})")
     lines.append("")
     lines.append("Format your tool call exactly as:")
     lines.append('```tool\n{"name": "tool_name", "arguments": {"key": "value"}}\n```')
