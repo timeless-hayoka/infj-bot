@@ -4,7 +4,7 @@
   <img src="docs/assets/drift-banner.jpg" alt="DRIFT wordmark" width="520" />
 </p>
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![CI](https://github.com/timeless-hayoka/infj-bot/actions/workflows/ci.yml/badge.svg)](https://github.com/timeless-hayoka/infj-bot/actions/workflows/ci.yml)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20350249.svg)](https://doi.org/10.5281/zenodo.20350249)
@@ -231,4 +231,4 @@ Removing DMU re-ranking (D) is the most measurable signal — the 221-character 
 
 ## License
 
-MIT — see [`LICENSE`](LICENSE).
+Apache 2.0 — see [`LICENSE`](LICENSE).
