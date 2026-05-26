@@ -9,7 +9,7 @@
 [![CI](https://github.com/timeless-hayoka/infj-bot/actions/workflows/ci.yml/badge.svg)](https://github.com/timeless-hayoka/infj-bot/actions/workflows/ci.yml)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20350249.svg)](https://doi.org/10.5281/zenodo.20350249)
 
-**PHI // DRIFT** (Distributed Response & Integrated Functional Thought) is a Python cognitive architecture for AI companions. It gives a language model a persistent inner life: emotion, memory, needs, shadow, consciousness, and distributed cognition — all assembled into the prompt on every turn.
+**PHI // DRIFT** (Distributed Response & Integrated Functional Thought) is a homeostatic cognitive architecture with persistent state, salience-weighted memory, and falsifiable behavioral continuity metrics. It gives a language model a persistent inner life: emotion, memory, needs, shadow, consciousness, and distributed cognition — all assembled into the prompt on every turn.
 
 > The LLM does not secretly execute arbitrary code. Distinct behavior comes from **what is assembled into the prompt**, **what is retrieved from memory**, and **what structured state** is updated before and after each turn.
 
