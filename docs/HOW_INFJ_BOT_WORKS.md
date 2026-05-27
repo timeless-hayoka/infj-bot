@@ -235,12 +235,13 @@ Targeted subsets: `pytest tests/test_shadow.py tests/test_embeddings.py tests/te
 
 | File | Purpose |
 |------|---------|
-| [README.md](../README.md) | Quick start, layered map, who should read what |
+| [README.md](../README.md) | Quick start, layered map, May 2026 highlights |
 | [docs/README.md](README.md) | Full documentation index & reading paths |
 | [docs/GLOSSARY.md](GLOSSARY.md) | Definitions for codebase-specific terms |
 | [SECURITY.md](../SECURITY.md) | Secret hygiene & reporting posture |
-| [DRIFT_AI_INTEGRATION.md](DRIFT_AI_INTEGRATION.md) | How seeded Drift concepts map into memory-only integration |
-| [DELL_HANDOFF.md](DELL_HANDOFF.md) | Longer ops notes (devices, backups, quirks) |
+| [AI_MORALITY_RULES.md](AI_MORALITY_RULES.md) | The 6 hard-coded morality rules at the top of the system prompt |
+| [DEPENDENCIES.md](DEPENDENCIES.md) | What each major package and runtime piece is for |
+| [FALSIFIABILITY.md](FALSIFIABILITY.md) → [BASELINE_REPORT.md](BASELINE_REPORT.md) → [DMU_PEDI_TEST_PLAN.md](DMU_PEDI_TEST_PLAN.md) | The locked claims, the baseline they're measured against, and the ablation/coupling methodology |
 
 ---
 
