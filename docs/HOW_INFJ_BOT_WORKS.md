@@ -115,24 +115,24 @@ Representative wired modules (instances live largely in **`main.py`**):
 
 ---
 
-## 5. Performance & Networking Upgrade (May 2024)
+## 4b. Performance & Networking Upgrade (May 2024)
 
-### 5.1 Gevent-SocketIO Engine
+### Gevent-SocketIO Engine
 The web interface now runs on a high-performance **Gevent** async server (`web_app.py`). This allows for:
 - **Real-time Observability:** Constant WebSocket updates without blocking the main chat.
 - **RFC 7692 Compression:** Transparent WebSocket compression (`permessage-deflate`) reduces bandwidth usage by ~70%.
 
-### 5.2 Delta-State Broadcasting
+### Delta-State Broadcasting
 The `CognitiveOrchestrator` now generates **delta maps** for the system state.
 - **Mechanism:** The server tracks the `last_state` sent to each client. It only transmits fields that have changed (except for a required `timestamp`).
 - **Impact:** Drastic reduction in packet size and client-side processing overhead.
 
-### 5.3 Auto-Throttling & Latency Management
+### Auto-Throttling & Latency Management
 The system now detects network bottlenecks in real-time.
 - **Feedback Loop:** The client pings the server every second.
 - **Dynamic Rate:** If average latency exceeds 250ms, the server slows down the broadcast rate (up to 1.5s). If latency is low (<100ms), it speeds up (down to 200ms).
 
-### 5.4 Hybrid Inference (Groq + Gemini)
+### Hybrid Inference (Groq + Gemini)
 - **High-Speed Tier:** Support for **Groq LPU** inference (OpenAI-compatible) has been integrated into `DriftBrain`. 
 - **Speed:** Responses can reach 500+ tokens/second, making the bot's "inner thoughts" feel instantaneous.
 
@@ -140,7 +140,7 @@ Plugins submit salient snippets to **`global_workspace.py`**, loosely inspired b
 
 ---
 
-## 5. “Depth psychology” style layers (informal but structured)
+## 5. "Depth psychology" style layers (informal but structured)
 
 These are **not** clinical instruments; they are **structured state machines + prompt text** shaping tone and continuity.
 
@@ -238,9 +238,10 @@ Targeted subsets: `pytest tests/test_shadow.py tests/test_embeddings.py tests/te
 | [README.md](../README.md) | Quick start, layered map, who should read what |
 | [docs/README.md](README.md) | Full documentation index & reading paths |
 | [docs/GLOSSARY.md](GLOSSARY.md) | Definitions for codebase-specific terms |
+| [docs/SUBSYSTEMS.md](SUBSYSTEMS.md) | Per-module reference (shadow governance, task mutator, retry wrapper, security defense, experiment instrumentation, …) |
 | [SECURITY.md](../SECURITY.md) | Secret hygiene & reporting posture |
-| [DRIFT_AI_INTEGRATION.md](DRIFT_AI_INTEGRATION.md) | How seeded Drift concepts map into memory-only integration |
-| [DELL_HANDOFF.md](DELL_HANDOFF.md) | Longer ops notes (devices, backups, quirks) |
+| [FALSIFIABILITY.md](FALSIFIABILITY.md) | Committed falsifiability statement and effect-size thresholds |
+| [README_UPGRADE.md](README_UPGRADE.md) | Pre-test execution discipline for ablation runs |
 
 ---
 
