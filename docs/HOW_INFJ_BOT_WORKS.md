@@ -4,7 +4,7 @@ This document explains **what INFJ Bot is made of**, **how one chat turn travels
 
 **Repository:** [github.com/timeless-hayoka/infj-bot](https://github.com/timeless-hayoka/infj-bot)
 
-INFJ Bot is a **Python application** centered on Google **Gemini** (with optional **Ollama** fallback). It stitches together **persistent vector memory**, **many small “cognitive” modules** (emotion, embodiment, shadow, goals, …), **prompt assembly with budgets**, and **optional tools** so the assistant can stay **on-tone, grounded, and stateful** across sessions.
+INFJ Bot is a **Python application** centered on Google **Gemini** (with optional **Groq**, **Kimi**, and **Ollama** fallbacks). It stitches together **persistent vector memory**, **many small "cognitive" modules** (emotion, embodiment, shadow, goals, …), **prompt assembly with budgets**, and **optional tools** so the assistant can stay **on-tone, grounded, and stateful** across sessions.
 
 ---
 
@@ -51,13 +51,15 @@ flowchart TD
 
 ## 3. Core runtime components
 
-### 3.1 `brain.py` — `InfjBrain`
+### 3.1 `brain.py` — `DriftBrain`
 
 - Holds **system prompts** for the primary companion and for the **critic**.
 - Manages generation, optional **streaming**, optional **parallel tool execution**, and **`OllamaBridge`** fallback when configured.
+- Routes between **Gemini → Groq → Kimi → Ollama** based on `DRIFT_USE_GROQ` / `DRIFT_USE_KIMI` / `INFJ_USE_LOCAL_FALLBACK`.
 - Uses **`SelfEvaluator`** hooks where wired for reflective scoring (see `self_eval.py`).
+- Generation timeouts and retries are governed by [`retry_wrapper.py`](SHADOW_GOVERNANCE.md#3-coreretry_wrapperpy--dynamic-timeouts--exponential-backoff).
 
-### 3.2 `memory.py` — `InfjMemory` (Chroma)
+### 3.2 `memory.py` — `DriftMemory` (Chroma)
 
 - **Collections**: semantic memories (`infj_semantic_memories`) when sentence-transformers embeddings are active; legacy hash embeddings use a parallel collection name.
 - **Writes**: each saved turn includes scrubbed **`Jude:` / `Bot:`** content plus **metadata** (mode, emotion hints, importance, dissonance summary, timestamps, etc.).
@@ -73,14 +75,27 @@ flowchart TD
 
 - User-ingested documents are chunked and searchable; snippets are fused into **`assemble_prompt`**’s context tier when the document store is passed in.
 
-### 3.5 `prompt_budget.py` + `cognitive_orchestrator.py`
+### 3.5 `global_workspace.py` — tiered attention
+
+The previous Baars-style "spotlight only" workspace was replaced with a real competition model (see [`core/global_workspace.py`](../core/global_workspace.py)):
+
+```
+Spotlight    (rank 1)   — most salient item this cycle
+Active       (ranks 2–5) — included in the prompt
+Preconscious (strong / moderate / faint / trace) — retained below threshold
+Archived               — salience < 0.05, logged to SQLite and evicted
+```
+
+Each cycle every surviving item competes by `current_salience(now)`, with **real elapsed-time exponential decay** (`decay_rate` per minute) and a capped emotional-intensity boost. Items below the active capacity (default 5) drop into preconscious bands instead of being discarded; only items below `ARCHIVE_THRESHOLD = 0.05` are evicted. The old infinite-broadcast-count salience inflation bug is gone.
+
+### 3.6 `prompt_budget.py` + `cognitive_orchestrator.py`
 
 - **`assemble_prompt`** is the authoritative prompt factory.
 - Layers include **mode scope**, **`being.format_being_prompt`**, **`emotional_tone_instruction`**, **global workspace excerpt**, registry-driven cognitive paragraphs, cyber hints, retrieved memory/doc blocks, tool instructions.
 - **`PromptBudget`** trims each tier toward **`INFJ_MAX_TOTAL_PROMPT_CHARS`** (~chars-per-token heuristic in `config.py`).
 - **`ConflictDetector`** flags contradictory instructions (currently soft resolution: annotate, don’t aggressively delete).
 
-### 3.6 Strong Continuous Mode (background drift cycles)
+### 3.7 Strong Continuous Mode (background drift cycles)
 
 When the bot is idle, it does **not** go to sleep. The `consciousness_loop` in `main.py` fires every **15–30 seconds** and runs three parallel tracks:
 
@@ -111,36 +126,38 @@ Representative wired modules (instances live largely in **`main.py`**):
 - **`being`** — longitudinal mood/agency/coherence-style state (`being.db`).
 - **`emotional_field`** — resonance stance + intensity; **partially tempered by live host CPU/RAM** via `host_load.py` (`psutil`) when enabled.
 - **`embodiment`** — heartbeat/breath/posture metaphors persisted to **`embodiment.db`**.
-- **`homeostasis`**, **`iit_consciousness`**, **`intuition`**, **`shadow`**, **`values`**, **`relationship`**, **`predictor`**, **`temporal`**, **`explorer`**, **`creativity`**, **`aspirations`**, **`metacognition`**, **`self_modify`**, **`growth_trajectory`**, **`physics`**, **`humanity`** — specialized loops and prompt fragments.
+- **`homeostasis`**, **`intuition`**, **`shadow`**, **`shadow_governance`**, **`values`**, **`relationship`**, **`predictor`**, **`temporal`**, **`explorer`**, **`creativity`**, **`aspirations`**, **`metacognition`**, **`self_modify`**, **`growth_trajectory`**, **`physics`**, **`humanity`** — specialized loops and prompt fragments. Integrated-information / Φ telemetry surfaces through `phi_council.py` and the `/glyph` dashboard rather than a dedicated `iit_consciousness.py` module.
 
 ---
 
-## 5. Performance & Networking Upgrade (May 2024)
+## 4. Performance & Networking
 
-### 5.1 Gevent-SocketIO Engine
-The web interface now runs on a high-performance **Gevent** async server (`web_app.py`). This allows for:
+### 4.1 Gevent-SocketIO Engine
+The web interface (`interfaces/web_app.py`) runs on a **gevent** async server. This enables:
 - **Real-time Observability:** Constant WebSocket updates without blocking the main chat.
 - **RFC 7692 Compression:** Transparent WebSocket compression (`permessage-deflate`) reduces bandwidth usage by ~70%.
 
-### 5.2 Delta-State Broadcasting
-The `CognitiveOrchestrator` now generates **delta maps** for the system state.
+### 4.2 Delta-State Broadcasting
+`CognitiveOrchestrator` emits **delta maps** for the system state.
 - **Mechanism:** The server tracks the `last_state` sent to each client. It only transmits fields that have changed (except for a required `timestamp`).
 - **Impact:** Drastic reduction in packet size and client-side processing overhead.
 
-### 5.3 Auto-Throttling & Latency Management
-The system now detects network bottlenecks in real-time.
-- **Feedback Loop:** The client pings the server every second.
-- **Dynamic Rate:** If average latency exceeds 250ms, the server slows down the broadcast rate (up to 1.5s). If latency is low (<100ms), it speeds up (down to 200ms).
+### 4.3 Auto-Throttling & Latency Management
+The system detects network bottlenecks in real-time.
+- **Feedback Loop:** The client pings the server every second (`latency_ping`).
+- **Dynamic Rate:** Broadcast interval is clamped to **[0.2 s, 1.5 s]** and adjusted via the `auto_adjust_rate` SocketIO message.
 
-### 5.4 Hybrid Inference (Groq + Gemini)
-- **High-Speed Tier:** Support for **Groq LPU** inference (OpenAI-compatible) has been integrated into `DriftBrain`. 
-- **Speed:** Responses can reach 500+ tokens/second, making the bot's "inner thoughts" feel instantaneous.
+### 4.4 Hybrid Inference (Gemini + Groq + Kimi + Ollama)
+- **Primary:** Google Gemini (`google.genai` SDK preferred, legacy client fallback).
+- **High-speed tier:** Groq LPU (OpenAI-compatible) when `DRIFT_USE_GROQ=true`.
+- **Moonshot tier:** Kimi (`KIMI_API_KEY`) when `DRIFT_USE_KIMI=true`.
+- **Offline tier:** Ollama (`INFJ_USE_LOCAL_FALLBACK=true`), guarded by [`retry_wrapper.py`](SHADOW_GOVERNANCE.md#3-coreretry_wrapperpy--dynamic-timeouts--exponential-backoff).
 
-Plugins submit salient snippets to **`global_workspace.py`**, loosely inspired by Global Workspace Theory: limited capacity competition, decay, persistence in **`workspace.db`**.
+For full route table see [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ---
 
-## 5. “Depth psychology” style layers (informal but structured)
+## 5. "Depth psychology" style layers (informal but structured)
 
 These are **not** clinical instruments; they are **structured state machines + prompt text** shaping tone and continuity.
 
@@ -204,8 +221,11 @@ Key environment variables (`config.py` aggregates these):
 
 | Surface | Entry |
 |--------|--------|
-| CLI | `cli.py` — `chat`, `ask`, `tui`, `web`, `health`, `backup`, `restore` |
-| HTTP | **`api.py`** + **`web_app.py`** (`uvicorn` on `127.0.0.1:8765` by convention) |
+| CLI | `interfaces/main.py` (chat loop) + `interfaces/cli.py` (`chat`, `ask`, `tui`, `web`, `health`, `backup`, `restore`) |
+| Web | **`interfaces/web_app.py`** — Flask + Flask-SocketIO on **gevent**, default port `7860` |
+| REST API | **`interfaces/api.py`** — uvicorn on `127.0.0.1:8765` (headless mode) |
+
+The deployable image boots `web_app.py`; the uvicorn API ships as the headless alternative. See [DEPLOYMENT.md](DEPLOYMENT.md) for the full route table and Hugging Face Space contract.
 
 ---
 
@@ -239,8 +259,11 @@ Targeted subsets: `pytest tests/test_shadow.py tests/test_embeddings.py tests/te
 | [docs/README.md](README.md) | Full documentation index & reading paths |
 | [docs/GLOSSARY.md](GLOSSARY.md) | Definitions for codebase-specific terms |
 | [SECURITY.md](../SECURITY.md) | Secret hygiene & reporting posture |
-| [DRIFT_AI_INTEGRATION.md](DRIFT_AI_INTEGRATION.md) | How seeded Drift concepts map into memory-only integration |
-| [DELL_HANDOFF.md](DELL_HANDOFF.md) | Longer ops notes (devices, backups, quirks) |
+| [HIVE_MIND.md](HIVE_MIND.md) | `hive_mind/` package (ConsensusEngine, HiveOrchestrator, DCP) |
+| [BUG_BOT.md](BUG_BOT.md) | `core/bug_bot.py` workflow + `/bug` commands + Bugcrowd integration |
+| [SHADOW_GOVERNANCE.md](SHADOW_GOVERNANCE.md) | Shadow governance, task mutation, retry wrapper |
+| [CONTINUITY_VECTOR.md](CONTINUITY_VECTOR.md) | Five-axis baselines + three-axis runtime triad |
+| [DEPLOYMENT.md](DEPLOYMENT.md) | Docker, Hugging Face Space, ports, routes |
 
 ---
 

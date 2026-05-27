@@ -8,11 +8,14 @@ This document groups the INFJ Bot's dependencies by purpose and identifies candi
 |---------|---------|------------|
 | `chromadb` | Vector database for semantic memory | No |
 | `sentence-transformers` | Local embeddings (MiniLM) | No |
+| `transformers` | Backbone for sentence-transformers / HF tokenizers | No |
+| `huggingface_hub` | Model download for embeddings (pinned `<1.0`) | No |
 | `torch` | Required by sentence-transformers | No |
 | `numpy` | Numerical ops | No |
 | `python-dotenv` | `.env` file loading | No |
 | `PyYAML` | Config / prompt YAML parsing | No |
 | `pydantic` | Data validation (FastAPI, MCP) | No |
+| `psutil` | Host CPU/RAM sampling for `host_load.py` | Optional — set `INFJ_DISABLE_HOST_LOAD=1` to drop |
 
 ## LLM Providers (Pick One+)
 
@@ -27,16 +30,25 @@ This document groups the INFJ Bot's dependencies by purpose and identifies candi
 
 ## Web & API
 
+The deployable image (Docker / Hugging Face Spaces) boots **Flask + Flask-SocketIO on gevent**. The FastAPI path is the headless REST alternative — both stacks ship in `requirements.txt` so any interface can be selected at startup.
+
 | Package | Purpose | Slimmable? |
 |---------|---------|------------|
-| `fastapi` | Web UI + REST API | No (unless headless) |
-| `uvicorn` | ASGI server | No (unless headless) |
-| `sse-starlette` | SSE streaming for Observatory | No (unless headless) |
-| `starlette` | FastAPI dependency | Transitive |
-| `httpx` | HTTP client | No |
-| `websockets` | WebSocket support | If not using WS chat |
+| `Flask`            | Web server for `interfaces/web_app.py` | No (unless CLI-only) |
+| `Flask-SocketIO`   | Real-time observatory deltas | No (unless CLI-only) |
+| `gevent`           | Async worker for SocketIO | No (unless CLI-only) |
+| `gevent-websocket` | WebSocket transport for gevent | Transitive |
+| `python-socketio`  | SocketIO protocol | Transitive |
+| `python-engineio`  | Engine.IO transport | Transitive |
+| `simple-websocket` | Fallback WebSocket impl | Transitive |
+| `fastapi`          | Headless REST API (`interfaces/api.py`) | Drop with uvicorn for Flask-only |
+| `uvicorn`          | ASGI server for FastAPI | Drop with fastapi |
+| `sse-starlette`    | SSE streaming for `/api/chat/stream` | Drop with FastAPI |
+| `starlette`        | FastAPI dependency | Transitive |
+| `httpx`            | HTTP client | No |
+| `websockets`       | WebSocket support | Transitive |
 
-**Slim option:** Run in CLI-only mode (`cli.py`) and drop FastAPI/uvicorn/sse-starlette.
+**Slim option:** Run in CLI-only mode (`python interfaces/main.py`) and drop Flask + FastAPI + their transports.
 
 ## Voice & Audio
 
@@ -82,15 +94,31 @@ To create a minimal install for headless, text-only operation:
 
 ```bash
 # Core only
-pip install chromadb sentence-transformers torch numpy python-dotenv PyYAML pydantic httpx
+pip install chromadb sentence-transformers torch numpy python-dotenv PyYAML pydantic httpx psutil
 
 # Pick your LLM backend
 pip install google-genai google-generativeai google-auth-oauthlib
 # OR
 pip install ollama
 
-# Optional: web UI
+# Optional: web UI (Flask stack — what the Docker image / HF Space uses)
+pip install Flask Flask-SocketIO gevent gevent-websocket python-socketio python-engineio simple-websocket
+
+# OR: headless REST only (FastAPI stack)
 pip install fastapi uvicorn sse-starlette
 ```
 
 This drops ~500MB+ of voice, browser, and data science dependencies.
+
+## Where new subsystems pull from
+
+These modules added in recent commits do **not** introduce new third-party dependencies — they reuse what's already pinned:
+
+| Module | Uses |
+|--------|------|
+| `core/bug_bot.py` + plugins | stdlib only (`urllib`, `sqlite3`, `subprocess`); external binaries `subfinder` / `nuclei` / `ffuf` if installed |
+| `core/shadow_governance.py` | stdlib `math`, `dataclasses` |
+| `core/task_mutator.py`      | stdlib `dataclasses`, `enum`, `uuid`, `time` |
+| `core/retry_wrapper.py`     | stdlib `os`, `time`, `functools` |
+| `core/continuity_vector.py` | `numpy` |
+| `hive_mind/`                | stdlib only (`uuid`, `dataclasses`, `enum`) |
