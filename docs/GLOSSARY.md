@@ -40,13 +40,19 @@ If set, relocates durable state (Chroma, SQLite DBs, `history.jsonl`, audits, et
 **Integrated-information–inspired metrics** and qualia-axis bookkeeping in **`iit_consciousness.py`**. Computed proxies for introspection/diagnostics—not a clinical or physics claim.
 
 ### **`InfjBrain`**  
-Primary LLM wrapper in **`brain.py`**: Gemini (and optional Ollama fallback), streaming, tooling hooks where enabled.
+Primary LLM wrapper in **`brain.py`**: Gemini (and optional Ollama fallback), streaming, tooling hooks where enabled. The current implementation class is `DriftBrain`; `InfjBrain` is the historical name.
 
 ### **`InfjMemory`**  
-Chroma-backed memory in **`memory.py`**: save interactions after **secret scrubbing**, hybrid search/top‑k, optional document sidecar integrations.
+Chroma-backed memory in **`memory.py`**: save interactions after **secret scrubbing**, hybrid search/top‑k, optional document sidecar integrations. The current implementation class is `DriftMemory`.
 
-### **“Jude” / user-facing name**  
+### **"Jude" / user-facing name**  
 Default narrative name for the human in prompts and seeded content. Replace in your fork if needed.
+
+### **Logic Chain** (`core/logic_chain.py`)  
+Tree of `ChainNode` reasoning steps per **query fingerprint**. Tracks approaches the bot has already tried (`success` / `failure` / `partial`) so it doesn't loop on dead-end strategies. Operator surface: `/chain list|show|mark|clear`. See [SUBSYSTEMS.md](SUBSYSTEMS.md#3-logic-chain--corelogic_chainpy).
+
+### **MPS** — Memory Prioritization Score  
+Additive re-ranking score from `core/dmu_scoring.py`. Combines six weighted factors (decay, reinforcement, contextual similarity, recency bias, novelty, state alignment) into a single `[0,1]` priority. Every memory carries a `score_components` dict so retrievals are auditable. See [SUBSYSTEMS.md](SUBSYSTEMS.md#8-experiment-instrumentation).
 
 ### **Layer 1–5**  
 Architectural shorthand in the README: **Interface**, **Cognition**, **Coordination**, **Memory**, **Tools & Safety**. Layers overlap in code—it is an organizational map, not a strict dependency DAG.
@@ -57,15 +63,35 @@ Local inference path via **`OllamaBridge`** in **`local_llm.py`** when **`INFJ_U
 ### **`PromptBudget`**  
 Caps prompt growth by tier (core / cognitive / analysis / context) toward **`INFJ_MAX_TOTAL_PROMPT_CHARS`**.
 
+### **Retry Wrapper** (`core/retry_wrapper.py`)  
+Payload-aware timeout (`max(60, 20 + 25·⌊len/1000⌋)` s in standard mode, fixed 150 s in `ablation` mode) plus exponential backoff. Retries only on `TimeoutError`; everything else fails fast.
+
+### **Security Defense** (`core/security_defense.py`)  
+Pre-LLM regex scan for four attack categories: prompt injection, data exfiltration, tool/agent misuse, memory/context manipulation. Fail-closed at `BLOCK_THRESHOLD = 0.60`; warn-and-sanitize at `WARN_THRESHOLD = 0.20`. Every decision is appended to `security_audit.jsonl`. Operator surface: `/security status|audit|test`.
+
 ### Shadow (`shadow.py`)  
 Structured **prompt-time excerpts** from **`shadow.db`**, bounded by env caps (**`INFJ_SHADOW_PROMPT_*`**). Jung-influenced metaphor; **not** diagnosis.
 
-### **SQLite “state brains”**  
+### **Shadow Governance** (`core/shadow_governance.py`)  
+Bounded uncertainty controller for the Shadow layer. Applies exponential decay (`w(t) = w₀·exp(-t/τ)`), accumulates anomalies under a hard cap (`MAX_SHADOW_WEIGHT`), and promotes only anomalies that survive a `consistency_window`. Three modes — `SECURITY`, `BALANCED`, `CONSERVATIVE` — map from chat modes via `resolve_mode()`.
+
+### **SQLite "state brains"**  
 Many subsystems (**being**, **embodiment**, **homeostasis**, **shadow**, etc.) persist orthogonal state as **`.db`** files under **`INFJ_DATA_DIR`** or **`PROJECT_ROOT`**.
+
+### **Task Mutator** (`core/task_mutator.py`)  
+Shadow-driven `auto_evolve` for tasks. When shadow influence exceeds `promotion_threshold` and `intent_stability < 0.6`, the task is transformed according to the active shadow mode: `SECURITY` archives, `BALANCED` reframes as `Reflection: …`, `CONSERVATIVE` marks `GHOST` and surfaces an insight prompt. `shadow_forgiveness()` restores ghosted tasks when shadow decays below `0.10`.
+
+### **Continuity Vector** (`core/continuity_vector.py`)  
+Five-axis per-turn score (entity overlap, goal overlap, tone similarity, memory-reference rate, state influence) used to compute Cohen's d under freeze-mode ablation. Baselines pool across three sessions (companion / task / exploration) and live in `drift_baseline_stats.json`. Axes failing the variance floor `1e-3` are treated as broken metrics. See [FALSIFIABILITY.md](FALSIFIABILITY.md).
+
+### **Bug Bot** (`core/bug_bot.py`)  
+Bugcrowd-integrated, scope-enforced bug-bounty workflow (sync programs → recon → findings → reports → submit). Subprocess scanners are launched with built-in rate limits; recon is rejected outside `INFJ_AUTHORIZED_TARGETS` and outside `bughunter` mode. Operator surface: `/bug sync|recon|add|list|evidence|dashboard|report|submit`.
 
 ---
 
 ## Related
 
 - Mechanics and flow: [HOW_INFJ_BOT_WORKS.md](HOW_INFJ_BOT_WORKS.md)  
+- Per-module reference: [SUBSYSTEMS.md](SUBSYSTEMS.md)  
 - Terms for credentials and scope: [SECURITY.md](../SECURITY.md)  
+- Falsifiability & axes interpretation: [FALSIFIABILITY.md](FALSIFIABILITY.md)  

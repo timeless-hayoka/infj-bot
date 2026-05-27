@@ -102,6 +102,11 @@ Suppressed archetypes accumulate depth over time. High-stress turns can surface 
 ### Homeostasis
 Five tracked needs (rest, connection, purpose, stimulation, safety) decay over time and create pressure on the bot's behavior. Allostatic load and a `crisis_mode` flag affect response tone. Decay rates are configurable via env vars.
 
+> **Per-module reference.** For shadow governance modes, the task auto-evolve
+> mutator, the security defense scanner, dynamic retry timeouts, the logic
+> chain (reasoning-trace memory), the bug-bot workflow, and the ablation
+> instrumentation stack, see [docs/SUBSYSTEMS.md](docs/SUBSYSTEMS.md).
+
 ---
 
 ## Getting Started
@@ -170,7 +175,10 @@ python interfaces/web_app.py
 | `/chain list` | Show active reasoning chains |
 | `/chain mark <query> fail` | Mark an approach as dead-end |
 | `/security status` | Show security scanner state |
+| `/security audit` | Show the last 10 security events |
 | `/security test <text>` | Scan arbitrary text |
+| `/chain list` / `/chain show <id>` / `/chain mark <query> success\|fail` / `/chain clear` | Reasoning-trace operations (see [docs/SUBSYSTEMS.md § Logic Chain](docs/SUBSYSTEMS.md#3-logic-chain--corelogic_chainpy)) |
+| `/bug sync` / `/bug recon <id>` / `/bug list` / `/bug add ...` / `/bug report <id>` / `/bug submit <id>` | Bug Bot operator surface (requires `bughunter` mode + authorized scope) |
 | `/health` | Check model, memory, and system status |
 | `/reset` | Clear session history and brain context |
 | `/todo add <title>` | Add a goal |
@@ -179,17 +187,40 @@ python interfaces/web_app.py
 
 ## API Endpoints
 
+### FastAPI surface (`interfaces/api.py` — `uvicorn ... --port 8765`)
+
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/health` | GET | System health, memory count, turn count |
-| `/api/chat` | POST | Single-turn chat |
-| `/api/chat/stream` | POST | Server-sent events streaming |
+| `/api/health` | GET | System health, memory count, turn count, hive status |
+| `/api/chat` | POST | Single-turn chat (runs `scan_input()` first; refuses blocked input) |
+| `/api/chat/stream` | POST | Server-sent events streaming chat |
 | `/api/tools` | GET | Available tool inventory |
 | `/api/observer` | GET | Full real-time cognitive state (being, needs, shadow, workspace, DII) |
-| `/api/dii` | GET | Dynamic Integration Index trend |
+| `/api/dii` | GET | Dynamic Integration Index trend (`n=20`) |
+| `/api/dii/history?limit=N` | GET | DII history series (default 100) |
 | `/api/phi` | GET | PHI council status and subjective state |
-| `/api/hive` | GET | Hive Mind status |
+| `/api/hive` | GET | Hive Mind status (`HiveOrchestrator.get_status()`) |
+| `/api/growth` | GET | Growth profile (turns + memory) |
 | `/api/command` | POST | Execute a slash command |
+
+### Flask + Socket.IO surface (`interfaces/web_app.py` — `python interfaces/web_app.py`, port 7860)
+
+This is the dashboard / observatory surface and ships an OpenAI-compatible
+endpoint for drop-in client testing.
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/` | GET | DRIFT dashboard UI |
+| `/glyph`, `/phi-glyph` | GET | PHI Glyph dashboard |
+| `/observatory` | GET | Observatory view (delta-state broadcast renderer) |
+| `/trial` | GET | Time-boxed trial session (UUID-stamped) |
+| `/api/chat` | POST | Single-turn chat |
+| `/api/command` | POST | Execute a slash command |
+| `/api/growth` | GET | Growth profile |
+| `/api/tags` | GET | Ollama-compatible model list shim |
+| `/v1/chat/completions` | POST | **OpenAI-compatible** chat completions endpoint |
+| Socket.IO `observatory_delta` | event | Cognitive state delta broadcast (auto-throttled by latency) |
+| Socket.IO `latency_ping` / `auto_adjust_rate` | event | Client-driven broadcast-rate control (200 ms – 1.5 s) |
 
 ---
 

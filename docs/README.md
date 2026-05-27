@@ -17,7 +17,9 @@ This folder is the canonical **secondary** navigation for DRIFT / INFJ Bot. Star
 |--------|------------|
 | Want to **run** the bot and configure keys | [README § Getting started](../README.md#getting-started) — then `.env.example` at repo root |
 | Want to **understand one chat turn end-to-end** | [HOW_INFJ_BOT_WORKS.md](HOW_INFJ_BOT_WORKS.md) |
+| Want a **per-module reference** for recent subsystems | [SUBSYSTEMS.md](SUBSYSTEMS.md) |
 | Understand the **falsifiability / measurement claims** | [FALSIFIABILITY.md](FALSIFIABILITY.md) |
+| Run **ablation experiments** in the correct order | [README_UPGRADE.md](README_UPGRADE.md) |
 | Review **secrets and reporting** | [SECURITY.md](../SECURITY.md) |
 | Plan **hive / observatory work** | [HIVE_ROADMAP.md](HIVE_ROADMAP.md) |
 | Browse **dependency roles** | [DEPENDENCIES.md](DEPENDENCIES.md) |
@@ -38,7 +40,8 @@ This folder is the canonical **secondary** navigation for DRIFT / INFJ Bot. Star
 | [GLOSSARY.md](GLOSSARY.md) | Definitions for all DRIFT-specific terms used in code and docs. |
 | [HIVE_ROADMAP.md](HIVE_ROADMAP.md) | Direction for hive / observatory coordination features. |
 | [HOW_INFJ_BOT_WORKS.md](HOW_INFJ_BOT_WORKS.md) | Architecture, data flow diagram, modules, env table, verification. |
-| [README_UPGRADE.md](README_UPGRADE.md) | Guide for upgrading between DRIFT versions. |
+| [README_UPGRADE.md](README_UPGRADE.md) | Pre-test execution discipline for running ablations against the DRIFT continuity claims. |
+| [SUBSYSTEMS.md](SUBSYSTEMS.md) | Per-module reference: shadow governance, task mutator, retry wrapper, security defense, logic chain, bug bot, hive mind, experiment instrumentation. |
 | [TEST_RISKS.md](TEST_RISKS.md) | Testing caveats and risk notes. |
 | [UPGRADE_BACKLOG.md](UPGRADE_BACKLOG.md) | Planned improvements backlog. |
 
@@ -48,8 +51,10 @@ This folder is the canonical **secondary** navigation for DRIFT / INFJ Bot. Star
 
 1. [README](../README.md) — scope, layers, quick start
 2. [HOW_INFJ_BOT_WORKS.md](HOW_INFJ_BOT_WORKS.md) — how prompts, memory, and plugins fit together
-3. [SECURITY.md](../SECURITY.md) — before you expose any interface or share backups
-4. [FALSIFIABILITY.md](FALSIFIABILITY.md) — what the architecture actually claims and how to verify it
-5. [GLOSSARY.md](GLOSSARY.md) — terms you will see in code and chats
+3. [SUBSYSTEMS.md](SUBSYSTEMS.md) — module-level reference for shadow governance, task mutator, retry wrapper, security defense, logic chain, bug bot, hive mind, and experiment instrumentation
+4. [SECURITY.md](../SECURITY.md) — before you expose any interface or share backups
+5. [FALSIFIABILITY.md](FALSIFIABILITY.md) — what the architecture actually claims and how to verify it
+6. [README_UPGRADE.md](README_UPGRADE.md) — how to run an ablation cleanly
+7. [GLOSSARY.md](GLOSSARY.md) — terms you will see in code and chats
 
 Internal cross-links inside `HOW_INFJ_BOT_WORKS.md` point to other files above when relevant.
