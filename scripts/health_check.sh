@@ -8,7 +8,17 @@ if [[ -f venv/bin/activate ]]; then
 fi
 
 echo "=== DRIFT Health Check ==="
-python3 selfcheck.py --verbose "$@"
+set +e
+python3 tools/selfcheck.py --verbose "$@"
+rc=$?
+set -e
+
+if [ $rc -ge 2 ]; then
+    echo "❌ Critical failures detected (exit code $rc)"
+    exit $rc
+elif [ $rc -eq 1 ]; then
+    echo "⚠️  Warnings present (continuing...)"
+fi
 
 if [[ "${LIVE_API_CHECK:-0}" == "1" ]]; then
     echo ""

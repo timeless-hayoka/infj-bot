@@ -1,4 +1,5 @@
-"""task_mutator.py — PHI // DRIFT Auto-Evolve Task Mutator
+"""
+task_mutator.py — PHI // DRIFT Auto-Evolve Task Mutator
 infj_bot/core/task_mutator.py
 
 Implements shadow-driven task mutation for DriftSurface.
@@ -24,14 +25,14 @@ Integration: Called by TaskFlow.auto_evolve after Shadow promotion.
 Feeds mutation events back to shadow_governance.py for field update.
 """
 
-import time
 from dataclasses import dataclass, field
-from enum import Enum
 from typing import Optional
+from enum import Enum
+import uuid
+import time
 
 
 # ── Task Types ───────────────────────────────────────────────────────────────
-
 
 class TaskType(Enum):
     TASK = "task"
@@ -46,7 +47,7 @@ class TaskStatus(Enum):
     NEEDS_REFLECTION = "needs_reflection"
     COMPLETED = "completed"
     ARCHIVED = "archived"
-    GHOST = "ghost"  # Pre-mutation warning state
+    GHOST = "ghost"          # Pre-mutation warning state
 
 
 class ResonantEnergy(Enum):
@@ -57,11 +58,9 @@ class ResonantEnergy(Enum):
 
 # ── Data Structures ──────────────────────────────────────────────────────────
 
-
 @dataclass
 class Task:
     """A task in the DriftSurface organism."""
-
     task_id: str
     title: str
     status: TaskStatus = TaskStatus.OPEN
@@ -81,7 +80,6 @@ class Task:
 @dataclass
 class MutationEvent:
     """Record of a task mutation for audit trail."""
-
     task_id: str
     original_title: str
     original_type: str
@@ -98,7 +96,6 @@ class MutationEvent:
 
 
 # ── Intent Stability ─────────────────────────────────────────────────────────
-
 
 def calculate_intent_stability(task: Task, recent_cycles: int = 10) -> float:
     """
@@ -141,27 +138,18 @@ def should_mutate(
     intent_stability = calculate_intent_stability(task)
 
     if intent_stability > 0.6:
-        return (
-            False,
-            intent_stability,
-            (
-                f"High intent stability ({intent_stability:.2f}) — "
-                "user is likely intentionally pacing this task"
-            ),
+        return False, intent_stability, (
+            f"High intent stability ({intent_stability:.2f}) — "
+            "user is likely intentionally pacing this task"
         )
 
-    return (
-        True,
-        intent_stability,
-        (
-            f"Shadow {shadow_influence:.2f} > threshold with low stability "
-            f"({intent_stability:.2f}) — mutation warranted"
-        ),
+    return True, intent_stability, (
+        f"Shadow {shadow_influence:.2f} > threshold with low stability "
+        f"({intent_stability:.2f}) — mutation warranted"
     )
 
 
 # ── Mutation Matrix ───────────────────────────────────────────────────────────
-
 
 def execute_mutation(
     task: Task,
@@ -203,7 +191,7 @@ def execute_mutation(
         original_title=task.title,
         original_type=task.task_type.value,
         original_status=task.status.value,
-        new_title=task.title,  # placeholder, updated below
+        new_title=task.title,       # placeholder, updated below
         new_type=task.task_type.value,
         new_status=task.status.value,
         trigger_mode=current_mode,
@@ -215,8 +203,9 @@ def execute_mutation(
     message = ""
 
     if current_mode == "SECURITY":
-        # ── RUTHLESS ARCHIVAL ─────────────────────────────────────────────
+        # ── RUTHLESS ARCHIVAL ──────────────────────────────────────────────
         # Field must be clear for focused execution.
+        # Task moves to echo chamber with provenance tag.
         task.status = TaskStatus.ARCHIVED
         task.task_type = TaskType.ARCHIVED
         task.insight_flag = "[System: Shadow resolved — field cleared]"
@@ -226,18 +215,17 @@ def execute_mutation(
         )
         original.new_status = task.status.value
         original.new_type = task.task_type.value
-        original.reasoning = (
-            "Security mode: ruthless archival for cognitive field clarity"
-        )
+        original.reasoning = "Security mode: ruthless archival for cognitive field clarity"
 
     elif current_mode == "BALANCED":
-        # ── FORM MUTATION ─────────────────────────────────────────────────
+        # ── FORM MUTATION ──────────────────────────────────────────────────
         # Task is not abandoned — it transforms.
+        # The organism recognizes friction is psychological, not logistical.
         original_title = task.title
         task.title = f"Reflection: Why is this stalled? → {original_title}"
         task.task_type = TaskType.REFLECTION
         task.status = TaskStatus.NEEDS_REFLECTION
-        task.insight_flag = None
+        task.insight_flag = None  # Reflection note carries its own weight
         message = (
             f"[BALANCED MUTATION] '{original_title}' → reflection note. "
             f"The organism sensed avoidance and transformed the task into inquiry."
@@ -245,14 +233,13 @@ def execute_mutation(
         original.new_title = task.title
         original.new_type = task.task_type.value
         original.new_status = task.status.value
-        original.reasoning = (
-            "Balanced mode: psychological friction → reflective inquiry"
-        )
+        original.reasoning = "Balanced mode: psychological friction → reflective inquiry"
 
     elif current_mode == "CONSERVATIVE":
-        # ── GENTLE SURFACING ──────────────────────────────────────────────
+        # ── GENTLE SURFACING ───────────────────────────────────────────────
         # Task remains. The organism whispers, not shouts.
-        task.status = TaskStatus.GHOST
+        # InsightPanel activates with a soft question.
+        task.status = TaskStatus.GHOST  # Pre-mutation warning state
         task.insight_flag = "This carries shadow tension — want to explore?"
         message = (
             f"[CONSERVATIVE SURFACE] '{task.title}' flagged with shadow insight. "
@@ -265,26 +252,21 @@ def execute_mutation(
         return task, None, f"[ERROR] Unknown mode: {current_mode}"
 
     # Record mutation in task's own log
-    task.mutation_log.append(
-        {
-            "cycle": current_cycle,
-            "mode": current_mode,
-            "shadow_influence": shadow_influence,
-            "intent_stability": intent_stability,
-            "action": current_mode,
-            "timestamp": time.time(),
-        }
-    )
+    task.mutation_log.append({
+        "cycle": current_cycle,
+        "mode": current_mode,
+        "shadow_influence": shadow_influence,
+        "intent_stability": intent_stability,
+        "action": current_mode,
+        "timestamp": time.time(),
+    })
 
     return task, original, message
 
 
 # ── Decay Recovery ────────────────────────────────────────────────────────────
 
-
-def shadow_forgiveness(
-    task: Task, current_shadow: float, threshold: float = 0.10
-) -> Task:
+def shadow_forgiveness(task: Task, current_shadow: float, threshold: float = 0.10) -> Task:
     """
     Natural forgiveness when shadow decays below threshold.
     Task returns to normal state — no lingering stigma.
@@ -304,20 +286,17 @@ def shadow_forgiveness(
     if task.status == TaskStatus.GHOST:
         task.status = TaskStatus.OPEN
         task.insight_flag = None
-        task.mutation_log.append(
-            {
-                "cycle": -1,
-                "action": "FORGIVENESS",
-                "shadow_at_forgiveness": current_shadow,
-                "timestamp": time.time(),
-            }
-        )
+        task.mutation_log.append({
+            "cycle": -1,
+            "action": "FORGIVENESS",
+            "shadow_at_forgiveness": current_shadow,
+            "timestamp": time.time(),
+        })
 
     return task
 
 
 # ── Self-Check ────────────────────────────────────────────────────────────────
-
 
 def self_check():
     print("=" * 60)
@@ -370,7 +349,7 @@ def self_check():
             ),
             "shadow_influence": 0.30,
             "mode": "BALANCED",
-            "expected_type": TaskType.TASK,  # Should NOT mutate
+            "expected_type": TaskType.TASK,    # Should NOT mutate
             "expected_status": TaskStatus.OPEN,
         },
     ]
@@ -396,17 +375,11 @@ def self_check():
         status_sym = "[OK]" if passed else "[FAIL]"
         print(f"\n{test['name']}")
         print(f"  {message}")
-        print(
-            f"  Type:   {mutated.task_type.value} (expected {test['expected_type'].value})"
-        )
-        print(
-            f"  Status: {mutated.status.value} (expected {test['expected_status'].value})"
-        )
+        print(f"  Type:   {mutated.task_type.value} (expected {test['expected_type'].value})")
+        print(f"  Status: {mutated.status.value} (expected {test['expected_status'].value})")
         print(f"  {status_sym}")
 
-    print(
-        f"\n{'[OK] All mutation checks passed.' if all_pass else '[FAIL] Some checks failed.'}"
-    )
+    print(f"\n{'[OK] All mutation checks passed.' if all_pass else '[FAIL] Some checks failed.'}")
     return all_pass
 
 

@@ -92,6 +92,7 @@ class ChainNode:
 class LogicChain:
     """A reasoning chain for a specific problem."""
 
+
     chain_id: str
     fingerprint: str  # Hash of the query signature
     query: str  # Original query that started this chain
@@ -104,6 +105,7 @@ class LogicChain:
     )
     status: str = "open"  # "open" | "resolved" | "abandoned"
     tags: List[str] = field(default_factory=list)
+    scope: Optional[str] = None  # conversation or project scope
 
     def add_step(
         self, approach: str, result: str = "", status: str = "unknown", notes: str = ""
@@ -174,6 +176,7 @@ class LogicChain:
             "chain_id": self.chain_id,
             "fingerprint": self.fingerprint,
             "query": self.query,
+            "scope": self.scope,
             "nodes": [n.to_dict() for n in self.nodes],
             "created_at": self.created_at,
             "updated_at": self.updated_at,
@@ -192,6 +195,7 @@ class LogicChain:
             status=d.get("status", "open"),
             tags=d.get("tags", []),
         )
+        chain.scope = d.get("scope")
         chain.nodes = [ChainNode.from_dict(n) for n in d.get("nodes", [])]
         return chain
 
@@ -206,7 +210,8 @@ class ChainMemory:
         self.memory = drift_memory
 
     def _make_concept_name(self, chain: LogicChain) -> str:
-        return f"logic_chain:{chain.chain_id}"
+        sc = f"{chain.scope}:" if chain.scope else ""
+        return f"logic_chain:{sc}{chain.chain_id}"
 
     def save(self, chain: LogicChain):
         """Persist a chain to long-term memory."""
@@ -287,34 +292,49 @@ class ChainNavigator:
 
     def __init__(self, drift_memory=None):
         self.chain_mem = ChainMemory(drift_memory) if drift_memory else None
-        self._active_chains: Dict[str, LogicChain] = {}  # in-session cache
+        # in-session cache keyed by (scope or 'global') -> fingerprint -> LogicChain
+        self._active_chains: Dict[str, Dict[str, LogicChain]] = {}
 
-    def find_or_create(self, query: str) -> LogicChain:
-        """Find an existing chain for this query, or create a new one."""
+    def find_or_create(self, query: str, scope: Optional[str] = None) -> LogicChain:
+        """Find an existing chain for this query in the given scope, or create a new one.
+
+        Scope is a lightweight namespace (conversation id, project id, etc.). If omitted,
+        the 'global' scope is used.
+        """
         fp = _fingerprint_query(query)
+        scope_key = scope or "global"
 
-        # Check session cache
-        for chain in self._active_chains.values():
-            if chain.fingerprint == fp:
-                return chain
+        # ensure dictionary for scope
+        if scope_key not in self._active_chains:
+            self._active_chains[scope_key] = {}
 
-        # Try loading from memory
+        # Check session cache for this scope
+        scope_cache = self._active_chains[scope_key]
+        if fp in scope_cache:
+            return scope_cache[fp]
+
+        # Try loading from memory (prefer scope-aware retrieval if available)
         if self.chain_mem:
             matches = self.chain_mem.find_by_fingerprint(fp)
             if matches:
-                best = sorted(matches, key=lambda c: len(c.nodes), reverse=True)[0]
-                self._active_chains[best.chain_id] = best
+                # prefer matches that have a matching scope
+                scoped_matches = [m for m in matches if (m.scope or "global") == scope_key]
+                candidates = scoped_matches or matches
+                best = sorted(candidates, key=lambda c: len(c.nodes), reverse=True)[0]
+                best.scope = scope_key
+                scope_cache[fp] = best
                 return best
 
         # Create new
-        chain_id = f"chain_{fp}_{datetime.now().strftime('%H%M%S')}"
+        chain_id = f"chain_{scope_key}_{fp}_{datetime.now().strftime('%H%M%S')}"
         chain = LogicChain(
             chain_id=chain_id,
             fingerprint=fp,
             query=query,
             tags=["auto"],
+            scope=scope_key,
         )
-        self._active_chains[chain_id] = chain
+        scope_cache[fp] = chain
         return chain
 
     def record_step(
@@ -324,24 +344,25 @@ class ChainNavigator:
         result: str = "",
         status: str = "unknown",
         notes: str = "",
+        scope: Optional[str] = None,
     ):
-        """Record a reasoning step for the given query."""
-        chain = self.find_or_create(query)
+        """Record a reasoning step for the given query in an optional scope."""
+        chain = self.find_or_create(query, scope=scope)
         chain.add_step(approach=approach, result=result, status=status, notes=notes)
         if self.chain_mem:
             self.chain_mem.save(chain)
         return chain
 
-    def get_prompt_block(self, query: str) -> str:
-        """Get formatted chain history for prompt injection."""
-        chain = self.find_or_create(query)
+    def get_prompt_block(self, query: str, scope: Optional[str] = None) -> str:
+        """Get formatted chain history for prompt injection for a given scope."""
+        chain = self.find_or_create(query, scope=scope)
         return chain.format_prompt_block()
 
     def should_avoid(
-        self, query: str, proposed_approach: str
+        self, query: str, proposed_approach: str, scope: Optional[str] = None
     ) -> Tuple[bool, Optional[str]]:
-        """Check if a proposed approach was already tried and failed."""
-        chain = self.find_or_create(query)
+        """Check if a proposed approach was already tried and failed in the given scope."""
+        chain = self.find_or_create(query, scope=scope)
         if chain.has_tried(proposed_approach):
             failed = chain.list_failed_approaches()
             for node in failed:
@@ -369,16 +390,16 @@ class ChainNavigator:
             for c in self._active_chains.values()
         ]
 
-    def get_chain(self, chain_id: str) -> Optional[LogicChain]:
+    def get_chain(self, chain_id: str, scope: Optional[str] = None) -> Optional[LogicChain]:
         if chain_id in self._active_chains:
             return self._active_chains[chain_id]
         if self.chain_mem:
             return self.chain_mem.load(chain_id)
         return None
 
-    def mark_resolved(self, query: str, success_approach: str = ""):
+    def mark_resolved(self, query: str, success_approach: str = "", scope: Optional[str] = None):
         """Mark a chain as resolved."""
-        chain = self.find_or_create(query)
+        chain = self.find_or_create(query, scope=scope)
         chain.status = "resolved"
         if success_approach:
             chain.add_step(
@@ -387,8 +408,8 @@ class ChainNavigator:
         if self.chain_mem:
             self.chain_mem.save(chain)
 
-    def abandon(self, query: str, reason: str = ""):
-        chain = self.find_or_create(query)
+    def abandon(self, query: str, reason: str = "", scope: Optional[str] = None):
+        chain = self.find_or_create(query, scope=scope)
         chain.status = "abandoned"
         if reason:
             chain.add_step(approach="abandoned", result=reason, status="failure")

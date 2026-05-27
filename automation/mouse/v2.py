@@ -960,7 +960,7 @@ content
 
         # ── DRIFT Self-Check Integration ──
         if drift_check:
-            selfcheck_path = EXECUTABLE_DIR / "selfcheck.py"
+            selfcheck_path = EXECUTABLE_DIR.parent.parent / "tools" / "selfcheck.py"
             if selfcheck_path.exists():
                 print("\n[═══ DRIFT SUBSYSTEM CHECK ═══]")
                 try:

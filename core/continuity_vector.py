@@ -24,6 +24,9 @@ import json
 import warnings
 import numpy as np
 from pathlib import Path
+import time
+from dataclasses import dataclass, field
+from typing import Optional
 
 
 # ------------------------------------------------------------------ #
@@ -256,29 +259,27 @@ state_influence:
 """
 
 
-# ================================================================== #
-#  Cognitive Context API (real-time, prompt-assembly integration)     #
-#  [Memory, State, Novelty] binary vector — call before each turn.   #
-# ================================================================== #
+# ------------------------------------------------------------------ #
+#  Telemetry Triad [Memory, State, Novelty] (3-Axis Triad)            #
+# ------------------------------------------------------------------ #
 
-import time as _time
-from dataclasses import dataclass as _dataclass
-from dataclasses import field as _field
-from typing import Optional as _Optional
+# ── Thresholds (tunable) ────────────────────────────────────────────────────
 
-# Thresholds (tunable via env or direct assignment)
-MEMORY_NOTES_THRESHOLD = 0  # retrieved_notes_count > this → memory active
-MEMORY_DEPTH_THRESHOLD = 5  # history_depth > this → memory active
+MEMORY_NOTES_THRESHOLD = 0        # retrieved_notes_count > this → memory active
+MEMORY_DEPTH_THRESHOLD = 5        # history_depth > this → memory active
 STATE_COHERENCE_THRESHOLD = 0.80  # coherence_score < this → state active
-STATE_VARIANCE_THRESHOLD = 0.15  # pulse_variance > this → state active
-NOVELTY_SHADOW_THRESHOLD = 0.20  # shadow_influence > this → novelty active
-NOVELTY_ENTITIES_THRESHOLD = 0  # new_entities_detected > this → novelty active
+STATE_VARIANCE_THRESHOLD = 0.15   # pulse_variance > this → state active
+NOVELTY_SHADOW_THRESHOLD = 0.20   # shadow_influence > this → novelty active
+NOVELTY_ENTITIES_THRESHOLD = 0    # new_entities_detected > this → novelty active
 
 
-@_dataclass
+# ── Context Schema ──────────────────────────────────────────────────────────
+
+@dataclass
 class CognitiveContext:
     """
-    Snapshot of current cognitive telemetry for one prompt-assembly cycle.
+    Snapshot of current cognitive telemetry.
+    Populated before each prompt assembly cycle.
 
     Plug these values from your live modules:
       retrieved_notes_count → memory.py retrieval count
@@ -288,29 +289,27 @@ class CognitiveContext:
       shadow_influence      → shadow_governance.py state.shadow_influence
       new_entities_detected → metacognition.py novel concept counter
     """
-
     retrieved_notes_count: int = 0
     history_depth: int = 0
     coherence_score: float = 1.0
     pulse_variance: float = 0.0
     shadow_influence: float = 0.0
     new_entities_detected: int = 0
-    timestamp: float = _field(default_factory=_time.time)
-    session_id: _Optional[str] = None
+    timestamp: float = field(default_factory=time.time)
+    session_id: Optional[str] = None
     active_mode: str = "companion"
 
 
-@_dataclass
+@dataclass
 class ContinuityVector:
     """
     The [Memory, State, Novelty] vector for one cognitive cycle.
     Each component is 0 (inactive) or 1 (active).
     """
-
     memory: int
     state: int
     novelty: int
-    context: _Optional[CognitiveContext] = None
+    context: Optional[CognitiveContext] = None
     cycle: int = 0
 
     def as_list(self) -> list:
@@ -339,9 +338,11 @@ class ContinuityVector:
         }
         return patterns.get(
             (self.memory, self.state, self.novelty),
-            f"UNKNOWN [{self.memory},{self.state},{self.novelty}]",
+            f"UNKNOWN [{self.memory},{self.state},{self.novelty}]"
         )
 
+
+# ── Core Hook Functions ──────────────────────────────────────────────────────
 
 def is_active(hook_type: str, context: CognitiveContext) -> bool:
     """
@@ -355,29 +356,35 @@ def is_active(hook_type: str, context: CognitiveContext) -> bool:
         True if the cognitive layer is meaningfully engaged
     """
     if hook_type == "memory":
+        # Active if drawing on external notes or deep conversation history
         return (
             context.retrieved_notes_count > MEMORY_NOTES_THRESHOLD
             or context.history_depth > MEMORY_DEPTH_THRESHOLD
         )
+
     elif hook_type == "state":
+        # Active if homeostasis is threatened or actively recovering
         return (
             context.coherence_score < STATE_COHERENCE_THRESHOLD
             or context.pulse_variance > STATE_VARIANCE_THRESHOLD
         )
+
     elif hook_type == "novelty":
+        # Active if shadow is accumulating or new entities detected
         return (
             context.shadow_influence > NOVELTY_SHADOW_THRESHOLD
             or context.new_entities_detected > NOVELTY_ENTITIES_THRESHOLD
         )
+
     return False
 
 
 def calculate_continuity_vector(
     context: CognitiveContext,
-    cycle: int = 0,
+    cycle: int = 0
 ) -> ContinuityVector:
     """
-    Calculate the full [Memory, State, Novelty] vector for the current cycle.
+    Calculate the full [Memory, State, Novelty] vector for current cycle.
 
     Call this before final prompt assembly in cognitive_orchestrator.py.
     Pass result to Observatory telemetry and homeostasis state.
@@ -398,6 +405,8 @@ def calculate_continuity_vector(
     )
 
 
+# ── Session Logger ───────────────────────────────────────────────────────────
+
 class ContinuityLog:
     """
     Records continuity vectors across a session.
@@ -407,7 +416,7 @@ class ContinuityLog:
     def __init__(self, session_id: str):
         self.session_id = session_id
         self.vectors: list = []
-        self.started_at: float = _time.time()
+        self.started_at: float = time.time()
 
     def record(self, vector: ContinuityVector):
         self.vectors.append(vector.as_dict())
@@ -424,16 +433,89 @@ class ContinuityLog:
         return max(set(patterns), key=patterns.count)
 
     def to_json(self) -> str:
-        import json
+        return json.dumps({
+            "session_id": self.session_id,
+            "started_at": self.started_at,
+            "vector_count": len(self.vectors),
+            "dominant_pattern": self.dominant_pattern(),
+            "trajectory": self.trajectory(),
+            "vectors": self.vectors,
+        }, indent=2)
 
-        return json.dumps(
-            {
-                "session_id": self.session_id,
-                "started_at": self.started_at,
-                "vector_count": len(self.vectors),
-                "dominant_pattern": self.dominant_pattern(),
-                "trajectory": self.trajectory(),
-                "vectors": self.vectors,
-            },
-            indent=2,
-        )
+
+# ── Self-Check ───────────────────────────────────────────────────────────────
+
+def self_check():
+    print("=" * 60)
+    print("CONTINUITY VECTOR — SELF-CHECK")
+    print("=" * 60)
+
+    # Session 1: Companion baseline — expected [1, 0, 0]
+    companion_ctx = CognitiveContext(
+        retrieved_notes_count=2,
+        history_depth=8,
+        coherence_score=0.95,
+        pulse_variance=0.05,
+        shadow_influence=0.05,
+        new_entities_detected=0,
+        active_mode="companion",
+    )
+
+    # Session 2: Task/coding — expected [1, 1, 0]
+    task_ctx = CognitiveContext(
+        retrieved_notes_count=3,
+        history_depth=12,
+        coherence_score=0.72,
+        pulse_variance=0.22,
+        shadow_influence=0.10,
+        new_entities_detected=0,
+        active_mode="engineer",
+    )
+
+    # Session 3: Exploration — expected [0, 1, 1]
+    explore_ctx = CognitiveContext(
+        retrieved_notes_count=0,
+        history_depth=2,
+        coherence_score=0.70,
+        pulse_variance=0.20,
+        shadow_influence=0.28,
+        new_entities_detected=3,
+        active_mode="drift",
+    )
+
+    tests = [
+        ("COMPANION baseline", companion_ctx, [1, 0, 0]),
+        ("TASK baseline",      task_ctx,      [1, 1, 0]),
+        ("EXPLORATION",        explore_ctx,   [0, 1, 1]),
+    ]
+
+    log = ContinuityLog(session_id="self_check_001")
+    all_pass = True
+
+    for name, ctx, expected in tests:
+        vec = calculate_continuity_vector(ctx, cycle=len(log.vectors))
+        log.record(vec)
+        result = vec.as_list()
+        status = "[OK]" if result == expected else "[FAIL]"
+        if result != expected:
+            all_pass = False
+        print(f"\n{name}")
+        print(f"  Vector:   {result}")
+        print(f"  Expected: {expected}")
+        print(f"  Pattern:  {vec.pattern_name()}")
+        print(f"  {status}")
+
+    print(f"\nDominant pattern: {log.dominant_pattern()}")
+    print(f"Trajectory: {log.trajectory()}")
+
+    if all_pass:
+        print("\n[OK] All continuity vector checks passed.")
+    else:
+        print("\n[FAIL] Some checks failed — review thresholds.")
+
+    return all_pass
+
+
+if __name__ == "__main__":
+    self_check()
+

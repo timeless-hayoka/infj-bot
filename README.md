@@ -1,3 +1,15 @@
+---
+title: PHI // DRIFT
+emoji: 🧠
+colorFrom: red
+colorTo: blue
+sdk: docker
+app_port: 7860
+pinned: true
+license: apache-2.0
+short_description: Homeostatic cognitive architecture for AI companions
+---
+
 # PHI // DRIFT — Cognitive Architecture
 
 <p align="center">
