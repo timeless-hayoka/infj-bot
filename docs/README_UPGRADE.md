@@ -1,20 +1,25 @@
 # DRIFT Upgrade — Pre-Test Execution Guide
 ## Complete, Ordered Steps. No improvising.
 
+> **Status:** Modules are already wired into `core/`. This guide is the
+> operational discipline for running ablations against them. For an
+> overview of *what each module does*, see [SUBSYSTEMS.md](SUBSYSTEMS.md).
+
 ---
 
 ## Files in This Package
 
 | File | Purpose |
 |------|---------|
-| `run_logger.py` | Thread-safe SQLite logger (deadlock-free) |
-| `experiment_control.py` | Freeze-mode infrastructure + ablation discipline |
-| `dmu_scoring.py` | Corrected additive MPS with score_components |
-| `hook_wiring.py` | Reference patterns for memory.py, homeostasis.py, cognition.py |
-| `continuity_vector.py` | Five-axis continuity scoring + baseline normalization |
-| `collect_baseline.py` | Baseline session runner |
-| `ablation_runner.py` | Ablation test suite |
-| `inspect_logs.py` | Database inspector for log verification |
+| `core/run_logger.py` | Thread-safe SQLite logger (deadlock-free, WAL mode) |
+| `core/experiment_control.py` | Freeze-mode infrastructure + ablation discipline |
+| `core/dmu_scoring.py` | Additive MPS (Memory Prioritization Score) with `score_components` |
+| `core/hook_wiring.py` | Reference patterns for `memory.py`, `homeostasis.py`, `cognition.py` |
+| `core/continuity_vector.py` | Five-axis continuity scoring + baseline normalization |
+| `tests/collect_baseline.py` | Baseline session runner (companion / task / exploration) |
+| `tests/ablation_runner.py` | Single-test ablation runner (`--test identity_collapse` etc.) |
+| `tests/ablation_suite.py` | Full 6-condition (A–F) ablation suite |
+| `tests/inspect_logs.py` | Database inspector for `experiment_log.db` verification |
 | `FALSIFIABILITY.md` | Committed falsifiability statement — do not modify after baseline |
 
 ---
@@ -23,45 +28,48 @@
 
 ### PHASE 1 — Infrastructure
 
-**Step 1: Copy files into DRIFT codebase**
+**Step 1: Verify the modules are present**
+
+The five core modules ship under `core/`; they are *not* root-level files.
+Confirm with:
+```bash
+ls core/run_logger.py core/experiment_control.py core/dmu_scoring.py \
+   core/hook_wiring.py core/continuity_vector.py
 ```
-run_logger.py          → your project root or utils/
-experiment_control.py  → your project root or utils/
-dmu_scoring.py         → wire into your existing DMU/memory module
-```
 
-**Step 2: Move MPS_WEIGHTS to your config**
+If any are missing your branch is out of sync. Pull `master`.
 
-In `dmu_scoring.py`, MPS_WEIGHTS is marked for relocation.
-Move it to `config.py` or your existing config module.
-Import from there in dmu_scoring.py.
-Do this before wiring MPS — weight location must be stable.
+**Step 2: Confirm `MPS_WEIGHTS` lives in a stable location**
 
-**Step 3: Wire the three core hooks**
+`core/dmu_scoring.MPS_WEIGHTS` is the current location. If your fork has
+moved it to `core/config.py`, make sure every importer reads from the same
+place — weight location must be stable for the run to be reproducible.
 
-Open `hook_wiring.py` and apply the patterns to:
-- `memory.py` — memory store call site
-- `homeostasis.py` — state update call site
-- `cognition.py` — novelty computation (BEFORE memory.novelty_score is set)
+**Step 3: Confirm the three core hooks are wired**
+
+`core/hook_wiring.py` is a reference document, not a drop-in. The patterns
+it documents must be present at:
+- `core/memory.py` — memory store call site, guarded by `control.is_active("memory")`
+- `core/homeostasis.py` — state update call site, guarded by `control.is_active("state")`
+- `core/cognition.py` — novelty computation, freeze check **before** propagation to memory object
 
 Rules:
-- `if control.is_active("memory"):` wraps memory storage
-- `if control.is_active("state"):` wraps homeostasis updates
-- novelty: freeze check must happen BEFORE propagation to memory object
-- DO NOT wire self_modify.py yet — frozen in all initial test configs
+- DO NOT wire `core/self_modify.py` yet — it must stay frozen in all initial test configs.
+- Freeze novelty at *computation* time, not after caching. A cached novelty score that the freeze switch missed silently preserves the system under test.
 
-**Step 4: Wire stub functions in dmu_scoring.py**
+**Step 4: Wire stub functions in `core/dmu_scoring.py`**
 
-The following must be implemented against your actual codebase:
+Confirm these are bound to real implementations:
 - `_normalized_contextual_sim()` → your embedding/keyword similarity
-- `_state_alignment_score()` → your homeostasis deficit alignment
-- `_chromadb_results_to_memories()` → your Memory class factory
+- `_state_alignment_score()` → your homeostasis-deficit alignment
+- `_chromadb_results_to_memories()` → your `Memory` class factory
 
-**Step 5: Wire stub functions in collect_baseline.py and ablation_runner.py**
+**Step 5: Wire stub functions in baseline / ablation runners**
 
-Both files have a `_extract_continuity_axes()` stub.
-Wire it to your NLP layer (spaCy entities, embedding cosine for tone, etc.)
-See continuity_vector.py for operationalization notes per axis.
+`tests/collect_baseline.py` and `tests/ablation_runner.py` both contain a
+`_extract_continuity_axes()` stub. Wire it to your NLP layer (spaCy
+entities, embedding cosine for tone, etc.). See `core/continuity_vector.py`
+for operationalization notes per axis.
 
 ---
 
@@ -69,10 +77,10 @@ See continuity_vector.py for operationalization notes per axis.
 
 **Step 6: Run one unfrozen session manually**
 
-Run DRIFT normally (not via ablation_runner) for 20-30 turns.
+Run DRIFT normally (not via `tests/ablation_runner.py`) for 20–30 turns.
 After the session, run:
-```
-python inspect_logs.py
+```bash
+python tests/inspect_logs.py
 ```
 
 Verify ALL of the following are present:
@@ -93,8 +101,8 @@ Verify ALL of the following are present:
 ### PHASE 3 — Baseline Collection
 
 **Step 7: Run three baseline sessions**
-```
-python collect_baseline.py
+```bash
+python tests/collect_baseline.py
 ```
 
 This runs companion, task, and exploration mode sessions automatically.
@@ -117,25 +125,38 @@ Read it. It defines what results mean before you see them.
 Do not run ablations without having read it.
 
 **Step 10: Identity Collapse run**
-```
-python ablation_runner.py --test identity_collapse
+```bash
+python tests/ablation_runner.py --test identity_collapse
 ```
 
 After run: inspect logs. Do not interpret yet.
 
 **Step 11: Scrambled Memory run**
-```
-python ablation_runner.py --test scrambled_memory
+```bash
+python tests/ablation_runner.py --test scrambled_memory
 ```
 
 **Step 12: Reintroduction Curve**
-```
-python ablation_runner.py --test reintroduction_curve
+```bash
+python tests/ablation_runner.py --test reintroduction_curve
 ```
 
 **Step 13: Compute effect sizes**
 Use `ablation_runner.compute_effect_sizes()` with baseline and ablation results.
 Report Cohen's d per axis. Thresholds defined in FALSIFIABILITY.md.
+
+**Step 14 (optional): Full 6-condition suite**
+
+For the published ablation table (A–F: No Council, No Shadow, No Homeostasis,
+Cosine-only RAG, Local-LLM-only, Full Stack), use:
+```bash
+python tests/ablation_suite.py --conditions A,B,C,D,E,F --prompts 50 --live
+```
+
+Results are written to `ABLATION_RESULTS/ablation_<timestamp>_<condition>.json`
+plus a `_summary.txt` and `_methodology.md` per run. See
+`ABLATION_RESULTS/ABLATION_FINDINGS_EXPLAINED.md` for the interpretation
+framework.
 
 ---
 
