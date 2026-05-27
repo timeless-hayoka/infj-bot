@@ -25,24 +25,23 @@ Retry policy:
 
 import os
 import time
-import math
 from functools import wraps
 from typing import Optional, Callable
 
 
 # ── Timeout Configuration ────────────────────────────────────────────────────
 
-ABLATION_TIMEOUT = 150          # Fixed timeout for ablation runs
-ABLATION_MAX_TOKENS = 300       # Shorter = faster cycles
-ABLATION_TEMPERATURE = 0.3      # Lower variance for reproducibility
+ABLATION_TIMEOUT = 150  # Fixed timeout for ablation runs
+ABLATION_MAX_TOKENS = 300  # Shorter = faster cycles
+ABLATION_TEMPERATURE = 0.3  # Lower variance for reproducibility
 ABLATION_TOP_P = 0.9
 
 STANDARD_MAX_TOKENS = 1000
 STANDARD_TEMPERATURE = 0.7
 STANDARD_TOP_P = 0.95
-STANDARD_MIN_TIMEOUT = 60       # Never go below 60s even for tiny prompts
+STANDARD_MIN_TIMEOUT = 60  # Never go below 60s even for tiny prompts
 
-CHARS_PER_TIMEOUT_UNIT = 1000   # 1000 chars → +25s
+CHARS_PER_TIMEOUT_UNIT = 1000  # 1000 chars → +25s
 TIMEOUT_PER_UNIT = 25
 TIMEOUT_BASE = 20
 
@@ -109,6 +108,7 @@ def configure_generation_mode(mode: str, prompt_text: str, history_text: str) ->
 
 # ── Retry Decorator ──────────────────────────────────────────────────────────
 
+
 def retry_on_timeout(
     max_retries: int = 3,
     backoff_factor: float = 1.5,
@@ -131,6 +131,7 @@ def retry_on_timeout(
         def generate_response(prompt, config):
             return local_llm.generate(prompt, timeout=config['timeout'])
     """
+
     def decorator(func: Callable):
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -138,10 +139,14 @@ def retry_on_timeout(
             attempts_made = 0
 
             # Extract timeout from config if available
-            config = kwargs.get('config')
+            config = kwargs.get("config")
             if config is None and args:
                 config = args[0] if isinstance(args[0], dict) else None
-            timeout = config.get('timeout', ABLATION_TIMEOUT) if isinstance(config, dict) else ABLATION_TIMEOUT
+            timeout = (
+                config.get("timeout", ABLATION_TIMEOUT)
+                if isinstance(config, dict)
+                else ABLATION_TIMEOUT
+            )
 
             for attempt in range(max_retries + 1):
                 attempts_made = attempt + 1
@@ -165,7 +170,7 @@ def retry_on_timeout(
                         print(f"[FAIL] All {max_retries + 1} attempts timed out.")
                         raise
 
-                    wait_time = timeout * (backoff_factor ** attempt)
+                    wait_time = timeout * (backoff_factor**attempt)
                     print(
                         f"[TIMEOUT] Attempt {attempts_made} timed out. "
                         f"Retrying in {wait_time:.1f}s..."
@@ -180,10 +185,12 @@ def retry_on_timeout(
             raise last_exception
 
         return wrapper
+
     return decorator
 
 
 # ── Generation Entry Point ────────────────────────────────────────────────────
+
 
 @retry_on_timeout(max_retries=3, backoff_factor=1.5)
 def generate_with_retry(
@@ -254,6 +261,7 @@ def generate_with_retry(
 
 # ── Self-Check ────────────────────────────────────────────────────────────────
 
+
 def self_check():
     print("=" * 60)
     print("RETRY WRAPPER — SELF-CHECK")
@@ -262,10 +270,10 @@ def self_check():
     # Test 1: Dynamic timeout scaling
     print("\n[TEST 1] Dynamic timeout scaling")
     test_cases = [
-        (500, 60),      # short prompt → floor of 60s
-        (1000, 45),     # should be max(60, 20+25) = 60
-        (4233, 120),    # 4k chars → 20 + (4*25) = 120s
-        (10000, 270),   # 10k chars → 20 + (10*25) = 270s
+        (500, 60),  # short prompt → floor of 60s
+        (1000, 45),  # should be max(60, 20+25) = 60
+        (4233, 120),  # 4k chars → 20 + (4*25) = 120s
+        (10000, 270),  # 10k chars → 20 + (10*25) = 270s
     ]
 
     all_pass = True
@@ -276,7 +284,9 @@ def self_check():
         ok = result == expected
         if not ok:
             all_pass = False
-        print(f"  {length:6d} chars → {result:3d}s (expected {expected:3d}s) {'[OK]' if ok else '[FAIL]'}")
+        print(
+            f"  {length:6d} chars → {result:3d}s (expected {expected:3d}s) {'[OK]' if ok else '[FAIL]'}"
+        )
 
     # Test 2: Ablation mode config
     print("\n[TEST 2] Ablation mode config")
@@ -303,7 +313,9 @@ def self_check():
     std_ok = config_std["timeout"] == expected_std_timeout
     if not std_ok:
         all_pass = False
-    print(f"  Timeout: {config_std['timeout']}s (expected {expected_std_timeout}s) {'[OK]' if std_ok else '[FAIL]'}")
+    print(
+        f"  Timeout: {config_std['timeout']}s (expected {expected_std_timeout}s) {'[OK]' if std_ok else '[FAIL]'}"
+    )
 
     # Test 4: Full pipeline without LLM
     print("\n[TEST 4] Full pipeline (no LLM)")
@@ -319,7 +331,9 @@ def self_check():
         all_pass = False
         print(f"  [FAIL] Pipeline error: {e}")
 
-    print(f"\n{'[OK] All retry wrapper checks passed.' if all_pass else '[FAIL] Some checks failed.'}")
+    print(
+        f"\n{'[OK] All retry wrapper checks passed.' if all_pass else '[FAIL] Some checks failed.'}"
+    )
     return all_pass
 
 

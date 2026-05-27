@@ -92,7 +92,6 @@ class ChainNode:
 class LogicChain:
     """A reasoning chain for a specific problem."""
 
-
     chain_id: str
     fingerprint: str  # Hash of the query signature
     query: str  # Original query that started this chain
@@ -318,7 +317,9 @@ class ChainNavigator:
             matches = self.chain_mem.find_by_fingerprint(fp)
             if matches:
                 # prefer matches that have a matching scope
-                scoped_matches = [m for m in matches if (m.scope or "global") == scope_key]
+                scoped_matches = [
+                    m for m in matches if (m.scope or "global") == scope_key
+                ]
                 candidates = scoped_matches or matches
                 best = sorted(candidates, key=lambda c: len(c.nodes), reverse=True)[0]
                 best.scope = scope_key
@@ -390,14 +391,18 @@ class ChainNavigator:
             for c in self._active_chains.values()
         ]
 
-    def get_chain(self, chain_id: str, scope: Optional[str] = None) -> Optional[LogicChain]:
+    def get_chain(
+        self, chain_id: str, scope: Optional[str] = None
+    ) -> Optional[LogicChain]:
         if chain_id in self._active_chains:
             return self._active_chains[chain_id]
         if self.chain_mem:
             return self.chain_mem.load(chain_id)
         return None
 
-    def mark_resolved(self, query: str, success_approach: str = "", scope: Optional[str] = None):
+    def mark_resolved(
+        self, query: str, success_approach: str = "", scope: Optional[str] = None
+    ):
         """Mark a chain as resolved."""
         chain = self.find_or_create(query, scope=scope)
         chain.status = "resolved"

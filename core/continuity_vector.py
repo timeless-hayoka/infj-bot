@@ -265,15 +265,16 @@ state_influence:
 
 # ── Thresholds (tunable) ────────────────────────────────────────────────────
 
-MEMORY_NOTES_THRESHOLD = 0        # retrieved_notes_count > this → memory active
-MEMORY_DEPTH_THRESHOLD = 5        # history_depth > this → memory active
+MEMORY_NOTES_THRESHOLD = 0  # retrieved_notes_count > this → memory active
+MEMORY_DEPTH_THRESHOLD = 5  # history_depth > this → memory active
 STATE_COHERENCE_THRESHOLD = 0.80  # coherence_score < this → state active
-STATE_VARIANCE_THRESHOLD = 0.15   # pulse_variance > this → state active
-NOVELTY_SHADOW_THRESHOLD = 0.20   # shadow_influence > this → novelty active
-NOVELTY_ENTITIES_THRESHOLD = 0    # new_entities_detected > this → novelty active
+STATE_VARIANCE_THRESHOLD = 0.15  # pulse_variance > this → state active
+NOVELTY_SHADOW_THRESHOLD = 0.20  # shadow_influence > this → novelty active
+NOVELTY_ENTITIES_THRESHOLD = 0  # new_entities_detected > this → novelty active
 
 
 # ── Context Schema ──────────────────────────────────────────────────────────
+
 
 @dataclass
 class CognitiveContext:
@@ -289,6 +290,7 @@ class CognitiveContext:
       shadow_influence      → shadow_governance.py state.shadow_influence
       new_entities_detected → metacognition.py novel concept counter
     """
+
     retrieved_notes_count: int = 0
     history_depth: int = 0
     coherence_score: float = 1.0
@@ -306,6 +308,7 @@ class ContinuityVector:
     The [Memory, State, Novelty] vector for one cognitive cycle.
     Each component is 0 (inactive) or 1 (active).
     """
+
     memory: int
     state: int
     novelty: int
@@ -338,11 +341,12 @@ class ContinuityVector:
         }
         return patterns.get(
             (self.memory, self.state, self.novelty),
-            f"UNKNOWN [{self.memory},{self.state},{self.novelty}]"
+            f"UNKNOWN [{self.memory},{self.state},{self.novelty}]",
         )
 
 
 # ── Core Hook Functions ──────────────────────────────────────────────────────
+
 
 def is_active(hook_type: str, context: CognitiveContext) -> bool:
     """
@@ -380,8 +384,7 @@ def is_active(hook_type: str, context: CognitiveContext) -> bool:
 
 
 def calculate_continuity_vector(
-    context: CognitiveContext,
-    cycle: int = 0
+    context: CognitiveContext, cycle: int = 0
 ) -> ContinuityVector:
     """
     Calculate the full [Memory, State, Novelty] vector for current cycle.
@@ -406,6 +409,7 @@ def calculate_continuity_vector(
 
 
 # ── Session Logger ───────────────────────────────────────────────────────────
+
 
 class ContinuityLog:
     """
@@ -433,17 +437,21 @@ class ContinuityLog:
         return max(set(patterns), key=patterns.count)
 
     def to_json(self) -> str:
-        return json.dumps({
-            "session_id": self.session_id,
-            "started_at": self.started_at,
-            "vector_count": len(self.vectors),
-            "dominant_pattern": self.dominant_pattern(),
-            "trajectory": self.trajectory(),
-            "vectors": self.vectors,
-        }, indent=2)
+        return json.dumps(
+            {
+                "session_id": self.session_id,
+                "started_at": self.started_at,
+                "vector_count": len(self.vectors),
+                "dominant_pattern": self.dominant_pattern(),
+                "trajectory": self.trajectory(),
+                "vectors": self.vectors,
+            },
+            indent=2,
+        )
 
 
 # ── Self-Check ───────────────────────────────────────────────────────────────
+
 
 def self_check():
     print("=" * 60)
@@ -485,8 +493,8 @@ def self_check():
 
     tests = [
         ("COMPANION baseline", companion_ctx, [1, 0, 0]),
-        ("TASK baseline",      task_ctx,      [1, 1, 0]),
-        ("EXPLORATION",        explore_ctx,   [0, 1, 1]),
+        ("TASK baseline", task_ctx, [1, 1, 0]),
+        ("EXPLORATION", explore_ctx, [0, 1, 1]),
     ]
 
     log = ContinuityLog(session_id="self_check_001")
@@ -518,4 +526,3 @@ def self_check():
 
 if __name__ == "__main__":
     self_check()
-

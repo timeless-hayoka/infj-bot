@@ -23,7 +23,6 @@ Shadow Operating Modes (tied to Active Mode):
 """
 
 import math
-import time
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -54,22 +53,24 @@ SHADOW_MODES = {
 # Mode aliases — maps DRIFT chat modes to shadow operating modes
 MODE_ALIAS = {
     "bughunter": "SECURITY",
-    "engineer":  "SECURITY",
+    "engineer": "SECURITY",
     "companion": "BALANCED",
-    "coach":     "BALANCED",
-    "critic":    "BALANCED",
-    "clarity":   "BALANCED",
-    "researcher":"CONSERVATIVE",
-    "quiet":     "CONSERVATIVE",
-    "drift":     "CONSERVATIVE",
+    "coach": "BALANCED",
+    "critic": "BALANCED",
+    "clarity": "BALANCED",
+    "researcher": "CONSERVATIVE",
+    "quiet": "CONSERVATIVE",
+    "drift": "CONSERVATIVE",
 }
 
 
 # ── Data Structures ─────────────────────────────────────────────────────────
 
+
 @dataclass
 class ShadowAnomaly:
     """A single detected shadow anomaly."""
+
     anomaly_id: str
     description: str
     initial_weight: float
@@ -86,6 +87,7 @@ class ShadowAnomaly:
 @dataclass
 class ShadowState:
     """Full shadow state for the current session."""
+
     anomalies: dict = field(default_factory=dict)  # anomaly_id → ShadowAnomaly
     current_cycle: int = 0
     active_mode: str = "BALANCED"
@@ -94,6 +96,7 @@ class ShadowState:
 
 
 # ── Core Functions ──────────────────────────────────────────────────────────
+
 
 def decay_weight(initial_weight: float, time_elapsed: int, tau: float) -> float:
     """
@@ -122,10 +125,7 @@ def compute_shadow_influence(anomalies: dict, current_cycle: int, mode: str) -> 
     tau = cfg["tau"]
     max_weight = cfg["max_shadow_weight"]
 
-    total = sum(
-        a.current_weight(current_cycle, tau)
-        for a in anomalies.values()
-    )
+    total = sum(a.current_weight(current_cycle, tau) for a in anomalies.values())
 
     return min(total, max_weight)
 
@@ -206,13 +206,16 @@ def tick(state: ShadowState, new_anomalies: Optional[list] = None) -> ShadowStat
 
     # Evaluate promotions
     for anomaly in state.anomalies.values():
-        if not anomaly.promoted and should_promote(anomaly, state.current_cycle, state.active_mode):
+        if not anomaly.promoted and should_promote(
+            anomaly, state.current_cycle, state.active_mode
+        ):
             anomaly.promoted = True
             state.promoted_anomalies.append(anomaly.anomaly_id)
 
     # Prune dead anomalies (< 1% of initial weight)
     dead = [
-        aid for aid, a in state.anomalies.items()
+        aid
+        for aid, a in state.anomalies.items()
         if a.current_weight(state.current_cycle, tau) < a.initial_weight * 0.01
     ]
     for aid in dead:
@@ -233,6 +236,7 @@ def resolve_mode(chat_mode: str) -> str:
 
 # ── Self-Check ──────────────────────────────────────────────────────────────
 
+
 def self_check():
     print("=" * 60)
     print("SHADOW GOVERNANCE — SELF-CHECK")
@@ -241,10 +245,13 @@ def self_check():
     state = ShadowState(active_mode="BALANCED")
 
     # Inject test anomalies
-    state = tick(state, new_anomalies=[
-        ("avoidance_001", "Task repeatedly accessed but never completed", 0.28),
-        ("mirror_bias_002", "Consecutive agreements without challenge", 0.18),
-    ])
+    state = tick(
+        state,
+        new_anomalies=[
+            ("avoidance_001", "Task repeatedly accessed but never completed", 0.28),
+            ("mirror_bias_002", "Consecutive agreements without challenge", 0.18),
+        ],
+    )
 
     print(f"Cycle {state.current_cycle}")
     print(f"Active anomalies: {len(state.anomalies)}")
@@ -255,7 +262,7 @@ def self_check():
     for _ in range(5):
         state = tick(state)
 
-    print(f"\nAfter 5 more cycles:")
+    print("\nAfter 5 more cycles:")
     print(f"Shadow influence: {state.shadow_influence:.3f}")
     print(f"Promoted anomalies: {state.promoted_anomalies}")
 
@@ -267,9 +274,12 @@ def self_check():
 
     # Test SECURITY mode (fast cleanse)
     state_sec = ShadowState(active_mode="SECURITY")
-    state_sec = tick(state_sec, new_anomalies=[
-        ("sec_anomaly_001", "High-noise signal in bughunter mode", 0.22),
-    ])
+    state_sec = tick(
+        state_sec,
+        new_anomalies=[
+            ("sec_anomaly_001", "High-noise signal in bughunter mode", 0.22),
+        ],
+    )
     print(f"\nSECURITY mode influence: {state_sec.shadow_influence:.3f}")
     print(f"SECURITY max: {SHADOW_MODES['SECURITY']['max_shadow_weight']}")
 

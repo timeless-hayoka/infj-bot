@@ -95,10 +95,14 @@ DRIFT_USE_LOCAL_FALLBACK = os.getenv(
 OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
 
 # Prefer local models (when available) over cloud for latency-sensitive usage.
-DRIFT_PREFER_LOCAL = os.getenv("DRIFT_PREFER_LOCAL", os.getenv("INFJ_PREFER_LOCAL", "true")).lower() in ("1", "true", "yes", "on")
+DRIFT_PREFER_LOCAL = os.getenv(
+    "DRIFT_PREFER_LOCAL", os.getenv("INFJ_PREFER_LOCAL", "true")
+).lower() in ("1", "true", "yes", "on")
 
 # Runtime tuning: smaller history reduces prompt size and latency.
-DRIFT_HISTORY_SIZE = int(os.getenv("DRIFT_HISTORY_SIZE", os.getenv("INFJ_HISTORY_SIZE", "16")))
+DRIFT_HISTORY_SIZE = int(
+    os.getenv("DRIFT_HISTORY_SIZE", os.getenv("INFJ_HISTORY_SIZE", "16"))
+)
 
 # Simple in-memory generation cache size to avoid repeat calls for identical prompts.
 DRIFT_GEN_CACHE_SIZE = int(os.getenv("DRIFT_GEN_CACHE_SIZE", "128"))

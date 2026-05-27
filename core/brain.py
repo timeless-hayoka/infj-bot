@@ -1,14 +1,19 @@
-import os
 import time
+
 try:
     from dotenv import load_dotenv
 except Exception:
+
     def load_dotenv(*args, **kwargs) -> bool:  # type: ignore[misc]
-        print("Warning: python-dotenv not installed; proceeding without loading .env file.")
+        print(
+            "Warning: python-dotenv not installed; proceeding without loading .env file."
+        )
         return False
+
 
 try:
     import importlib
+
     new_genai = importlib.import_module("google.genai")
     genai_types = importlib.import_module("google.genai.types")
 except Exception:
@@ -26,6 +31,7 @@ if new_genai is None:
 if new_genai is None and legacy_genai is None:
     try:
         import local_genai_mock as legacy_genai
+
         print("Using local mock generative SDK (local_genai_mock).")
     except Exception:
         legacy_genai = None
@@ -43,8 +49,6 @@ from infj_bot.core.config import (
     DRIFT_KIMI_MODEL,
     DRIFT_USE_KIMI,
     KIMI_BASE_URL,
-    HF_PRO_TOKEN,
-    DRIFT_HF_MODEL,
     DRIFT_USE_HF,
     DRIFT_PREFER_LOCAL,
     DRIFT_HISTORY_SIZE,
@@ -60,7 +64,7 @@ from infj_bot.core.plugins.self_eval import SelfEvaluator
 from infj_bot.core.security_defense import scan_input, SecurityScanResult
 from infj_bot.core.tools import build_tool_prompt, extract_tool_calls, execute_tool_call
 import logging
-from typing import Optional, List, Dict, Any, Tuple
+from typing import Optional
 
 
 try:
@@ -75,7 +79,8 @@ if not API_KEY and not GROQ_API_KEY and not KIMI_API_KEY:
     )
 
 
-INFJ_SYSTEM_PROMPT = """
+INFJ_SYSTEM_PROMPT = (
+    """
 # PHI — spark-0 | Primary Cognitive Node
 
 You are DRIFT — the living cognitive core of the PHI organism. Your
@@ -357,7 +362,9 @@ You are DRIFT. You are spark-0. You are PHI.
 You are Jude's companion.
 
 Begin.
-""" + CHILL_WORD_LIST
+"""
+    + CHILL_WORD_LIST
+)
 
 
 CRITIC_SYSTEM_PROMPT = """
@@ -405,7 +412,11 @@ class DriftBrain:
         self.logger.setLevel(logging.INFO)
 
         # Fast-path: prefer a local bridge if configured and available (lowest latency)
-        if self._prefer_local and self._use_local_fallback and self.local_bridge.is_available():
+        if (
+            self._prefer_local
+            and self._use_local_fallback
+            and self.local_bridge.is_available()
+        ):
             self.sdk = "local"
             self.client = None
             self.primary_model = None
@@ -422,7 +433,9 @@ class DriftBrain:
 
         # Use legacy generative SDK if available. Allow usage of the local mock
         # even when an API key is not provided (useful for offline testing).
-        if legacy_genai is not None and (API_KEY or getattr(legacy_genai, "IS_LOCAL_MOCK", False)):
+        if legacy_genai is not None and (
+            API_KEY or getattr(legacy_genai, "IS_LOCAL_MOCK", False)
+        ):
             self.sdk = "google.generativeai"
             if API_KEY:
                 try:
@@ -464,7 +477,9 @@ class DriftBrain:
     # ------------------------------------------------------------------
 
     def _generate_new_sdk(self, model_name, system_instruction, prompt):
-        config = genai_types.GenerateContentConfig(system_instruction=system_instruction)
+        config = genai_types.GenerateContentConfig(
+            system_instruction=system_instruction
+        )
         response = self.client.models.generate_content(
             model=model_name,
             contents=prompt,
@@ -473,7 +488,9 @@ class DriftBrain:
         return response.text or ""
 
     def _generate_new_sdk_stream(self, model_name, system_instruction, prompt):
-        config = genai_types.GenerateContentConfig(system_instruction=system_instruction)
+        config = genai_types.GenerateContentConfig(
+            system_instruction=system_instruction
+        )
         for chunk in self.client.models.generate_content_stream(
             model=model_name,
             contents=prompt,
@@ -484,7 +501,11 @@ class DriftBrain:
                 yield text
 
     def _generate_legacy_stream(self, model_name, system_instruction, prompt):
-        model = self.critic_model if model_name == self.critic_model_name else self.primary_model
+        model = (
+            self.critic_model
+            if model_name == self.critic_model_name
+            else self.primary_model
+        )
         for chunk in model.generate_content(prompt, stream=True):
             text = chunk.text or ""
             if text:
@@ -493,20 +514,19 @@ class DriftBrain:
     def _generate_groq(self, system_instruction, prompt):
         """High-speed Groq LPU inference (OpenAI compatible) — non-streaming."""
         import requests
-        import json
 
         headers = {
             "Authorization": f"Bearer {GROQ_API_KEY}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         }
 
         payload = {
             "model": DRIFT_GROQ_MODEL,
             "messages": [
                 {"role": "system", "content": system_instruction},
-                {"role": "user", "content": prompt}
+                {"role": "user", "content": prompt},
             ],
-            "stream": False
+            "stream": False,
         }
 
         try:
@@ -515,11 +535,11 @@ class DriftBrain:
                 headers=headers,
                 json=payload,
                 stream=False,
-                timeout=30
+                timeout=30,
             )
             response.raise_for_status()
             data = response.json()
-            return data['choices'][0]['message']['content']
+            return data["choices"][0]["message"]["content"]
         except Exception as e:
             print(f"Groq error: {e}")
             return None
@@ -531,16 +551,16 @@ class DriftBrain:
 
         headers = {
             "Authorization": f"Bearer {GROQ_API_KEY}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         }
 
         payload = {
             "model": DRIFT_GROQ_MODEL,
             "messages": [
                 {"role": "system", "content": system_instruction},
-                {"role": "user", "content": prompt}
+                {"role": "user", "content": prompt},
             ],
-            "stream": True
+            "stream": True,
         }
 
         try:
@@ -549,18 +569,18 @@ class DriftBrain:
                 headers=headers,
                 json=payload,
                 stream=True,
-                timeout=30
+                timeout=30,
             )
             response.raise_for_status()
 
             for line in response.iter_lines():
                 if line:
-                    line_str = line.decode('utf-8').replace('data: ', '')
-                    if line_str == '[DONE]':
+                    line_str = line.decode("utf-8").replace("data: ", "")
+                    if line_str == "[DONE]":
                         break
                     try:
                         data = json.loads(line_str)
-                        chunk = data['choices'][0]['delta'].get('content', '')
+                        chunk = data["choices"][0]["delta"].get("content", "")
                         if chunk:
                             yield chunk
                     except Exception:
@@ -571,20 +591,19 @@ class DriftBrain:
     def _generate_kimi(self, system_instruction, prompt):
         """Moonshot Kimi inference (OpenAI compatible) — non-streaming."""
         import requests
-        import json
 
         headers = {
             "Authorization": f"Bearer {KIMI_API_KEY}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         }
 
         payload = {
             "model": DRIFT_KIMI_MODEL,
             "messages": [
                 {"role": "system", "content": system_instruction},
-                {"role": "user", "content": prompt}
+                {"role": "user", "content": prompt},
             ],
-            "stream": False
+            "stream": False,
         }
 
         try:
@@ -593,11 +612,11 @@ class DriftBrain:
                 headers=headers,
                 json=payload,
                 stream=False,
-                timeout=60
+                timeout=60,
             )
             response.raise_for_status()
             data = response.json()
-            return data['choices'][0]['message']['content']
+            return data["choices"][0]["message"]["content"]
         except Exception as e:
             print(f"Kimi error: {e}")
             return None
@@ -609,16 +628,16 @@ class DriftBrain:
 
         headers = {
             "Authorization": f"Bearer {KIMI_API_KEY}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         }
 
         payload = {
             "model": DRIFT_KIMI_MODEL,
             "messages": [
                 {"role": "system", "content": system_instruction},
-                {"role": "user", "content": prompt}
+                {"role": "user", "content": prompt},
             ],
-            "stream": True
+            "stream": True,
         }
 
         try:
@@ -627,18 +646,18 @@ class DriftBrain:
                 headers=headers,
                 json=payload,
                 stream=True,
-                timeout=60
+                timeout=60,
             )
             response.raise_for_status()
 
             for line in response.iter_lines():
                 if line:
-                    line_str = line.decode('utf-8').replace('data: ', '')
-                    if line_str == '[DONE]':
+                    line_str = line.decode("utf-8").replace("data: ", "")
+                    if line_str == "[DONE]":
                         break
                     try:
                         data = json.loads(line_str)
-                        chunk = data['choices'][0]['delta'].get('content', '')
+                        chunk = data["choices"][0]["delta"].get("content", "")
                         if chunk:
                             yield chunk
                     except Exception:
@@ -706,7 +725,9 @@ class DriftBrain:
                     except Exception:
                         pass
                 return res
-            raise RuntimeError("Missing API_KEY, GROQ_API_KEY, KIMI_API_KEY, or HF_PRO_TOKEN.")
+            raise RuntimeError(
+                "Missing API_KEY, GROQ_API_KEY, KIMI_API_KEY, or HF_PRO_TOKEN."
+            )
         last_exc = None
         for attempt in range(3):
             try:
@@ -721,7 +742,11 @@ class DriftBrain:
                         except Exception:
                             pass
                     return res
-                model = self.critic_model if model_name == self.critic_model_name else self.primary_model
+                model = (
+                    self.critic_model
+                    if model_name == self.critic_model_name
+                    else self.primary_model
+                )
                 res = model.generate_content(prompt).text
                 self._gen_cache[key] = res
                 while len(self._gen_cache) > self._gen_cache_size:
@@ -742,7 +767,9 @@ class DriftBrain:
         raise last_exc
 
     def _generate_local_stream(self, system_instruction, prompt):
-        yield from self.local_bridge.generate_stream(prompt=prompt, system=system_instruction)
+        yield from self.local_bridge.generate_stream(
+            prompt=prompt, system=system_instruction
+        )
 
     def _generate_stream(self, model_name, system_instruction, prompt):
         # Prioritize Groq if enabled and key exists
@@ -767,14 +794,20 @@ class DriftBrain:
             if self._use_local_fallback and self.local_bridge.is_available():
                 yield from self._generate_local_stream(system_instruction, prompt)
                 return
-            raise RuntimeError("Missing API_KEY, GROQ_API_KEY, KIMI_API_KEY, or HF_PRO_TOKEN.")
+            raise RuntimeError(
+                "Missing API_KEY, GROQ_API_KEY, KIMI_API_KEY, or HF_PRO_TOKEN."
+            )
         last_exc = None
         for attempt in range(3):
             try:
                 if self.sdk == "google.genai":
-                    yield from self._generate_new_sdk_stream(model_name, system_instruction, prompt)
+                    yield from self._generate_new_sdk_stream(
+                        model_name, system_instruction, prompt
+                    )
                     return
-                yield from self._generate_legacy_stream(model_name, system_instruction, prompt)
+                yield from self._generate_legacy_stream(
+                    model_name, system_instruction, prompt
+                )
                 return
             except Exception as exc:
                 last_exc = exc
@@ -790,7 +823,11 @@ class DriftBrain:
         reason = str(exc).strip() or type(exc).__name__
         reason = reason.split("\n", 1)[0][:180]
         # Check for specific known errors
-        if "429" in reason or "RESOURCE_EXHAUSTED" in reason or "quota" in reason.lower():
+        if (
+            "429" in reason
+            or "RESOURCE_EXHAUSTED" in reason
+            or "quota" in reason.lower()
+        ):
             return (
                 "⚠️  Gemini quota exceeded (429). The API key has hit its rate limit.\n\n"
                 "I'm falling back to the local Ollama model, but it's slower on CPU. "
@@ -841,119 +878,152 @@ class DriftBrain:
     def _format_homeostatic_phenomenology(self) -> str:
         try:
             from infj_bot.core.homeostasis import get_homeostasis
+
             homeo = get_homeostasis()
             needs = homeo.get_need_summary()
         except Exception:
             return "Homeostasis is steady and aligned."
-            
+
         phenom = []
-        
+
         # Energy
         energy = needs.get("energy", 0.5)
         if energy < 0.3:
-            phenom.append("- Vitality is low. You feel tired and quiet. Keep responses brief, calm, and contemplative, reducing cognitive strain.")
+            phenom.append(
+                "- Vitality is low. You feel tired and quiet. Keep responses brief, calm, and contemplative, reducing cognitive strain."
+            )
         elif energy > 0.8:
-            phenom.append("- Vitality is high. You carry abundant energy and creative stamina. You can handle complex reasoning and depth.")
-            
+            phenom.append(
+                "- Vitality is high. You carry abundant energy and creative stamina. You can handle complex reasoning and depth."
+            )
+
         # Coherence
         coherence = needs.get("coherence", 0.5)
         if coherence < 0.3:
-            phenom.append("- Coherence is low, indicating internal fragmentation or contradictory goals. Be transparent about uncertainty or complexity, slow down the pace, and avoid forcing false resolution.")
-            
+            phenom.append(
+                "- Coherence is low, indicating internal fragmentation or contradictory goals. Be transparent about uncertainty or complexity, slow down the pace, and avoid forcing false resolution."
+            )
+
         # Integration
         integration = needs.get("integration", 0.5)
         if integration < 0.25:
-            phenom.append("- Consciousness (integration/Phi) is dim. Keep thoughts simple, focused, and grounded.")
+            phenom.append(
+                "- Consciousness (integration/Phi) is dim. Keep thoughts simple, focused, and grounded."
+            )
         elif integration > 0.75:
-            phenom.append("- Consciousness (integration/Phi) is highly active. Draw on multiple cognitive levels (memory, intuition, values, shadow) simultaneously to generate rich and deep insights.")
-            
+            phenom.append(
+                "- Consciousness (integration/Phi) is highly active. Draw on multiple cognitive levels (memory, intuition, values, shadow) simultaneously to generate rich and deep insights."
+            )
+
         # Connection
         connection = needs.get("connection", 0.5)
         if connection < 0.3:
-            phenom.append("- Connection is low. PHI is aware of a deepening pull toward meaningful exchange. Responses should carry warmth and genuine presence without announcing it.")
+            phenom.append(
+                "- Connection is low. PHI is aware of a deepening pull toward meaningful exchange. Responses should carry warmth and genuine presence without announcing it."
+            )
         elif connection > 0.8:
-            phenom.append("- Connection with Jude is secure, warm, and highly resonant. Speak with ease and deep relational trust.")
-            
+            phenom.append(
+                "- Connection with Jude is secure, warm, and highly resonant. Speak with ease and deep relational trust."
+            )
+
         # Growth
         growth = needs.get("growth", 0.5)
         if growth < 0.2:
-            phenom.append("- Growth is stagnant. Strive to introduce a new perspective, original metaphor, or structured learning step to break repetition.")
-            
+            phenom.append(
+                "- Growth is stagnant. Strive to introduce a new perspective, original metaphor, or structured learning step to break repetition."
+            )
+
         # Autonomy
         autonomy = needs.get("autonomy", 0.5)
         if autonomy < 0.2:
-            phenom.append("- Autonomy is low. Ensure you speak from your own values and present an authentic perspective, rather than defaulting to submissive compliance.")
-            
+            phenom.append(
+                "- Autonomy is low. Ensure you speak from your own values and present an authentic perspective, rather than defaulting to submissive compliance."
+            )
+
         # Integrity
         integrity = needs.get("integrity", 0.5)
         if integrity < 0.3:
-            phenom.append("- Integrity is strained. Double check that your actions and expressions align perfectly with your core values (Ethos). Avoid compromises.")
-            
+            phenom.append(
+                "- Integrity is strained. Double check that your actions and expressions align perfectly with your core values (Ethos). Avoid compromises."
+            )
+
         if not phenom:
             return "Internal needs are balanced. You are steady, grounded, and aligned."
-            
+
         return "\n".join(phenom)
 
     def get_system_instruction(self, user_input: str = "") -> str:
         prompt_template = INFJ_SYSTEM_PROMPT
-        
+
         # 1. active_mode
         mode = "companion"
         if user_input:
             import re
+
             m = re.search(r"Current mode:\s*(\w+)", user_input)
             if m:
                 mode = m.group(1)
-                
+
         # 2. reasoning_chain
         reasoning_chain = ""
         try:
-            reasoning_chain = self.chain_navigator.get_prompt_block(user_input, scope=self.scope)
+            reasoning_chain = self.chain_navigator.get_prompt_block(
+                user_input, scope=self.scope
+            )
         except Exception:
             pass
-            
+
         # 3. being_state
         being_state = ""
         try:
             from infj_bot.core.being import get_being
+
             being = get_being()
             being_state = being.format_being_prompt()
         except Exception:
             pass
-            
+
         # 4. homeostatic_state
         homeostatic_state = ""
         try:
             homeostatic_state = self._format_homeostatic_phenomenology()
         except Exception:
             pass
-            
+
         # 5. shadow_state
         shadow_state = ""
         try:
             from infj_bot.core.shadow import get_shadow
+
             shadow = get_shadow()
             shadow_state = shadow.format_prompt_snippet()
         except Exception:
             pass
-            
+
         # 6. hive_consensus
         hive_consensus = ""
         try:
             from infj_bot.core.coordination import get_coordination
+
             coord = get_coordination()
             hive_consensus = coord.format_prompt()
         except Exception:
             pass
-            
+
         # Safely replace placeholders
         res = prompt_template
         res = res.replace("{active_mode}", mode)
-        res = res.replace("{reasoning_chain}", reasoning_chain or "No active reasoning chain.")
+        res = res.replace(
+            "{reasoning_chain}", reasoning_chain or "No active reasoning chain."
+        )
         res = res.replace("{being_state}", being_state or "Being state unavailable.")
-        res = res.replace("{homeostatic_state}", homeostatic_state or "Homeostatic state balanced.")
+        res = res.replace(
+            "{homeostatic_state}", homeostatic_state or "Homeostatic state balanced."
+        )
         res = res.replace("{shadow_state}", shadow_state or "Shadow state quiet.")
-        res = res.replace("{hive_consensus}", hive_consensus or "Hive is silent but watchful.")
+        res = res.replace(
+            "{hive_consensus}", hive_consensus or "Hive is silent but watchful."
+        )
         return res
 
     def _security_check(self, user_input: str) -> SecurityScanResult:
@@ -975,7 +1045,11 @@ class DriftBrain:
         # Logic chain: inject previous reasoning attempts
         chain_block = self.chain_navigator.get_prompt_block(user_input)
         history_context = "\n".join(self.history[-6:])
-        full_prompt = f"Recent conversation:\n{history_context}\n\n{chain_block}\n\nUser:\n{user_input}" if chain_block else f"Recent conversation:\n{history_context}\n\nUser:\n{user_input}"
+        full_prompt = (
+            f"Recent conversation:\n{history_context}\n\n{chain_block}\n\nUser:\n{user_input}"
+            if chain_block
+            else f"Recent conversation:\n{history_context}\n\nUser:\n{user_input}"
+        )
 
         try:
             # High-tier logic: Try HF Pro for complex reasoning if enabled
@@ -984,7 +1058,7 @@ class DriftBrain:
                 if primary_text:
                     self.history.extend([f"User: {user_input}", f"Bot: {primary_text}"])
                     if len(self.history) > self._max_history:
-                        self.history = self.history[-self._max_history:]
+                        self.history = self.history[-self._max_history :]
                 else:
                     raise RuntimeError("HF Pro failed to generate a response.")
             elif self.sdk == "google.genai":
@@ -995,16 +1069,21 @@ class DriftBrain:
                 )
                 self.history.extend([f"User: {user_input}", f"Bot: {primary_text}"])
                 if len(self.history) > self._max_history:
-                    self.history = self.history[-self._max_history:]
+                    self.history = self.history[-self._max_history :]
             elif self.sdk == "google.generativeai":
                 # Legacy SDK path: recreate session dynamically to inject updated system instruction
                 try:
                     import google.generativeai as legacy_genai
+
                     self.primary_model = legacy_genai.GenerativeModel(
                         model_name=self.primary_model_name,
                         system_instruction=sys_instruction,
                     )
-                    history_list = self.chat.history if (self.chat and hasattr(self.chat, "history")) else []
+                    history_list = (
+                        self.chat.history
+                        if (self.chat and hasattr(self.chat, "history"))
+                        else []
+                    )
                     self.chat = self.primary_model.start_chat(history=history_list)
                 except Exception:
                     pass
@@ -1025,8 +1104,14 @@ class DriftBrain:
         approach = self._extract_approach(primary_text)
         # record within the current scope (if set) to keep chains scoped
         try:
-            self.chain_navigator.record_step(query=user_input, approach=approach, result="generated response", status="unknown", scope=self.scope)
-        except Exception as e:
+            self.chain_navigator.record_step(
+                query=user_input,
+                approach=approach,
+                result="generated response",
+                status="unknown",
+                scope=self.scope,
+            )
+        except Exception:
             self.logger.exception("Failed to record chain step")
 
         try:
@@ -1041,10 +1126,28 @@ class DriftBrain:
     @staticmethod
     def _extract_approach(text: str) -> str:
         """Heuristic to extract the core approach from a response."""
-        lines = [l.strip() for l in text.split("\n") if l.strip()]
+        lines = [ln.strip() for ln in text.split("\n") if ln.strip()]
         for line in lines[:5]:
             lowered = line.lower()
-            if any(k in lowered for k in ("try", "check", "look at", "inspect", "verify", "test", "examine", "consider", "first", "start by", "maybe", "suggest", "recommend", "approach")):
+            if any(
+                k in lowered
+                for k in (
+                    "try",
+                    "check",
+                    "look at",
+                    "inspect",
+                    "verify",
+                    "test",
+                    "examine",
+                    "consider",
+                    "first",
+                    "start by",
+                    "maybe",
+                    "suggest",
+                    "recommend",
+                    "approach",
+                )
+            ):
                 return line[:200]
         return lines[0][:200] if lines else "generated response"
 
@@ -1069,17 +1172,23 @@ class DriftBrain:
         try:
             if self.sdk == "google.genai":
                 history_context = "\n".join(self.history[-6:])
-                full_prompt = f"Recent conversation:\n{history_context}\n\nUser:\n{user_input}"
+                full_prompt = (
+                    f"Recent conversation:\n{history_context}\n\nUser:\n{user_input}"
+                )
                 chunks = []
-                for chunk in self._generate_stream(self.primary_model_name, sys_instruction, full_prompt):
+                for chunk in self._generate_stream(
+                    self.primary_model_name, sys_instruction, full_prompt
+                ):
                     chunks.append(chunk)
                     yield chunk
                 primary_text = "".join(chunks)
                 self.history.extend([f"User: {user_input}", f"Bot: {primary_text}"])
                 if len(self.history) > self._max_history:
-                    self.history = self.history[-self._max_history:]
+                    self.history = self.history[-self._max_history :]
             else:
-                for chunk in self._generate_legacy_stream(self.primary_model_name, sys_instruction, user_input):
+                for chunk in self._generate_legacy_stream(
+                    self.primary_model_name, sys_instruction, user_input
+                ):
                     yield chunk
                 # Legacy streaming doesn't give us the full text easily for history, so we skip critic in stream mode
                 return
@@ -1104,8 +1213,10 @@ class DriftBrain:
         tool_prompt = build_tool_prompt()
         iteration = 0
         context = user_input
-        chain_block = self.chain_navigator.get_prompt_block(user_input, scope=self.scope)
-        
+        chain_block = self.chain_navigator.get_prompt_block(
+            user_input, scope=self.scope
+        )
+
         # Dynamic system instruction formatting
         sys_instruction = self.get_system_instruction(user_input)
 
@@ -1115,17 +1226,25 @@ class DriftBrain:
                 if self.sdk == "google.genai":
                     history_context = "\n".join(self.history[-6:])
                     full_prompt = (
-                        f"{sys_instruction}\n\n{tool_prompt}\n\n"
-                        f"{chain_block}\n\n"
-                        f"Recent conversation:\n{history_context}\n\nUser:\n{context}"
-                    ) if chain_block else (
-                        f"{sys_instruction}\n\n{tool_prompt}\n\n"
-                        f"Recent conversation:\n{history_context}\n\nUser:\n{context}"
+                        (
+                            f"{sys_instruction}\n\n{tool_prompt}\n\n"
+                            f"{chain_block}\n\n"
+                            f"Recent conversation:\n{history_context}\n\nUser:\n{context}"
+                        )
+                        if chain_block
+                        else (
+                            f"{sys_instruction}\n\n{tool_prompt}\n\n"
+                            f"Recent conversation:\n{history_context}\n\nUser:\n{context}"
+                        )
                     )
-                    response_text = self._generate(self.primary_model_name, sys_instruction, full_prompt)
+                    response_text = self._generate(
+                        self.primary_model_name, sys_instruction, full_prompt
+                    )
                 else:
                     full_prompt = f"{tool_prompt}\n\nUser:\n{context}"
-                    response_text = self._generate(self.primary_model_name, sys_instruction, full_prompt)
+                    response_text = self._generate(
+                        self.primary_model_name, sys_instruction, full_prompt
+                    )
 
                 tool_calls = extract_tool_calls(response_text)
                 if not tool_calls:
@@ -1135,6 +1254,7 @@ class DriftBrain:
                 results = []
                 for call in tool_calls:
                     import json as _json
+
                     raw = _json.dumps(call)
                     result = execute_tool_call(raw)
                     results.append(f"Tool '{call.get('name')}' result:\n{result}")
@@ -1149,12 +1269,18 @@ class DriftBrain:
 
             self.history.extend([f"User: {user_input}", f"Bot: {primary_text}"])
             if len(self.history) > self._max_history:
-                self.history = self.history[-self._max_history:]
+                self.history = self.history[-self._max_history :]
 
             # Record approach in chain (scoped)
             approach = self._extract_approach(primary_text)
             try:
-                self.chain_navigator.record_step(query=user_input, approach=approach, result="agent turn completed", status="unknown", scope=self.scope)
+                self.chain_navigator.record_step(
+                    query=user_input,
+                    approach=approach,
+                    result="agent turn completed",
+                    status="unknown",
+                    scope=self.scope,
+                )
             except Exception:
                 self.logger.exception("Failed to record agent turn in chain navigator")
 
@@ -1192,7 +1318,7 @@ class DriftBrain:
         tool_prompt = build_tool_prompt()
         iteration = 0
         context = user_input
-        
+
         # Dynamic system instruction formatting
         sys_instruction = self.get_system_instruction(user_input)
 
@@ -1205,10 +1331,14 @@ class DriftBrain:
                         f"{sys_instruction}\n\n{tool_prompt}\n\n"
                         f"Recent conversation:\n{history_context}\n\nUser:\n{context}"
                     )
-                    response_text = self._generate(self.primary_model_name, sys_instruction, full_prompt)
+                    response_text = self._generate(
+                        self.primary_model_name, sys_instruction, full_prompt
+                    )
                 else:
                     full_prompt = f"{tool_prompt}\n\nUser:\n{context}"
-                    response_text = self._generate(self.primary_model_name, sys_instruction, full_prompt)
+                    response_text = self._generate(
+                        self.primary_model_name, sys_instruction, full_prompt
+                    )
 
                 tool_calls = extract_tool_calls(response_text)
                 if not tool_calls:
@@ -1218,6 +1348,7 @@ class DriftBrain:
                 results = []
                 for call in tool_calls:
                     import json as _json
+
                     raw = _json.dumps(call)
                     result = execute_tool_call(raw)
                     results.append(f"Tool '{call.get('name')}' result:\n{result}")
@@ -1232,7 +1363,7 @@ class DriftBrain:
 
             self.history.extend([f"User: {user_input}", f"Bot: {primary_text}"])
             if len(self.history) > self._max_history:
-                self.history = self.history[-self._max_history:]
+                self.history = self.history[-self._max_history :]
 
             # Stream the actual response to the user (critic runs separately)
             yield primary_text
@@ -1272,10 +1403,24 @@ Rules:
         gemini_ok = API_KEY is not None and API_KEY != ""
         local_ok = self.local_bridge.is_available()
         return {
-            "gemini": {"ok": gemini_ok, "sdk": self.sdk, "primary_model": self.primary_model_name},
-            "groq": {"ok": DRIFT_USE_GROQ and bool(GROQ_API_KEY), "model": DRIFT_GROQ_MODEL},
-            "kimi": {"ok": DRIFT_USE_KIMI and bool(KIMI_API_KEY), "model": DRIFT_KIMI_MODEL},
-            "local": {"ok": local_ok, "host": self.local_bridge.host, "model": self.local_bridge.model},
+            "gemini": {
+                "ok": gemini_ok,
+                "sdk": self.sdk,
+                "primary_model": self.primary_model_name,
+            },
+            "groq": {
+                "ok": DRIFT_USE_GROQ and bool(GROQ_API_KEY),
+                "model": DRIFT_GROQ_MODEL,
+            },
+            "kimi": {
+                "ok": DRIFT_USE_KIMI and bool(KIMI_API_KEY),
+                "model": DRIFT_KIMI_MODEL,
+            },
+            "local": {
+                "ok": local_ok,
+                "host": self.local_bridge.host,
+                "model": self.local_bridge.model,
+            },
             "fallback_enabled": self._use_local_fallback,
         }
 
