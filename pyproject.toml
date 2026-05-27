@@ -12,7 +12,7 @@ version = "0.1.0"
 description = "INFJ cognitive architecture bot — consciousness, emotion, intuition, shadow, and being"
 readme = "README.md"
 requires-python = ">=3.12"
-license = {text = "AGPL-3.0"}
+license = {text = "Apache-2.0"}
 authors = [
     {name = "Julien James", email = "hiimju9@gmail.com"}
 ]

@@ -181,20 +181,43 @@ class BugBot:
                 data = (
                     json.loads(output.read_text()) if output.stat().st_size > 0 else []
                 )
-                # Auto-ingest critical/high findings
+                # Auto-ingest critical/high findings with deduplication
+                skipped = 0
+                existing = self.findings.list(limit=10000)
+                seen_this_run: set = set()
                 for item in data:
                     sev = item.get("info", {}).get("severity", "").lower()
                     if sev in ("critical", "high"):
+                        asset = item.get("host", "")
+                        vuln_type = f"Nuclei: {item.get('template-id', 'unknown')}"
+                        dedup_key = (asset, vuln_type)
+                        # Check for duplicate (same asset + vuln_type)
+                        duplicate = dedup_key in seen_this_run or any(
+                            e.asset == asset and e.vuln_type == vuln_type
+                            for e in existing
+                        )
+                        if duplicate:
+                            skipped += 1
+                            continue
+                        seen_this_run.add(dedup_key)
                         self.add_finding(
                             program_id="auto",
                             title=item.get("info", {}).get("name", "Nuclei finding"),
-                            vuln_type=f"Nuclei: {item.get('template-id', 'unknown')}",
+                            vuln_type=vuln_type,
                             severity="P2" if sev == "critical" else "P3",
-                            asset=item.get("host", ""),
+                            asset=asset,
                             description=json.dumps(item.get("info", {}), indent=2),
                             confidence="medium",
                         )
-                return f"  🎯 nuclei: {len(data)} findings → {output.name} ({len([d for d in data if d.get('info', {}).get('severity') in ('critical', 'high')])} critical/high)"
+                ch_count = len(
+                    [
+                        d
+                        for d in data
+                        if d.get("info", {}).get("severity") in ("critical", "high")
+                    ]
+                )
+                skip_note = f", {skipped} skipped (dedup)" if skipped else ""
+                return f"  🎯 nuclei: {len(data)} findings → {output.name} ({ch_count} critical/high{skip_note})"
             return "  🎯 nuclei: no output"
         except FileNotFoundError:
             return "  ⚠️ nuclei not installed"
@@ -373,6 +396,97 @@ class BugBot:
             return f"✅ Submitted to Bugcrowd! Submission ID: {sub_id}"
         except Exception as exc:
             return f"❌ Submission failed: {exc}"
+
+    def attach_evidence(
+        self,
+        finding_id: str,
+        path: str,
+        ev_type: str = "file",
+        description: str = "",
+    ) -> str:
+        """Attach evidence to a finding."""
+        f = self.findings.get(finding_id)
+        if not f:
+            return f"❌ Finding {finding_id} not found."
+        self.findings.add_evidence(finding_id, ev_type, path, description)
+        return f"📎 Evidence attached to {finding_id}: [{ev_type}] {path}"
+
+    def dashboard(self) -> str:
+        """Return a rich text dashboard summary."""
+        s = self.findings.stats()
+        total = s["total"]
+        by_sev = s.get("by_severity", {})
+        by_status = s.get("by_status", {})
+        by_program = s.get("by_program", {})
+
+        lines = [
+            "═══ Bug Bot Dashboard ═══",
+            f"Total findings: {total}",
+            "",
+            "By Severity:",
+        ]
+        for sev in ("P1", "P2", "P3", "P4", "P5"):
+            count = by_sev.get(sev, 0)
+            if count:
+                lines.append(f"  {sev}: {count}")
+
+        lines.append("")
+        lines.append("By Status:")
+        for st, count in sorted(by_status.items()):
+            lines.append(f"  {st}: {count}")
+
+        # Recent 5 findings table
+        recent = self.findings.list(limit=5)
+        if recent:
+            lines.extend(
+                [
+                    "",
+                    "Recent Findings:",
+                    f"{'ID':<10} {'Sev':<5} {'Status':<14} {'Title'}",
+                    "-" * 60,
+                ]
+            )
+            for f in recent:
+                title = (f.title[:40] + "...") if len(f.title) > 40 else f.title
+                lines.append(f"{f.id:<10} {f.severity:<5} {f.status:<14} {title}")
+
+        # Top program by finding count
+        if by_program:
+            top_prog = max(by_program, key=lambda k: by_program[k])
+            if top_prog:
+                lines.append(
+                    f"\nTop program: {top_prog} ({by_program[top_prog]} finding(s))"
+                )
+
+        lines.append(f"\nDB: {self.findings.db_path}")
+        return "\n".join(lines)
+
+    def draft_with_ai(self, finding_id: str, brain=None) -> str:
+        """Generate an AI-enhanced report for a finding."""
+        f = self.findings.get(finding_id)
+        if not f:
+            return f"❌ Finding {finding_id} not found."
+        ev = self.findings.get_evidence(finding_id)
+        standard_report = self.reports.build(f, ev)
+
+        if brain is not None:
+            prompt = (
+                f"You are a professional bug bounty report writer. "
+                f"Please improve the following vulnerability report for clarity and impact. "
+                f"Make it compelling, well-structured, and persuasive for a triage team. "
+                f"Preserve all technical details.\n\n{standard_report}"
+            )
+            try:
+                enhanced = brain.agent_turn(prompt, tools_enabled=False)
+                if enhanced:
+                    return enhanced
+            except Exception:
+                pass
+
+        return (
+            standard_report
+            + "\n\n---\n*Note: AI enhancement was unavailable. Showing standard report.*"
+        )
 
     # ── Utility ───────────────────────────────────────────────────
 

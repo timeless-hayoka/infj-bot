@@ -92,6 +92,7 @@ class ChainNode:
 class LogicChain:
     """A reasoning chain for a specific problem."""
 
+
     chain_id: str
     fingerprint: str  # Hash of the query signature
     query: str  # Original query that started this chain

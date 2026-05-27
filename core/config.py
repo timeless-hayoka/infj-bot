@@ -157,4 +157,3 @@ HOMEOSTASIS_DECAY_SLOW = os.getenv("HOMEOSTASIS_DECAY_SLOW", "true").lower() in 
 HF_PRO_TOKEN = os.getenv("HF_PRO_TOKEN")
 DRIFT_HF_MODEL = os.getenv("DRIFT_HF_MODEL", "meta-llama/Meta-Llama-3-8B-Instruct")
 DRIFT_USE_HF = os.getenv("DRIFT_USE_HF", "false").lower() in ("1", "true", "yes", "on")
-
