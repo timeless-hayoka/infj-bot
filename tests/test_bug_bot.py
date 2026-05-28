@@ -17,6 +17,20 @@ import pytest
 # Stub out torch / chromadb / sentence_transformers BEFORE any infj_bot import
 # ---------------------------------------------------------------------------
 
+_original_modules = {}
+_stubbed_modules = [
+    "torch",
+    "chromadb",
+    "chromadb.api",
+    "chromadb.api.types",
+    "sentence_transformers",
+    "numpy",
+    "infj_bot.core.memory"
+]
+for m in _stubbed_modules:
+    if m in sys.modules:
+        _original_modules[m] = sys.modules[m]
+
 _torch_stub = types.ModuleType("torch")
 _torch_stub.set_default_device = lambda *a, **kw: None  # type: ignore[assignment]
 _torch_stub.float32 = None
@@ -25,7 +39,7 @@ _torch_stub.no_grad = MagicMock(
         __enter__=MagicMock(return_value=None), __exit__=MagicMock(return_value=False)
     )
 )
-sys.modules.setdefault("torch", _torch_stub)
+sys.modules["torch"] = _torch_stub
 
 _chroma_stub = types.ModuleType("chromadb")
 _chroma_api = types.ModuleType("chromadb.api")
@@ -34,15 +48,15 @@ _chroma_types.Documents = list  # type: ignore[assignment]
 _chroma_types.Embeddings = list  # type: ignore[assignment]
 _chroma_stub.api = _chroma_api
 _chroma_api.types = _chroma_types
-sys.modules.setdefault("chromadb", _chroma_stub)
-sys.modules.setdefault("chromadb.api", _chroma_api)
-sys.modules.setdefault("chromadb.api.types", _chroma_types)
+sys.modules["chromadb"] = _chroma_stub
+sys.modules["chromadb.api"] = _chroma_api
+sys.modules["chromadb.api.types"] = _chroma_types
 
 _st_stub = types.ModuleType("sentence_transformers")
-sys.modules.setdefault("sentence_transformers", _st_stub)
+sys.modules["sentence_transformers"] = _st_stub
 
 _np_stub = types.ModuleType("numpy")
-sys.modules.setdefault("numpy", _np_stub)
+sys.modules["numpy"] = _np_stub
 
 # Stub DriftMemory so bug_bot.py doesn't blow up on import
 _memory_stub = types.ModuleType("infj_bot.core.memory")
@@ -55,6 +69,19 @@ sys.modules["infj_bot.core.memory"] = _memory_stub
 
 from infj_bot.core.plugins.findings_db import Finding, FindingsDB  # noqa: E402
 from infj_bot.core.plugins.report_builder import ReportBuilder  # noqa: E402
+from infj_bot.core.bug_bot import BugBot, RECON_DIR  # noqa: E402
+from infj_bot.core.plugins.target_manager import TargetManager  # noqa: E402
+from infj_bot.core.commands import _parse_kv_bug_add  # noqa: E402
+
+# ---------------------------------------------------------------------------
+# Restore the original modules immediately after imports are resolved
+# so other tests in pytest run with clean imports.
+# ---------------------------------------------------------------------------
+for m in _stubbed_modules:
+    if m in _original_modules:
+        sys.modules[m] = _original_modules[m]
+    else:
+        sys.modules.pop(m, None)
 
 
 # ---------------------------------------------------------------------------

@@ -40,6 +40,10 @@ from infj_bot.core.shadow import get_shadow
 from infj_bot.core.cognitive_architecture import CognitiveArchitecture, CycleContext
 from infj_bot.core.hive.elysium import get_elysium
 from infj_bot.core.dii_tracker import get_dii_tracker
+import sys
+from infj_bot.core.context_engine import CognitiveState, Context, ContextWorker
+from infj_bot.core.cognitive_ops import pedi_regulation_step, state_conditioned_llm
+from infj_bot.interfaces.comonad_cli import calculate_state_diff
 
 logger = logging.getLogger("infj_bot")
 
@@ -507,18 +511,82 @@ async def chat_loop():
             
             return output
 
-        # Run regulated CLI cycle
-        output, regulated_state, status = await asyncio.to_thread(
-            _workspace.execute_cli_cycle,
-            raw_active_state,
-            user_input,
-            generate_response_func
-        )
+        if "--comonadic" in sys.argv:
+            # Run using the comonadic workspace bridge
+            cogn_state = CognitiveState(
+                coherence=raw_active_state.get("coherence", 0.8),
+                resonance=raw_active_state.get("resonance", 0.8),
+                tension=raw_active_state.get("tension", 0.2),
+                shadow_depth=raw_active_state.get("shadow_depth", 0.2)
+            )
+            ctx = Context[str](state=cogn_state, value=user_input)
+            worker = ContextWorker[str](ctx)
+            
+            # Comonad extension pipeline
+            worker = worker.extend(pedi_regulation_step)
+            worker = worker.extend(state_conditioned_llm)
+            
+            # Align subsystems with comonadic state
+            try:
+                _physics.state.resonance = worker.state.resonance
+                _physics.state.tension = worker.state.tension
+                _physics._save_state()
+            except Exception:
+                pass
+            try:
+                _shadow._state.depth = worker.state.shadow_depth
+                _shadow._save_state()
+            except Exception:
+                pass
+                
+            prompt, emotion, dissonance = _orchestrator.assemble_prompt(
+                user_input,
+                state,
+                memory,
+                goals_db=goals_db,
+                doc_store=doc_store,
+                prefs=state.prefs,
+            )
+            prompt = f"[System Direction: {worker.current()}]\n{prompt}"
+            
+            # Generate LLM response
+            output = brain.agent_turn(prompt, tools_enabled=True, raw_user_input=user_input)
+            
+            # Log drift and vault deposit
+            initial_state = worker._ctx.history[0]
+            final_state = worker.state
+            diff = calculate_state_diff(initial_state, final_state)
+            print(f"\n[*] Comonadic Workspace Bridge active. State Transition Diff:")
+            for k, v in diff.items():
+                if v != 0:
+                    print(f"   {k}: {v:+.2f}")
+                    
+            try:
+                _workspace.vault.deposit_core_memory(
+                    event=f"CLI Comonadic Milestone: {user_input[:40]}...",
+                    user_q=user_input,
+                    sys_q=output,
+                    current_state=final_state.model_dump(),
+                    quarantined=(final_state.shadow_depth > 0.75)
+                )
+            except Exception:
+                pass
+                
+            regulated_state = final_state.model_dump()
+            status = "STABLE"
+        else:
+            # Run regulated CLI cycle
+            output, regulated_state, status = await asyncio.to_thread(
+                _workspace.execute_cli_cycle,
+                raw_active_state,
+                user_input,
+                generate_response_func
+            )
 
-        # Retrieve prompt, emotion, and dissonance from the call
-        prompt = getattr(generate_response_func, "prompt", "")
-        emotion = getattr(generate_response_func, "emotion", {"label": "neutral", "intensity": 0.5})
-        dissonance = getattr(generate_response_func, "dissonance", {"score": 0.0})
+            # Retrieve prompt, emotion, and dissonance from the call
+            prompt = getattr(generate_response_func, "prompt", "")
+            emotion = getattr(generate_response_func, "emotion", {"label": "neutral", "intensity": 0.5})
+            dissonance = getattr(generate_response_func, "dissonance", {"score": 0.0})
 
         if status != "STABLE":
             print(f"\n[*] PEDI Fly-By-Wire status: {status}")
