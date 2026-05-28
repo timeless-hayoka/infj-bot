@@ -51,11 +51,11 @@ flowchart TD
 
 ## 3. Core runtime components
 
-### 3.1 `brain.py` — `InfjBrain`
+### 3.1 `brain.py` — `DriftBrain`
 
-- Holds **system prompts** for the primary companion and for the **critic**.
-- Manages generation, optional **streaming**, optional **parallel tool execution**, and **`OllamaBridge`** fallback when configured.
-- Uses **`SelfEvaluator`** hooks where wired for reflective scoring (see `self_eval.py`).
+- Holds **system prompts** for the primary companion and for the **critic**. The critic prompt is locked to **output-only mode**: it must emit the final verified/corrected response text and **nothing else** (no `Verdict:`, no `Factuality: checked` headers, no `Exact repetition` notes). If you swap the critic model, keep this contract or the response stream will leak meta-commentary into chats.
+- Manages generation, optional **streaming**, optional **parallel tool execution**, the `OllamaBridge` local fallback, and a `DriftHFBridge` Hugging Face fallback. Provider order is governed by `INFJ_PREFER_LOCAL` / `INFJ_USE_LOCAL_FALLBACK` and the configured Gemini / Groq / Kimi keys.
+- Accepts **dependency-injected `evaluator=` and `disk_cache=`** so the web app can give each `SessionResources` its own `SelfEvaluator` and `DiskGenCache`. Called with no arguments (CLI, tests) it falls back to defaults under `INFJ_DATA_DIR`. See [WEB_APP_SESSIONS.md](WEB_APP_SESSIONS.md) for the multi-tenant wiring.
 
 ### 3.2 `memory.py` — `InfjMemory` (Chroma)
 
@@ -118,23 +118,26 @@ Representative wired modules (instances live largely in **`main.py`**):
 ## 5. Performance & Networking Upgrade (May 2024)
 
 ### 5.1 Gevent-SocketIO Engine
-The web interface now runs on a high-performance **Gevent** async server (`web_app.py`). This allows for:
+The web interface runs on a **Gevent** async server (`web_app.py`). This allows for:
 - **Real-time Observability:** Constant WebSocket updates without blocking the main chat.
-- **RFC 7692 Compression:** Transparent WebSocket compression (`permessage-deflate`) reduces bandwidth usage by ~70%.
+- **WebSocket Compression:** Flask-SocketIO is constructed with `websocket_compression=True` so `permessage-deflate` is negotiated when the client supports it. The "raw vs compressed bytes" gauge surfaced in `network_stats` is an **estimate** — `total_bytes_compressed` is computed as `int(raw_size * 0.3)`, not measured from the socket — so treat it as an indicator of payload pressure, not a benchmark.
 
 ### 5.2 Delta-State Broadcasting
-The `CognitiveOrchestrator` now generates **delta maps** for the system state.
-- **Mechanism:** The server tracks the `last_state` sent to each client. It only transmits fields that have changed (except for a required `timestamp`).
-- **Impact:** Drastic reduction in packet size and client-side processing overhead.
+The `CognitiveOrchestrator` generates **delta maps** for the system state.
+- **Mechanism:** `cognitive_orchestrator.get_delta_state()` returns only fields that have changed since the last call (plus a `timestamp`). Emission is skipped entirely when `len(delta) <= 1`.
+- **Impact:** Reduction in packet size and client-side processing overhead.
 
 ### 5.3 Auto-Throttling & Latency Management
-The system now detects network bottlenecks in real-time.
-- **Feedback Loop:** The client pings the server every second.
-- **Dynamic Rate:** If average latency exceeds 250ms, the server slows down the broadcast rate (up to 1.5s). If latency is low (<100ms), it speeds up (down to 200ms).
+- **Feedback Loop:** The client pings the server with a `latency_ping` SocketIO event; the server echoes it for RTT measurement.
+- **Dynamic Rate:** `broadcast_interval` (default `0.35 s`) is mutated by the `auto_adjust_rate` event — > 250 ms RTT slows toward `1.5 s`; < 100 ms speeds up toward `0.2 s`.
 
-### 5.4 Hybrid Inference (Groq + Gemini)
-- **High-Speed Tier:** Support for **Groq LPU** inference (OpenAI-compatible) has been integrated into `DriftBrain`. 
-- **Speed:** Responses can reach 500+ tokens/second, making the bot's "inner thoughts" feel instantaneous.
+### 5.4 Hybrid Inference
+- **Providers:** `DriftBrain` routes through Gemini → Groq → Kimi → Ollama / HF fallback (with `INFJ_PREFER_LOCAL` reordering when set).
+- **Per-session caches:** Each `SessionResources` injects its own `DiskGenCache` into `DriftBrain` so cache hits don't bleed across visitors. See [WEB_APP_SESSIONS.md](WEB_APP_SESSIONS.md).
+
+### 5.5 Background loops
+- **CLI** (`interfaces/main.py`): an async `consciousness_loop` fires every 15–30 s and runs the per-track tick described below.
+- **Web app** (`interfaces/web_app.py`): an additional `background_cognitive_loop` gevent greenlet ticks heartbeat / breath / shadow / homeostasis / DII tracker every **4 s** against the process-singleton subsystems, plus a `prune_and_cleanup_sessions` greenlet every **300 s** for the session store, plus a `broadcast_observatory_state` daemon thread driving the SocketIO feed. The two loops coexist when both entry points are run in the same process.
 
 Plugins submit salient snippets to **`global_workspace.py`**, loosely inspired by Global Workspace Theory: limited capacity competition, decay, persistence in **`workspace.db`**.
 
@@ -202,10 +205,13 @@ Key environment variables (`config.py` aggregates these):
 
 ## 10. Interfaces
 
-| Surface | Entry |
-|--------|--------|
-| CLI | `cli.py` — `chat`, `ask`, `tui`, `web`, `health`, `backup`, `restore` |
-| HTTP | **`api.py`** + **`web_app.py`** (`uvicorn` on `127.0.0.1:8765` by convention) |
+| Surface | Entry | Notes |
+|--------|--------|-------|
+| CLI | `interfaces/main.py` — async `chat_loop` | Each turn is wrapped by `GlobalWorkspace.execute_cli_cycle(...)` (PEDI regulation → bound generation → Lantern-4 veto → optional Svalbard sealing). See [FLY_BY_WIRE.md](FLY_BY_WIRE.md). |
+| HTTP / REST | `interfaces/api.py` | FastAPI; documented in [README.md § API Endpoints](../README.md#api-endpoints). |
+| Web UI + SocketIO | `interfaces/web_app.py` | Flask + Gevent + Flask-SocketIO on `PORT` (default `7860`). Each visitor gets an isolated `SessionResources` bundle persisted to `<INFJ_DATA_DIR>/sessions/<id>/`. See [WEB_APP_SESSIONS.md](WEB_APP_SESSIONS.md). |
+| OpenAI-compatible | `interfaces/web_app.py` → `POST /v1/chat/completions` | Same per-session routing. |
+| Ollama-compatible | `interfaces/web_app.py` → `POST /api/chat` (with `messages` field) | Used by clients like Reins. |
 
 ---
 
@@ -238,9 +244,10 @@ Targeted subsets: `pytest tests/test_shadow.py tests/test_embeddings.py tests/te
 | [README.md](../README.md) | Quick start, layered map, who should read what |
 | [docs/README.md](README.md) | Full documentation index & reading paths |
 | [docs/GLOSSARY.md](GLOSSARY.md) | Definitions for codebase-specific terms |
+| [docs/WEB_APP_SESSIONS.md](WEB_APP_SESSIONS.md) | Per-session resource isolation, trial mode, background greenlets for the web UI |
+| [docs/FLY_BY_WIRE.md](FLY_BY_WIRE.md) | `GlobalWorkspace.execute_cli_cycle`, Lantern-4 veto, Svalbard sealing |
+| [docs/DMU_PEDI_TEST_PLAN.md](DMU_PEDI_TEST_PLAN.md) | PEDI metric test plan (7-axis homeostatic vector) |
 | [SECURITY.md](../SECURITY.md) | Secret hygiene & reporting posture |
-| [DRIFT_AI_INTEGRATION.md](DRIFT_AI_INTEGRATION.md) | How seeded Drift concepts map into memory-only integration |
-| [DELL_HANDOFF.md](DELL_HANDOFF.md) | Longer ops notes (devices, backups, quirks) |
 
 ---
 
