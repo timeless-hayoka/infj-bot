@@ -428,7 +428,7 @@ async def chat_loop():
             _temporal.record_session_end()
             break
 
-        sec = scan_input(user_input)
+        sec = scan_input(user_input, mode=state.mode)
         if sec.blocked:
             print(
                 f"\n[INFJ COMPANION]: {sec.refusal_message or "I can't process that request."}"
@@ -503,7 +503,7 @@ async def chat_loop():
                 prefs=state.prefs,
             )
             # Generate LLM response
-            output = brain.agent_turn(prompt, tools_enabled=True, raw_user_input=u_input)
+            output = brain.agent_turn(prompt, tools_enabled=True, raw_user_input=u_input, mode=state.mode)
             
             # Save prompt/emotion/dissonance to closure scope
             generate_response_func.prompt = prompt
@@ -552,7 +552,7 @@ async def chat_loop():
             prompt = f"[System Direction: {worker.current().response}]\n{prompt}"
 
             # Generate LLM response
-            output = brain.agent_turn(prompt, tools_enabled=True, raw_user_input=user_input)
+            output = brain.agent_turn(prompt, tools_enabled=True, raw_user_input=user_input, mode=state.mode)
 
             # Log drift and vault deposit
             initial_state = worker.history[0]

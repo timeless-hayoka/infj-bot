@@ -384,6 +384,9 @@ CRITICAL: Do NOT write any review summary, verification report, explanations, or
 
 class DriftBrain:
     def __init__(self, evaluator=None, disk_cache=None):
+        # Defensive: set sdk early so partial-init failures don't cause
+        # AttributeError when downstream code inspects brain.sdk.
+        self.sdk = "uninitialized"
         self.primary_model_name = DRIFT_PRIMARY_MODEL
         self.critic_model_name = DRIFT_CRITIC_MODEL
         self.history = []
@@ -1031,10 +1034,10 @@ class DriftBrain:
         )
         return res
 
-    def _security_check(self, user_input: str, raw_user_input: Optional[str] = None) -> SecurityScanResult:
+    def _security_check(self, user_input: str, raw_user_input: Optional[str] = None, mode: Optional[str] = None) -> SecurityScanResult:
         """Run security defense scan on user input, extracting raw content if it is an assembled prompt."""
         if raw_user_input is not None:
-            return scan_input(raw_user_input)
+            return scan_input(raw_user_input, mode=mode)
 
         cleaned_input = user_input
         for marker in ["\nUser: ", "\nUser:\n"]:
@@ -1044,10 +1047,10 @@ class DriftBrain:
                 if candidate:
                     cleaned_input = candidate
                     break
-        return scan_input(cleaned_input)
+        return scan_input(cleaned_input, mode=mode)
 
-    def think(self, user_input, raw_user_input=None):
-        sec = self._security_check(user_input, raw_user_input)
+    def think(self, user_input, raw_user_input=None, mode=None):
+        sec = self._security_check(user_input, raw_user_input, mode=mode)
         if sec.blocked:
             self.logger.warning("Security block: %s", sec.to_dict())
             return sec.refusal_message or "I can't process that request."
@@ -1171,9 +1174,9 @@ class DriftBrain:
     # Streaming think
     # ------------------------------------------------------------------
 
-    def think_stream(self, user_input, raw_user_input=None):
+    def think_stream(self, user_input, raw_user_input=None, mode=None):
         """Yield text chunks as they arrive from the model."""
-        sec = self._security_check(user_input, raw_user_input)
+        sec = self._security_check(user_input, raw_user_input, mode=mode)
         if sec.blocked:
             self.logger.warning("Security block (stream): %s", sec.to_dict())
             yield sec.refusal_message or "I can't process that request."
@@ -1215,8 +1218,8 @@ class DriftBrain:
     # Agent turn with tools
     # ------------------------------------------------------------------
 
-    def agent_turn(self, user_input, tools_enabled=True, max_iterations=3, raw_user_input=None):
-        sec = self._security_check(user_input, raw_user_input)
+    def agent_turn(self, user_input, tools_enabled=True, max_iterations=3, raw_user_input=None, mode=None):
+        sec = self._security_check(user_input, raw_user_input, mode=mode)
         if sec.blocked:
             self.logger.warning("Security block (agent turn): %s", sec.to_dict())
             return sec.refusal_message or "I can't process that request."
@@ -1224,7 +1227,7 @@ class DriftBrain:
             self.logger.info("Security warning (agent turn): %s", sec.to_dict())
             user_input = sec.sanitized_input or user_input
         if not tools_enabled:
-            return self.think(user_input, raw_user_input=raw_user_input)
+            return self.think(user_input, raw_user_input=raw_user_input, mode=mode)
 
         tool_prompt = build_tool_prompt()
         iteration = 0
@@ -1319,16 +1322,16 @@ class DriftBrain:
     # Streaming agent turn (yields chunks after tools are resolved)
     # ------------------------------------------------------------------
 
-    def agent_turn_stream(self, user_input, tools_enabled=True, max_iterations=3, raw_user_input=None):
+    def agent_turn_stream(self, user_input, tools_enabled=True, max_iterations=3, raw_user_input=None, mode=None):
         """Execute tools synchronously, then stream the final response."""
-        sec = self._security_check(user_input, raw_user_input)
+        sec = self._security_check(user_input, raw_user_input, mode=mode)
         if sec.blocked:
             yield sec.refusal_message or "I can't process that request."
             return
         if sec.warn:
             user_input = sec.sanitized_input or user_input
         if not tools_enabled:
-            yield from self.think_stream(user_input, raw_user_input=raw_user_input)
+            yield from self.think_stream(user_input, raw_user_input=raw_user_input, mode=mode)
             return
 
         tool_prompt = build_tool_prompt()

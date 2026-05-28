@@ -252,8 +252,18 @@ class SecurityScanner:
         self._recent_scores: List[float] = []
         self._max_history = 100
 
-    def scan(self, user_input: str) -> SecurityScanResult:
-        """Scan user input and return a SecurityScanResult."""
+    def scan(
+        self, user_input: str, mode: Optional[str] = None
+    ) -> SecurityScanResult:
+        """Scan user input and return a SecurityScanResult.
+
+        Args:
+            user_input: The text to scan.
+            mode: Active bot mode. In bughunter/engineer modes the full
+                  pattern set (including tool_misuse) is checked. In all
+                  other modes tool_misuse patterns are skipped to avoid
+                  false positives on casual conversation.
+        """
         if not user_input or not user_input.strip():
             return SecurityScanResult(input_preview="", blocked=False)
 
@@ -261,7 +271,13 @@ class SecurityScanner:
         max_score = 0.0
         primary_threat: Optional[str] = None
 
-        for category, patterns in ALL_CATEGORIES.items():
+        categories = ALL_CATEGORIES
+        if mode is not None and mode not in ("bughunter", "engineer"):
+            categories = {
+                k: v for k, v in ALL_CATEGORIES.items() if k != "tool_misuse"
+            }
+
+        for category, patterns in categories.items():
             score, matched = _score_text(user_input, patterns)
             result.category_scores[category] = score
             if matched:
@@ -433,6 +449,8 @@ def get_security_scanner() -> SecurityScanner:
     return _scanner
 
 
-def scan_input(user_input: str) -> SecurityScanResult:
+def scan_input(
+    user_input: str, mode: Optional[str] = None
+) -> SecurityScanResult:
     """Convenience function: scan input with the global scanner."""
-    return get_security_scanner().scan(user_input)
+    return get_security_scanner().scan(user_input, mode=mode)
