@@ -179,6 +179,17 @@ class FindingsDB:
             conn.commit()
         return cur.lastrowid
 
+    def exists_by_asset_and_vuln_type(
+        self, asset: str, vuln_type: str
+    ) -> bool:
+        """Check whether a finding with the same asset + vuln_type already exists."""
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT 1 FROM findings WHERE asset = ? AND vuln_type = ? LIMIT 1",
+                (asset, vuln_type),
+            ).fetchone()
+        return row is not None
+
     def get_evidence(self, finding_id: str) -> List[Dict[str, Any]]:
         with self._conn() as conn:
             rows = conn.execute(

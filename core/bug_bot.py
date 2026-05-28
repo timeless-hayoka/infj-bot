@@ -183,7 +183,6 @@ class BugBot:
                 )
                 # Auto-ingest critical/high findings with deduplication
                 skipped = 0
-                existing = self.findings.list(limit=10000)
                 seen_this_run: set = set()
                 for item in data:
                     sev = item.get("info", {}).get("severity", "").lower()
@@ -191,11 +190,8 @@ class BugBot:
                         asset = item.get("host", "")
                         vuln_type = f"Nuclei: {item.get('template-id', 'unknown')}"
                         dedup_key = (asset, vuln_type)
-                        # Check for duplicate (same asset + vuln_type)
-                        duplicate = dedup_key in seen_this_run or any(
-                            e.asset == asset and e.vuln_type == vuln_type
-                            for e in existing
-                        )
+                        # DB-level dedup check — no arbitrary limit
+                        duplicate = dedup_key in seen_this_run or self.findings.exists_by_asset_and_vuln_type(asset, vuln_type)
                         if duplicate:
                             skipped += 1
                             continue
@@ -213,7 +209,7 @@ class BugBot:
                     [
                         d
                         for d in data
-                        if d.get("info", {}).get("severity") in ("critical", "high")
+                        if d.get("info", {}).get("severity", "").lower() in ("critical", "high")
                     ]
                 )
                 skip_note = f", {skipped} skipped (dedup)" if skipped else ""

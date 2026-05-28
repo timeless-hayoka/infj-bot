@@ -622,7 +622,7 @@ def handle_bug_command(args, state, brain=None, memory=None):
     if subcmd == "add":
         if "|" in rest:
             # Pipe-separated format: title | severity | asset | description
-            parts = [p.strip() for p in rest.split("|")]
+            parts = [p.strip() for p in rest.split("|", 3)]
             if len(parts) < 4:
                 return "Use: /bug add <title> | <severity> | <asset> | <description>"
             return bot.add_finding(
