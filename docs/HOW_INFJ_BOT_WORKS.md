@@ -171,6 +171,18 @@ These are **not** clinical instruments; they are **structured state machines + p
 - Declares allowed tools (**file**, **shell**, **python**, constrained **web fetch**, selective security-lab primitives with strict targets and timeouts).
 - Enforces **`SAFE_HOME` / project root containment** (`INFJ_SAFE_HOME`), blocklists destructive shell patterns, and logs actions to **`tool_audit.jsonl`**.
 
+### Input security scanner (`core/security_defense.py`)
+
+A pre-LLM regex/heuristic filter inside `DriftBrain` runs on every turn (`think`, `think_stream`, `agent_turn`, `agent_turn_stream`). It scores four threat categories — **prompt injection**, **data exfiltration**, **tool misuse**, **memory manipulation** — and either **blocks** (`>= 0.60` or any `AUTO_BLOCK_PATTERNS` match), **warns + sanitizes** (`>= 0.20`), or passes through. Detections are appended to `security_audit.jsonl` at `PROJECT_ROOT`.
+
+All four interface layers (`interfaces/api.py`, `interfaces/cli.py`, `interfaces/main.py`, `interfaces/web_app.py`) now pass `raw_user_input=` so the scanner sees only the user's literal text rather than the assembled prompt, eliminating the false-positive blocks that used to come from matching tokens inside the system rails. See [SECURITY_DEFENSE.md](SECURITY_DEFENSE.md) for the full pattern catalog, thresholds, and the `raw_user_input` plumbing rule.
+
+### Identity ledger (`core/svalbard_vault.py`) + PEDI Engine (`core/pedi_metrics.py`)
+
+`GlobalWorkspace.__init__` instantiates a `SvalbardVault` (append-only, hash-chained, HMAC-signed JSONL of high-resonance "core memories") and a `PEDIEngine` regulator that nudges the active 4-axis emotional state (`coherence`, `tension`, `resonance`, `shadow_depth`) toward the gravity center of recent vault blocks. Workspace turns flow through `PEDI → response → Lantern-4 veto → optional vault deposit`. See [IDENTITY_VAULT.md](IDENTITY_VAULT.md) for the full algorithm, file layout, and operational notes.
+
+> Naming heads-up: there is a **second, unrelated** `PEDI` in `metrics/pedi.py` (homeostatic state fluidity). The Glossary disambiguates both.
+
 ### Optional MCP integrations
 
 Separate Python processes under **`mcp/`** (for example Gmail hybrid/http clients) expose extra capabilities outside the Gemini tool surface when launched manually.
@@ -197,6 +209,8 @@ Key environment variables (`config.py` aggregates these):
 | `INFJ_USE_LOCAL_FALLBACK`, `INFJ_LOCAL_MODEL`, `OLLAMA_HOST` | Offline / backup path |
 | `INFJ_MAX_TOTAL_PROMPT_CHARS`, `INFJ_MEMORY_SEARCH_TOP_K` | Rough token/RAM governors from **context**, not weights |
 | `INFJ_SHADOW_PROMPT_TOP_K`, `INFJ_SHADOW_PROMPT_MAX_CHARS`, `INFJ_SHADOW_PROMPT_LINE_CHARS` | Bounds shadow prompt excerpts |
+| `DRIFT_VAULT_PATH` | Override path for the Svalbard identity ledger JSONL (defaults to `<DATA_ROOT>/svalbard_ledger.jsonl`). See [IDENTITY_VAULT.md](IDENTITY_VAULT.md). |
+| `DRIFT_VAULT_SECRET` | HMAC-SHA256 secret used to sign `<VAULT_PATH>.sig`. **Treat as a credential**; unset uses an insecure default and prints a warning. |
 
 ---
 
