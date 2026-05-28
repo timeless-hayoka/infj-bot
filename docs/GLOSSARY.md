@@ -45,6 +45,12 @@ Primary LLM wrapper in **`brain.py`**: Gemini (and optional Ollama fallback), st
 ### **`InfjMemory`**  
 Chroma-backed memory in **`memory.py`**: save interactions after **secret scrubbing**, hybrid search/top‑k, optional document sidecar integrations.
 
+### **IdentityBlock**  
+A single sealed entry in the **Svalbard Vault** ledger. Carries `timestamp`, `event_summary`, the user/system quotes, an `EmotionalAnchor` (coherence / tension / resonance / shadow_depth), a `prior_hash`, an optional `quarantined` flag, and its own SHA-256 `block_hash`. Hashes chain block-to-block; the latest hash is HMAC-signed via **`DRIFT_VAULT_SECRET`**. See **`core/svalbard_vault.py`**.
+
+### **Lantern-4 Veto**  
+Post-action gate in **`GlobalWorkspace.execute_cli_cycle`** that decides whether an exchange is worth sealing into the **Svalbard Vault**. Requires resonance ≥ 0.85, a minimum semantic density unless resonance ≥ 0.95, and quarantines blocks where `shadow_depth > 0.75` so they enter the ledger but do not anchor **PEDI**.
+
 ### **“Jude” / user-facing name**  
 Default narrative name for the human in prompts and seeded content. Replace in your fork if needed.
 
@@ -54,14 +60,23 @@ Architectural shorthand in the README: **Interface**, **Cognition**, **Coordinat
 ### **Ollama**  
 Local inference path via **`OllamaBridge`** in **`local_llm.py`** when **`INFJ_USE_LOCAL_FALLBACK`** is enabled.
 
+### **PEDI** (Persistence-Embodiment-Drift Index)  
+Identity regulator in **`core/pedi_metrics.py`**. Reads the last ~20 vault blocks as an emotional "center of gravity" and adjusts the active state before generation. Emits one of `STABLE` / `CORRECTING` / `EVOLVING` per cycle, with `NO_ANCHOR` when the vault is empty. **Note:** distinct from the metrics-layer index at **`metrics/pedi.py`** (Performance & Efficiency Detection Index) used by **`DMU_PEDI_TEST_PLAN.md`** — same acronym, different layer.
+
 ### **`PromptBudget`**  
 Caps prompt growth by tier (core / cognitive / analysis / context) toward **`INFJ_MAX_TOTAL_PROMPT_CHARS`**.
+
+### **SecurityScanner** (`core/security_defense.py`)  
+First-stage input defense. Pure regex + heuristic scoring across four categories (prompt injection, data exfiltration, tool misuse, memory manipulation). Blocks at `overall_score ≥ 0.60` or on any auto-block pattern; warns and sanitizes at `≥ 0.20`. Operated via **`/security status | audit | test`**. See [SECURITY_SCANNER.md](SECURITY_SCANNER.md).
 
 ### Shadow (`shadow.py`)  
 Structured **prompt-time excerpts** from **`shadow.db`**, bounded by env caps (**`INFJ_SHADOW_PROMPT_*`**). Jung-influenced metaphor; **not** diagnosis.
 
 ### **SQLite “state brains”**  
 Many subsystems (**being**, **embodiment**, **homeostasis**, **shadow**, etc.) persist orthogonal state as **`.db`** files under **`INFJ_DATA_DIR`** or **`PROJECT_ROOT`**.
+
+### **Svalbard Vault** (`core/svalbard_vault.py`)  
+Tamper-evident JSONL identity ledger. Each significant exchange is sealed as an **IdentityBlock** in a SHA-256 hash chain, with the latest hash HMAC-signed using **`DRIFT_VAULT_SECRET`**. Acts as DRIFT's long-term episodic identity memory and as the anchor source for **PEDI**. Path defaults to **`INFJ_DATA_DIR`** + `svalbard_ledger.jsonl`; override with **`DRIFT_VAULT_PATH`**.
 
 ---
 

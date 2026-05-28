@@ -166,6 +166,22 @@ These are **not** clinical instruments; they are **structured state machines + p
 
 ## 7. Tools, safety posture, MCP
 
+### `security_defense.py` — input gate
+
+Every call into `DriftBrain.think`, `think_stream`, `agent_turn`, and
+`agent_turn_stream` runs through `SecurityScanner.scan()` **before** any
+generation. The scanner is pure regex/heuristic across four categories
+(prompt injection, data exfiltration, tool misuse, memory manipulation),
+blocks at `overall_score ≥ 0.60` or on any auto-block pattern, and warns +
+sanitizes at `≥ 0.20`. Blocks are returned as refusal text; warns redact the
+matched fragments before the prompt is assembled.
+
+Callers that have the unwrapped user string available (notably
+`interfaces/api.py`) should pass it as `raw_user_input=` so the scanner does
+not score the surrounding system rails and plugin paragraphs. See
+[SECURITY_SCANNER.md](SECURITY_SCANNER.md) for the full operator runbook,
+threshold table, and `/security status|audit|test` commands.
+
 ### `tools.py`
 
 - Declares allowed tools (**file**, **shell**, **python**, constrained **web fetch**, selective security-lab primitives with strict targets and timeouts).
@@ -239,8 +255,8 @@ Targeted subsets: `pytest tests/test_shadow.py tests/test_embeddings.py tests/te
 | [docs/README.md](README.md) | Full documentation index & reading paths |
 | [docs/GLOSSARY.md](GLOSSARY.md) | Definitions for codebase-specific terms |
 | [SECURITY.md](../SECURITY.md) | Secret hygiene & reporting posture |
-| [DRIFT_AI_INTEGRATION.md](DRIFT_AI_INTEGRATION.md) | How seeded Drift concepts map into memory-only integration |
-| [DELL_HANDOFF.md](DELL_HANDOFF.md) | Longer ops notes (devices, backups, quirks) |
+| [SECURITY_SCANNER.md](SECURITY_SCANNER.md) | Input scanner internals: categories, thresholds, operator commands |
+| [VAULT_STABILITY_NOTES.md](VAULT_STABILITY_NOTES.md) | Svalbard Vault + PEDI hardening & action items |
 
 ---
 
