@@ -134,6 +134,9 @@ INDEX_HTML = r"""<!doctype html>
       --nexus: #a5d6ff;
       --phi-gold: #f2cc60;
     }
+    *, *:before, *:after {
+      box-sizing: border-box;
+    }
     body { 
       margin: 0; 
       font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
@@ -147,7 +150,14 @@ INDEX_HTML = r"""<!doctype html>
       grid-template-columns: 1fr 380px; 
       height: 100vh; 
     }
-    section { padding: 20px; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+    section { 
+      padding: 20px; 
+      display: flex; 
+      flex-direction: column; 
+      min-height: 0; 
+      height: 100%;
+      overflow: hidden; 
+    }
     #chat { border-right: 1px solid var(--border); }
     #header { 
       display: flex; 
