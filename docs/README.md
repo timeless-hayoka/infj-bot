@@ -31,7 +31,8 @@ This folder is the canonical **secondary** navigation for DRIFT / INFJ Bot. Star
 | [AI_MORALITY_RULES.md](AI_MORALITY_RULES.md) | Ethical constraints and refusal boundaries baked into the system. |
 | [BASELINE_REPORT.md](BASELINE_REPORT.md) | Snapshot metrics from evaluations (when generated). |
 | [DEPENDENCIES.md](DEPENDENCIES.md) | What major packages/runtime pieces are for. |
-| [DMU_PEDI_TEST_PLAN.md](DMU_PEDI_TEST_PLAN.md) | Test plan for DMU scoring and PEDI continuity validation. |
+| [DEVELOPMENT_PHASES.md](DEVELOPMENT_PHASES.md) | High-level phased roadmap (unification → tests → GPU → dashboard → positioning). |
+| [DMU_PEDI_TEST_PLAN.md](DMU_PEDI_TEST_PLAN.md) | Test plan for DMU scoring and the metrics-layer PEDI continuity index. |
 | [DRIFT_UPGRADE_MAY_2024.md](DRIFT_UPGRADE_MAY_2024.md) | Upgrade notes from the May 2024 hardening pass. |
 | [EDGE_PROTOCOL.md](EDGE_PROTOCOL.md) | Edge-case handling and escalation protocol. |
 | [FALSIFIABILITY.md](FALSIFIABILITY.md) | Falsifiable claims, measurement axes, and ablation discipline. |
@@ -39,8 +40,10 @@ This folder is the canonical **secondary** navigation for DRIFT / INFJ Bot. Star
 | [HIVE_ROADMAP.md](HIVE_ROADMAP.md) | Direction for hive / observatory coordination features. |
 | [HOW_INFJ_BOT_WORKS.md](HOW_INFJ_BOT_WORKS.md) | Architecture, data flow diagram, modules, env table, verification. |
 | [README_UPGRADE.md](README_UPGRADE.md) | Guide for upgrading between DRIFT versions. |
+| [SECURITY_SCANNER.md](SECURITY_SCANNER.md) | Input security scanner (`core/security_defense.py`): categories, thresholds, operator runbook. |
 | [TEST_RISKS.md](TEST_RISKS.md) | Testing caveats and risk notes. |
 | [UPGRADE_BACKLOG.md](UPGRADE_BACKLOG.md) | Planned improvements backlog. |
+| [VAULT_STABILITY_NOTES.md](VAULT_STABILITY_NOTES.md) | Svalbard Vault + PEDI regulator stability surface and outstanding action items. |
 
 ---
 
