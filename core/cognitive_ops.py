@@ -45,4 +45,4 @@ def state_conditioned_llm(worker: ContextWorker[str]) -> str:
         mode = "Standard Empathic"
         prompt = "Answer warmly and directly."
         
-    return f"[{mode}] LLM Output generated based on state."
+    return f"[{mode}] {prompt}"

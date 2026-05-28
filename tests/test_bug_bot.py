@@ -69,9 +69,9 @@ sys.modules["infj_bot.core.memory"] = _memory_stub
 
 from infj_bot.core.plugins.findings_db import Finding, FindingsDB  # noqa: E402
 from infj_bot.core.plugins.report_builder import ReportBuilder  # noqa: E402
-from infj_bot.core.bug_bot import BugBot, RECON_DIR  # noqa: E402
-from infj_bot.core.plugins.target_manager import TargetManager  # noqa: E402
-from infj_bot.core.commands import _parse_kv_bug_add  # noqa: E402
+from infj_bot.core.bug_bot import BugBot, RECON_DIR  # noqa: E402, F401
+from infj_bot.core.plugins.target_manager import TargetManager  # noqa: E402, F401
+from infj_bot.core.commands import _parse_kv_bug_add  # noqa: E402, F401
 
 # ---------------------------------------------------------------------------
 # Restore the original modules immediately after imports are resolved
@@ -285,7 +285,7 @@ class TestBugBotStats:
 
 class TestBugBotGenerateReport:
     def test_generate_report_writes_file(self, bot) -> None:
-        from infj_bot.core.bug_bot import RECON_DIR
+        from infj_bot.core.bug_bot import RECON_DIR  # noqa: F811
 
         RECON_DIR.mkdir(parents=True, exist_ok=True)
         bot.add_finding(title="LFI", severity="P2", asset="cdn.example.com")
@@ -449,7 +449,7 @@ class TestNucleiDeduplication:
 
 class TestBugAddKeyValueParsing:
     def test_parse_kv_all_keys(self) -> None:
-        from infj_bot.core.commands import _parse_kv_bug_add
+        from infj_bot.core.commands import _parse_kv_bug_add  # noqa: F811
 
         text = (
             "title=SQL Injection via search severity=P2 asset=api.example.com "
@@ -467,13 +467,13 @@ class TestBugAddKeyValueParsing:
         assert result.get("fix") == "Use params"
 
     def test_parse_kv_minimal(self) -> None:
-        from infj_bot.core.commands import _parse_kv_bug_add
+        from infj_bot.core.commands import _parse_kv_bug_add  # noqa: F811
 
         result = _parse_kv_bug_add("title=XSS Bug")
         assert result.get("title") == "XSS Bug"
 
     def test_parse_kv_values_with_spaces(self) -> None:
-        from infj_bot.core.commands import _parse_kv_bug_add
+        from infj_bot.core.commands import _parse_kv_bug_add  # noqa: F811
 
         result = _parse_kv_bug_add("title=My Finding With Spaces severity=P1")
         assert result.get("title") == "My Finding With Spaces"

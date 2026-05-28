@@ -82,6 +82,7 @@ _intuition = IntuitionEngine()
 _embodiment = EmbodiedSelf()
 _iit = PhiProxy()
 _homeostasis = HomeostaticRegulator()
+_shadow = get_shadow()
 _last_interaction_time: Optional[datetime] = None
 _last_user_input: str = ""
 _last_interaction_data: Optional[Dict] = None
@@ -556,7 +557,7 @@ async def chat_loop():
             initial_state = worker._ctx.history[0]
             final_state = worker.state
             diff = calculate_state_diff(initial_state, final_state)
-            print(f"\n[*] Comonadic Workspace Bridge active. State Transition Diff:")
+            print("\n[*] Comonadic Workspace Bridge active. State Transition Diff:")
             for k, v in diff.items():
                 if v != 0:
                     print(f"   {k}: {v:+.2f}")
