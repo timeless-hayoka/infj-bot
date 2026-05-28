@@ -448,15 +448,80 @@ async def chat_loop():
             print(f"\n[INFJ COMPANION]: {output}")
             continue
 
-        prompt, emotion, dissonance = _orchestrator.assemble_prompt(
+        # Extract atomic raw active state snapshot before GWT/PEDI smoothing
+        raw_active_state = {
+            "coherence": 0.8,
+            "resonance": 0.8,
+            "tension": 0.2,
+            "shadow_depth": 0.2
+        }
+        try:
+            physics_state = _physics.get_state()
+            raw_active_state["resonance"] = physics_state.get("resonance", 0.8)
+            raw_active_state["tension"] = physics_state.get("tension", 0.2)
+        except Exception:
+            pass
+
+        try:
+            raw_active_state["shadow_depth"] = _shadow.get_state().depth
+        except Exception:
+            pass
+
+        try:
+            elysium_status = _elysium.council_status()
+            raw_active_state["coherence"] = elysium_status.get("nexus", {}).get("coherence_score", 0.8)
+        except Exception:
+            pass
+
+        def generate_response_func(u_input, regulated_state):
+            # Align subsystems with regulated state before prompt assembly
+            try:
+                _physics.state.resonance = regulated_state.get("resonance", 0.8)
+                _physics.state.tension = regulated_state.get("tension", 0.2)
+                _physics._save_state()
+            except Exception:
+                pass
+
+            try:
+                _shadow._state.depth = regulated_state.get("shadow_depth", 0.2)
+                _shadow._save_state()
+            except Exception:
+                pass
+
+            # Assemble prompt with regulated states in place
+            prompt, emotion, dissonance = _orchestrator.assemble_prompt(
+                u_input,
+                state,
+                memory,
+                goals_db=goals_db,
+                doc_store=doc_store,
+                prefs=state.prefs,
+            )
+            # Generate LLM response
+            output = brain.agent_turn(prompt, tools_enabled=True)
+            
+            # Save prompt/emotion/dissonance to closure scope
+            generate_response_func.prompt = prompt
+            generate_response_func.emotion = emotion
+            generate_response_func.dissonance = dissonance
+            
+            return output
+
+        # Run regulated CLI cycle
+        output, regulated_state, status = await asyncio.to_thread(
+            _workspace.execute_cli_cycle,
+            raw_active_state,
             user_input,
-            state,
-            memory,
-            goals_db=goals_db,
-            doc_store=doc_store,
-            prefs=state.prefs,
+            generate_response_func
         )
-        output = await asyncio.to_thread(brain.agent_turn, prompt, tools_enabled=True)
+
+        # Retrieve prompt, emotion, and dissonance from the call
+        prompt = getattr(generate_response_func, "prompt", "")
+        emotion = getattr(generate_response_func, "emotion", {"label": "neutral", "intensity": 0.5})
+        dissonance = getattr(generate_response_func, "dissonance", {"score": 0.0})
+
+        if status != "STABLE":
+            print(f"\n[*] PEDI Fly-By-Wire status: {status}")
 
         # Self-evaluation
         try:

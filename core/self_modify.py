@@ -560,9 +560,9 @@ class SelfModification:
             ).fetchone()
             if not row:
                 return
-            target_dim = row[4]
-            target_score = row[5]
-            strategy = row[6]
+            target_dim = row[3]
+            target_score = row[4]
+            strategy = row[5]
 
         current_score = recent_assessment.get("scores", {}).get(target_dim, 0.0)
         effectiveness = max(0.0, min(1.0, (current_score - target_score + 0.15) / 0.3))

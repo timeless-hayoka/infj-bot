@@ -381,15 +381,16 @@ class ChainNavigator:
 
     def list_active(self) -> List[Dict]:
         """List all active in-session chains."""
-        return [
-            {
-                "chain_id": c.chain_id,
-                "query": c.query[:60],
-                "steps": len(c.nodes),
-                "status": c.status,
-            }
-            for c in self._active_chains.values()
-        ]
+        active = []
+        for scope_cache in self._active_chains.values():
+            for c in scope_cache.values():
+                active.append({
+                    "chain_id": c.chain_id,
+                    "query": c.query[:60],
+                    "steps": len(c.nodes),
+                    "status": c.status,
+                })
+        return active
 
     def get_chain(
         self, chain_id: str, scope: Optional[str] = None

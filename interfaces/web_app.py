@@ -39,12 +39,195 @@ from infj_bot.core.plugins.documents import DocumentStore
 from infj_bot.core.prompt_builder import build_chat_prompt
 
 
-brain = DriftBrain()
-memory = DriftMemory()
-history = ChatHistory()
-state = BotState(authorized_targets=set(DEFAULT_AUTHORIZED_TARGETS))
-goals_db = GoalsDB()
-doc_store = DocumentStore()
+from infj_bot.core.plugins.preferences import PreferenceStore
+from infj_bot.core.plugins.scheduler import TaskScheduler
+from infj_bot.core.plugins.self_eval import SelfEvaluator
+from infj_bot.core.gen_cache import DiskGenCache
+
+SESSIONS_DIR = STATE_ROOT / "sessions"
+SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
+
+sessions = {}
+sessions_lock = threading.Lock()
+
+class SessionResources:
+    def __init__(self, session_id: str):
+        self.session_id = session_id
+        if session_id == "global":
+            self.session_dir = STATE_ROOT / "global_session"
+        else:
+            self.session_dir = SESSIONS_DIR / session_id
+        self.session_dir.mkdir(parents=True, exist_ok=True)
+        
+        # 1. State (isolated PreferenceStore and TaskScheduler)
+        self.state = BotState(
+            authorized_targets=set(DEFAULT_AUTHORIZED_TARGETS),
+            prefs=PreferenceStore(db_path=self.session_dir / "preferences.db"),
+            scheduler=TaskScheduler(db_path=self.session_dir / "scheduler.db")
+        )
+        
+        # 2. Memory
+        self.memory = DriftMemory(
+            persist_directory=str(self.session_dir / "memory")
+        )
+        
+        # 3. Document Store
+        self.doc_store = DocumentStore(
+            persist_directory=str(self.session_dir / "chroma_db")
+        )
+        
+        # 4. Goals DB
+        self.goals_db = GoalsDB(
+            db_path=self.session_dir / "goals.db"
+        )
+        
+        # 5. History
+        self.history = ChatHistory(
+            path=self.session_dir / "history.jsonl"
+        )
+        
+        # 6. Brain (with custom evaluator and disk cache)
+        evaluator = SelfEvaluator(db_path=self.session_dir / "self_eval.db")
+        try:
+            disk_cache = DiskGenCache(
+                path=self.session_dir / "drift_gen_cache.sqlite3"
+            )
+        except Exception:
+            disk_cache = None
+        self.brain = DriftBrain(evaluator=evaluator, disk_cache=disk_cache)
+        
+        self.last_accessed = time.time()
+        
+    def close(self):
+        # Close disk cache connection to release file descriptors
+        if hasattr(self.brain, "_disk_cache") and self.brain._disk_cache:
+            try:
+                self.brain._disk_cache.close()
+            except Exception:
+                pass
+
+
+def get_session(session_id: str = None) -> SessionResources:
+    if not session_id:
+        session_id = "global"
+    with sessions_lock:
+        if session_id not in sessions:
+            sessions[session_id] = SessionResources(session_id)
+        else:
+            sessions[session_id].last_accessed = time.time()
+        return sessions[session_id]
+
+
+def get_request_session_id():
+    """Extracts session_id from JSON payload or cookie fallback."""
+    session_id = None
+    if request.is_json:
+        try:
+            payload = request.json or {}
+            session_id = payload.get("session_id")
+        except Exception:
+            pass
+    if not session_id:
+        session_id = request.cookies.get("drift_session_id")
+    return session_id
+
+
+def prune_and_cleanup_sessions():
+    """Prunes inactive in-memory sessions and cleans up old disk folders."""
+    while True:
+        try:
+            now = time.time()
+            # 1. Prune in-memory sessions (30 mins inactivity)
+            with sessions_lock:
+                inactive_keys = []
+                for sid, sres in sessions.items():
+                    if sid == "global":
+                        continue
+                    if now - sres.last_accessed > 1800:  # 30 mins
+                        inactive_keys.append(sid)
+                for sid in inactive_keys:
+                    print(f"Pruning in-memory session: {sid}")
+                    sres = sessions.pop(sid)
+                    sres.close()
+            
+            # 2. Cleanup old session folders on disk (not accessed for over 7 days)
+            if SESSIONS_DIR.exists():
+                import shutil
+                for p in SESSIONS_DIR.iterdir():
+                    if p.is_dir():
+                        with sessions_lock:
+                            is_loaded = p.name in sessions
+                        if not is_loaded:
+                            try:
+                                mtime = p.stat().st_mtime
+                                for filepath in p.rglob("*"):
+                                    if filepath.is_file():
+                                        mtime = max(mtime, filepath.stat().st_mtime)
+                                if now - mtime > 7 * 86400:
+                                    print(f"Deleting expired session folder on disk: {p.name}")
+                                    shutil.rmtree(p, ignore_errors=True)
+                            except Exception:
+                                pass
+        except Exception as e:
+            print(f"Error in pruning sessions: {e}")
+        gevent.sleep(300)
+
+
+def background_cognitive_loop():
+    """Background loop to tick homeostasis, shadow, and embodiment for the active sessions."""
+    from infj_bot.core.being import get_being
+    from infj_bot.core.homeostasis import get_homeostasis
+    from infj_bot.core.shadow import get_shadow
+    from infj_bot.core.dii_tracker import get_dii_tracker
+    from infj_bot.core.global_workspace import get_workspace
+    
+    being = get_being()
+    homeostasis = get_homeostasis()
+    shadow = get_shadow()
+    tracker = get_dii_tracker()
+    workspace = get_workspace()
+    
+    while True:
+        try:
+            # Update embodiment / heartbeat / breath with some dynamic variations
+            embodiment_plugin = cognitive_orchestrator.arch.get_plugin("embodiment")
+            embodiment = embodiment_plugin.instance if embodiment_plugin else None
+            if embodiment:
+                import random
+                bpm = getattr(embodiment, "heartbeat_bpm", 72)
+                bpm += random.uniform(-1.5, 1.5)
+                bpm = max(60, min(100, bpm))
+                setattr(embodiment, "heartbeat_bpm", bpm)
+                
+                phase = getattr(embodiment, "breath_phase", "exhale")
+                depth = getattr(embodiment, "breath_depth", 0.65)
+                depth += random.uniform(-0.05, 0.05)
+                depth = max(0.3, min(0.95, depth))
+                setattr(embodiment, "breath_depth", depth)
+                
+                if random.random() < 0.2:
+                    setattr(embodiment, "breath_phase", "inhale" if phase == "exhale" else "exhale")
+
+            # Let homeostasis and shadow run their background cycles
+            if hasattr(shadow, "background_tick"):
+                shadow.background_tick(being=being)
+            if hasattr(homeostasis, "background_cycle"):
+                homeostasis.background_cycle(being=being)
+                
+            # Compute tracker metrics
+            if hasattr(tracker, "compute"):
+                tracker.compute(
+                    being=being,
+                    workspace=workspace,
+                    homeostasis=homeostasis,
+                    shadow=shadow,
+                    orchestrator=cognitive_orchestrator,
+                )
+        except Exception as e:
+            print(f"Error in background cognitive cycle: {e}")
+        gevent.sleep(4.0)
+
+
 _MAX_PAYLOAD = 1_048_576  # 1 MB
 
 
@@ -402,33 +585,33 @@ refreshGrowth();
 </html>"""
 
 
-def chat_reply(message):
+def chat_reply(message, session_res: SessionResources):
     prompt, emotion, dissonance = build_chat_prompt(
         message,
-        state,
-        memory,
-        goals_db=goals_db,
-        doc_store=doc_store,
-        prefs=state.prefs,
+        session_res.state,
+        session_res.memory,
+        goals_db=session_res.goals_db,
+        doc_store=session_res.doc_store,
+        prefs=session_res.state.prefs,
     )
-    output = brain.agent_turn(prompt, tools_enabled=True)
+    output = session_res.brain.agent_turn(prompt, tools_enabled=True)
     try:
-        brain.evaluate_last(prompt, output)
+        session_res.brain.evaluate_last(prompt, output)
     except Exception:
         pass
     importance = min(
         0.95, 0.45 + emotion["intensity"] * 0.3 + dissonance["score"] * 0.15
     )
-    memory.save_interaction(
+    session_res.memory.save_interaction(
         message,
         output,
-        mode=state.mode,
+        mode=session_res.state.mode,
         emotion=emotion,
         importance=importance,
         dissonance=dissonance,
     )
-    history.append(message, output, state.mode, emotion, dissonance)
-    state.turns += 1
+    session_res.history.append(message, output, session_res.state.mode, emotion, dissonance)
+    session_res.state.turns += 1
     return output
 
 
@@ -460,6 +643,7 @@ def is_trial_active(session_id):
 @app.route("/trial")
 def start_trial():
     import uuid
+    from flask import make_response
 
     session_id = str(uuid.uuid4())
     trial_sessions[session_id] = time.time()
@@ -472,7 +656,9 @@ def start_trial():
         "async function post(path, body={}) {",
         "async function post(path, body={}) {\n  if(typeof DRIFT_SESSION_ID !== 'undefined') body.session_id = DRIFT_SESSION_ID;",
     )
-    return trial_html
+    resp = make_response(trial_html)
+    resp.set_cookie("drift_session_id", session_id, max_age=1800, httponly=True, samesite="Lax")
+    return resp
 
 
 def broadcast_observatory_state():
@@ -515,12 +701,35 @@ def handle_adjust_rate(data):
 
 @app.route("/")
 def index():
-    return INDEX_HTML
+    from flask import make_response
+    session_id = request.cookies.get("drift_session_id")
+    had_cookie = True
+    if not session_id:
+        import uuid
+        session_id = str(uuid.uuid4())
+        had_cookie = False
+    
+    # Inject session_id into JS
+    html = INDEX_HTML.replace(
+        "document.querySelector('#form').onsubmit",
+        f"const DRIFT_SESSION_ID = '{session_id}';\n"
+        + "document.querySelector('#form').onsubmit",
+    ).replace(
+        "async function post(path, body={}) {",
+        "async function post(path, body={}) {\n  if(typeof DRIFT_SESSION_ID !== 'undefined') body.session_id = DRIFT_SESSION_ID;",
+    )
+    
+    resp = make_response(html)
+    if not had_cookie:
+        resp.set_cookie("drift_session_id", session_id, max_age=30*86400, httponly=True, samesite="Lax")
+    return resp
 
 
 @app.route("/api/growth", methods=["GET"])
 def get_growth():
-    return jsonify(growth_profile(memory, state.turns))
+    session_id = get_request_session_id()
+    session_res = get_session(session_id)
+    return jsonify(growth_profile(session_res.memory, session_res.state.turns))
 
 
 @app.route("/api/tags", methods=["GET"])
@@ -542,14 +751,17 @@ def ollama_tags():
 
 @app.route("/api/chat", methods=["POST"])
 def api_chat():
-    payload = request.json
+    payload = request.json or {}
+    session_id = get_request_session_id()
 
     # Check for trial session
-    session_id = payload.get("session_id")
-    if session_id and not is_trial_active(session_id):
-        return jsonify(
-            {"error": "Trial session expired. Please start a new session at /trial"}
-        ), 403
+    if session_id and session_id in trial_sessions:
+        if not is_trial_active(session_id):
+            return jsonify(
+                {"error": "Trial session expired. Please start a new session at /trial"}
+            ), 403
+
+    session_res = get_session(session_id)
 
     # Check if this is an Ollama-style request (from Reins)
     if "messages" in payload:
@@ -562,7 +774,7 @@ def api_chat():
         if not user_message:
             return jsonify({"error": "No user message found"}), 400
 
-        reply_text = chat_reply(user_message)
+        reply_text = chat_reply(user_message, session_res)
 
         return jsonify(
             {
@@ -579,7 +791,7 @@ def api_chat():
         message = message.strip()
     if not message:
         return jsonify({"error": "message is required"}), 400
-    return jsonify({"reply": chat_reply(message)})
+    return jsonify({"reply": chat_reply(message, session_res)})
 
 
 @app.route("/v1/chat/completions", methods=["POST", "OPTIONS"])
@@ -587,7 +799,10 @@ def openai_chat_completions():
     if request.method == "OPTIONS":
         return "", 200
 
-    payload = request.json
+    payload = request.json or {}
+    session_id = get_request_session_id()
+    session_res = get_session(session_id)
+    
     messages = payload.get("messages", [])
 
     # Extract the last user message
@@ -601,7 +816,7 @@ def openai_chat_completions():
         return jsonify({"error": "No user message found"}), 400
 
     # Get reply from infj_bot
-    reply_text = chat_reply(user_message)
+    reply_text = chat_reply(user_message, session_res)
 
     # Format as OpenAI response
     import uuid
@@ -625,16 +840,19 @@ def openai_chat_completions():
 
 @app.route("/api/command", methods=["POST"])
 def api_command():
-    payload = request.json
+    payload = request.json or {}
+    session_id = get_request_session_id()
+    session_res = get_session(session_id)
+    
     reply = handle_command(
         payload.get("command", ""),
         payload.get("args", ""),
-        state,
-        brain,
-        memory,
-        history,
-        goals_db,
-        doc_store,
+        session_res.state,
+        session_res.brain,
+        session_res.memory,
+        session_res.history,
+        session_res.goals_db,
+        session_res.doc_store,
     )
     return jsonify({"reply": reply})
 
@@ -658,7 +876,10 @@ def observatory():
             path = Path("/home/crexs/templates/observatory.html")
         with open(path, "r", encoding="utf-8") as f:
             content = f.read()
-        return render_template_string(content)
+        from flask import make_response
+        resp = make_response(content)
+        resp.headers["Content-Type"] = "text/html"
+        return resp
     except Exception as e:
         return str(e), 500
 
@@ -672,7 +893,10 @@ def glyph():
             path = Path("/home/crexs/Downloads/PHI Glyph System.html")
         with open(path, "r", encoding="utf-8") as f:
             content = f.read()
-        return render_template_string(content)
+        from flask import make_response
+        resp = make_response(content)
+        resp.headers["Content-Type"] = "text/html"
+        return resp
     except Exception as e:
         return str(e), 500
 
@@ -681,6 +905,11 @@ def main():
     import os
 
     print("🚀 DRIFT Web App: Gevent + Compression + Delta Logic Active")
+    
+    # Spawn background greenlets for cognitive and session management
+    gevent.spawn(background_cognitive_loop)
+    gevent.spawn(prune_and_cleanup_sessions)
+    
     port = int(os.getenv("PORT", 7860))
     socketio.run(app, host="0.0.0.0", port=port, debug=False, use_reloader=False)
 

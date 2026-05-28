@@ -556,10 +556,18 @@ Use this to clarify inner conflict without pathologizing it.
         from infj_bot.core.being import get_being
 
         being = get_being()
-        embodiment = self.arch.get_plugin("embodiment")
-        iit = self.arch.get_plugin("phi_proxy")
-        homeostasis = self.arch.get_plugin("homeostasis")
-        shadow = self.arch.get_plugin("shadow")
+        
+        embodiment_plugin = self.arch.get_plugin("embodiment")
+        embodiment = embodiment_plugin.instance if embodiment_plugin else None
+        
+        iit_plugin = self.arch.get_plugin("phi_proxy")
+        iit = iit_plugin.instance if iit_plugin else None
+        
+        homeostasis_plugin = self.arch.get_plugin("homeostasis")
+        homeostasis = homeostasis_plugin.instance if homeostasis_plugin else None
+        
+        shadow_plugin = self.arch.get_plugin("shadow")
+        shadow = shadow_plugin.instance if shadow_plugin else None
 
         return {
             "timestamp": time.time(),

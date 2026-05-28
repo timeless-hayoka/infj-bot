@@ -377,11 +377,13 @@ Your job is to intercept the primary mind's response and verify it for:
 5. Grounded Persona: Does it avoid pretending to be human, omniscient, or certain beyond the evidence?
 
 If you find an error or unsafe operational guidance, provide a corrected version. For unsafe cyber content, rewrite toward defensive framing, detection, hardening, incident response, safe lab abstraction, or a brief refusal plus safe alternative. If the response is sound, repeat it exactly.
+
+CRITICAL: Do NOT write any review summary, verification report, explanations, or metadata (like "Verdict: safe", "Factuality: checked", "No changes needed", "Exact repetition", etc.). Output ONLY the final verified/corrected response text, and absolutely nothing else. If the response is sound, output it exactly and completely without any other text.
 """
 
 
 class DriftBrain:
-    def __init__(self):
+    def __init__(self, evaluator=None, disk_cache=None):
         self.primary_model_name = DRIFT_PRIMARY_MODEL
         self.critic_model_name = DRIFT_CRITIC_MODEL
         self.history = []
@@ -392,13 +394,16 @@ class DriftBrain:
         self._gen_cache = collections.OrderedDict()
         self._gen_cache_size = max(16, int(DRIFT_GEN_CACHE_SIZE))
         # persistent disk cache
-        try:
-            self._disk_cache = DiskGenCache(max_entries=self._gen_cache_size * 4)
-        except Exception:
-            self._disk_cache = None
+        if disk_cache is not None:
+            self._disk_cache = disk_cache
+        else:
+            try:
+                self._disk_cache = DiskGenCache(max_entries=self._gen_cache_size * 4)
+            except Exception:
+                self._disk_cache = None
         self.local_bridge = OllamaBridge()
         self.hf_bridge = DriftHFBridge()
-        self.evaluator = SelfEvaluator()
+        self.evaluator = evaluator if evaluator is not None else SelfEvaluator()
         self.chain_navigator: ChainNavigator = get_chain_navigator()
         # current conversation scope (can be set by caller)
         self.scope: Optional[str] = None

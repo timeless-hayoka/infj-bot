@@ -21,11 +21,19 @@ import logging
 import os
 import sqlite3
 import threading
+import sys
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Dict, List, Optional
 
 from infj_bot.core.config import DATA_DIR
+
+try:
+    from infj_bot.core.svalbard_vault import SvalbardVault
+    from infj_bot.core.pedi_metrics import PEDIEngine
+except ImportError:
+    from svalbard_vault import SvalbardVault
+    from pedi_metrics import PEDIEngine
 
 logger = logging.getLogger("drift")
 WORKSPACE_DB = DATA_DIR / "workspace.db"
@@ -116,6 +124,72 @@ class GlobalWorkspace:
         self._init_db()
         self._load_state()
 
+        # PEDI & Svalbard integration (Fly-by-wire)
+        self.vault = SvalbardVault()
+        self.vault.verify_identity_integrity(full_chain=False) 
+        self.pedi = PEDIEngine(self.vault)
+        self._self_check_diagnostics(self.pedi, self.vault)
+
+    def _self_check_diagnostics(self, pedi_engine, vault):
+        print("[SYSTEM] Running Global Workspace integration check...")
+        if not pedi_engine or not vault:
+            print("[CRITICAL] Workspace disconnected from identity regulator or vault.")
+            sys.exit(1)
+        print("[SYSTEM] Regulatory triad verified. Workspace is live.")
+
+    def _lantern_4_veto(self, user_input: str, sys_response: str, active_state: dict) -> tuple[bool, bool]:
+        """Returns (approved: bool, quarantine: bool)"""
+        resonance = active_state.get("resonance", 0.0)
+        shadow_depth = active_state.get("shadow_depth", 0.0)
+
+        # Criteria 1: Must have high resonance to even be considered
+        if resonance < 0.85:
+            return False, False
+            
+        # Criteria 2: Semantic Density Override
+        # If resonance is absolute fire, ignore length constraints.
+        if resonance < 0.95:
+            if len(user_input.split()) < 5 or len(sys_response.split()) < 10:
+                print("[LANTERN-4] Rejected: Exchange lacks semantic depth.")
+                return False, False
+                
+        # Criteria 3: Shadow Quarantine Protocol
+        # Accept messy breakthroughs, but flag them so PEDI doesn't anchor to them blindly.
+        quarantine = False
+        if shadow_depth > 0.75:
+            print(f"[LANTERN-4] High Shadow Depth ({shadow_depth}). Marking block for quarantine.")
+            quarantine = True
+            
+        print("[LANTERN-4] Nomination approved.")
+        return True, quarantine
+
+    def execute_cli_cycle(self, raw_active_state: dict, user_input: str, generate_response_func):
+        """
+        The main hook for your AntiGravity CLI.
+        Pass the active state, the user input, and your LLM generation function.
+        """
+        # 1. PEDI Fly-By-Wire Regulation (Fix state BEFORE thinking)
+        regulated_state, correction, status = self.pedi.evaluate_cycle(raw_active_state)
+        
+        # 2. Act using aligned state
+        # (Your CLI calls its actual LLM here, passing the regulated state as context)
+        sys_response = generate_response_func(user_input, regulated_state)
+        
+        # 3. Lantern-4 Veto & Svalbard Sealing (Post-action evaluation)
+        if status == "EVOLVING" or regulated_state.get("resonance", 0.0) > 0.90:
+            approved, quarantine = self._lantern_4_veto(user_input, sys_response, regulated_state)
+            if approved:
+                self.vault.deposit_core_memory(
+                    event=f"CLI Milestone: {user_input[:40]}...",
+                    user_q=user_input,
+                    sys_q=sys_response,
+                    current_state=regulated_state,
+                    quarantined=quarantine
+                )
+                
+        # Return the regulated state so your CLI loop can persist it to the next turn
+        return sys_response, regulated_state, status
+
     # ── Properties for direct access (used by dii_tracker, etc.) ──────────
 
     @property
@@ -141,6 +215,11 @@ class GlobalWorkspace:
                     tier TEXT
                 )
             """)
+            # Migration: add 'tier' column if it does not exist in legacy table
+            try:
+                conn.execute("ALTER TABLE workspace_history ADD COLUMN tier TEXT")
+            except sqlite3.OperationalError:
+                pass
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS workspace_state (
                     key TEXT PRIMARY KEY,

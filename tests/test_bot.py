@@ -280,7 +280,10 @@ class TestTools(unittest.TestCase):
         self._orig_safe_home = None
         self._orig_cold_storage_dir = None
         self._orig_tool_audit_path = None
-        import tools
+        try:
+            import tools
+        except ImportError:
+            import infj_bot.core.tools as tools
         import infj_bot.core.tools as core_tools
 
         self._orig_safe_home = core_tools.SAFE_HOME
@@ -298,7 +301,10 @@ class TestTools(unittest.TestCase):
         tools.TOOL_AUDIT_PATH = core_tools.TOOL_AUDIT_PATH
 
     def tearDown(self):
-        import tools
+        try:
+            import tools
+        except ImportError:
+            import infj_bot.core.tools as tools
         import infj_bot.core.tools as core_tools
 
         if self._orig_safe_home is not None:

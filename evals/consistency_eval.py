@@ -202,7 +202,7 @@ class ConsistencyEvaluator:
         from infj_bot.core.plugins.values import ValueSystem
 
         vs = ValueSystem()
-        stated_values = set(v.lower() for v in vs.get_top_values())
+        stated_values = set(v["name"].lower() for v in vs.get_top_values())
         if not stated_values:
             return 1.0
 
