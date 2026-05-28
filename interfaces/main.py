@@ -41,7 +41,7 @@ from infj_bot.core.cognitive_architecture import CognitiveArchitecture, CycleCon
 from infj_bot.core.hive.elysium import get_elysium
 from infj_bot.core.dii_tracker import get_dii_tracker
 import sys
-from infj_bot.core.context_engine import CognitiveState, Context, ContextWorker
+from infj_bot.core.context_engine import CognitiveState, Context, ContextWorker, CognitivePayload
 from infj_bot.core.cognitive_ops import pedi_regulation_step, state_conditioned_llm
 from infj_bot.interfaces.comonad_cli import calculate_state_diff
 
@@ -520,13 +520,14 @@ async def chat_loop():
                 tension=raw_active_state.get("tension", 0.2),
                 shadow_depth=raw_active_state.get("shadow_depth", 0.2)
             )
-            ctx = Context[str](state=cogn_state, value=user_input)
-            worker = ContextWorker[str](ctx)
-            
+            payload = CognitivePayload(user_input=user_input)
+            ctx = Context[CognitivePayload](state=cogn_state, value=payload)
+            worker = ContextWorker[CognitivePayload](ctx)
+
             # Comonad extension pipeline
             worker = worker.extend(pedi_regulation_step)
             worker = worker.extend(state_conditioned_llm)
-            
+
             # Align subsystems with comonadic state
             try:
                 _physics.state.resonance = worker.state.resonance
@@ -539,7 +540,7 @@ async def chat_loop():
                 _shadow._save_state()
             except Exception:
                 pass
-                
+
             prompt, emotion, dissonance = _orchestrator.assemble_prompt(
                 user_input,
                 state,
@@ -548,20 +549,20 @@ async def chat_loop():
                 doc_store=doc_store,
                 prefs=state.prefs,
             )
-            prompt = f"[System Direction: {worker.current()}]\n{prompt}"
-            
+            prompt = f"[System Direction: {worker.current().response}]\n{prompt}"
+
             # Generate LLM response
             output = brain.agent_turn(prompt, tools_enabled=True, raw_user_input=user_input)
-            
+
             # Log drift and vault deposit
-            initial_state = worker._ctx.history[0]
+            initial_state = worker.history[0]
             final_state = worker.state
             diff = calculate_state_diff(initial_state, final_state)
             print("\n[*] Comonadic Workspace Bridge active. State Transition Diff:")
             for k, v in diff.items():
                 if v != 0:
                     print(f"   {k}: {v:+.2f}")
-                    
+
             try:
                 _workspace.vault.deposit_core_memory(
                     event=f"CLI Comonadic Milestone: {user_input[:40]}...",
@@ -572,7 +573,7 @@ async def chat_loop():
                 )
             except Exception:
                 pass
-                
+
             regulated_state = final_state.model_dump()
             status = "STABLE"
         else:

@@ -1,21 +1,25 @@
-from infj_bot.core.context_engine import ContextWorker, CognitiveState
+from typing import Callable
+from infj_bot.core.context_engine import ContextWorker, CognitiveState, CognitivePayload
 
-def pedi_regulation_step(worker: ContextWorker[str]) -> tuple[str, CognitiveState]:
+
+def pedi_regulation_step(
+    worker: ContextWorker[CognitivePayload],
+) -> tuple[CognitivePayload, CognitiveState]:
     """
     Evaluates the raw input state and dampens extremes.
-    Returns: (Log message, Updated State)
+    Writes to payload.internal_log; returns updated payload + state.
     """
-    current_input = worker.current()
-    state = worker.state.model_copy() # Copy to avoid mutating the original
-    
-    log_msg = f"Received input: '{current_input}'."
+    payload = worker.current().model_copy()
+    state = worker.state.model_copy()
+
+    log_msg = f"Received input: '{payload.user_input}'."
 
     # PEDI Dampening Logic
     if state.tension > 0.6:
         state.tension -= 0.2
         state.coherence -= 0.1
         log_msg += " [PEDI: Tension damped, coherence slightly reduced]"
-        
+
     if state.shadow_depth > 0.7:
         state.tension += 0.3
         log_msg += " [PEDI Alert: High shadow depth bleeding into tension]"
@@ -24,14 +28,20 @@ def pedi_regulation_step(worker: ContextWorker[str]) -> tuple[str, CognitiveStat
     state.tension = max(0.0, min(1.0, state.tension))
     state.coherence = max(0.0, min(1.0, state.coherence))
 
-    return log_msg, state
+    payload.internal_log = log_msg
+    return payload, state
 
-def state_conditioned_llm(worker: ContextWorker[str]) -> str:
+
+def state_conditioned_llm(
+    worker: ContextWorker[CognitivePayload],
+) -> CognitivePayload:
     """
     The Affective Logic Gate. Decides HOW to query the LLM based on the current state.
+    Writes to payload.response; leaves payload.internal_log untouched.
     """
+    payload = worker.current().model_copy()
     state = worker.state
-    
+
     if state.coherence > 0.6 and state.tension < 0.5:
         mode = "Strict Logical Deduction"
         prompt = "Answer purely factually and logically."
@@ -44,5 +54,23 @@ def state_conditioned_llm(worker: ContextWorker[str]) -> str:
     else:
         mode = "Standard Empathic"
         prompt = "Answer warmly and directly."
-        
-    return f"[{mode}] {prompt}"
+
+    payload.response = f"[{mode}] {prompt}"
+    return payload
+
+
+def predicted_transition_step(
+    worker: ContextWorker[CognitivePayload],
+    predictor: "Callable[[CognitiveState], CognitiveState]",
+) -> tuple[CognitivePayload, CognitiveState]:
+    """
+    Optional diagnostic step. Runs a predictor against the current state,
+    stores the predicted next state in payload.metadata, then returns
+    the *actual* state (unchanged) so the real pipeline continues.
+
+    Used by TransitionComparator to evaluate predictor accuracy.
+    """
+    payload = worker.current().model_copy()
+    predicted = predictor(worker.state)
+    payload.metadata["predicted_state"] = predicted.model_dump()
+    return payload, worker.state.model_copy()
