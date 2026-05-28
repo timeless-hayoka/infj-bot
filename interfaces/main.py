@@ -498,7 +498,7 @@ async def chat_loop():
                 prefs=state.prefs,
             )
             # Generate LLM response
-            output = brain.agent_turn(prompt, tools_enabled=True)
+            output = brain.agent_turn(prompt, tools_enabled=True, raw_user_input=u_input)
             
             # Save prompt/emotion/dissonance to closure scope
             generate_response_func.prompt = prompt

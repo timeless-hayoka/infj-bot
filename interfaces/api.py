@@ -642,7 +642,7 @@ async def api_chat(request: Request):
         doc_store=doc_store,
         prefs=state.prefs,
     )
-    output = await asyncio.to_thread(brain.agent_turn, prompt, tools_enabled=True)
+    output = await asyncio.to_thread(brain.agent_turn, prompt, tools_enabled=True, raw_user_input=message)
     try:
         await asyncio.to_thread(brain.evaluate_last, prompt, output)
     except Exception:
@@ -723,7 +723,7 @@ async def api_chat_stream(request: Request):
         try:
             # Run synchronous stream in a thread to avoid blocking the event loop
             chunks = await asyncio.to_thread(
-                lambda: list(brain.agent_turn_stream(prompt, tools_enabled=True))
+                lambda: list(brain.agent_turn_stream(prompt, tools_enabled=True, raw_user_input=message))
             )
             for chunk in chunks:
                 yield f"data: {json.dumps({'chunk': chunk})}\n\n"

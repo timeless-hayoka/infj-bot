@@ -76,7 +76,7 @@ def cmd_ask(args):
         prefs=state.prefs,
     )
     try:
-        output = brain.agent_turn(built_prompt, tools_enabled=not args.no_tools)
+        output = brain.agent_turn(built_prompt, tools_enabled=not args.no_tools, raw_user_input=prompt)
         try:
             brain.evaluate_last(built_prompt, output)
         except Exception:

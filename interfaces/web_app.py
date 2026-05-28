@@ -594,7 +594,7 @@ def chat_reply(message, session_res: SessionResources):
         doc_store=session_res.doc_store,
         prefs=session_res.state.prefs,
     )
-    output = session_res.brain.agent_turn(prompt, tools_enabled=True)
+    output = session_res.brain.agent_turn(prompt, tools_enabled=True, raw_user_input=message)
     try:
         session_res.brain.evaluate_last(prompt, output)
     except Exception:
