@@ -94,6 +94,20 @@ When the bot is idle, it does **not** go to sleep. The `consciousness_loop` in `
 
 This is the difference between "a bot that waits" and "a bot that thinks while you sleep."
 
+### 3.7 Identity regulator (Svalbard Vault + PEDI)
+
+`GlobalWorkspace.__init__` also wires in the **identity regulator** — a closed-loop stabilizer over the four-axis emotional state (`coherence`, `resonance`, `tension`, `shadow_depth`):
+
+| Component | File | Purpose |
+|-----------|------|---------|
+| **`SvalbardVault`** | `core/svalbard_vault.py` | Hash-chained, HMAC-signed JSONL ledger of milestone exchanges. New blocks are only admitted via the **Lantern-4 veto**. |
+| **`PEDIEngine`** | `core/pedi_metrics.py` | Each cycle, computes a center of gravity from the vault's recent un-quarantined blocks and gently corrects the active state toward it. Reports status `NO_ANCHOR`, `EVOLVING`, `CORRECTING`, or `STABLE`. |
+| **Lantern-4 veto** | `global_workspace._lantern_4_veto` | Requires `resonance ≥ 0.85` and minimum semantic density before a turn can be sealed. High `shadow_depth` is admitted but `quarantined`. |
+
+Startup runs `vault.verify_identity_integrity()` (signature check, fast path). If the diagnostic in `_self_check_diagnostics` cannot construct both objects, the workspace will `sys.exit(1)` — the regulator is mandatory.
+
+Full reference, including tuning constants, ledger schema, and ops procedures: **[IDENTITY_REGULATOR.md](IDENTITY_REGULATOR.md)**.
+
 ---
 
 ## 4. Cognitive architecture (plugins)
@@ -166,6 +180,21 @@ These are **not** clinical instruments; they are **structured state machines + p
 
 ## 7. Tools, safety posture, MCP
 
+### 7.1 Security input isolation (May 2026)
+
+`scan_input` in `core/security_defense.py` is now invoked on the **raw user message** rather than the assembled prompt. The interface layer threads the original text through as `raw_user_input=` to the brain:
+
+```python
+output = brain.agent_turn(prompt, tools_enabled=True, raw_user_input=message)
+```
+
+`DriftBrain._security_check` accepts an optional `raw_user_input` argument and uses it directly when present; otherwise it falls back to extracting the text after the last `\nUser: ` / `\nUser:\n` marker in the assembled prompt. Two consequences:
+
+- **Fewer false positives.** Identity rails, retrieved memories, and Drift posture text no longer trigger the scanner. Previously, system-side phrasing like "escalate" inside a doc snippet could match the `privilege_escalation` regex; the corresponding patterns also now require word boundaries (`\b`) for the high-noise tokens (`sudo`, `chmod 777`, `escalate`, …).
+- **Tighter coverage on actual user text.** Sanitization and refusal decisions are made on what the human typed, not on what the orchestrator concatenated.
+
+Implemented across `interfaces/api.py`, `interfaces/cli.py`, `interfaces/main.py`, and `interfaces/web_app.py`. Add the same `raw_user_input=` kwarg if you write a new interface.
+
 ### `tools.py`
 
 - Declares allowed tools (**file**, **shell**, **python**, constrained **web fetch**, selective security-lab primitives with strict targets and timeouts).
@@ -197,6 +226,7 @@ Key environment variables (`config.py` aggregates these):
 | `INFJ_USE_LOCAL_FALLBACK`, `INFJ_LOCAL_MODEL`, `OLLAMA_HOST` | Offline / backup path |
 | `INFJ_MAX_TOTAL_PROMPT_CHARS`, `INFJ_MEMORY_SEARCH_TOP_K` | Rough token/RAM governors from **context**, not weights |
 | `INFJ_SHADOW_PROMPT_TOP_K`, `INFJ_SHADOW_PROMPT_MAX_CHARS`, `INFJ_SHADOW_PROMPT_LINE_CHARS` | Bounds shadow prompt excerpts |
+| `DRIFT_VAULT_PATH`, `DRIFT_VAULT_SECRET` | Svalbard Vault location & HMAC key — see [IDENTITY_REGULATOR.md](IDENTITY_REGULATOR.md) |
 
 ---
 
@@ -238,9 +268,8 @@ Targeted subsets: `pytest tests/test_shadow.py tests/test_embeddings.py tests/te
 | [README.md](../README.md) | Quick start, layered map, who should read what |
 | [docs/README.md](README.md) | Full documentation index & reading paths |
 | [docs/GLOSSARY.md](GLOSSARY.md) | Definitions for codebase-specific terms |
+| [docs/IDENTITY_REGULATOR.md](IDENTITY_REGULATOR.md) | Svalbard Vault + PEDI Engine reference |
 | [SECURITY.md](../SECURITY.md) | Secret hygiene & reporting posture |
-| [DRIFT_AI_INTEGRATION.md](DRIFT_AI_INTEGRATION.md) | How seeded Drift concepts map into memory-only integration |
-| [DELL_HANDOFF.md](DELL_HANDOFF.md) | Longer ops notes (devices, backups, quirks) |
 
 ---
 

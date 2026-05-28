@@ -17,6 +17,7 @@ This folder is the canonical **secondary** navigation for DRIFT / INFJ Bot. Star
 |--------|------------|
 | Want to **run** the bot and configure keys | [README § Getting started](../README.md#getting-started) — then `.env.example` at repo root |
 | Want to **understand one chat turn end-to-end** | [HOW_INFJ_BOT_WORKS.md](HOW_INFJ_BOT_WORKS.md) |
+| Need details on **identity persistence (Svalbard / PEDI)** | [IDENTITY_REGULATOR.md](IDENTITY_REGULATOR.md) |
 | Understand the **falsifiability / measurement claims** | [FALSIFIABILITY.md](FALSIFIABILITY.md) |
 | Review **secrets and reporting** | [SECURITY.md](../SECURITY.md) |
 | Plan **hive / observatory work** | [HIVE_ROADMAP.md](HIVE_ROADMAP.md) |
@@ -38,6 +39,7 @@ This folder is the canonical **secondary** navigation for DRIFT / INFJ Bot. Star
 | [GLOSSARY.md](GLOSSARY.md) | Definitions for all DRIFT-specific terms used in code and docs. |
 | [HIVE_ROADMAP.md](HIVE_ROADMAP.md) | Direction for hive / observatory coordination features. |
 | [HOW_INFJ_BOT_WORKS.md](HOW_INFJ_BOT_WORKS.md) | Architecture, data flow diagram, modules, env table, verification. |
+| [IDENTITY_REGULATOR.md](IDENTITY_REGULATOR.md) | Svalbard Vault + PEDI Engine: identity persistence and closed-loop regulation. |
 | [README_UPGRADE.md](README_UPGRADE.md) | Guide for upgrading between DRIFT versions. |
 | [TEST_RISKS.md](TEST_RISKS.md) | Testing caveats and risk notes. |
 | [UPGRADE_BACKLOG.md](UPGRADE_BACKLOG.md) | Planned improvements backlog. |
