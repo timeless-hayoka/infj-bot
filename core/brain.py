@@ -1,3 +1,4 @@
+import threading
 import time
 
 try:
@@ -396,6 +397,9 @@ class DriftBrain:
         # Simple LRU cache for generated responses: key -> text
         self._gen_cache = collections.OrderedDict()
         self._gen_cache_size = max(16, int(DRIFT_GEN_CACHE_SIZE))
+        # In-flight request deduplication: key -> threading.Event
+        self._inflight: dict[str, threading.Event] = {}
+        self._inflight_lock = threading.Lock()
         # persistent disk cache
         if disk_cache is not None:
             self._disk_cache = disk_cache
@@ -782,6 +786,25 @@ class DriftBrain:
         )
 
     def _generate_stream(self, model_name, system_instruction, prompt):
+        # Check cache first — if a non-streaming request already cached this,
+        # replay it as chunks to avoid a duplicate API call.
+        key_raw = f"{model_name}|{system_instruction}|{prompt}"
+        key = hashlib.sha256(key_raw.encode("utf-8", errors="ignore")).hexdigest()
+        if key in self._gen_cache:
+            text = self._gen_cache[key]
+            for i in range(0, len(text), 8):
+                yield text[i:i+8]
+            return
+        if self._disk_cache is not None:
+            try:
+                disk_val = self._disk_cache.get(key)
+                if disk_val is not None:
+                    for i in range(0, len(disk_val), 8):
+                        yield disk_val[i:i+8]
+                    return
+            except Exception:
+                pass
+
         # Prioritize Groq if enabled and key exists
         if DRIFT_USE_GROQ and GROQ_API_KEY:
             has_yielded = False
