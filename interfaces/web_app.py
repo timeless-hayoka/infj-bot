@@ -616,7 +616,8 @@ def chat_reply(message, session_res: SessionResources):
 
 
 app = Flask(__name__)
-app.config["SECRET_KEY"] = "drift-secret-key"
+import secrets, os
+app.config["SECRET_KEY"] = os.environ.get("DRIFT_SECRET_KEY", secrets.token_hex(32))
 
 socketio = SocketIO(
     app, async_mode="gevent", cors_allowed_origins="*", websocket_compression=True
@@ -880,8 +881,9 @@ def observatory():
         resp = make_response(content)
         resp.headers["Content-Type"] = "text/html"
         return resp
-    except Exception as e:
-        return str(e), 500
+    except Exception:
+        app.logger.exception("observatory render failed")
+        return "Internal server error", 500
 
 
 @app.route("/glyph")
@@ -897,8 +899,9 @@ def glyph():
         resp = make_response(content)
         resp.headers["Content-Type"] = "text/html"
         return resp
-    except Exception as e:
-        return str(e), 500
+    except Exception:
+        app.logger.exception("glyph render failed")
+        return "Internal server error", 500
 
 
 def main():

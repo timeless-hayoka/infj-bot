@@ -18,7 +18,8 @@ import requests
 def invoke(
     host: str, port: int, tool: str, args=None, kwargs=None, token: str | None = None
 ) -> Dict[str, Any]:
-    url = f"http://{host}:{port}/invoke/{tool}"
+    protocol = "https" if not host.startswith("127.") and host != "localhost" else "http"
+    url = f"{protocol}://{host}:{port}/invoke/{tool}"
     payload = {"args": args or [], "kwargs": kwargs or {}}
     headers = {}
     if token:

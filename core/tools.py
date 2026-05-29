@@ -852,9 +852,20 @@ def tool_rollback_state(snapshot_name: str) -> str:
         if STATE_ROOT.exists():
             shutil.rmtree(STATE_ROOT)
 
-        # Extract snapshot
+        # Extract snapshot safely — validate members to prevent path traversal
+        import os
+
+        def _safe_extract(tar_file, extract_path):
+            for member in tar_file.getmembers():
+                member_path = os.path.join(extract_path, member.name)
+                real_extract_path = os.path.realpath(extract_path)
+                real_member_path = os.path.realpath(member_path)
+                if not real_member_path.startswith(real_extract_path + os.sep):
+                    raise tarfile.TarError(f"Illegal tar member path: {member.name}")
+                tar_file.extract(member, extract_path)
+
         with tarfile.open(target_path, "r:gz") as tar:
-            tar.extractall(path=STATE_ROOT.parent)
+            _safe_extract(tar, str(STATE_ROOT.parent))
 
         return f"[ok: state rolled back to {snapshot_name}. Refreshing session recommended.]"
     except Exception as exc:
