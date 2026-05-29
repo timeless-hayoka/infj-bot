@@ -769,7 +769,9 @@ class DriftBrain:
                 last_exc = exc
                 if not self._is_transient_model_error(exc) or attempt == 2:
                     break
-                time.sleep(0.5 * (attempt + 1))
+                # Longer backoff for rate limits to avoid hammering the API
+                backoff = self._retry_backoff(exc, attempt)
+                time.sleep(backoff)
         if self._use_local_fallback and self.local_bridge.is_available():
             return self._generate_local(system_instruction, prompt)
         raise last_exc
@@ -821,7 +823,8 @@ class DriftBrain:
                 last_exc = exc
                 if not self._is_transient_model_error(exc) or attempt == 2:
                     break
-                time.sleep(0.5 * (attempt + 1))
+                backoff = self._retry_backoff(exc, attempt)
+                time.sleep(backoff)
         if self._use_local_fallback and self.local_bridge.is_available():
             yield from self._generate_local_stream(system_instruction, prompt)
             return
@@ -876,8 +879,24 @@ class DriftBrain:
             "500",
             "502",
             "504",
+            # Rate-limit / quota errors — retry with longer backoff
+            "429",
+            "quota",
+            "rate",
+            "exhausted",
+            "resource",
+            "limit",
+            "too many requests",
         ]
         return any(marker in text for marker in transient_markers)
+
+    def _retry_backoff(self, exc, attempt: int) -> float:
+        """Calculate retry delay. Rate limits get exponential backoff."""
+        text = f"{type(exc).__name__}: {exc}".lower()
+        is_rate_limit = any(m in text for m in ["429", "quota", "rate", "exhausted", "too many requests"])
+        if is_rate_limit:
+            return 2 ** (attempt + 1)  # 2s, 4s, 8s
+        return 0.5 * (attempt + 1)  # 0.5s, 1s, 1.5s
 
     # ------------------------------------------------------------------
     # Synchronous think
