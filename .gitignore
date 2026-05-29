@@ -65,6 +65,7 @@ scripts/install_drift_hook.sh
 .obsidian/
 *.html
 !interfaces/templates/*.html
+!index.html
 ablation_results/
 
 # Python build artifacts
