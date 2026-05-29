@@ -261,12 +261,15 @@ INDEX_HTML = """<!doctype html>
         display: grid; 
         grid-template-columns: 1fr 340px; 
         height: 100vh; 
+        overflow: hidden;
     }
 
     section#chat { 
         display: flex; 
         flex-direction: column; 
         padding: 20px;
+        min-height: 0;
+        overflow: hidden;
         background-image: radial-gradient(circle at 50% 50%, #0a0a0a 0%, #050505 100%);
     }
 
@@ -361,6 +364,7 @@ INDEX_HTML = """<!doctype html>
         background: var(--bg-surface); 
         border-left: 1px solid var(--border-dim); 
         padding: 20px;
+        min-height: 0;
         overflow-y: auto;
         scrollbar-width: none;
     }
@@ -469,6 +473,26 @@ INDEX_HTML = """<!doctype html>
     .creature .mouth { position: absolute; left: 29px; top: 47px; width: 10px; height: 5px; border-bottom: 2px solid #000; border-radius: 0 0 12px 12px; z-index: 2; }
     .creature .leaf { position: absolute; left: 28px; top: 3px; width: 10px; height: 24px; border-radius: 90% 10% 90% 10%; background: #fff; transform-origin: bottom center; transform: rotate(-22deg); opacity: 0; }
     .creature .glow { position: absolute; left: 18px; top: 22px; width: 28px; height: 28px; border-radius: 50%; background: #fff; opacity: 0; filter: blur(6px); }
+
+    @media (max-width: 768px) {
+        body { overflow: auto; }
+        main {
+            grid-template-columns: 1fr;
+            grid-template-rows: auto auto;
+            height: auto;
+            min-height: 100vh;
+            overflow: visible;
+        }
+        section#chat {
+            min-height: 60vh;
+            overflow: visible;
+        }
+        aside {
+            border-left: none;
+            border-top: 1px solid var(--border-dim);
+            max-height: none;
+        }
+    }
   </style>
 </head>
 <body>
