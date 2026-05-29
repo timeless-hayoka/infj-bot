@@ -64,6 +64,7 @@ scripts/install_drift_hook.sh
 .mouse_vanguard/
 .obsidian/
 *.html
+!interfaces/templates/*.html
 ablation_results/
 
 # Python build artifacts
