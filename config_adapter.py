@@ -15,7 +15,7 @@ try:
     from dotenv import load_dotenv
 except ImportError:
 
-    def load_dotenv(*args, **kwargs) -> bool:  # type: ignore[misc]
+    def load_dotenv(*_args, **_kwargs) -> bool:  # type: ignore[misc]
         return False
 
 

@@ -35,10 +35,31 @@ SKIP_PATHS = {
     "scratch",
 }
 
+# Exact filenames or suffixes to block
+SKIP_FILES = {
+    "being.db",
+    "svalbard_ledger.jsonl",
+}
+SKIP_SUFFIXES = {
+    ".pyc",
+}
+SKIP_PREFIXES = {
+    ".env",
+}
+
 
 def _should_skip(path: str) -> bool:
     parts = Path(path).parts
-    return any(p in SKIP_PATHS for p in parts)
+    if any(p in SKIP_PATHS for p in parts):
+        return True
+    name = Path(path).name
+    if name in SKIP_FILES:
+        return True
+    if any(name.endswith(suffix) for suffix in SKIP_SUFFIXES):
+        return True
+    if any(name.startswith(prefix) for prefix in SKIP_PREFIXES):
+        return True
+    return False
 
 
 def _run(cmd: list[str], check: bool = True) -> str:

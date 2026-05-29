@@ -93,7 +93,7 @@ STATIC_DIR.mkdir(exist_ok=True)
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_app: FastAPI):
     # Start background drift cycle
     bg_task = asyncio.create_task(background_drift_cycle())
     yield

@@ -191,7 +191,7 @@ def run_reintroduction_curve(drift_session, control, logger, baselines, steps=5)
 
 
 def _run_prompt_suite(
-    drift_session, control, logger, baselines, run_id, prompts, turn_offset=0
+    drift_session, _control, logger, baselines, run_id, prompts, turn_offset=0
 ):
     """
     Run a list of prompts through DRIFT, logging state + continuity per turn.

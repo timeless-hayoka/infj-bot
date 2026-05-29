@@ -563,7 +563,7 @@ def handle_recon_fuzz_command(args, state):
     return tool_recon_fuzz(args, authorized=state.authorized_targets)
 
 
-def handle_meow_command(args, state):
+def handle_meow_command(_args, _state):
     from infj_bot.core.plugins.meow_scanner import meow_hunt
 
     return meow_hunt(str(Path(__file__).parent.parent))
@@ -600,7 +600,8 @@ def _parse_kv_bug_add(text: str) -> dict:
     return result
 
 
-def handle_bug_command(args, state, brain=None, memory=None):
+def handle_bug_command(args, _state, brain=None, memory=None):
+    _ = memory  # noqa: F841
     if not args:
         return command_help("bug")
     from infj_bot.core.bug_bot import BugBot

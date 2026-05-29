@@ -18,8 +18,8 @@ def build_chat_prompt(
     doc_store=None,
     tools_enabled=True,
     prefs=None,
-    temporal=None,
-    predictor=None,
+    _temporal=None,
+    _predictor=None,
     debug_dump=False,
 ):
     """Build the full chat prompt. Delegates to CognitiveOrchestrator."""

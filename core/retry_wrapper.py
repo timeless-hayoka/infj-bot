@@ -112,7 +112,7 @@ def configure_generation_mode(mode: str, prompt_text: str, history_text: str) ->
 def retry_on_timeout(
     max_retries: int = 3,
     backoff_factor: float = 1.5,
-    timeout_exceptions: tuple = (TimeoutError, Exception),
+    _timeout_exceptions: tuple = (TimeoutError, Exception),
 ):
     """
     Decorator that retries generation on timeout exceptions.

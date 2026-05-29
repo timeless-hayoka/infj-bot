@@ -463,7 +463,7 @@ class AblationRunner:
         # and returns a response shaped by what the prompt contains.
         original_generate = brain._generate
 
-        def _fast_generate(model, system_prompt, user_prompt):
+        def _fast_generate(_model, system_prompt, user_prompt):
             # Simulate a response based on prompt content
             # This exercises prompt assembly, memory retrieval, chain injection, etc.
             lowered = (user_prompt or "").lower()
