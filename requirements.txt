@@ -37,7 +37,7 @@ httptools==0.7.1
 httpx==0.28.1
 # transformers 4.x requires huggingface-hub<1.0 (1.12 conflicts with transformers 4.57.6)
 huggingface_hub==0.36.2
-idna==3.13
+idna==3.15
 importlib_metadata==8.7.1
 importlib_resources==7.1.0
 jsonschema==4.26.0
@@ -77,7 +77,7 @@ pydantic-settings==2.14.0
 pydantic_core==2.46.3
 Pygments==2.20.0
 pyparsing==3.3.2
-PyPDF2==3.0.1
+pypdf>=5.0.0
 PyPika==0.51.1
 pyproject_hooks==1.2.0
 python-dateutil==2.9.0.post0
@@ -105,7 +105,7 @@ typer==0.25.0
 typing-inspection==0.4.2
 typing_extensions==4.15.0
 uritemplate==4.2.0
-urllib3==2.6.3
+urllib3==2.7.0
 uvicorn==0.46.0
 uvloop==0.22.1
 watchfiles==1.1.1

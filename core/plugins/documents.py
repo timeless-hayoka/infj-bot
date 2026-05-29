@@ -87,9 +87,9 @@ def _chunk_text(text: str, chunk_size: int = 800, overlap: int = 100) -> List[st
 
 def _read_pdf(path: Path) -> str:
     try:
-        import PyPDF2
+        from pypdf import PdfReader
 
-        reader = PyPDF2.PdfReader(str(path))
+        reader = PdfReader(str(path))
         parts = []
         for page in reader.pages:
             text = page.extract_text()

@@ -574,7 +574,7 @@ async def chat_loop():
             except Exception:
                 pass
 
-            regulated_state = final_state.model_dump()
+            _ = final_state.model_dump()
             status = "STABLE"
         else:
             # Run regulated CLI cycle
