@@ -177,15 +177,18 @@ class GlobalWorkspace:
         
         # 3. Lantern-4 Veto & Svalbard Sealing (Post-action evaluation)
         if status == "EVOLVING" or regulated_state.get("resonance", 0.0) > 0.90:
-            approved, quarantine = self._lantern_4_veto(user_input, sys_response, regulated_state)
-            if approved:
-                self.vault.deposit_core_memory(
-                    event=f"CLI Milestone: {user_input[:40]}...",
-                    user_q=user_input,
-                    sys_q=sys_response,
-                    current_state=regulated_state,
-                    quarantined=quarantine
-                )
+            in_correcting_state = (status == "CORRECTING")
+            is_hold_state = status.startswith("HOLD")
+            if not is_hold_state and not in_correcting_state:
+                approved, quarantine = self._lantern_4_veto(user_input, sys_response, regulated_state)
+                if approved:
+                    self.vault.deposit_core_memory(
+                        event=f"CLI Milestone: {user_input[:40]}...",
+                        user_q=user_input,
+                        sys_q=sys_response,
+                        current_state=regulated_state,
+                        quarantined=quarantine
+                    )
                 
         # Return the regulated state so your CLI loop can persist it to the next turn
         return sys_response, regulated_state, status
