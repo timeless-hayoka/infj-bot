@@ -7,6 +7,10 @@ import math
 from dataclasses import dataclass
 from typing import Dict, List, Tuple
 
+# DIMS defines the dimensions used for anchor distance calculations in PEDI.
+# Note: Real Svalbard ledger blocks also store 'shadow_depth' at the root of 'emotional_state'
+# (making four dimensions tracked in total), but 'shadow_depth' is intentionally excluded
+# from the anchor distance calculation to align with the paper's 3D state space model.
 DIMS = ("coherence", "resonance", "tension")
 NORM = 1.5
 MIN_USABLE_BLOCKS = 3
