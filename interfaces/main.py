@@ -563,16 +563,21 @@ async def chat_loop():
                 if v != 0:
                     print(f"   {k}: {v:+.2f}")
 
-            try:
-                _workspace.vault.deposit_core_memory(
-                    event=f"CLI Comonadic Milestone: {user_input[:40]}...",
-                    user_q=user_input,
-                    sys_q=output,
-                    current_state=final_state.model_dump(),
-                    quarantined=(final_state.shadow_depth > 0.75)
-                )
-            except Exception:
-                pass
+            # Evaluate PEDI cycle to check status and hold/correction state
+            _, _, status = _workspace.pedi.evaluate_cycle(final_state.model_dump())
+            is_hold_state = status.startswith("HOLD")
+            in_correcting_state = (status == "CORRECTING")
+            if not is_hold_state and not in_correcting_state:
+                try:
+                    _workspace.vault.deposit_core_memory(
+                        event=f"CLI Comonadic Milestone: {user_input[:40]}...",
+                        user_q=user_input,
+                        sys_q=output,
+                        current_state=final_state.model_dump(),
+                        quarantined=(final_state.shadow_depth > 0.75)
+                    )
+                except Exception:
+                    pass
 
             _ = final_state.model_dump()
             status = "STABLE"
