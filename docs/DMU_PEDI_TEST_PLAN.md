@@ -1,7 +1,28 @@
 # DMU & PEDI Testing Methodology
 
-> **Last updated:** 2026-05-20  
-> **Status:** Core modules implemented and wired into `cognitive_orchestrator.py`. Unit tests pending.
+> **Last updated:** 2026-06-03
+> **Status:** Modules implemented; `tests/test_pedi.py` and `tests/test_comonad.py`
+> now cover anchor math, hold states, and the comonadic pipeline. DMU unit tests
+> still pending.
+
+---
+
+## ⚠️ "PEDI" disambiguation
+
+This repo currently contains **two** distinct modules whose names start with
+"PEDI". They measure different things and have separate test surfaces. Do not
+mix them up.
+
+| Module                                  | Class         | Measures                                                | Runtime role                                                                |
+|-----------------------------------------|---------------|---------------------------------------------------------|------------------------------------------------------------------------------|
+| `core/pedi_metrics.py`                  | `PEDIEngine`  | Identity drift against a Svalbard-ledger anchor (3-D).  | Production. Wired into `GlobalWorkspace.execute_cli_cycle` Fly-By-Wire path. |
+| `metrics/pedi.py`                       | `PediIndex`   | State **fluidity** across context-window resets (7-D).  | Optional telemetry / research instrument. Not on the chat hot path.          |
+
+Sections 2 and 3 below cover the *research* implementations (`memory/dmu.py`
+and `metrics/pedi.py`). For the production identity regulator, the comonadic
+pipeline, and the Lantern-4 seal flow, see
+[IDENTITY_REGULATOR.md](IDENTITY_REGULATOR.md) and
+[COMONADIC_BRIDGE.md](COMONADIC_BRIDGE.md).
 
 ---
 
@@ -28,9 +49,13 @@ MPS = w_sim * S + w_time * R + w_emo * E + w_rec * recency
 
 ---
 
-## 2. PEDI (Performance & Efficiency Detection Index) Testing
+## 2. PEDI fluidity instrument (`metrics/pedi.py`)
 
-The PEDI lives at `metrics/pedi.py` and measures **state fluidity** across context-window resets using Euclidean jump detection:
+> This is the *research* PEDI — **Performance & Efficiency Detection Index**.
+> The production identity regulator (`core/pedi_metrics.py`) is documented
+> separately in [IDENTITY_REGULATOR.md](IDENTITY_REGULATOR.md).
+
+`metrics/pedi.py` measures **state fluidity** across context-window resets using Euclidean jump detection:
 
 ```
 Δ_k = ||s_post - s_pre||_2
