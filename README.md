@@ -9,6 +9,9 @@ license: apache-2.0
 short_description: Homeostatic cognitive architecture for AI companions
 ---
 
+> [!WARNING]
+> **LOCKDOWN NOTICE:** This bot and repository have been locked down and secured for security reasons.
+
 # PHI // DRIFT — Cognitive Architecture
 
 <p align="center">

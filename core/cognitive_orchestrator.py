@@ -338,6 +338,65 @@ class CognitiveOrchestrator:
         else:
             context = memory.retrieve_context(message)
 
+        # Determine Epistemic and Communicative Confidence
+        epistemic_confidence = 0.95
+        missing_data = False
+        conflict_detected = False
+
+        if not context or len(context.strip()) < 10:
+            missing_data = True
+            epistemic_confidence = 0.15
+        else:
+            # Let's check for conflicting or corrupted provenance blocks in context
+            if "conflicting_block" in context:
+                conflict_detected = True
+                epistemic_confidence = min(epistemic_confidence, 0.3)
+            if "corrupted_block" in context:
+                conflict_detected = True
+                epistemic_confidence = min(epistemic_confidence, 0.2)
+            
+            # Incorporate salience score into epistemic confidence
+            import re
+            saliences = re.findall(r"salience:\s*([0-9.]+)", context)
+            if saliences:
+                try:
+                    max_salience = max(float(s) for s in saliences)
+                    epistemic_confidence = min(epistemic_confidence, max_salience)
+                except Exception:
+                    pass
+
+        # Calculate Communicative Confidence (tone)
+        if missing_data or epistemic_confidence < 0.4:
+            communicative_confidence = "low_caution"
+        elif conflict_detected:
+            communicative_confidence = "low_contradictory"
+        else:
+            communicative_confidence = "calibrated_high"
+
+        # Map to specific instructions to dictate the LLM's tone channel
+        tone_instruction = ""
+        if communicative_confidence == "low_caution":
+            tone_instruction = (
+                "[Communicative Confidence: LOW / CAUTIOUS]\n"
+                "CRITICAL INSTRUCTION: You lack reliable memory or direct facts about this topic. "
+                "Do NOT state any facts or your own abstention with robotic absolute certainty. "
+                "Instead, mimic natural human caution. Use tentative language (e.g., 'I think...', 'It seems like...', 'I might be misremembering...'). "
+                "Explicitly ask the user for clarification (e.g., 'Could you help me fill in the blanks?', 'Did that happen before or after...?') rather than guessing or asserting confidence you do not have."
+            )
+        elif communicative_confidence == "low_contradictory":
+            tone_instruction = (
+                "[Communicative Confidence: LOW / CONFLICTED]\n"
+                "CRITICAL INSTRUCTION: The memory blocks recalled are conflicting or corrupted. "
+                "Directly acknowledge the tension/contradiction. Mimic human hesitation, admit you are getting conflicting signals, "
+                "and ask the user to clarify the truth (e.g., 'I feel a bit conflicted here because I recall X, but also Y. Which one is it?'). "
+                "Do not pick a side or act with robotic certainty."
+            )
+        else:
+            tone_instruction = (
+                "[Communicative Confidence: GROUNDED / CERTAIN]\n"
+                "You have highly reliable and explicit memory content. Speak with grounded, warm clarity."
+            )
+
         budget = PromptBudget()
 
         # ── PEDI: capture pre-assembly homeostatic snapshot ──
@@ -363,6 +422,7 @@ class CognitiveOrchestrator:
             f"Current mode: {state.mode}\n{mode_scope_rail(state.mode)}",
             label="mode",
         )
+        budget.add("core", f"Tone / Communicative Guidance:\n{tone_instruction}", label="confidence_tone")
         budget.add("core", being.format_being_prompt(), label="being")
 
         # Global Workspace — the bot's conscious awareness
@@ -378,7 +438,20 @@ class CognitiveOrchestrator:
             budget.add("core", core_registry, label="registry_core")
 
         if prefs is not None:
-            budget.add("core", prefs.format_prompt_snippet(), label="prefs")
+            user_pronouns = {"i", "my", "mine", "me", "myself"}
+            msg_words = set(re.findall(r"\b\w+\b", message.lower()))
+            has_pronoun = any(p in msg_words for p in user_pronouns)
+            prefs_snippet = prefs.format_prompt_snippet()
+            if has_pronoun and prefs_snippet:
+                boosted_prefs = (
+                    f"{prefs_snippet}\n"
+                    "CRITICAL PREFERENCE ENFORCEMENT: The user is referring to themselves or asking about "
+                    "their preferences. You must strictly align your response with the user preferences, "
+                    "interests, facts, and corrections listed above."
+                )
+                budget.add("core", boosted_prefs, label="prefs")
+            elif prefs_snippet:
+                budget.add("core", prefs_snippet, label="prefs")
 
         # Cognitive tier (aspirations, metacognition, physics, humanity, growth, etc.)
         cognitive_registry = "\n".join(
@@ -447,7 +520,7 @@ Use this to clarify inner conflict without pathologizing it.
 
         # ── PEDI: evaluate state fluidity across context-window reset ──
         try:
-            from infj_bot.metrics.pedi import PediIndex, StateSnapshot, ResetEvent
+            from infj_bot.metrics.pedi import get_pedi, StateSnapshot, ResetEvent
             from infj_bot.core.homeostasis import get_homeostasis
 
             post_needs = get_homeostasis().get_need_summary()
@@ -472,8 +545,10 @@ Use this to clarify inner conflict without pathologizing it.
                 or total_sections_before == 0
             )
 
-            pedi = PediIndex()
-            if pre_snapshot is not None and was_trimmed:
+            pedi = get_pedi()
+            prev_snapshot = pedi.get_last_snapshot() if was_trimmed else None
+            pedi.record_snapshot(post_snapshot)
+            if was_trimmed and prev_snapshot is not None:
                 reset_event = ResetEvent(
                     turn_id=post_snapshot.turn_id,
                     timestamp=datetime.now(),
@@ -481,9 +556,7 @@ Use this to clarify inner conflict without pathologizing it.
                     if total_sections_before > 0
                     else "session_resume",
                 )
-                pedi.evaluate_reset(pre_snapshot, post_snapshot, reset_event)
-            else:
-                pedi.record_snapshot(post_snapshot)
+                pedi.evaluate_reset(prev_snapshot, post_snapshot, reset_event)
         except Exception:
             pass
 
