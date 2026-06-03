@@ -5,7 +5,7 @@ colorFrom: red
 colorTo: blue
 sdk: static
 pinned: true
-license: proprietary
+license: other
 short_description: Homeostatic cognitive architecture for AI companions
 ---
 
