@@ -18,7 +18,7 @@ short_description: Homeostatic cognitive architecture for AI companions
   <img src="docs/assets/drift-banner.jpg" alt="DRIFT wordmark" width="520" />
 </p>
 
-[![License](https://img.shields.io/badge/License-Proprietary-red.svg)](file:///home/crexs/infj_bot/LICENSE)
+[![License](https://img.shields.io/badge/License-Proprietary-red.svg)](LICENSE)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![CI](https://github.com/timeless-hayoka/infj-bot/actions/workflows/ci.yml/badge.svg)](https://github.com/timeless-hayoka/infj-bot/actions/workflows/ci.yml)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20350249.svg)](https://doi.org/10.5281/zenodo.20350249)
@@ -68,6 +68,8 @@ Response + State Update
 | **Orchestration** | `core/cognitive_orchestrator.py`, `core/brain.py` | Prompt assembly, LLM routing, tool execution |
 | **Cognition** | `core/being.py`, `core/homeostasis.py`, `core/shadow.py` | Emotional state, physiological needs, Jungian shadow |
 | **Consciousness** | `core/global_workspace.py` | Tiered attention: spotlight → active → preconscious bands → SQLite archive |
+| **Identity Regulator** | `core/pedi_metrics.py`, `core/svalbard_vault.py` | PEDI Fly-By-Wire + tamper-evident ledger + Lantern-4 veto ([docs](docs/IDENTITY_REGULATOR.md)) |
+| **Comonadic Bridge** | `core/context_engine.py`, `core/cognitive_ops.py`, `core/cognitive_snapshot.py` | Opt-in `--comonadic` state pipeline ([docs](docs/COMONADIC_BRIDGE.md)) |
 | **Distributed Cognition** | `hive_mind/`, `core/hive/`, `core/coordination.py` | Consensus engine, council of voices, Elysium deliberation |
 | **Memory** | `core/memory.py`, `core/unified_memory.py`, `core/logic_chain.py` | ChromaDB semantic recall, episodic store, reasoning traces |
 | **Safety** | `core/security_defense.py`, `core/guardrails.py` | Input scanning, scope rails, secret scrubbing |
@@ -142,14 +144,27 @@ cp .env.example .env
 ### 4. Run
 
 ```bash
-# CLI chat loop
+# CLI chat loop (default Fly-By-Wire pipeline)
 python interfaces/main.py
+
+# Opt-in comonadic state pipeline (see docs/COMONADIC_BRIDGE.md)
+python interfaces/main.py --comonadic
 
 # REST API  →  http://127.0.0.1:8765
 uvicorn infj_bot.interfaces.api:app --host 127.0.0.1 --port 8765 --reload
 
 # Web UI  →  http://127.0.0.1:5000
 python interfaces/web_app.py
+```
+
+### 5. Deploy
+
+Push to the Hugging Face Space (`crexs/phi-drift`) with the incremental sync
+script — see [docs/HF_SPACE_SYNC.md](docs/HF_SPACE_SYNC.md):
+
+```bash
+python scripts/sync_hf.py --dry-run    # preview the diff
+python scripts/sync_hf.py              # upload changed files
 ```
 
 ---
@@ -245,4 +260,6 @@ Removing DMU re-ranking (D) is the most measurable signal — the 221-character 
 
 ## License
 
-Apache 2.0 — see [`LICENSE`](LICENSE).
+Proprietary — All rights reserved. See [`LICENSE`](LICENSE) and the lockdown
+notice at the top of this file. Cloning, building, or running this code
+without prior written consent from the author is prohibited.
