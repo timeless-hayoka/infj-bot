@@ -5,12 +5,12 @@ colorFrom: red
 colorTo: blue
 sdk: static
 pinned: true
-license: apache-2.0
+license: proprietary
 short_description: Homeostatic cognitive architecture for AI companions
 ---
 
 > [!WARNING]
-> **LOCKDOWN NOTICE:** This bot and repository have been locked down and secured for security reasons.
+> **LOCKDOWN NOTICE:** This bot and repository have been locked down and secured for security reasons. The source code is under a strict proprietary license. Public access is restricted to read-only viewing for demonstration purposes. Running, cloning, or modifying this codebase is prohibited.
 
 # PHI // DRIFT — Cognitive Architecture
 
@@ -18,7 +18,7 @@ short_description: Homeostatic cognitive architecture for AI companions
   <img src="docs/assets/drift-banner.jpg" alt="DRIFT wordmark" width="520" />
 </p>
 
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![License](https://img.shields.io/badge/License-Proprietary-red.svg)](file:///home/crexs/infj_bot/LICENSE)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![CI](https://github.com/timeless-hayoka/infj-bot/actions/workflows/ci.yml/badge.svg)](https://github.com/timeless-hayoka/infj-bot/actions/workflows/ci.yml)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20350249.svg)](https://doi.org/10.5281/zenodo.20350249)
