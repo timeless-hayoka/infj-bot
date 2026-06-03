@@ -12,6 +12,9 @@ Vector store used for **retrieved** episodic memory and related passages. Persis
 ### Cognitive plugin  
 A registered module in **`cognitive_architecture.py`** that can expose a **background `cycle_*` handler**, a **`prompt_formatter`** snippet, or both. Plugins compete for limited prompt space via **`PromptBudget`**.
 
+### Comonadic Workspace Bridge  
+Alternative state-regulation pipeline in **`core/context_engine.py`**, **`core/cognitive_ops.py`**, and **`core/cognitive_snapshot.py`**. Wraps the four-axis `CognitiveState` (`coherence`, `resonance`, `tension`, `shadow_depth`) and a structured `CognitivePayload` in an immutable `ContextWorker` so pipeline steps (`pedi_regulation_step`, `state_conditioned_llm`, etc.) compose by `extend` / `fork` / `merge` instead of mutating singletons. Used by the `--comonadic` chat flag and the standalone `interfaces/comonad_cli.py` demo. See [COMONADIC_BRIDGE.md](COMONADIC_BRIDGE.md).
+
 ### Critic (`INFJ_CRITIC_MODEL`)  
 Optional second model pass that reviews the draft reply for grounding and persona rails before sending to the user (when wired in **`brain.py`**).
 
@@ -39,6 +42,12 @@ If set, relocates durable state (Chroma, SQLite DBs, `history.jsonl`, audits, et
 ### IIT / Φ (“phi”)  
 **Integrated-information–inspired metrics** and qualia-axis bookkeeping in **`iit_consciousness.py`**. Computed proxies for introspection/diagnostics—not a clinical or physics claim.
 
+### Identity Anchor (Center of Gravity)  
+The resonance × coherence weighted mean of the last 20 non-quarantined, non-degenerate `IdentityBlock` entries in the **Svalbard ledger**, computed by **`PEDIEngine._get_identity_center_of_gravity`** in **`core/pedi_metrics.py`**. The **Regulation PEDI** pulls the active state toward this anchor each cycle when drift accumulates. Falls back to a deterministic `FALLBACK_ANCHOR` and a `HOLD_*` status when fewer than `MIN_USABLE_BLOCKS` (3) usable blocks exist.
+
+### Lantern-4 Veto  
+Post-generation gating step in **`GlobalWorkspace._lantern_4_veto`** that decides whether a turn deserves a sealed entry in the **Svalbard vault**. Requires resonance ≥ 0.85, semantic depth (length checks unless resonance ≥ 0.95), and flags the block as `quarantined=True` whenever `shadow_depth > 0.75`. Skipped entirely when the regulation PEDI reports `HOLD_*` or `CORRECTING`.
+
 ### **`InfjBrain`**  
 Primary LLM wrapper in **`brain.py`**: Gemini (and optional Ollama fallback), streaming, tooling hooks where enabled.
 
@@ -54,11 +63,20 @@ Architectural shorthand in the README: **Interface**, **Cognition**, **Coordinat
 ### **Ollama**  
 Local inference path via **`OllamaBridge`** in **`local_llm.py`** when **`INFJ_USE_LOCAL_FALLBACK`** is enabled.
 
+### PEDI — Continuity (`metrics/pedi.py`)  
+**Performance & Efficiency Detection Index**. `PediIndex` measures state *fluidity* across context-window resets over a 7-need homeostasis vector. Records snapshots on every `assemble_prompt` call and raises `crisis_flag` when cumulative fluidity falls below `CRITICAL_FLUIDITY`. Telemetry in `data/pedi.db`. See [DMU_PEDI_TEST_PLAN.md](DMU_PEDI_TEST_PLAN.md).
+
+### PEDI — Regulation (`core/pedi_metrics.py`)  
+**Persistence-Embodiment-Drift Index**. `PEDIEngine` reads the last 20 Svalbard blocks to compute an **identity anchor**, then nudges the live `coherence` / `resonance` / `tension` state toward it. Emits `STABLE`, `CORRECTING`, `EVOLVING`, or `HOLD_<REASON>` per cycle. `shadow_depth` is tracked alongside but intentionally excluded from anchor-distance math. Powers the Fly-By-Wire path in `GlobalWorkspace.execute_cli_cycle`. See [VAULT_STABILITY_NOTES.md](VAULT_STABILITY_NOTES.md).
+
 ### **`PromptBudget`**  
 Caps prompt growth by tier (core / cognitive / analysis / context) toward **`INFJ_MAX_TOTAL_PROMPT_CHARS`**.
 
 ### Shadow (`shadow.py`)  
 Structured **prompt-time excerpts** from **`shadow.db`**, bounded by env caps (**`INFJ_SHADOW_PROMPT_*`**). Jung-influenced metaphor; **not** diagnosis.
+
+### Svalbard Vault  
+Tamper-evident JSONL ledger in **`core/svalbard_vault.py`**. Sealed `IdentityBlock` entries form a SHA-256 hash chain with optional HMAC signature (`DRIFT_VAULT_SECRET`); the **Lantern-4 Veto** decides which turns get sealed. Path is overridable via `DRIFT_VAULT_PATH` (default lives under `DATA_ROOT`). Backbone of the **Regulation PEDI**'s identity anchor.
 
 ### **SQLite “state brains”**  
 Many subsystems (**being**, **embodiment**, **homeostasis**, **shadow**, etc.) persist orthogonal state as **`.db`** files under **`INFJ_DATA_DIR`** or **`PROJECT_ROOT`**.
