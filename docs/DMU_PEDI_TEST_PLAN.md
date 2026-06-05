@@ -1,7 +1,15 @@
 # DMU & PEDI Testing Methodology
 
-> **Last updated:** 2026-05-20  
-> **Status:** Core modules implemented and wired into `cognitive_orchestrator.py`. Unit tests pending.
+> **Last updated:** 2026-06-05
+> **Status:** Core modules implemented and wired into `cognitive_orchestrator.py`. Unit tests partially in place (`tests/test_pedi.py`).
+
+> **Heads-up — two PEDIs coexist.** This document covers the **state-fluidity** PEDI at
+> `metrics/pedi.py` (the `PediIndex` class). A second, *separate* index — the
+> **Persistence-Embodiment-Drift Index** (`PEDIEngine` in `core/pedi_metrics.py`) — was
+> added later to drive Svalbard sealing and identity regulation in the global workspace.
+> They share a name and an SQLite footprint pattern but solve different problems. See
+> [VAULT_STABILITY_NOTES.md](VAULT_STABILITY_NOTES.md) and
+> [COMONADIC_BRIDGE.md](COMONADIC_BRIDGE.md) for the identity-regulator PEDI.
 
 ---
 

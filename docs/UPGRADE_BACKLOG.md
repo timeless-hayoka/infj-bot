@@ -9,7 +9,7 @@ Living list of improvements worth making, grouped by area. Reorder or check off 
 | Priority | Upgrade | Notes |
 |----------|---------|--------|
 | **P0** | **Semantic embeddings** | `LocalEmbeddingFunction` in `memory.py` is hash-bucket based; recall is weak for paraphrases and long-tail context. Options: Chroma default embedding, local model (e.g. sentence-transformers / Ollama embeddings API), or API embeddings — pick one path and version the collection name if dimensionality changes. |
-| **P0** | **DMU & PEDI integration** | ✅ **Done** — `memory/dmu.py` re-ranks by time-decay + emotional weight; `metrics/pedi.py` tracks state fluidity across context resets. Both wired into `cognitive_orchestrator.py`. |
+| **P0** | **DMU & PEDI integration** | ✅ **Done** — `memory/dmu.py` re-ranks by time-decay + emotional weight; `metrics/pedi.py` tracks state fluidity across context resets (`PediIndex`). Both wired into `cognitive_orchestrator.py`. A second, distinct identity-anchor PEDI now lives at `core/pedi_metrics.py` (`PEDIEngine`) — see [VAULT_STABILITY_NOTES.md](VAULT_STABILITY_NOTES.md). |
 | **P0** | **Hybrid search** | Combine dense retrieval with keyword / recency / importance (you already store rich metadata). Reduces “almost right” misses. |
 | **P1** | **Memory lifecycle** | Summarize or prune old interactions; deduplicate near-duplicate facts; optional “pinned” memories vs ephemeral chat. |
 | **P1** | **Contradiction handling** | When new memory conflicts with retrieved chunks, resolve or surface uncertainty in `memory_context_block` / guardrails. |

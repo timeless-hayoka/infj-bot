@@ -1,6 +1,6 @@
 # Vault / PEDI Stability Notes
 
-*Saved 2026-05-28 — covers `core/svalbard_vault.py` + `core/pedi_metrics.py`*
+*Saved 2026-05-28 — updated 2026-06-05 — covers `core/svalbard_vault.py` + `core/pedi_metrics.py`*
 
 ---
 
@@ -11,19 +11,30 @@ cryptographically chained `IdentityBlock` (SHA-256 hash chain + HMAC signature).
 long-term episodic identity memory — immutable, verifiable, weighted by emotional
 resonance/coherence.
 
-**PEDIEngine** (Persistence-Embodiment-Drift Index) — reads the last 20 vault blocks as
-DRIFT's "center of gravity" and uses it to regulate the active emotional state in real-time.
-Three outcomes per cycle:
+**PEDIEngine** (Persistence-Embodiment-Drift Index, `core/pedi_metrics.py`) — reads the last
+20 vault blocks as DRIFT's "center of gravity" and uses it to regulate the active emotional
+state in real-time. Each cycle returns one of these statuses (see `PEDIEngine.evaluate_cycle`):
 
-| Status | Meaning |
-|--------|---------|
-| `STABLE` | No correction needed |
-| `CORRECTING` | Pulls state back toward identity anchor |
-| `EVOLVING` | High-drift but improving — let it run |
+| Status | When it fires | Effect on state |
+|--------|---------------|-----------------|
+| `STABLE` | Perceived state already inside the corrective deadband (`applied_correction ≤ 0.05`) | Passes perceived state through unchanged |
+| `CORRECTING` | Drift exceeds the deadband; meta-drift accumulator has built up | Blends perceived state toward anchor with `applied_correction` and decays the accumulator by 0.7× |
+| `EVOLVING` | `instant_drift > 0.28` *and* `improvement_score > 0.05` — the bot is drifting but in a healthier direction | Skips correction, decays accumulator aggressively (0.3×) |
+| `HOLD_*` | The anchor itself is not yet trustworthy. Suffix names the reason: `NO_VAULT`, `NO_BLOCKS`, `COLD_START` (fewer than `MIN_USABLE_BLOCKS = 3` usable blocks), `READ_ERROR` | Returns the most recent perceived state with `correction = 0.0`; sealing path is suppressed by callers (see `interfaces/main.py`) |
+
+The 3D state space the index operates on is `DIMS = ("coherence", "resonance", "tension")`
+with a global normalizer `NORM = 1.5`. `shadow_depth` is intentionally **not** in `DIMS` —
+it is tracked on each `IdentityBlock` and used for quarantine decisions, but excluded from
+anchor distance to keep the math aligned with the paper's 3D state-space model (see the
+top-of-file comment in `core/pedi_metrics.py`). The fallback anchor used during cold start
+is `{coherence: 0.85, resonance: 0.82, tension: 0.12}`.
 
 **GlobalWorkspace integration** — `execute_cli_cycle()` wires everything together: state is
 regulated by PEDI before generation, and high-resonance moments (> 0.85) are sealed to the
 vault via the **Lantern-4 veto**. Shadow depth > 0.75 marks blocks as quarantined.
+**Sealing is suppressed when status starts with `HOLD_` or equals `CORRECTING`** — only
+`STABLE` or `EVOLVING` cycles can deposit a new core memory. This prevents the anchor from
+locking onto cold-start defaults or chasing its own corrections.
 
 ---
 
@@ -40,7 +51,7 @@ in a real conversation.
 **Need:** `tests/test_vault.py` covering:
 - Vault writes a block and the hash chain verifies
 - Tampered block fails integrity check
-- PEDI `STABLE` / `CORRECTING` / `EVOLVING` all trigger under the right conditions
+- PEDI `STABLE` / `CORRECTING` / `EVOLVING` / `HOLD_*` all trigger under the right conditions
 - Vault degrades gracefully when ledger is missing or corrupt
 
 ### 2. Observable output you can inspect
@@ -50,7 +61,7 @@ from within the bot.
 
 **Need:** A `/vault status` or `/pedi status` command showing:
 - Last sealed block hash + timestamp
-- Current PEDI status (STABLE / CORRECTING / EVOLVING)
+- Current PEDI status (STABLE / CORRECTING / EVOLVING / HOLD_*)
 - Correction pressure + meta-drift accumulator value
 - Integrity check result
 
