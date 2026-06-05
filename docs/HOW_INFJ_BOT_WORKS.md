@@ -138,9 +138,39 @@ The system now detects network bottlenecks in real-time.
 
 Plugins submit salient snippets to **`global_workspace.py`**, loosely inspired by Global Workspace Theory: limited capacity competition, decay, persistence in **`workspace.db`**.
 
+### 5.5 LLM Provider Chain, Caching & Retry (May 2026)
+
+`DriftBrain` (`core/brain.py`) now routes generation through a prioritized provider chain
+rather than calling Gemini directly. Both `_generate` (single-shot) and `_generate_stream`
+(SSE) walk the same chain:
+
+```
+disk cache → in-memory LRU → Groq → Kimi → HF Pro → Gemini (new SDK or legacy) → Ollama
+```
+
+- **Caching.** Cache key is `sha256(model_name|system_instruction|prompt)`. A persistent
+  `DiskGenCache` (sized to `DRIFT_GEN_CACHE_SIZE × 4`) is checked first, then an in-memory
+  `OrderedDict` LRU bounded by `DRIFT_GEN_CACHE_SIZE`. `_generate_stream` also replays cache
+  hits as 8-character chunks so streaming clients don't re-hit the API for repeat prompts.
+- **Provider gating.** Groq/Kimi/HF stages are skipped unless both their feature flag
+  (`DRIFT_USE_GROQ`, `DRIFT_USE_KIMI`, `DRIFT_USE_HF`) and the relevant key/bridge are
+  available. If none are usable and `API_KEY` is missing, the brain falls back to the
+  local Ollama bridge when `DRIFT_USE_LOCAL_FALLBACK` is on; otherwise it raises.
+- **Retry & backoff.** `_is_transient_model_error` marks `5xx`, connection, timeout, and
+  rate-limit phrases (`429`, `quota`, `rate`, `exhausted`, `too many requests`) as
+  retryable. `_retry_backoff` uses **exponential** delays (2 s, 4 s, 8 s) for rate-limit
+  errors and **linear** delays (0.5 s, 1 s, 1.5 s) for everything else. Up to 3 attempts;
+  the local bridge is the last resort.
+- **Offline fallback message.** On final failure, `_offline_fallback` returns a
+  user-facing explanation that distinguishes 429/quota errors from generic API faults so
+  Jude knows whether to wait or check keys.
+
+`DRIFT_PREFER_LOCAL=1` short-circuits the chain at construction time: if the Ollama bridge
+is reachable, `self.sdk` is set to `"local"` and Groq/Gemini are never contacted.
+
 ---
 
-## 5. “Depth psychology” style layers (informal but structured)
+## 6. "Depth psychology" style layers (informal but structured)
 
 These are **not** clinical instruments; they are **structured state machines + prompt text** shaping tone and continuity.
 
@@ -156,7 +186,7 @@ These are **not** clinical instruments; they are **structured state machines + p
 
 ---
 
-## 6. Modes & Drift
+## 7. Modes & Drift
 
 - **Modes** (e.g. `companion`, `engineer`, `drift`, `quiet`) change **scopes and rails** via `guardrails.mode_scope_rail` and behavioral briefs.
 
@@ -164,7 +194,7 @@ These are **not** clinical instruments; they are **structured state machines + p
 
 ---
 
-## 7. Tools, safety posture, MCP
+## 8. Tools, safety posture, MCP
 
 ### `tools.py`
 
@@ -177,7 +207,7 @@ Separate Python processes under **`mcp/`** (for example Gmail hybrid/http client
 
 ---
 
-## 8. Resilience & host awareness
+## 9. Resilience & host awareness
 
 - **`resilience.py`**: lightweight **circuit breakers** wrap flaky plugins during cycles.
 - **`host_load.py`**: samples **CPU + RAM** (`psutil`, cached intervals) when not disabled (`INFJ_DISABLE_HOST_LOAD`).
@@ -185,7 +215,7 @@ Separate Python processes under **`mcp/`** (for example Gmail hybrid/http client
 
 ---
 
-## 9. Configuration & portability
+## 10. Configuration & portability
 
 Key environment variables (`config.py` aggregates these):
 
@@ -200,7 +230,7 @@ Key environment variables (`config.py` aggregates these):
 
 ---
 
-## 10. Interfaces
+## 11. Interfaces
 
 | Surface | Entry |
 |--------|--------|
@@ -209,7 +239,7 @@ Key environment variables (`config.py` aggregates these):
 
 ---
 
-## 11. Verification
+## 12. Verification
 
 ```bash
 source venv/bin/activate
@@ -222,7 +252,7 @@ Targeted subsets: `pytest tests/test_shadow.py tests/test_embeddings.py tests/te
 
 ---
 
-## 12. Honest boundaries (what this is *not*)
+## 13. Honest boundaries (what this is *not*)
 
 - **Not** autonomous AGI — it coordinates **explicit services** plus **offline tick loops** ahead/after Gemini.
 - **Not** human consciousness — IIT-inspired metrics (`iit_consciousness.py`), embodiment, shadow, etc., are **useful structuring metaphors**, not neuroscience claims.
@@ -231,7 +261,7 @@ Targeted subsets: `pytest tests/test_shadow.py tests/test_embeddings.py tests/te
 
 ---
 
-## 13. Further reading inside the repo
+## 14. Further reading inside the repo
 
 | File | Purpose |
 |------|---------|
@@ -239,11 +269,12 @@ Targeted subsets: `pytest tests/test_shadow.py tests/test_embeddings.py tests/te
 | [docs/README.md](README.md) | Full documentation index & reading paths |
 | [docs/GLOSSARY.md](GLOSSARY.md) | Definitions for codebase-specific terms |
 | [SECURITY.md](../SECURITY.md) | Secret hygiene & reporting posture |
-| [DRIFT_AI_INTEGRATION.md](DRIFT_AI_INTEGRATION.md) | How seeded Drift concepts map into memory-only integration |
-| [DELL_HANDOFF.md](DELL_HANDOFF.md) | Longer ops notes (devices, backups, quirks) |
+| [VAULT_STABILITY_NOTES.md](VAULT_STABILITY_NOTES.md) | Svalbard vault & PEDI identity regulator |
+| [COMONADIC_BRIDGE.md](COMONADIC_BRIDGE.md) | Immutable cognitive pipeline (`--comonadic` CLI flag) |
+| [DMU_PEDI_TEST_PLAN.md](DMU_PEDI_TEST_PLAN.md) | DMU re-ranking & state-fluidity PEDI test plan |
 
 ---
 
-## 14. Version note
+## 15. Version note
 
 Architecture details drift with commits; cross-check **`config.py`** and **`requirements.txt`** for ground truth when versions matter. Generated as a descriptive snapshot intended for outward sharing—adapt sections if your fork disables modules or adds new plugins.
