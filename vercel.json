@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "name": "infj-bot",
+  "builds": [
+    {
+      "src": "core/mcp_server.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "core/mcp_server.py"
+    }
+  ]
+}

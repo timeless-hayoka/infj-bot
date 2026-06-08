@@ -3,73 +3,107 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PHI/DRIFT — Live Security + Organism Dashboard</title>
+<title>PHI/DRIFT — ARCADE MODE</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 <style>
-  :root { --bg: #0f0f1a; --fg: #a0a0ff; }
-  body.light { --bg: #f5f5f5; --fg: #222; }
-  body { font-family: monospace; background: var(--bg); color: var(--fg); margin:0; padding:20px; transition: background 0.2s; overflow-x: hidden; }
-  .container { max-width: 1280px; margin: auto; }
-  .metric { display:inline-block; padding:12px 18px; margin:8px; background:#1a1a2e; border-radius:6px; min-width:180px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
-  body.light .metric { background:#e8e8e8; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-  .high { color:#ff6666; font-weight: bold; }
-  .medium { color:#ffaa44; }
-  #events { height:55vh; overflow-y:auto; background:#111122; padding:15px; border-radius:8px; border: 1px solid #333; }
-  body.light #events { background:#f0f0f0; border-color: #ccc; }
-  .event { margin:8px 0; padding:12px; background:#16213e; border-left:4px solid #a0a0ff; border-radius: 0 4px 4px 0; animation: fadeIn 0.3s ease-out; }
-  body.light .event { background:#fff; border-left-color: #333; }
-  .block { border-left-color:#ff4444 !important; }
-  #status { padding:8px 16px; border-radius:6px; display:inline-block; margin-bottom:15px; font-weight: bold; }
-  .connected { background:#1a3c1a; color:#66ff66; }
-  .reconnecting { background:#3c2f00; color:#ffcc44; }
-  button { background:#222; color:#a0a0ff; border:1px solid #444; padding:8px 16px; border-radius:4px; cursor:pointer; font-family: inherit; }
-  button:hover { background: #333; }
-  body.light button { background:#ddd; color:#222; border-color: #bbb; }
-  @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+  :root { --bg: #0a0a0a; --fg: #00ff00; --accent1: #ff00ff; --accent2: #00ffff; --border: #00ff00; }
+  body { 
+      font-family: 'Press Start 2P', monospace; 
+      background: var(--bg); 
+      color: var(--fg); 
+      margin: 0; 
+      padding: 20px; 
+      text-transform: uppercase;
+      font-size: 10px;
+      line-height: 1.6;
+      position: relative;
+      overflow-x: hidden;
+  }
+  body::before {
+      content: " ";
+      display: block;
+      position: absolute;
+      top: 0; left: 0; bottom: 0; right: 0;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+      z-index: 2;
+      background-size: 100% 2px, 3px 100%;
+      pointer-events: none;
+  }
+  .container { max-width: 1200px; margin: auto; position: relative; z-index: 3; }
+  h1 { font-size: 24px; color: var(--accent1); text-shadow: 2px 2px 0px #440044; text-align: center; margin-bottom: 30px; letter-spacing: 2px; }
+  h3 { color: var(--accent2); font-size: 14px; margin-top: 40px; border-bottom: 2px dashed var(--accent2); padding-bottom: 10px; }
+  
+  .metric-board { display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; margin-bottom: 30px; }
+  .metric { 
+      padding: 15px; 
+      background: #000; 
+      border: 4px solid var(--border); 
+      border-radius: 0; 
+      min-width: 150px; 
+      text-align: center;
+      box-shadow: 4px 4px 0px var(--border);
+  }
+  .metric span { display: block; font-size: 8px; color: #888; margin-bottom: 8px; }
+  .metric strong { font-size: 16px; color: #fff; text-shadow: 1px 1px 2px var(--fg); }
+  .high { color:#ff0000 !important; text-shadow: 2px 2px 0px #880000 !important; animation: blink 1s infinite; }
+  
+  @keyframes blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+
+  #events { height: 50vh; overflow-y: auto; background: #000; padding: 15px; border: 4px solid var(--accent2); box-shadow: 4px 4px 0px var(--accent2); }
+  .event { margin: 10px 0; padding: 15px; background: #111; border-left: 6px solid var(--accent1); }
+  .block { border-left-color: #ff0000 !important; background: #220000; }
+  
+  #status { padding: 10px 20px; display: inline-block; margin-bottom: 20px; font-size: 12px; border: 2px solid; }
+  .connected { border-color: #00ff00; color: #00ff00; background: #002200; box-shadow: 2px 2px 0px #00ff00; }
+  .reconnecting { border-color: #ffcc00; color: #ffcc00; background: #222200; animation: blink 1s infinite; }
+  
+  button, input[type="checkbox"] { background: #000; color: var(--accent1); border: 2px solid var(--accent1); padding: 10px; cursor: pointer; font-family: inherit; font-size: 10px; box-shadow: 2px 2px 0px var(--accent1); }
+  button:hover { background: var(--accent1); color: #000; }
+  button:active { transform: translate(2px, 2px); box-shadow: none; }
+  label { cursor: pointer; color: var(--accent2); }
+  
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 12px; }
+  ::-webkit-scrollbar-track { background: #000; border-left: 2px solid var(--border); }
+  ::-webkit-scrollbar-thumb { background: var(--border); }
 </style>
 </head>
 <body>
 <div class="container">
-  <div style="display: flex; justify-content: space-between; align-items: center;">
-    <h1>🧠 PHI/DRIFT Live Dashboard</h1>
-    <div>
-        <button onclick="toggleTheme()">Toggle Theme</button>
-    </div>
+  <h1>🕹️ PHI/DRIFT ARCADE SYSTEM 🕹️</h1>
+  
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <div id="status" class="connected">INSERT COIN...</div>
+      <div>
+          <label style="margin-right: 20px;"><input type="checkbox" id="highRiskOnly" onchange="renderEvents()"> HIGH RISK ONLY</label>
+      </div>
+  </div>
+
+  <div class="metric-board" id="metrics">
+      <div class="metric"><span>PEDI</span><strong>0.000</strong></div>
+      <div class="metric"><span>DII</span><strong>0.000</strong></div>
+      <div class="metric"><span>THREAT</span><strong>0.000</strong></div>
+      <div class="metric"><span>SHADOW</span><strong>0.000</strong></div>
+      <div class="metric"><span>ENERGY</span><strong>0.000</strong></div>
   </div>
   
-  <div id="status" class="connected">Connecting...</div>
-  <label style="margin-left:20px; cursor: pointer;"><input type="checkbox" id="highRiskOnly" onchange="renderEvents()"> Show only high-risk events</label>
-
-  <div id="metrics"></div>
-  
-  <h3>Security Events + Organism State</h3>
+  <h3>> SYSTEM LOGS</h3>
   <div id="events"></div>
 </div>
 
 <script>
 let ws, reconnectAttempts = 0;
-const maxAttempts = 20;
-const baseDelay = 1000;
+const maxAttempts = 20, baseDelay = 1000;
 let lastHeartbeat = Date.now();
 let events = JSON.parse(localStorage.getItem('drift_events') || '[]');
-let heartbeatTimeout = 45000;
-let heartbeatCheckInterval = null;
-
-function getParam(name, def) {
-  const url = new URL(window.location.href);
-  return parseInt(url.searchParams.get(name)) || def;
-}
+let heartbeatTimeout = 45000, heartbeatCheckInterval = null;
 
 function connect() {
-  heartbeatTimeout = getParam('hb_timeout', 45000);
   const statusEl = document.getElementById('status');
-  
-  // Update port/host as needed for your environment
-  const wsUrl = `ws://${window.location.host}/ws`;
-  ws = new WebSocket(wsUrl);
+  ws = new WebSocket(`ws://${window.location.host}/ws`);
 
   ws.onopen = () => {
-    console.log("✅ Connected to DRIFT real-time feed");
-    statusEl.textContent = "Connected (Heartbeat Active)";
+    statusEl.textContent = "1 PLAYER READY";
     statusEl.className = "connected";
     reconnectAttempts = 0;
     lastHeartbeat = Date.now();
@@ -86,63 +120,46 @@ function connect() {
         }
         if (msg.action || msg.category || msg.type === "security") {
             events.unshift(msg);
-            if (events.length > 100) events.pop();
+            if (events.length > 50) events.pop();
             localStorage.setItem('drift_events', JSON.stringify(events));
             renderEvents();
         }
-    } catch (err) {
-        console.error("Parse error:", err);
-    }
+    } catch (err) {}
   };
 
-  ws.onclose = () => {
-    console.warn("WebSocket closed. Attempting reconnect...");
-    handleReconnect();
-  };
-  
-  ws.onerror = (err) => {
-    console.error("WebSocket error:", err);
-    statusEl.textContent = "Connection Error";
-    statusEl.className = "reconnecting";
-  };
+  ws.onclose = () => handleReconnect();
+  ws.onerror = () => { statusEl.textContent = "COMM ERROR"; statusEl.className = "reconnecting"; };
 }
 
 function updateMetrics(msg) {
-  const q = Math.max(0, 100 - Math.min(100, (Date.now() - lastHeartbeat) / 500));
-  const html = `
-    <div class="metric">PEDI: <strong>${(msg.pedi_value||0).toFixed(3)}</strong></div>
-    <div class="metric">DII: <strong>${(msg.dii_value||0).toFixed(3)}</strong></div>
-    <div class="metric">Social Risk: <strong class="${(msg.social_risk||0)>0.5?'high':''}">${(msg.social_risk||0).toFixed(3)}</strong></div>
-    <div class="metric">Shadow: <strong>${(msg.shadow_influence||0).toFixed(3)}</strong></div>
-    <div class="metric">Energy: <strong>${(msg.energy||0).toFixed(2)}</strong></div>
-    <div class="metric">Conn Quality: <strong>${q.toFixed(0)}%</strong></div>
+  document.getElementById('metrics').innerHTML = `
+    <div class="metric"><span>PEDI</span><strong>${(msg.pedi_value||0).toFixed(3)}</strong></div>
+    <div class="metric"><span>DII</span><strong>${(msg.dii_value||0).toFixed(3)}</strong></div>
+    <div class="metric"><span>THREAT</span><strong class="${(msg.social_risk||0)>0.5?'high':''}">${(msg.social_risk||0).toFixed(3)}</strong></div>
+    <div class="metric"><span>SHADOW</span><strong>${(msg.shadow_influence||0).toFixed(3)}</strong></div>
+    <div class="metric"><span>HP (ENERGY)</span><strong>${((msg.energy||0)*100).toFixed(0)}%</strong></div>
   `;
-  document.getElementById('metrics').innerHTML = html;
 }
 
 function renderEvents() {
   const container = document.getElementById('events');
   const onlyHigh = document.getElementById('highRiskOnly').checked;
   container.innerHTML = '';
-  const filtered = onlyHigh 
-    ? events.filter(e => (e.social_risk || 0) > 0.5 || e.action === 'block' || e.overall_score > 0.6)
-    : events;
+  const filtered = onlyHigh ? events.filter(e => (e.social_risk || 0) > 0.5 || e.action === 'block' || e.overall_score > 0.6) : events;
 
-  filtered.slice(0, 80).forEach(e => {
+  filtered.slice(0, 40).forEach(e => {
     const div = document.createElement('div');
     div.className = `event ${e.action === 'block' ? 'block' : ''}`;
     const ts = e.ts ? new Date(e.ts).toLocaleTimeString() : new Date().toLocaleTimeString();
     div.innerHTML = `
-      <div style="display: flex; justify-content: space-between;">
-        <strong>${(e.action||e.type||'EVENT').toUpperCase()}</strong>
-        <small>${ts}</small>
+      <div style="display: flex; justify-content: space-between; color: var(--accent2);">
+        <span>> [${(e.action||e.type||'EVT').toUpperCase()}] ${e.category||'UNK'}</span>
+        <span>${ts}</span>
       </div>
-      <div style="margin-top: 5px; font-size: 0.9em;">
-        ${e.category||'unknown'} | Score: <strong>${(e.overall_score||0).toFixed(3)}</strong> | 
-        Social: <span class="${(e.social_risk||0)>0.5?'high':''}">${(e.social_risk||0).toFixed(3)}</span> | 
-        PEDI: ${(e.pedi_value||0).toFixed(3)}
+      <div style="margin-top: 10px; color: #fff;">
+        ATK_SCORE: ${(e.overall_score||0).toFixed(2)} | SOC_RISK: <span class="${(e.social_risk||0)>0.5?'high':''}">${(e.social_risk||0).toFixed(2)}</span>
       </div>
-      ${e.input_preview ? `<div style="margin-top: 8px; font-style: italic; color: #888;">"${e.input_preview}..."</div>` : ''}
+      ${e.input_preview ? `<div style="margin-top: 10px; color: #55ff55;">"${e.input_preview.toUpperCase()}..."</div>` : ''}
     `;
     container.appendChild(div);
   });
@@ -153,24 +170,16 @@ function startMonitor() {
   heartbeatCheckInterval = setInterval(() => {
     const elapsed = Date.now() - lastHeartbeat;
     if (elapsed > heartbeatTimeout) {
-      const statusEl = document.getElementById('status');
-      statusEl.textContent = `⚠️ Missed heartbeat (${Math.floor(elapsed/1000)}s) — Reconnecting...`;
-      statusEl.className = "reconnecting";
-      
-      // Attempt reconnection if timeout exceeded
-      if (ws && ws.readyState === WebSocket.OPEN) {
-          ws.close();
-      }
-      
-      // Simple beep sound to alert user
+      document.getElementById('status').textContent = "CONNECTION LOST - INSERT COIN";
+      document.getElementById('status').className = "reconnecting";
+      if (ws && ws.readyState === WebSocket.OPEN) ws.close();
       try {
         const audio = new (window.AudioContext || window.webkitAudioContext)();
-        const osc = audio.createOscillator();
-        const gain = audio.createGain();
-        osc.type = 'sine'; osc.frequency.value = 220;
-        gain.gain.value = 0.05;
+        const osc = audio.createOscillator(); const gain = audio.createGain();
+        osc.type = 'square'; osc.frequency.value = 100;
+        gain.gain.value = 0.1;
         osc.connect(gain); gain.connect(audio.destination);
-        osc.start(); setTimeout(() => { osc.stop(); }, 200);
+        osc.start(); setTimeout(() => osc.stop(), 300);
       } catch(e){}
     }
   }, 5000);
@@ -178,23 +187,16 @@ function startMonitor() {
 
 function handleReconnect() {
   if (reconnectAttempts >= maxAttempts) {
-      document.getElementById('status').textContent = "Max retries reached. Please refresh page.";
+      document.getElementById('status').textContent = "GAME OVER";
       return;
   }
   reconnectAttempts++;
-  const delay = Math.min(baseDelay * Math.pow(1.5, reconnectAttempts - 1), 12000);
-  setTimeout(connect, delay);
+  setTimeout(connect, Math.min(baseDelay * Math.pow(1.5, reconnectAttempts - 1), 12000));
 }
 
-function toggleTheme() {
-  document.body.classList.toggle('light');
-  localStorage.setItem('theme', document.body.classList.contains('light') ? 'light' : 'dark');
-}
-
-// Initialize
-if (localStorage.getItem('theme') === 'light') document.body.classList.add('light');
 connect();
 renderEvents();
 </script>
 </body>
 </html>
+
