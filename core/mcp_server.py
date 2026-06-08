@@ -11,11 +11,19 @@ from collections import deque
 
 from mcp.server.fastmcp import FastMCP
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from prometheus_client import Gauge, Counter, generate_latest, CONTENT_TYPE_LATEST
 import uvicorn
 import time
+from datetime import datetime
+from pathlib import Path
 
 from infj_bot.core.brain import DriftBrain
+from infj_bot.core.being import get_being
+from infj_bot.core.websocket_manager import manager
+from infj_bot.core.config import PROJECT_ROOT
 from infj_bot.core.cognition import map_dissonance
 from infj_bot.core.plugins.documents import DocumentStore, format_doc_results
 from infj_bot.core.plugins.emotion import detect_emotion
@@ -47,6 +55,58 @@ brain: Optional[DriftBrain] = None
 memory: Optional[DriftMemory] = None
 goals_db: Optional[GoalsDB] = None
 doc_store: Optional[DocumentStore] = None
+
+
+# === Prometheus Metrics ===
+pedi_gauge = Gauge('drift_pedi_value', 'Persistent Entity Drift Index')
+dii_gauge = Gauge('drift_dii_value', 'Dynamic Integration Index')
+energy_gauge = Gauge('drift_energy_level', 'Current energy level')
+social_risk_gauge = Gauge('drift_social_risk', 'Current social engineering risk')
+shadow_influence_gauge = Gauge('drift_shadow_influence', 'Current shadow influence')
+active_connections_gauge = Gauge('drift_active_ws_connections', 'Active WebSocket connections')
+sparks_delivered_counter = Counter('drift_sparks_delivered_total', 'Total sparks delivered')
+security_blocks_counter = Counter('drift_security_blocks_total', 'Total security blocks')
+high_risk_events_counter = Counter('drift_high_risk_events_total', 'Total high social risk events')
+
+
+async def broadcast_security_event(event_data: dict):
+    """Broadcast security event to dashboard and update metrics."""
+    event_data["type"] = "security"
+    await manager.broadcast(event_data)
+    
+    # Update counters
+    if event_data.get("action") == "block":
+        security_blocks_counter.inc()
+    if event_data.get("social_risk", 0) > 0.5:
+        high_risk_events_counter.inc()
+    
+    # Update gauges
+    social_risk_gauge.set(event_data.get("social_risk", 0))
+    shadow_influence_gauge.set(event_data.get("shadow_influence", 0))
+
+
+async def server_heartbeat():
+    """Send periodic heartbeat to all connected clients."""
+    heartbeat_count = 0
+    while True:
+        await asyncio.sleep(15)
+        heartbeat_count += 1
+        try:
+            being = get_being()
+            heartbeat_msg = {
+                "type": "heartbeat",
+                "ts": datetime.now().isoformat(),
+                "count": heartbeat_count,
+                "status": "alive",
+                "pedi_value": getattr(being.state.pedi, 'value', 0.0),
+                "pedi_stability": getattr(being.state.pedi, 'stability', 0.0),
+                "dii_value": getattr(being.state.dii, 'value', 0.0),
+                "energy": getattr(being.state, 'energy', 0.0),
+                "message": "Server heartbeat — connection healthy"
+            }
+            await manager.broadcast(heartbeat_msg)
+        except Exception:
+            pass
 
 
 def get_brain() -> DriftBrain:
@@ -87,6 +147,47 @@ def create_http_app(token: str | None = None) -> FastAPI:
 
     # token may be provided explicitly for tests; otherwise read from env
     token = token if token is not None else os.getenv("MCP_HTTP_TOKEN")
+
+    # Mount static files
+    static_dir = Path(PROJECT_ROOT) / "static"
+    if not static_dir.exists():
+        static_dir.mkdir(parents=True)
+    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+
+    @app.get("/dashboard", response_class=HTMLResponse)
+    async def get_dashboard():
+        dashboard_path = static_dir / "dashboard.html"
+        if dashboard_path.exists():
+            with open(dashboard_path, "r") as f:
+                return f.read()
+        return "Dashboard not found. Ensure static/dashboard.html exists."
+
+    @app.get("/metrics")
+    async def prometheus_metrics():
+        being = get_being()
+        pedi_gauge.set(getattr(being.state.pedi, "value", 0.0))
+        dii_gauge.set(getattr(being.state.dii, "value", 0.0))
+        energy_gauge.set(getattr(being.state, "energy", 0.0))
+        active_connections_gauge.set(len(manager.active_connections))
+        return generate_latest(), 200, {"Content-Type": CONTENT_TYPE_LATEST}
+
+    @app.websocket("/ws")
+    async def websocket_endpoint(websocket: WebSocket):
+        await manager.connect(websocket)
+        try:
+            while True:
+                data = await websocket.receive_text()
+                if data.lower() in ["ping", "heartbeat"]:
+                    await websocket.send_text("pong")
+        except WebSocketDisconnect:
+            manager.disconnect(websocket)
+        except Exception:
+            manager.disconnect(websocket)
+
+    # Start heartbeat
+    @app.on_event("startup")
+    async def startup_event():
+        asyncio.create_task(server_heartbeat())
 
     # Map public tool names to callables
     TOOLS: Dict[str, Any] = {

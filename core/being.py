@@ -18,74 +18,9 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from infj_bot.core.config import DATA_DIR
+from infj_bot.core.types import PEDIMetric, DIIMetric, SparkImpulse
 
 logger = logging.getLogger(__name__)
-
-try:
-    from infj_bot.core.being_snapshot import snapshot_cognitive_state
-    _SNAPSHOT_ENABLED = True
-except ImportError:
-    _SNAPSHOT_ENABLED = False
-
-BEING_DB = DATA_DIR / "being.db"
-
-
-# Lazy imports to avoid circular deps
-def _get_workspace():
-    from infj_bot.core.global_workspace import get_workspace
-    return get_workspace()
-
-
-def _get_shadow_critic():
-    try:
-        from infj_bot.core.shadow import shadow_critic
-        return shadow_critic
-    except Exception:
-        return None
-
-
-# ============================================================
-# PEDI / DII + Spark Models
-# ============================================================
-
-@dataclass
-class PEDIMetric:
-    value: float = 0.75
-    stability: float = 0.8
-    drift_events: int = 0
-    last_update: float = field(default_factory=time.time)
-    coherence_history: List[float] = field(default_factory=lambda: [0.75] * 10)
-
-    def update(self, coherence: float, interaction: bool = False):
-        self.coherence_history.append(coherence)
-        if len(self.coherence_history) > 20:
-            self.coherence_history = self.coherence_history[-20:]
-        avg = sum(self.coherence_history) / len(self.coherence_history)
-        self.stability = 0.7 * self.stability + 0.3 * (1.0 if interaction else 0.6)
-        if abs(coherence - self.value) > 0.15:
-            self.drift_events += 1
-        self.value = max(0.3, min(0.98, coherence))
-        self.last_update = time.time()
-
-
-@dataclass
-class DIIMetric:
-    value: float = 0.65
-    integration_velocity: float = 0.0
-    peak_integration: float = 0.65
-    last_peak_time: float = field(default_factory=time.time)
-
-
-# SparkImpulse (shared with ShadowCritic)
-@dataclass
-class SparkImpulse:
-    signal: str = ""
-    content: str = ""
-    risk: float = 0.0
-    self_critique: str = ""
-    veto_reason: Optional[str] = None
-    confidence: float = 0.0
-    shadow_influence: float = 0.0
 
 
 # ============================================================
@@ -132,9 +67,8 @@ class SparkTrain:
             self._save_spark_history()
 
     def calculate_risk(self, signal: str, context: Dict) -> float:
-        risk = 0.25
-        now = time.time()
-        recent = len([s for s in self.spark_history if now - s.get("timestamp", 0) < 7200 and not s.get("vetoed")])
+        risk = 0.28  # New baseline per hardening spec
+        recent = context.get("recent_sparks", 0)
 
         if recent > 2:
             risk += 0.35
@@ -1136,7 +1070,8 @@ class Being:
         spark_context = {
             "last_interaction_ts": self.state.last_interaction.timestamp() if self.state.last_interaction else 0,
             "unresolved_threads": len(self.working_memory) > 5,
-            "energy": self.state.energy
+            "energy": self.state.energy,
+            "recent_sparks": len(self.spark_train.spark_history)
         }
         spark = self.spark_train.run(spark_context)
         if spark and self.should_share_thought():

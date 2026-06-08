@@ -62,7 +62,9 @@ from infj_bot.core.hf_bridge import DriftHFBridge
 from infj_bot.core.local_llm import OllamaBridge
 from infj_bot.core.logic_chain import get_chain_navigator, ChainNavigator
 from infj_bot.core.plugins.self_eval import SelfEvaluator
-from infj_bot.core.security_defense import scan_input, SecurityScanResult
+from infj_bot.core.security_defense import scan_input, get_security_scanner
+from infj_bot.core.types import SecurityScanResult
+from infj_bot.core.being import get_being
 from infj_bot.core.tools import build_tool_prompt, extract_tool_calls, execute_tool_call, HIGH_RISK_TOOLS
 import logging
 from infj_bot.core.safe_math_integration import critic_math_check, active_grounded_math_var
@@ -814,6 +816,46 @@ class DriftBrain(_BrainGenerationMixin):
         )
         return res
 
+    def _enhanced_security_check(self, user_input: str, raw_user_input: Optional[str] = None, mode: Optional[str] = None) -> SecurityScanResult:
+        """Full context security check with PEDI/DII + social risk + Shadow."""
+        sec = self._security_check(user_input, raw_user_input, mode=mode)
+
+        being = get_being()
+        scanner = get_security_scanner()
+
+        # Enrich SecurityScanResult with organism state
+        pedi = getattr(being.state, "pedi", None)
+        dii = getattr(being.state, "dii", None)
+
+        sec.pedi_value = getattr(pedi, "value", 0.0)
+        sec.pedi_stability = getattr(pedi, "stability", 0.0)
+        sec.dii_value = getattr(dii, "value", 0.0)
+        sec.dii_velocity = getattr(dii, "integration_velocity", 0.0)
+
+        # Behavioral anomaly detector and social risk
+        if hasattr(scanner, "behavioral"):
+            sec.social_risk = scanner.behavioral.get_social_risk()
+
+        # Shadow integration on high social risk
+        if sec.social_risk > 0.42:
+            try:
+                from infj_bot.core.shadow import shadow_critic
+                from infj_bot.core.types import SparkImpulse
+                impulse = SparkImpulse()
+                impulse.shadow_influence = sec.social_risk * 0.9
+                shadow_critic.critique_spark(impulse, {
+                    "energy": getattr(being.state, "energy", 0.6),
+                    "social_risk": sec.social_risk
+                })
+                if impulse.veto_reason:
+                    sec.overall_score = max(sec.overall_score, 0.78)
+                    if not sec.refusal_message:
+                        sec.refusal_message = "I'm detecting unusual persistence or pressure. Let's pause and clarify intent."
+            except Exception:
+                pass
+
+        return sec
+
     def _security_check(self, user_input: str, raw_user_input: Optional[str] = None, mode: Optional[str] = None) -> SecurityScanResult:
         """Run security defense scan on user input, extracting raw content if it is an assembled prompt."""
         if raw_user_input is not None:
@@ -836,7 +878,7 @@ class DriftBrain(_BrainGenerationMixin):
         return getattr(request_budget_local, "budget", None)
 
     def think(self, user_input, raw_user_input=None, mode=None):
-        sec = self._security_check(user_input, raw_user_input, mode=mode)
+        sec = self._enhanced_security_check(user_input, raw_user_input, mode=mode)
         if sec.blocked:
             self.logger.warning("Security block: %s", sec.to_dict())
             return sec.refusal_message or "I can't process that request."
@@ -999,7 +1041,7 @@ class DriftBrain(_BrainGenerationMixin):
 
     def think_stream(self, user_input, raw_user_input=None, mode=None):
         """Yield text chunks as they arrive from the model."""
-        sec = self._security_check(user_input, raw_user_input, mode=mode)
+        sec = self._enhanced_security_check(user_input, raw_user_input, mode=mode)
         if sec.blocked:
             self.logger.warning("Security block (stream): %s", sec.to_dict())
             yield sec.refusal_message or "I can't process that request."
@@ -1045,7 +1087,7 @@ class DriftBrain(_BrainGenerationMixin):
     # ------------------------------------------------------------------
 
     def agent_turn(self, user_input, tools_enabled=True, max_iterations=3, raw_user_input=None, mode=None):
-        sec = self._security_check(user_input, raw_user_input, mode=mode)
+        sec = self._enhanced_security_check(user_input, raw_user_input, mode=mode)
         if sec.blocked:
             self.logger.warning("Security block (agent turn): %s", sec.to_dict())
             return sec.refusal_message or "I can't process that request."
@@ -1269,7 +1311,7 @@ class DriftBrain(_BrainGenerationMixin):
 
     def agent_turn_stream(self, user_input, tools_enabled=True, max_iterations=3, raw_user_input=None, mode=None):
         """Execute tools synchronously, then stream the final response."""
-        sec = self._security_check(user_input, raw_user_input, mode=mode)
+        sec = self._enhanced_security_check(user_input, raw_user_input, mode=mode)
         if sec.blocked:
             yield sec.refusal_message or "I can't process that request."
             return
