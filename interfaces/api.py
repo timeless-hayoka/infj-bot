@@ -8,9 +8,17 @@ import traceback
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+import threading
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
+
+from infj_bot.core.generation import (
+    SystemOverload,
+    RequestCancelled,
+    RequestDeadlineExceeded,
+    RequestBudget,
+)
 
 from infj_bot.core.brain import DriftBrain
 from infj_bot.core.commands import BotState, handle_command
@@ -23,7 +31,7 @@ from infj_bot.core.memory import DriftMemory
 from infj_bot.core.prompt_builder import build_chat_prompt
 from infj_bot.core.security_defense import scan_input
 from infj_bot.core.tools import format_tool_inventory
-from infj_bot.core.cognitive_orchestrator import CognitiveOrchestrator
+from infj_bot.core.cognitive_orchestrator import CognitiveOrchestrator, IntentBlockedError
 from infj_bot.core.phi_council import COUNCIL_MAPPING
 
 logger = logging.getLogger("infj_bot")
@@ -104,7 +112,73 @@ async def lifespan(_app: FastAPI):
         pass
 
 
+from infj_bot.core.gateway import HardenedGatewayMiddleware
+
 app = FastAPI(title="PHI // Drift", lifespan=lifespan)
+app.add_middleware(HardenedGatewayMiddleware)
+
+
+# --- EXCEPTION HANDLERS ---
+@app.exception_handler(SystemOverload)
+async def system_overload_handler(request: Request, exc: SystemOverload):
+    logger.warning(f"Load shedding active: Rejected request from {request.client.host if request.client else 'unknown'} - {str(exc)}")
+    return JSONResponse(
+        status_code=429,
+        content={"detail": "Too Many Requests: The cognitive queue is full. Please try again later."}
+    )
+
+@app.exception_handler(RequestDeadlineExceeded)
+async def deadline_exceeded_handler(request: Request, exc: RequestDeadlineExceeded):
+    logger.warning(f"Request deadline exceeded for {request.client.host if request.client else 'unknown'}")
+    return JSONResponse(
+        status_code=408,
+        content={"detail": "Request Timeout: The system took too long to process."}
+    )
+
+@app.exception_handler(RequestCancelled)
+async def request_cancelled_handler(request: Request, exc: RequestCancelled):
+    logger.info(f"Client disconnected gracefully: {request.client.host if request.client else 'unknown'}")
+    return JSONResponse(
+        status_code=499,
+        content={"detail": "Client Closed Request"}
+    )
+
+@app.exception_handler(IntentBlockedError)
+async def intent_blocked_handler(request: Request, exc: IntentBlockedError):
+    logger.warning(f"Intent blocked for {request.client.host if request.client else 'unknown'}: {str(exc)}")
+    return JSONResponse(
+        status_code=403,
+        content={
+            "detail": "Request Blocked: Malicious intent or security threat detected.",
+            "refusal": str(exc),
+            "threat": exc.scan_result.primary_threat,
+            "blocked": True
+        }
+    )
+
+
+# --- DISCONNECT WATCHER & BUDGET RUNNER ---
+async def _watch_request_disconnect(request: Request, cancel_event: threading.Event):
+    """Watches the ASGI connection and sets the cancel_event if the client drops."""
+    try:
+        while True:
+            if await request.is_disconnected():
+                logger.info(f"Client {request.client.host if request.client else 'unknown'} disconnected. Firing cancellation event.")
+                cancel_event.set()
+                break
+            await asyncio.sleep(0.5)
+    except asyncio.CancelledError:
+        pass
+
+
+def _run_with_request_budget(callable_, request_budget, *args, **kwargs):
+    """Binds the request budget to the current executing worker thread's thread-local store."""
+    brain._request_budget_local.budget = request_budget
+    try:
+        return callable_(*args, **kwargs)
+    finally:
+        if hasattr(brain._request_budget_local, "budget"):
+            del brain._request_budget_local.budget
 
 # Serve static files if any exist
 if STATIC_DIR.exists():
@@ -624,6 +698,83 @@ async def api_growth():
     return growth_profile(memory, state.turns)
 
 
+@app.post("/api/reset")
+async def api_reset():
+    global brain, memory, history, state, goals_db, doc_store
+    
+    # 1. Reset ContextVars
+    try:
+        from infj_bot.core.causal_wiring import state_override_var, generation_params_var
+        state_override_var.set(None)
+        generation_params_var.set(None)
+    except Exception:
+        pass
+
+    # 2. Reset singletons/global modules
+    try:
+        import infj_bot.core.being as being_mod
+        being_mod._being_instance = None
+    except Exception:
+        pass
+
+    try:
+        import infj_bot.core.homeostasis as homeostasis_mod
+        homeostasis_mod._homeostasis_instance = None
+    except Exception:
+        pass
+
+    try:
+        import infj_bot.core.shadow as shadow_mod
+        shadow_mod._shadow_instance = None
+    except Exception:
+        pass
+
+    try:
+        import infj_bot.core.dii_tracker as dii_mod
+        dii_mod._dii_instance = None
+    except Exception:
+        pass
+
+    try:
+        import infj_bot.core.global_workspace as workspace_mod
+        workspace_mod._workspace_instance = None
+    except Exception:
+        pass
+
+    # 3. Re-instantiate core structures
+    brain = DriftBrain()
+    memory = DriftMemory()
+    history = ChatHistory()
+    state = BotState(authorized_targets=set(DEFAULT_AUTHORIZED_TARGETS))
+    goals_db = GoalsDB()
+    doc_store = DocumentStore()
+
+    # 4. Clean database tables
+    try:
+        import sqlite3
+        from infj_bot.core.config import MEMORY_DB, HOMEOSTASIS_DB
+        
+        # Clear Memory
+        with sqlite3.connect(MEMORY_DB) as conn:
+            conn.execute("DELETE FROM memories")
+            conn.execute("DELETE FROM sqlite_sequence WHERE name='memories'")
+            conn.commit()
+            
+        # Clear Homeostasis
+        with sqlite3.connect(HOMEOSTASIS_DB) as conn:
+            conn.execute("DELETE FROM need_history")
+            conn.execute("DELETE FROM survival_events")
+            conn.execute("DELETE FROM regulation_actions")
+            conn.execute("DELETE FROM sqlite_sequence WHERE name='need_history'")
+            conn.execute("DELETE FROM sqlite_sequence WHERE name='survival_events'")
+            conn.execute("DELETE FROM sqlite_sequence WHERE name='regulation_actions'")
+            conn.commit()
+    except Exception as e:
+        logger.error(f"Error resetting database contents: {e}")
+
+    return {"status": "ok", "message": "All cognitive modules, singletons, and sqlite tables have been reset to zero."}
+
+
 async def read_json(request: Request):
     try:
         return await request.json()
@@ -639,11 +790,11 @@ async def api_chat(request: Request):
     message = payload.get("message", "").strip()
     if not message:
         return JSONResponse({"error": "message is required"}, status_code=400)
-    sec = scan_input(message, mode=state.mode)
-    if sec.blocked:
-        return JSONResponse({"reply": sec.refusal_message, "security": sec.to_dict()})
-    if sec.warn:
-        message = sec.sanitized_input or message
+
+    # Set state override context variable
+    from infj_bot.core.causal_wiring import state_override_var
+    state_override_var.set(payload.get("state"))
+
     prompt, emotion, dissonance = build_chat_prompt(
         message,
         state,
@@ -652,48 +803,74 @@ async def api_chat(request: Request):
         doc_store=doc_store,
         prefs=state.prefs,
     )
-    output = await asyncio.to_thread(brain.agent_turn, prompt, tools_enabled=True, raw_user_input=message, mode=state.mode)
-    try:
-        await asyncio.to_thread(brain.evaluate_last, prompt, output)
-    except Exception:
-        pass
-    importance = min(
-        0.95, 0.45 + emotion["intensity"] * 0.3 + dissonance["score"] * 0.15
-    )
-    await asyncio.to_thread(
-        memory.save_interaction,
-        message,
-        output,
-        mode=state.mode,
-        emotion=emotion,
-        importance=importance,
-        dissonance=dissonance,
-    )
-    await asyncio.to_thread(
-        history.append, message, output, state.mode, emotion, dissonance
-    )
-    state.turns += 1
 
-    # ── Aliveness Tracking (DII) ──
-    try:
-        from infj_bot.core.being import get_being
-        from infj_bot.core.homeostasis import get_homeostasis
-        from infj_bot.core.shadow import get_shadow
-        from infj_bot.core.dii_tracker import get_dii_tracker
-        from infj_bot.core.global_workspace import get_workspace
+    cancel_event = threading.Event()
+    budget = RequestBudget(deadline=time.monotonic() + 180.0, cancel_event=cancel_event)
+    watcher_task = asyncio.create_task(_watch_request_disconnect(request, cancel_event))
 
-        tracker = get_dii_tracker()
-        tracker.compute(
-            being=get_being(),
-            workspace=get_workspace(),
-            homeostasis=get_homeostasis(),
-            shadow=get_shadow(),
-            orchestrator=CognitiveOrchestrator(),
+    try:
+        output = await asyncio.to_thread(
+            _run_with_request_budget,
+            brain.agent_turn,
+            budget,
+            prompt,
+            tools_enabled=True,
+            raw_user_input=message,
+            mode=state.mode
         )
-    except Exception:
-        pass
+        try:
+            await asyncio.to_thread(
+                _run_with_request_budget,
+                brain.evaluate_last,
+                budget,
+                prompt,
+                output
+            )
+        except Exception:
+            pass
+        importance = min(
+            0.95, 0.45 + emotion["intensity"] * 0.3 + dissonance["score"] * 0.15
+        )
+        await asyncio.to_thread(
+            memory.save_interaction,
+            message,
+            output,
+            mode=state.mode,
+            emotion=emotion,
+            importance=importance,
+            dissonance=dissonance,
+        )
+        await asyncio.to_thread(
+            history.append, message, output, state.mode, emotion, dissonance
+        )
+        state.turns += 1
 
-    return {"reply": output}
+        # ── Aliveness Tracking (DII) ──
+        try:
+            from infj_bot.core.being import get_being
+            from infj_bot.core.homeostasis import get_homeostasis
+            from infj_bot.core.shadow import get_shadow
+            from infj_bot.core.dii_tracker import get_dii_tracker
+            from infj_bot.core.global_workspace import get_workspace
+
+            tracker = get_dii_tracker()
+            tracker.compute(
+                being=get_being(),
+                workspace=get_workspace(),
+                homeostasis=get_homeostasis(),
+                shadow=get_shadow(),
+                orchestrator=CognitiveOrchestrator(),
+            )
+        except Exception:
+            pass
+
+        return {"reply": output}
+    finally:
+        watcher_task.cancel()
+        try:
+            await watcher_task
+        except asyncio.CancelledError:
+            pass
 
 
 @app.post("/api/chat/stream")
@@ -710,15 +887,10 @@ async def api_chat_stream(request: Request):
             (f"data: {json.dumps({'error': 'message is required'})}\n\n" for _ in [1]),
             media_type="text/event-stream",
         )
-    sec = scan_input(message, mode=state.mode)
-    if sec.blocked:
-        refusal = sec.refusal_message or "I can't process that request."
-        return StreamingResponse(
-            (f"data: {json.dumps({'chunk': refusal})}\n\n" for _ in [1]),
-            media_type="text/event-stream",
-        )
-    if sec.warn:
-        message = sec.sanitized_input or message
+
+    # Set state override context variable
+    from infj_bot.core.causal_wiring import state_override_var
+    state_override_var.set(payload.get("state"))
 
     prompt, emotion, dissonance = build_chat_prompt(
         message,
@@ -729,19 +901,32 @@ async def api_chat_stream(request: Request):
         prefs=state.prefs,
     )
 
+    cancel_event = threading.Event()
+    budget = RequestBudget(deadline=time.monotonic() + 180.0, cancel_event=cancel_event)
+    watcher_task = asyncio.create_task(_watch_request_disconnect(request, cancel_event))
+
     async def event_generator():
         try:
             # Run synchronous stream in a thread to avoid blocking the event loop
             chunks = await asyncio.to_thread(
-                lambda: list(brain.agent_turn_stream(prompt, tools_enabled=True, raw_user_input=message, mode=state.mode))
+                _run_with_request_budget,
+                lambda: list(brain.agent_turn_stream(prompt, tools_enabled=True, raw_user_input=message, mode=state.mode)),
+                budget
             )
             for chunk in chunks:
+                budget.check()
                 yield f"data: {json.dumps({'chunk': chunk})}\n\n"
             yield "data: [DONE]\n\n"
 
             output = "".join(chunks)
             try:
-                await asyncio.to_thread(brain.evaluate_last, prompt, output)
+                await asyncio.to_thread(
+                    _run_with_request_budget,
+                    brain.evaluate_last,
+                    budget,
+                    prompt,
+                    output
+                )
             except Exception:
                 pass
             importance = min(
@@ -779,10 +964,29 @@ async def api_chat_stream(request: Request):
                 )
             except Exception:
                 pass
+        except RequestCancelled:
+            logger.info("Stream aborted internally due to client disconnect.")
+            return
+        except SystemOverload as e:
+            logger.warning(f"System overload during stream: {e}")
+            yield f"data: {json.dumps({'error': f'SystemOverload: {e}'})}\n\n"
+            yield "data: [DONE]\n\n"
+            return
+        except RequestDeadlineExceeded as e:
+            logger.warning(f"Deadline exceeded during stream: {e}")
+            yield f"data: {json.dumps({'error': f'RequestDeadlineExceeded: {e}'})}\n\n"
+            yield "data: [DONE]\n\n"
+            return
         except Exception as exc:
             traceback.print_exc()
             yield f"data: {json.dumps({'error': f'{type(exc).__name__}: {exc}'})}\n\n"
             yield "data: [DONE]\n\n"
+        finally:
+            watcher_task.cancel()
+            try:
+                await watcher_task
+            except asyncio.CancelledError:
+                pass
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
@@ -867,6 +1071,57 @@ async def api_health():
     }
 
 
+@app.get("/api/identity")
+async def api_identity(key_id: str = "v1", nonce: str = None):
+    import hmac
+    import hashlib
+    import os
+    from datetime import datetime, timezone
+
+    # Key Rotation & Safe Environment Retrieval
+    env_var_name = f"DRIFT_SHARED_KEY_{key_id.upper()}"
+    secret_str = os.environ.get(env_var_name)
+    is_prod = os.environ.get("DRIFT_ENV") == "production"
+    
+    if not secret_str and not is_prod:
+        # Fallback to general DRIFT_SHARED_KEY to support seamless migration/testing in dev
+        secret_str = os.environ.get("DRIFT_SHARED_KEY")
+    
+    if not secret_str:
+        if is_prod:
+            raise RuntimeError(f"CRITICAL: Shared key '{env_var_name}' is missing in production!")
+        else:
+            raise RuntimeError(f"CRITICAL: Shared key for ID '{key_id}' ({env_var_name} or DRIFT_SHARED_KEY) is missing from environment!")
+        
+    secret = secret_str.encode()
+    ts = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    
+    # Body is empty for GET /api/identity
+    body_hash = hashlib.sha256(b"").hexdigest()
+    
+    # Canonical string format: METHOD + "\n" + PATH + "\n" + TIMESTAMP + "\n" + BODY_HASH + ("\n" + NONCE if NONCE else "")
+    if nonce:
+        message = f"GET\n/api/identity\n{ts}\n{body_hash}\n{nonce}".encode()
+    else:
+        message = f"GET\n/api/identity\n{ts}\n{body_hash}".encode()
+        
+    signature = hmac.new(secret, message, hashlib.sha256).hexdigest()
+    
+    metadata = {
+        "OriginModule": "brain",
+        "Timestamp": ts,
+        "KeyID": key_id,
+        "BodyHash": body_hash,
+        "Signature": signature
+    }
+    if nonce:
+        metadata["Nonce"] = nonce
+        
+    return {
+        "Metadata": metadata
+    }
+
+
 @app.get("/api/dii")
 async def api_dii():
     from infj_bot.core.dii_tracker import get_dii_tracker
@@ -881,6 +1136,30 @@ async def api_dii_history(limit: int = 100):
 
     tracker = get_dii_tracker()
     return {"history": tracker.get_history(limit=limit)}
+
+
+@app.get("/api/audit")
+async def api_audit(limit: int = 50):
+    """Retrieve the unified audit log for monitoring and safety verification."""
+    try:
+        from infj_bot.core.unified_audit import get_audit_logger
+        audit_logger = get_audit_logger()
+        # Use read_any as a static helper or tail
+        from infj_bot.core.jsonl_logger import HardenedJsonlLogger
+        return HardenedJsonlLogger.tail(audit_logger.path, n=limit)
+    except Exception as e:
+        return {"error": f"Failed to retrieve audit log: {e}"}
+
+
+@app.get("/api/hive/deliberations")
+async def api_hive_deliberations(limit: int = 10):
+    """Retrieve history of high-order deliberations from the Elysium engine."""
+    try:
+        from infj_bot.core.hive.elysium import get_elysium
+        elysium = get_elysium()
+        return elysium.get_deliberation_history(limit=limit)
+    except Exception as e:
+        return {"error": f"Failed to retrieve deliberations: {e}"}
 
 
 @app.get("/api/observer")

@@ -330,7 +330,23 @@ class ElysiumEngine:
 
         # Build resolution text
         resolution = winning_proposal.text
-        if votes[winning_role] < 0.4:
+
+        # Phase 9: Default-Deny Security Override
+        # Check if the goal involves high-risk actions
+        high_risk_keywords = ["write_file", "shell", "rm ", "access", ".env", "delete", "format", "wipe"]
+        is_high_risk = any(kw in goal.lower() for kw in high_risk_keywords)
+        
+        if is_high_risk:
+            # High-risk actions require high consensus (>0.7) and must NOT be a refusal
+            # Note: We check if the winning proposal itself is a block/refusal
+            is_approval = not any(kw in resolution.upper() for kw in ["BLOCK", "DENY", "REFUSE", "REJECT"])
+            
+            if is_approval and votes[winning_role] < 0.7:
+                logger.warning("[Elysium] High-risk action detected with low consensus (%0.2f). Forcing Default-Deny.", votes[winning_role])
+                resolution = f"BLOCK: High-risk action detected. Council consensus ({votes[winning_role]:.0%}) below the 70% safety threshold."
+                winning_role = "Nexus (Override)"
+
+        if winning_role != "Nexus (Override)" and votes[winning_role] < 0.4:
             # No clear winner — Nexus weaves a composite
             top_three = sorted(votes.items(), key=lambda x: x[1], reverse=True)[:3]
             composite = " | ".join(f"{r} ({p:.0%})" for r, p in top_three)

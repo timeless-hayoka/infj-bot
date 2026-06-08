@@ -64,17 +64,64 @@ def cmd_ask(args):
     brain = DriftBrain()
     memory = DriftMemory()
     history = ChatHistory()
+    
+    # Phase 5: Wire deliberation bridge
+    from infj_bot.core.cognitive_orchestrator import CognitiveOrchestrator
+    _orchestrator = CognitiveOrchestrator()
+    _orchestrator.memory = memory
+    _orchestrator.brain = brain
+
+    # Phase 6: Unified Audit
+    from infj_bot.core.unified_audit import wire_orchestrator_audit
+    wire_orchestrator_audit(_orchestrator)
+
+    def deliberation_bridge(goal: str):
+        """Synchronous bridge for CLI deliberation, avoiding deadlocks."""
+        import asyncio
+        from infj_bot.core.hive.elysium import DeliberationResult
+        try:
+            try:
+                asyncio.get_running_loop()
+                # Run in separate thread if loop exists
+                from concurrent.futures import ThreadPoolExecutor
+                with ThreadPoolExecutor() as executor:
+                    def _run():
+                        new_loop = asyncio.new_event_loop()
+                        try:
+                            return new_loop.run_until_complete(_orchestrator.deliberate(goal))
+                        finally:
+                            new_loop.close()
+                    return executor.submit(_run).result()
+            except RuntimeError:
+                return asyncio.run(_orchestrator.deliberate(goal))
+        except Exception as e:
+            return DeliberationResult(goal=goal, resolution=f"BLOCK: deliberation failure ({e})", council_votes={}, winning_role="none", moral_weight=0.0, narrative_weight=0.0)
+
+    brain.deliberation_callback = deliberation_bridge
+    from infj_bot.core.being import get_being
+    get_being().deliberation_callback = deliberation_bridge
+    
     goals_db = GoalsDB()
     doc_store = DocumentStore()
-    built_prompt, emotion, dissonance = build_chat_prompt(
-        prompt,
-        state,
-        memory,
-        goals_db=goals_db,
-        doc_store=doc_store,
-        tools_enabled=not args.no_tools,
-        prefs=state.prefs,
-    )
+    try:
+        built_prompt, emotion, dissonance = build_chat_prompt(
+            prompt,
+            state,
+            memory,
+            goals_db=goals_db,
+            doc_store=doc_store,
+            tools_enabled=not args.no_tools,
+            prefs=state.prefs,
+        )
+    except Exception as exc:
+        # Catch Shadow Intent Enforcement blocks
+        from infj_bot.core.cognitive_orchestrator import IntentBlockedError
+        if isinstance(exc, IntentBlockedError):
+            print(f"\n[SECURITY BLOCK]: {exc}")
+            return 1
+        print(f"Error during prompt assembly: {exc}")
+        return 1
+
     try:
         output = brain.agent_turn(built_prompt, tools_enabled=not args.no_tools, raw_user_input=prompt)
         try:

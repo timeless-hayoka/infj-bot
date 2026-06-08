@@ -397,6 +397,32 @@ class PediIndex:
             ).fetchall()
         return [r[0] for r in reversed(rows)]
 
+    def get_last_snapshot(self) -> Optional[StateSnapshot]:
+        """Retrieve the last recorded snapshot from the database."""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                conn.row_factory = sqlite3.Row
+                row = conn.execute(
+                    "SELECT * FROM pedi_snapshots ORDER BY timestamp DESC LIMIT 1"
+                ).fetchone()
+                if row:
+                    needs = json.loads(row["needs_json"])
+                    from datetime import datetime
+                    # Handle possible timezone suffix or simple isoformat strings
+                    ts_str = row["timestamp"]
+                    # Replace Z with +00:00 for fromisoformat compatibility in python versions before 3.11 if needed
+                    if ts_str.endswith("Z"):
+                        ts_str = ts_str[:-1] + "+00:00"
+                    return StateSnapshot(
+                        timestamp=datetime.fromisoformat(ts_str),
+                        turn_id=row["turn_id"],
+                        needs=needs,
+                        context_tokens_used=row["context_tokens_used"],
+                    )
+        except Exception:
+            pass
+        return None
+
 
 # ── Convenience factory ──────────────────────────────────────────────
 

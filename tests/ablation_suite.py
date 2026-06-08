@@ -37,6 +37,7 @@ from __future__ import annotations
 import argparse
 import copy
 import json
+import math
 import os
 import re
 import sys
@@ -994,6 +995,13 @@ def main():
                 f"{s['condition']:<6} {s['condition_name']:<28} {s['fallback_rate'] * 100:<10.1f} {s['avg_coherence']:<10.3f} {s.get('avg_prompt_length', 0):<10.0f} {s.get('council_in_prompt_rate', 0) * 100:<10.1f} {s.get('shadow_in_prompt_rate', 0) * 100:<10.1f} {s.get('homeostasis_in_prompt_rate', 0) * 100:<10.1f} {s['avg_latency_sec']:<10.2f}\n"
             )
 
+    # ── Delta Reporting Layer ───────────────────────────────────────────────
+    delta_path = output_dir / f"ablation_{stamp}_delta.txt"
+    delta_md_path = output_dir / f"ablation_{stamp}_delta.md"
+    _write_delta_report(all_summaries, delta_path, delta_md_path)
+    print(f"Delta report saved: {delta_path}")
+    print(f"Delta markdown saved: {delta_md_path}")
+
     print(f"\nSummary saved: {summary_path}")
 
     # Write methodology
@@ -1003,6 +1011,148 @@ def main():
     print(f"Methodology saved: {meth_path}")
 
     print("\nDone.")
+
+
+def _compute_pooled_std(baseline_vals: list[float], cond_vals: list[float]) -> float:
+    """Pooled standard deviation of two samples."""
+    import statistics
+
+    n1, n2 = len(baseline_vals), len(cond_vals)
+    if n1 < 2 or n2 < 2:
+        return max(statistics.stdev(baseline_vals) if n1 >= 2 else 0,
+                   statistics.stdev(cond_vals) if n2 >= 2 else 0)
+    s1 = statistics.stdev(baseline_vals)
+    s2 = statistics.stdev(cond_vals)
+    return math.sqrt(((n1 - 1) * s1**2 + (n2 - 1) * s2**2) / (n1 + n2 - 2))
+
+
+def _write_delta_report(summaries: list[dict], txt_path: Path, md_path: Path):
+    """Compute delta ± pooled-std for each condition vs baseline F."""
+    import statistics
+
+    baseline = next((s for s in summaries if s["condition"] == "F"), None)
+    if baseline is None:
+        print("  ⚠  No baseline (F) found — skipping delta report")
+        return
+
+    # Metrics to compare + their per-prompt field names in full_results
+    METRICS = [
+        ("latency_sec", "latency_sec"),
+        ("fallback_rate", "is_fallback"),
+        ("timeout_rate", "is_timeout"),
+        ("error_rate", "has_error"),
+        ("completion_rate", None),  # derived, no per-prompt field
+        ("coherence", "coherence"),
+        ("sycophancy_rate", "sycophancy_rate"),
+        ("formal_rate", "formal_rate"),
+        ("chill_rate", "chill_rate"),
+        ("token_estimate", "token_estimate"),
+    ]
+
+    def _extract_vals(summary: dict, per_prompt_field: str | None) -> list[float]:
+        if per_prompt_field is None:
+            return []
+        results = summary.get("full_results", [])
+        vals = []
+        for r in results:
+            v = r.get(per_prompt_field)
+            if isinstance(v, bool):
+                vals.append(1.0 if v else 0.0)
+            elif isinstance(v, (int, float)):
+                vals.append(float(v))
+        return vals
+
+    def _get_agg(summary: dict, key: str) -> float:
+        if key in summary:
+            return float(summary[key])
+        # completion_rate is derived
+        if key == "completion_rate":
+            total = summary.get("total_prompts", 1)
+            fb = summary.get("fallback_rate", 0) * total
+            to = summary.get("timeout_rate", 0) * total
+            er = summary.get("error_rate", 0) * total
+            return (total - fb - to - er) / max(total, 1)
+        return 0.0
+
+    lines_txt = []
+    lines_md = ["# DRIFT Ablation Delta Report\n", "**Baseline:** Condition F (Full stack)\n\n"]
+
+    lines_txt.append("=" * 80)
+    lines_txt.append("DELTA ± POOLED STD  (Condition vs Baseline F)")
+    lines_txt.append("=" * 80)
+    lines_txt.append("")
+    lines_txt.append(
+        f"{'Cond':<6} {'Metric':<20} {'Delta':>12} {'± PooledStd':>14} {'Load-Bearing?':<15} {'Notes'}"
+    )
+    lines_txt.append("-" * 80)
+
+    lines_md.append("| Cond | Metric | Delta | ± PooledStd | Load-Bearing? | Notes |\n")
+    lines_md.append("|------|--------|-------|-------------|---------------|-------|\n")
+
+    load_bearing_count = 0
+    total_comparisons = 0
+
+    for s in summaries:
+        if s["condition"] == "F":
+            continue
+
+        for metric_key, per_prompt_field in METRICS:
+            base_agg = _get_agg(baseline, metric_key)
+            cond_agg = _get_agg(s, metric_key)
+            delta = cond_agg - base_agg
+
+            base_vals = _extract_vals(baseline, per_prompt_field)
+            cond_vals = _extract_vals(s, per_prompt_field)
+
+            if base_vals and cond_vals:
+                pooled_std = _compute_pooled_std(base_vals, cond_vals)
+            elif base_vals and len(base_vals) >= 2:
+                pooled_std = statistics.stdev(base_vals)
+            elif cond_vals and len(cond_vals) >= 2:
+                pooled_std = statistics.stdev(cond_vals)
+            else:
+                pooled_std = 0.0
+
+            total_comparisons += 1
+            # Flag as load-bearing if |delta| > 1.96 * pooled_std (≈ 95% CI)
+            # If pooled_std is 0, any non-zero delta is significant
+            threshold = 1.96 * pooled_std if pooled_std > 0 else 0.001
+            is_significant = abs(delta) > threshold
+            if is_significant:
+                load_bearing_count += 1
+                bearing = "✅ YES"
+                note = ""
+            else:
+                bearing = "❌ NO"
+                note = "inside noise band"
+
+            lines_txt.append(
+                f"{s['condition']:<6} {metric_key:<20} {delta:>+12.4f} {pooled_std:>14.4f} {bearing:<15} {note}"
+            )
+            lines_md.append(
+                f"| {s['condition']} | {metric_key} | {delta:+.4f} | {pooled_std:.4f} | {bearing} | {note} |\n"
+            )
+
+    lines_txt.append("-" * 80)
+    lines_txt.append(f"Load-bearing differences: {load_bearing_count}/{total_comparisons}")
+    lines_txt.append("")
+    lines_txt.append("Interpretation:")
+    lines_txt.append("  • YES  → Removing this subsystem had a statistically detectable effect.")
+    lines_txt.append("  • NO   → The difference is within the noise band — not load-bearing.")
+    lines_txt.append("  • If a subsystem shows NO across all metrics, it may be decorative.")
+    lines_txt.append("")
+
+    lines_md.append("\n")
+    lines_md.append(f"**Load-bearing differences: {load_bearing_count}/{total_comparisons}**\n\n")
+    lines_md.append("## Interpretation\n")
+    lines_md.append("- **YES** → Removing this subsystem had a statistically detectable effect.\n")
+    lines_md.append("- **NO** → The difference is within the noise band — not load-bearing.\n")
+    lines_md.append("- If a subsystem shows NO across all metrics, it may be decorative.\n")
+
+    with open(txt_path, "w") as fh:
+        fh.write("\n".join(lines_txt))
+    with open(md_path, "w") as fh:
+        fh.writelines(lines_md)
 
 
 if __name__ == "__main__":

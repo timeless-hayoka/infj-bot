@@ -72,7 +72,7 @@ class AutonomousExplorer:
     def explore_topic(self, topic: str) -> Optional[Dict]:
         """Explore a topic via web search and store discovery."""
         try:
-            from duckduckgo_search import DDGS
+            from ddgs import DDGS
 
             with DDGS() as ddgs:
                 results = ddgs.text(topic, max_results=3)

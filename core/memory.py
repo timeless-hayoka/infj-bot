@@ -113,6 +113,52 @@ class DriftMemory:
                     )
         return scrubbed
 
+    def save_interaction_sync(
+        self,
+        user_input,
+        bot_output,
+        mode="companion",
+        emotion=None,
+        importance=0.5,
+        dissonance=None,
+    ):
+        """Synchronous version of save_interaction."""
+        timestamp = datetime.datetime.now().isoformat()
+        safe_user_input = self.scrub_text(user_input)
+        safe_bot_output = self.scrub_text(bot_output)
+        content = f"user: {safe_user_input}\nBot: {safe_bot_output}"
+
+        emotion = emotion or {"label": "neutral"}
+        dissonance = dissonance or {"score": 0.0, "values": [], "markers": []}
+
+        metadata = {
+            "type": "interaction",
+            "category": mode,
+            "timestamp": timestamp,
+            "last_updated": timestamp,
+            "mode": mode,
+            "emotion": emotion.get("label", "neutral"),
+            "emotion_secondary": emotion.get("secondary", "neutral"),
+            "emotion_confidence": float(emotion.get("confidence", 0.0)),
+            "emotion_valence": float(emotion.get("valence", 0.0)),
+            "emotion_arousal": float(emotion.get("arousal", 0.0)),
+            "emotion_intensity": float(emotion.get("intensity", 0.0)),
+            "emotion_needs": emotion.get("needs", ""),
+            "emotion_detector": emotion.get("detector", "unknown"),
+            "dissonance_score": float(dissonance.get("score", 0.0)),
+            "dissonance_values": ",".join(dissonance.get("values", [])),
+            "dissonance_markers": ",".join(dissonance.get("markers", [])),
+            "dissonance_detector": dissonance.get("detector", "unknown"),
+            "importance": float(importance),
+        }
+
+        event = Event(
+            type="interaction",
+            content=content,
+            timestamp=datetime.datetime.fromisoformat(timestamp),
+        )
+        return self.unified_manager.remember_sync(event, metadata)
+
     def save_interaction(
         self,
         user_input,
@@ -132,6 +178,7 @@ class DriftMemory:
 
         metadata = {
             "type": "interaction",
+            "category": mode,
             "timestamp": timestamp,
             "last_updated": timestamp,
             "mode": mode,
@@ -279,6 +326,11 @@ class DriftMemory:
         # MemoryManager recall already handles Ebbinghaus recency & hybrid scoring.
         # We can just fetch via recall_sync.
         entries = self.unified_manager.recall_sync(query, limit=n_results)
+        try:
+            from infj_bot.core.causal_wiring import retrieved_memory_keys_var
+            retrieved_memory_keys_var.set([e.unified_id for e in entries])
+        except Exception:
+            pass
 
         if not include_metadata:
             return "\n---\n".join([e.event.content for e in entries])
@@ -286,22 +338,60 @@ class DriftMemory:
 
     def retrieve_context_ranked(self, query, n_results=5):
         """
-        Retrieve memory context re-ranked by the DMU (Dynamic Memory Unit).
+        Retrieve memory context re-ranked by the V4 DMU (Dynamic Memory Unit).
 
         This applies a second re-ranking pass on top of the Unified Memory Spine's
-        internal DMU scoring, using an alternative time-decay model with explicit
-        emotional-weight damping. Results are logged to the DMU telemetry database.
+        internal scoring, using the V4 Predictive Salience Cascading (PSC) model.
+        Results are driven by projected cognitive states.
 
         Falls back to standard `retrieve_context` if the DMU module is unavailable.
         """
         try:
-            from infj_bot.memory.dmu import rank_memory_entries, format_ranked_entries
+            from infj_bot.core.dmu import DMURetriever
+            from infj_bot.core.psc_scaled import get_psc_engine
 
-            entries = self.unified_manager.recall_sync(query, limit=n_results * 2)
-            if not entries:
-                return ""
-            ranked = rank_memory_entries(entries, query=query, top_k=n_results)
-            return format_ranked_entries(ranked)
+            # Get embedding for re-ranking
+            # self.embedding_function follows the Chroma protocol (takes list of docs)
+            query_embeddings = self.embedding_function([query])
+            if not query_embeddings:
+                return self.retrieve_context(query, n_results=n_results)
+            query_embedding = query_embeddings[0]
+
+            retriever = DMURetriever(
+                chroma_collection=self.unified_manager.collection,
+                psc_engine=get_psc_engine()
+            )
+
+            # Retrieve via V4 DMU re-ranking (broader candidate pool)
+            results = retriever.retrieve(
+                query_embedding=query_embedding,
+                top_k=n_results,
+                n_candidates=n_results * 4
+            )
+            
+            logger.info(f"[memory] DMU Retrieval: got {len(results)} results for query: {query[:50]}...")
+
+            if not results:
+                # Fallback to standard if DMU found nothing
+                standard = self.retrieve_context(query, n_results=n_results)
+                logger.info(f"[memory] DMU empty, fallback context length: {len(standard)}")
+                return standard
+
+            # Log retrieved keys to causal wiring for observability
+            try:
+                from infj_bot.core.causal_wiring import retrieved_memory_keys_var
+                retrieved_memory_keys_var.set([item.get("id", "unknown") for item in results])
+            except Exception:
+                pass
+
+            # Format results for prompt injection
+            formatted = []
+            for item in results:
+                content = item.get("content", "")
+                if content:
+                    formatted.append(f"Memory: {content}")
+            
+            return "\n---\n".join(formatted)
         except Exception:
             # Safe fallback: if DMU fails for any reason, use standard retrieval
             return self.retrieve_context(query, n_results=n_results)

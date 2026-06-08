@@ -273,14 +273,16 @@ class TestDMUScoring:
             "state_align",
         ]:
             assert 0.0 <= comps[key] <= 1.0, f"{key} out of range: {comps[key]}"
-        # Final MPS should be weighted sum
+        # Final MPS should be weighted sum using actual weights from dmu_scoring.py
+        from infj_bot.core.dmu_scoring import MPS_WEIGHTS
         expected = (
-            0.25 * comps["decay"]
-            + 0.20 * comps["reinf"]
-            + 0.20 * comps["contextual"]
-            + 0.15 * comps["recency_bias"]
-            + 0.10 * comps["novelty"]
-            + 0.10 * comps["state_align"]
+            MPS_WEIGHTS["decay"] * comps["decay"]
+            + MPS_WEIGHTS["reinf"] * comps["reinf"]
+            + MPS_WEIGHTS["contextual"] * comps["contextual"]
+            + MPS_WEIGHTS["recency_bias"] * comps["recency_bias"]
+            + MPS_WEIGHTS["novelty"] * comps["novelty"]
+            + MPS_WEIGHTS["state_align"] * comps["state_align"]
+            + MPS_WEIGHTS["source_reliability"] * comps["source_reliability"]
         )
         assert abs(score - expected) < 0.001
 

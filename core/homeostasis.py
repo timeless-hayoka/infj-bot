@@ -27,6 +27,9 @@ from infj_bot.core.config import DATA_DIR
 
 HOMEOSTASIS_DB = DATA_DIR / "homeostasis.db"
 
+ENERGY_DECAY_RATE = 0.00001  # cost per CPU millisecond
+BASE_NETWORK_COST = 0.02      # flat cost for Gemini remote turns
+
 # Need definitions with setpoints and critical thresholds
 NEED_DEFINITIONS: Dict[str, Dict[str, Any]] = {
     "energy": {
@@ -287,6 +290,21 @@ class HomeostaticRegulator:
         need.regulation_cost = deviation * 0.1
 
         self._save_need_history(name, crisis=self._is_critical(name))
+
+    def update_needs(self, event: str = "inference_complete", timing: Optional[Dict] = None, response_len: int = 0):
+        """Update needs based on event and timing data (e.g., hardware-attributed energy cost)."""
+        from infj_bot.core.being import get_being
+        being = get_being()
+        
+        if timing is not None and timing.get("infer_cpu_ms") is not None and timing.get("infer_cpu_ms") > 0:
+            energy_cost = timing["infer_cpu_ms"] * ENERGY_DECAY_RATE
+        else:
+            energy_cost = BASE_NETWORK_COST + (response_len * 0.00002)
+            
+        with being._lock:
+            being.state.energy = max(0.0, min(1.0, being.state.energy - energy_cost))
+            
+        self.update_need("energy", being.state.energy)
 
     def _is_critical(self, name: str) -> bool:
         need = self.needs[name]

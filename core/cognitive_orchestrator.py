@@ -9,6 +9,7 @@ when and in what order they run.
 """
 
 import logging
+import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Callable, Dict, List, Optional, Tuple
@@ -151,6 +152,13 @@ class TurnLog:
     prompt_conflicts: List[PromptConflict] = field(default_factory=list)
     prompt_chars: int = 0
     prompt_tokens: int = 0
+
+
+class IntentBlockedError(Exception):
+    """Raised when the Shadow Intent Enforcement blocks a request."""
+    def __init__(self, scan_result):
+        self.scan_result = scan_result
+        super().__init__(scan_result.refusal_message)
 
 
 class CognitiveOrchestrator:
@@ -318,6 +326,25 @@ class CognitiveOrchestrator:
         debug_dump=False,
     ) -> Tuple[str, Dict, Dict]:
         """Assemble the full prompt with budget tracking and conflict resolution."""
+        # ── Shadow Intent Enforcement ──
+        try:
+            from infj_bot.core.shadow import get_shadow
+            shadow = get_shadow()
+            if hasattr(shadow, "evaluate_intent"):
+                scan_result = shadow.evaluate_intent(message, mode=getattr(state, "mode", None))
+                if scan_result.blocked:
+                    # Raise intent block to be handled by the interface layer (api.py, cli.py)
+                    raise IntentBlockedError(scan_result)
+                if scan_result.warn and scan_result.sanitized_input:
+                    # Use sanitized input for the rest of the assembly if warned
+                    message = scan_result.sanitized_input
+            else:
+                logger.warning("Shadow instance missing 'evaluate_intent' method.")
+        except IntentBlockedError:
+            raise
+        except Exception as exc:
+            logger.error(f"Shadow Intent Enforcement failed: {exc}")
+
         from infj_bot.core.prompt_budget import PromptBudget
         from infj_bot.core.cognition import detect_dissonance
         from infj_bot.core.plugins.emotion import detect_emotion
@@ -356,7 +383,6 @@ class CognitiveOrchestrator:
                 epistemic_confidence = min(epistemic_confidence, 0.2)
             
             # Incorporate salience score into epistemic confidence
-            import re
             saliences = re.findall(r"salience:\s*([0-9.]+)", context)
             if saliences:
                 try:
@@ -417,6 +443,115 @@ class CognitiveOrchestrator:
 
         # Core tier (always included, protected)
         being = get_being()
+
+        # --- CAUSAL WIRING INTEGRATION ---
+        from infj_bot.core.causal_wiring import (
+            pedi_to_weights,
+            dii_to_generation_params,
+            homeostasis_gate,
+            state_override_var,
+            generation_params_var,
+        )
+
+        current_pedi_state = None
+        current_dii_state = None
+        current_homeostasis = None
+
+        state_override = state_override_var.get()
+        if state_override is not None:
+            # 1. PEDI from override
+            pedi_vec = state_override.get("PEDI_VECTOR")
+            if pedi_vec is not None:
+                if isinstance(pedi_vec, list):
+                    current_pedi_state = {
+                        "coherence": pedi_vec[0] if len(pedi_vec) > 0 else 0.5,
+                        "resonance": pedi_vec[1] if len(pedi_vec) > 1 else 0.5,
+                        "tension": pedi_vec[2] if len(pedi_vec) > 2 else 0.1,
+                    }
+                else:
+                    current_pedi_state = pedi_vec
+            else:
+                current_pedi_state = {"coherence": 0.5, "resonance": 0.5, "tension": 0.1}
+
+            # 2. DII from override
+            current_dii_state = state_override.get("DII_SCORE", 0.5)
+
+            # 3. Homeostasis from override
+            override_homeo = state_override.get("HOMEOSTASIS", {})
+            if isinstance(override_homeo, dict):
+                crisis_val = override_homeo.get("crisis", 0.0)
+                stress_val = override_homeo.get("stress")
+                if stress_val is None:
+                    stress_val = crisis_val
+                
+                energy_val = override_homeo.get("energy")
+                if energy_val is None:
+                    needs_val = override_homeo.get("needs")
+                    if isinstance(needs_val, dict):
+                        energy_val = needs_val.get("energy", 0.5)
+                    elif isinstance(needs_val, float):
+                        energy_val = needs_val
+                    else:
+                        energy_val = 0.5
+                
+                fatigue_val = override_homeo.get("fatigue")
+                if fatigue_val is None:
+                    fatigue_val = 1.0 - energy_val
+
+                current_homeostasis = {
+                    "crisis": crisis_val,
+                    "stress": stress_val,
+                    "energy": energy_val,
+                    "fatigue": fatigue_val,
+                }
+            else:
+                current_homeostasis = {"crisis": 0.0, "stress": 0.5, "energy": 0.5, "fatigue": 0.5}
+        else:
+            # Live states from modules
+            # PEDI
+            try:
+                from infj_bot.metrics.pedi import get_pedi
+                pedi_snap = get_pedi().get_last_snapshot()
+                if pedi_snap:
+                    current_pedi_state = pedi_snap.needs
+            except Exception:
+                pass
+            if not current_pedi_state:
+                current_pedi_state = {"coherence": 0.85, "resonance": 0.82, "tension": 0.12}
+
+            # DII
+            try:
+                from infj_bot.core.dii_tracker import get_dii_tracker
+                dii_snap = get_dii_tracker().get_current()
+                if dii_snap:
+                    current_dii_state = dii_snap.dii
+            except Exception:
+                pass
+            if current_dii_state is None:
+                current_dii_state = 0.5
+
+            # Homeostasis
+            try:
+                from infj_bot.core.homeostasis import get_homeostasis
+                homeo_inst = get_homeostasis()
+                energy_val = homeo_inst.needs.get("energy").current if homeo_inst.needs.get("energy") else 0.5
+                current_homeostasis = {
+                    "crisis": 1.0 if homeo_inst.crisis_mode else 0.0,
+                    "stress": homeo_inst.allostatic_load,
+                    "energy": energy_val,
+                    "fatigue": 1.0 - energy_val,
+                }
+            except Exception:
+                current_homeostasis = {"crisis": 0.0, "stress": 0.5, "energy": 0.5, "fatigue": 0.5}
+
+        # Calculate Control Vectors
+        pedi_w = pedi_to_weights(current_pedi_state)
+        dii_p = dii_to_generation_params(current_dii_state)
+        homeo = homeostasis_gate(current_homeostasis)
+
+        # Cache the generation params for the current generation invocation
+        generation_params_var.set(dii_p)
+
         budget.add(
             "core",
             f"Current mode: {state.mode}\n{mode_scope_rail(state.mode)}",
@@ -424,6 +559,16 @@ class CognitiveOrchestrator:
         )
         budget.add("core", f"Tone / Communicative Guidance:\n{tone_instruction}", label="confidence_tone")
         budget.add("core", being.format_being_prompt(), label="being")
+
+        # System prompt constraints injection
+        causal_constraints = (
+            f"[Causal Constraints]\n"
+            f"Reasoning mode: {'deep' if pedi_w['reasoning_depth'] > 1.2 else 'fast'}\n"
+            f"Emotional bias level: {pedi_w['emotional_bias']:.2f}\n"
+            f"Exploration Mode: {'enabled' if dii_p['response_exploration'] else 'disabled'}\n"
+            f"Verbosity weight: {homeo['verbosity']:.2f}\n"
+        )
+        budget.add("core", causal_constraints, label="causal_wiring")
 
         # Global Workspace — the bot's conscious awareness
         workspace_snippet = self.workspace.format_prompt_snippet()
@@ -483,7 +628,10 @@ Use this to clarify inner conflict without pathologizing it.
         budget.add("analysis", cyber_context_hint(message), label="cyber")
 
         # Context tier
-        budget.add("context", memory_context_block(context), label="memory")
+        if homeo.get("memory_access", True):
+            budget.add("context", memory_context_block(context), label="memory")
+        else:
+            budget.add("context", "[Memory access restricted due to high cognitive fatigue]", label="memory")
         if goals_db is not None:
             summary = goals_db.active_summary()
             if summary and summary != "No active goals.":
@@ -572,6 +720,23 @@ Use this to clarify inner conflict without pathologizing it.
         return prompt, emotion, dissonance
 
     # ── Observability ──────────────────────────────────────────────
+
+    async def deliberate(self, goal: str):
+        """
+        Run a first-class deliberation cycle via the Elysium Engine.
+        Used for high-risk actions, planning, and multi-node consensus.
+        """
+        from infj_bot.core.hive.elysium import get_elysium
+        
+        logger.info("[orchestrator] Initiating first-class deliberation for goal: %s", goal)
+        
+        # We pass self.memory and self.brain to Elysium so it uses the canonical spine
+        elysium = get_elysium(memory=self.memory, brain=self.brain)
+        
+        # This triggers the full [Ignite -> Propose -> Critique -> Integrate -> Resolve] loop
+        result = await elysium.decide(goal)
+        
+        return result
 
     def get_system_report(self) -> str:
         """Return a full report of the cognitive system's current state."""

@@ -72,3 +72,5 @@ ablation_results/
 *.egg-info/
 dist/
 build/
+.vercel
+.env*

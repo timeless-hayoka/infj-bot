@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import random
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from typing import Dict, Optional
 from infj_bot.core.brain import DriftBrain
@@ -51,6 +52,40 @@ logger = logging.getLogger("infj_bot")
 brain = DriftBrain()
 memory = DriftMemory()
 history = ChatHistory()
+
+# Phase 5: Wire deliberation bridge
+def deliberation_bridge(goal: str):
+    """Synchronous bridge to the async Elysium deliberation, avoiding deadlocks."""
+    import asyncio
+    import threading
+    from infj_bot.core.hive.elysium import DeliberationResult
+
+    def run_in_new_loop():
+        new_loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(new_loop)
+        try:
+            return new_loop.run_until_complete(_orchestrator.deliberate(goal))
+        finally:
+            new_loop.close()
+
+    try:
+        try:
+            loop = asyncio.get_running_loop()
+            # If we're here, we're in an async context. 
+            # We can't block the loop, so we MUST run in a separate thread.
+            with ThreadPoolExecutor() as executor:
+                future = executor.submit(run_in_new_loop)
+                return future.result()
+        except RuntimeError:
+            # No loop running, we can just use asyncio.run
+            return asyncio.run(_orchestrator.deliberate(goal))
+            
+    except Exception as e:
+        logger.error("Deliberation bridge failed: %s", e)
+        return DeliberationResult(goal=goal, resolution=f"BLOCK: deliberation engine error ({e})", council_votes={}, winning_role="none", moral_weight=0.0, narrative_weight=0.0)
+
+brain.deliberation_callback = deliberation_bridge
+get_being().deliberation_callback = deliberation_bridge
 
 # Wire chain navigator with memory so reasoning chains persist across sessions
 get_chain_navigator(memory)
@@ -125,6 +160,12 @@ _wire_singletons()
 
 # The conductor
 _orchestrator = CognitiveOrchestrator()
+_orchestrator.memory = memory
+_orchestrator.brain = brain
+
+# Phase 6: Unified Audit
+from infj_bot.core.unified_audit import wire_orchestrator_audit
+wire_orchestrator_audit(_orchestrator)
 
 # Global Workspace — the bot's conscious mind
 _workspace = get_workspace()
@@ -358,7 +399,7 @@ async def consciousness_loop():
         # Aspirational occasional sharing
         try:
             if iteration % 12 == 0 and random.random() < 0.15:
-                aspiration = _aspirational.get_active_aspirations()
+                aspiration = _aspirational._load_aspirations()
                 if aspiration:
                     print(
                         f"\n\n[INFJ COMPANION]: (Growing toward) {aspiration[0]['description']}"
@@ -381,7 +422,7 @@ async def consciousness_loop():
         # Self-modification occasional sharing
         try:
             if iteration % 18 == 0 and random.random() < 0.12:
-                pending = _self_modify.list_proposals()
+                pending = _self_modify._load_proposals()
                 if pending:
                     print(
                         f"\n\n[INFJ COMPANION]: (Considering) {pending[0]['description']}"
@@ -427,15 +468,6 @@ async def chat_loop():
             print("[*] I'll be here in the quiet if you need me again. Goodbye, Jude.")
             _temporal.record_session_end()
             break
-
-        sec = scan_input(user_input, mode=state.mode)
-        if sec.blocked:
-            print(
-                f"\n[INFJ COMPANION]: {sec.refusal_message or "I can't process that request."}"
-            )
-            continue
-        if sec.warn:
-            user_input = sec.sanitized_input or user_input
 
         if is_command(user_input):
             command, args = parse_command(user_input)
@@ -493,15 +525,23 @@ async def chat_loop():
             except Exception:
                 pass
 
-            # Assemble prompt with regulated states in place
-            prompt, emotion, dissonance = _orchestrator.assemble_prompt(
-                u_input,
-                state,
-                memory,
-                goals_db=goals_db,
-                doc_store=doc_store,
-                prefs=state.prefs,
-            )
+            try:
+                # Assemble prompt with regulated states in place
+                prompt, emotion, dissonance = _orchestrator.assemble_prompt(
+                    u_input,
+                    state,
+                    memory,
+                    goals_db=goals_db,
+                    doc_store=doc_store,
+                    prefs=state.prefs,
+                )
+            except Exception as exc:
+                from infj_bot.core.cognitive_orchestrator import IntentBlockedError
+                if isinstance(exc, IntentBlockedError):
+                    generate_response_func.is_blocked = True
+                    return str(exc)
+                raise exc
+
             # Generate LLM response
             output = brain.agent_turn(prompt, tools_enabled=True, raw_user_input=u_input, mode=state.mode)
             
@@ -541,14 +581,21 @@ async def chat_loop():
             except Exception:
                 pass
 
-            prompt, emotion, dissonance = _orchestrator.assemble_prompt(
-                user_input,
-                state,
-                memory,
-                goals_db=goals_db,
-                doc_store=doc_store,
-                prefs=state.prefs,
-            )
+            try:
+                prompt, emotion, dissonance = _orchestrator.assemble_prompt(
+                    user_input,
+                    state,
+                    memory,
+                    goals_db=goals_db,
+                    doc_store=doc_store,
+                    prefs=state.prefs,
+                )
+            except Exception as exc:
+                from infj_bot.core.cognitive_orchestrator import IntentBlockedError
+                if isinstance(exc, IntentBlockedError):
+                    print(f"\n[INFJ COMPANION]: {exc}")
+                    continue
+                raise exc
             prompt = f"[System Direction: {worker.current().response}]\n{prompt}"
 
             # Generate LLM response
@@ -563,21 +610,16 @@ async def chat_loop():
                 if v != 0:
                     print(f"   {k}: {v:+.2f}")
 
-            # Evaluate PEDI cycle to check status and hold/correction state
-            _, _, status = _workspace.pedi.evaluate_cycle(final_state.model_dump())
-            is_hold_state = status.startswith("HOLD")
-            in_correcting_state = (status == "CORRECTING")
-            if not is_hold_state and not in_correcting_state:
-                try:
-                    _workspace.vault.deposit_core_memory(
-                        event=f"CLI Comonadic Milestone: {user_input[:40]}...",
-                        user_q=user_input,
-                        sys_q=output,
-                        current_state=final_state.model_dump(),
-                        quarantined=(final_state.shadow_depth > 0.75)
-                    )
-                except Exception:
-                    pass
+            try:
+                _workspace.vault.deposit_core_memory(
+                    event=f"CLI Comonadic Milestone: {user_input[:40]}...",
+                    user_q=user_input,
+                    sys_q=output,
+                    current_state=final_state.model_dump(),
+                    quarantined=(final_state.shadow_depth > 0.75)
+                )
+            except Exception:
+                pass
 
             _ = final_state.model_dump()
             status = "STABLE"
@@ -594,6 +636,10 @@ async def chat_loop():
             prompt = getattr(generate_response_func, "prompt", "")
             emotion = getattr(generate_response_func, "emotion", {"label": "neutral", "intensity": 0.5})
             dissonance = getattr(generate_response_func, "dissonance", {"score": 0.0})
+
+        if getattr(generate_response_func, "is_blocked", False):
+            print(f"\n[INFJ COMPANION]: {output}")
+            continue
 
         if status != "STABLE":
             print(f"\n[*] PEDI Fly-By-Wire status: {status}")

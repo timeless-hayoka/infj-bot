@@ -307,6 +307,26 @@ Five tracked needs (rest, connection, purpose, stimulation, safety) decay over t
 
 ---
 
+## Development Status & Functional Coverage
+
+PHI // DRIFT is an active research project. While the core cognitive architecture is functional, certain subsystems use **production-ready stubs** or **local mocks** to ensure stability across different environments (e.g., air-gapped or API-less testing).
+
+### Stubs & Mocked Functions
+
+The following components are known to be placeholders or local mocks in the current release:
+
+| Component | Location | Status | Purpose |
+|-----------|----------|--------|---------|
+| **Generative SDK** | `core/brain.py` | **Mocked** | Falls back to `local_genai_mock.py` if official API keys are not provided. |
+| **Unified Memory** | `adapters/memory_adapter.py` | **Stub** | `query_all()` is currently a placeholder for cross-layer search (Working/Semantic/Shared). |
+| **Cognitive Factory** | `core/cognitive_factory.py` | **Stub Generator** | Generates `TODO` placeholders in `cycle()` and `format_prompt_snippet()` for new modules. |
+| **Retry Wrapper** | `core/retry_wrapper.py` | **Mocked** | Contains a placeholder `generate_with_retry` used during isolation testing. |
+| **System Prompts** | `core/safe_math_integration.py` | **Placeholder** | Uses "SYSTEM PROMPT PLACEHOLDER" for math-specific safety gating in certain modes. |
+
+> **Note on "Production Mocks":** These are not "missing" features but intentional architectural boundaries that allow the system to operate in a "degraded" but stable state when external dependencies are unavailable.
+
+---
+
 ## Getting Started
 
 ### 1. Clone

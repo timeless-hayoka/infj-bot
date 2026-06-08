@@ -491,9 +491,6 @@ class BugBot:
         return f"{api}\n📁 Findings DB: {self.findings.stats()['total']} finding(s)\n🎯 Targets DB: {self.targets.count(scope='in')} in-scope / {self.targets.count(scope='out')} out-of-scope"
 
     def _log(self, msg: str):
-        line = f"[{datetime.now().isoformat(timespec='seconds')}] {msg}\n"
-        try:
-            with open(BUGBOT_LOG, "a") as fh:
-                fh.write(line)
-        except Exception:
-            pass
+        from infj_bot.core.jsonl_logger import HardenedJsonlLogger
+        line = f"[{datetime.now().isoformat(timespec='seconds')}] {msg}"
+        HardenedJsonlLogger(BUGBOT_LOG).write_raw(line)

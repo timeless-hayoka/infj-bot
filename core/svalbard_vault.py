@@ -48,6 +48,8 @@ class IdentityBlock:
     prior_hash: str
     quarantined: bool = False
     version: str = "2.0"
+    provenance: str = "user_explicit"
+    source_reliability: float = 1.0
     block_hash: str = ""
 
     def calculate_hash(self) -> str:
@@ -56,7 +58,8 @@ class IdentityBlock:
             "event": self.event_summary, "user": self.user_quote, "sys": self.system_quote,
             "coherence": self.emotional_state.coherence, "tension": self.emotional_state.tension,
             "resonance": self.emotional_state.resonance, "shadow": self.emotional_state.shadow_depth,
-            "quarantined": self.quarantined, "prior": self.prior_hash
+            "quarantined": self.quarantined, "prior": self.prior_hash,
+            "provenance": self.provenance, "source_reliability": self.source_reliability
         }
         block_string = json.dumps(payload, sort_keys=True, separators=(',', ':'))
         return hashlib.sha256(block_string.encode('utf-8')).hexdigest()
@@ -125,13 +128,15 @@ class SvalbardVault:
                     timestamp=block["timestamp"], event_summary=block["event_summary"],
                     user_quote=block["user_quote"], system_quote=block["system_quote"],
                     emotional_state=anchor, prior_hash=block["prior_hash"], 
-                    quarantined=block.get("quarantined", False), version=block.get("version", "2.0")
+                    quarantined=block.get("quarantined", False), version=block.get("version", "2.0"),
+                    provenance=block.get("provenance", "user_explicit"),
+                    source_reliability=float(block.get("source_reliability", 1.0))
                 )
                 if test_block.calculate_hash() != block["block_hash"]: return False
                 current_prior = block["block_hash"]
         return True
 
-    def deposit_core_memory(self, event: str, user_q: str, sys_q: str, current_state: dict, quarantined: bool = False):
+    def deposit_core_memory(self, event: str, user_q: str, sys_q: str, current_state: dict, quarantined: bool = False, provenance: str = "user_explicit", source_reliability: float = 1.0):
         anchor = EmotionalAnchor(
             coherence=current_state.get("coherence", 0.5), tension=current_state.get("tension", 0.0),
             resonance=current_state.get("resonance", 0.5), shadow_depth=current_state.get("shadow_depth", 0.0)
@@ -139,16 +144,13 @@ class SvalbardVault:
         new_block = IdentityBlock(
             timestamp=datetime.utcnow().isoformat(), event_summary=event,
             user_quote=user_q, system_quote=sys_q, emotional_state=anchor, 
-            prior_hash=self.latest_hash, quarantined=quarantined
+            prior_hash=self.latest_hash, quarantined=quarantined,
+            provenance=provenance, source_reliability=source_reliability
         )
         new_block.block_hash = new_block.calculate_hash()
 
-        with open(VAULT_PATH, 'a') as f:
-            f.write(json.dumps(asdict(new_block)) + '\n')
-            f.flush()
-            # TODO OPTIMIZATION: os.fsync can freeze the main thread.
-            # In production/high-throughput systems, push writes to an async queue.
-            os.fsync(f.fileno())
+        from infj_bot.core.jsonl_logger import HardenedJsonlLogger
+        HardenedJsonlLogger(VAULT_PATH).append(asdict(new_block))
 
         self.latest_hash = new_block.block_hash
         self._sign_root_hash(self.latest_hash)

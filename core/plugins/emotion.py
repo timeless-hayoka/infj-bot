@@ -117,7 +117,9 @@ def _detect_transformer(text: str) -> Dict:
     clf = _load_classifier()
     if clf is False:
         return {}
-    raw = clf(text)[0]  # list of dicts
+    # Truncate to the last 1500 characters to stay within Roberta 512-token limit
+    text_truncated = text[-1500:] if len(text) > 1500 else text
+    raw = clf(text_truncated)[0]  # list of dicts
     # Sort by score descending
     raw = sorted(raw, key=lambda x: x["score"], reverse=True)
     top = raw[0]

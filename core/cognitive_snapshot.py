@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Callable, Optional
 
 from infj_bot.core.context_engine import CognitiveState, ContextWorker, CognitivePayload
+from infj_bot.core.jsonl_logger import HardenedJsonlLogger
 
 
 @dataclass
@@ -79,10 +80,9 @@ class SnapshotLogger:
 
     def write(self, path: Path) -> None:
         """Append snapshots to a newline-delimited JSON file."""
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "a", encoding="utf-8") as f:
-            for snap in self.snapshots:
-                f.write(json.dumps(snap.to_dict(), default=str) + "\n")
+        logger = HardenedJsonlLogger(path)
+        for snap in self.snapshots:
+            logger.append(snap.to_dict())
         self.snapshots.clear()
 
     def clear(self) -> None:

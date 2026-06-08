@@ -665,6 +665,26 @@ def is_trial_active(session_id):
     return True
 
 
+@app.route("/api/v1/system/governor-metrics", methods=["GET"])
+def governor_metrics():
+    session_id = get_request_session_id() or "global"
+    session_res = get_session(session_id)
+    brain = session_res.brain
+    gov = getattr(brain, "_governor", None)
+    if gov is None:
+        return jsonify({
+            "status": "error",
+            "detail": "RateGovernor not initialized. Call self.init_governor() in DriftBrain.__init__."
+        }), 503
+    return jsonify({"status": "online", **gov.metrics_report()})
+
+
+@app.route("/expo")
+def start_expo():
+    """Alias for /trial — clean URL for sharing demo sessions."""
+    return start_trial()
+
+
 @app.route("/trial")
 def start_trial():
     import uuid
@@ -826,6 +846,14 @@ def openai_chat_completions():
 
     payload = request.json or {}
     session_id = get_request_session_id()
+
+    # Check for trial session expiration
+    if session_id and session_id in trial_sessions:
+        if not is_trial_active(session_id):
+            return jsonify(
+                {"error": "Trial session expired. Please start a new session at /trial"}
+            ), 403
+
     session_res = get_session(session_id)
     
     messages = payload.get("messages", [])

@@ -13,12 +13,14 @@ from typing import Any, Callable, Dict, List, Optional
 from urllib.parse import urlparse
 
 from infj_bot.core.config import DATA_DIR, PROJECT_ROOT
+from infj_bot.core.jsonl_logger import HardenedJsonlLogger
 
 STATE_ROOT = DATA_DIR
 
 SAFE_HOME = Path.home()
 COLD_STORAGE_DIR = PROJECT_ROOT / "BLKKNIGHT_RECOVERY"
 TOOL_AUDIT_PATH = PROJECT_ROOT / "tool_audit.jsonl"
+_TOOL_AUDIT_LOGGER = HardenedJsonlLogger(TOOL_AUDIT_PATH)
 RECON_DIR = PROJECT_ROOT / "recon"
 MAX_FILE_READ_BYTES = 1_048_576  # 1 MB
 MAX_FILE_WRITE_BYTES = 1_048_576  # 1 MB
@@ -143,23 +145,24 @@ def _audit_tool_call(name: str, arguments: Dict[str, Any], result: str) -> None:
             "status": "error" if str(result).startswith("[error") else "ok",
             "result_preview": str(result).replace("\n", " ")[:500],
         }
-        TOOL_AUDIT_PATH.parent.mkdir(parents=True, exist_ok=True)
-        with TOOL_AUDIT_PATH.open("a", encoding="utf-8") as fh:
-            fh.write(json.dumps(record, ensure_ascii=True) + "\n")
+        _TOOL_AUDIT_LOGGER.append(record)
+        
+        # Phase 6: Sync to Unified Audit
+        try:
+            from infj_bot.core.unified_audit import audit_log
+            audit_log(
+                event_type="tool_execution",
+                source="tools",
+                payload=record
+            )
+        except Exception:
+            pass
     except Exception:
         pass
 
 
 def recent_tool_audit(limit: int = 10) -> str:
-    if not TOOL_AUDIT_PATH.exists():
-        return "No tool audit records yet."
-    try:
-        lines = TOOL_AUDIT_PATH.read_text(
-            encoding="utf-8", errors="replace"
-        ).splitlines()[-limit:]
-        records = [json.loads(line) for line in lines if line.strip()]
-    except Exception as exc:
-        return f"Could not read tool audit log: {exc}"
+    records = HardenedJsonlLogger.tail(TOOL_AUDIT_PATH, n=limit)
     if not records:
         return "No tool audit records yet."
     return "\n".join(
@@ -582,7 +585,7 @@ def tool_run_nuclei_scan(
 def tool_web_search(query: str, max_results: int = 5) -> str:
     """Search the web using DuckDuckGo."""
     try:
-        from duckduckgo_search import DDGS
+        from ddgs import DDGS
 
         with DDGS(timeout=20) as ddgs:
             results = ddgs.text(query, max_results=max(max_results, 1))
@@ -889,6 +892,17 @@ def tool_list_snapshots() -> str:
 # ---------------------------------------------------------------------------
 # Registry
 # ---------------------------------------------------------------------------
+
+# Tools that can modify the system or represent high-risk actions
+HIGH_RISK_TOOLS = {
+    "write_file",
+    "shell",
+    "execute_terminal_command",
+    "rollback_state",
+    "run_python",
+    "run_nuclei_scan",
+}
+
 
 TOOL_REGISTRY: Dict[str, Callable] = {
     "read_file": tool_read_file,

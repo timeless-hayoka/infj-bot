@@ -59,6 +59,11 @@ class MemoryManager:
             name="infj_unified_memory"
         )
 
+    @property
+    def collection(self):
+        """Returns the underlying ChromaDB collection."""
+        return self._collection
+
     def _init_sqlite(self):
         Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
         with sqlite3.connect(self.db_path) as conn:
@@ -200,6 +205,17 @@ class MemoryManager:
 
             t_hours = max(0, (now - ts).total_seconds() / 3600.0)
             sim_score = max(0.0, 1.0 - (dist * dist) / 2.0)
+            boost = 0.0
+            try:
+                import re
+                query_words = set(re.findall(r"\b\w{3,}\b", query.lower()))
+                content_words = set(re.findall(r"\b\w{3,}\b", row["content"].lower()))
+                overlap = query_words.intersection(content_words)
+                if query_words:
+                    boost = 0.2 * (len(overlap) / len(query_words))
+            except Exception:
+                pass
+            sim_score = min(1.0, sim_score + boost)
 
             e_score = float(meta.get("emotion_intensity", meta.get("emotional", 0.5)))
             g_score = float(meta.get("importance", meta.get("goal", 0.5)))
@@ -466,8 +482,8 @@ class MemoryManager:
             "after": after,
         }
         try:
-            with open(log_path, "a", encoding="utf-8") as f:
-                f.write(json.dumps(entry) + "\n")
+            from infj_bot.core.jsonl_logger import HardenedJsonlLogger
+            HardenedJsonlLogger(log_path).append(entry)
         except Exception:
             pass
 

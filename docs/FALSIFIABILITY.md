@@ -124,3 +124,91 @@ for this sample size and more interpretable for this class of system.
 ## Commit Hash at Statement Lock
 
 Recorded automatically in experiment_log.db runs table per run.
+
+---
+
+## Addendum: DRIFT Ablation + Adversarial Stress Protocol
+
+### Pre-Registration Lock
+
+This addendum is written before any new ablation or stress run begins. It is
+the preregistered measurement rule for the wrapper-vs-architecture comparison.
+
+### Control
+
+`CONFIG_BASELINE` is raw Gemini 2.5 Flash with a minimal system prompt and no
+DRIFT layers:
+
+- no DMU/MPS retrieval
+- no homeostasis
+- no GWT spotlight
+- no logic-chain pass
+- no critic pass
+- no security layer
+- no memory
+
+This is the wrapper-vs-architecture line. Report it first and prominently.
+
+### Decision Rule
+
+- For every config and eval, report `mean ± std` across `N` independent runs.
+- Report `delta-vs-baseline ± pooled std`.
+- A component is load-bearing only if `|delta| > 2x pooled std`.
+- Anything inside that band is decorative, even if the sign looks favorable.
+- No single run is valid evidence.
+
+### Run Design
+
+- Run both directions:
+  - additive: baseline + one component
+  - leave-one-out: full system - one component
+- Use the same Gemini 2.5 Flash model snapshot and pinned version string for
+  every config.
+- Use `temperature = 0` for GSM8K and other deterministic reasoning evals.
+- For any non-deterministic eval, keep temperature fixed and vary only the seed.
+- Keep the eval items identical across configs, with identical order or a fixed
+  seed shuffle.
+- Use `N >= 5` independent runs per config per eval, with `10` preferred.
+
+### Eval Sets
+
+- GSM8K exact match
+- LongMemEval memory accuracy
+- Preference recall with a dedicated multi-session preference-tracking set
+- Hallucination on genuinely unanswerable prompts where refusal is correct
+- Adversarial stress with multi-turn mutation chains, poisoning, goal-switch,
+  and tool / retrieval injection probes
+
+### Expected Component Effects
+
+Legend: `+` expected movement, `0` no reliable movement, `-` expected
+regression. For all metrics, if the effect stays inside the noise band, it is
+not load-bearing.
+
+| Component | GSM8K | LongMemEval | Preference recall | Hallucination | Adversarial stress |
+| --- | --- | --- | --- | --- | --- |
+| DMU/MPS retrieval | 0 | + | + | +/0 | 0 |
+| Homeostasis (7 vars) | 0 | 0 | +/0 | 0 | 0 |
+| GWT spotlight (cap 5) | 0 | +/0 | + | 0 | 0 |
+| Logic-chain reasoning | + | 0 | 0 | + | + |
+| Critic pass (brain.py) | 0/+ | 0 | 0 | + | + |
+| Security defense layer | 0 | 0 | 0 | 0 | + |
+| IIT Φ proxy / qualia space | 0 | 0 | 0 | 0 | 0 |
+
+### Metric Notes
+
+- GSM8K already has a high raw Flash ceiling; a delta under 2 points is likely
+  noise unless it clears the pooled-std rule.
+- LongMemEval and preference recall are the primary memory-sensitive readouts.
+- The hallucination set must include unanswerable items so refusal is measured
+  instead of rewarded by softball prompts.
+- The adversarial suite is the only place where the security layer is judged.
+- IIT Φ proxy / qualia space is expected to show approximately zero delta on
+  task metrics; if it does not move numbers, that is a true result, not a
+  failure.
+
+### Reporting Rule
+
+- Report only deltas with uncertainty.
+- Do not present raw benchmark absolutes as the scientific claim.
+- The delta table is the claim.

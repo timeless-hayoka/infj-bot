@@ -82,12 +82,20 @@ RECENCY_WINDOW_SECONDS: float = 3_600.0  # 1 hour
 
 # MPS composite weights — must sum to 1.0
 WEIGHTS: Dict[str, float] = {
-    "semantic": 0.30,
-    "temporal": 0.35,
-    "emotional": 0.25,
-    "recency": 0.10,
+    "semantic": 0.255,
+    "temporal": 0.2975,
+    "emotional": 0.2125,
+    "recency": 0.085,
+    "source_reliability": 0.15,
 }
 assert abs(sum(WEIGHTS.values()) - 1.0) < 1e-9, "MPS weights must sum to 1.0"
+
+PROVENANCE_SCORES: Dict[str, float] = {
+    "user_explicit": 1.0,
+    "bot_inference": 0.6,
+    "conflicting_block": 0.2,
+    "corrupted_block": 0.1,
+}
 
 
 @dataclass
@@ -100,6 +108,9 @@ class MemoryCandidate:
     semantic_score: float  # from vector similarity, already normalized ~[0,1]
     emotional_weight: float  # E ∈ [0, 1], stored in memory metadata
     source: str = "unknown"
+    provenance: str = "user_explicit"
+    source_reliability: float = 1.0
+
 
 
 class DynamicMemoryUnit:
@@ -123,9 +134,19 @@ class DynamicMemoryUnit:
                     retention_score REAL,
                     emotional_weight REAL,
                     recency_bonus REAL,
+                    source_reliability REAL DEFAULT 1.0,
+                    provenance TEXT DEFAULT 'user_explicit',
                     mps REAL NOT NULL
                 )
             """)
+            try:
+                conn.execute("ALTER TABLE dmu_rankings ADD COLUMN source_reliability REAL DEFAULT 1.0")
+            except sqlite3.OperationalError:
+                pass
+            try:
+                conn.execute("ALTER TABLE dmu_rankings ADD COLUMN provenance TEXT DEFAULT 'user_explicit'")
+            except sqlite3.OperationalError:
+                pass
             conn.commit()
 
     # ── Core Mathematics ───────────────────────────────────────────────
@@ -176,13 +197,13 @@ class DynamicMemoryUnit:
         return 1.0 if age_seconds < RECENCY_WINDOW_SECONDS else 0.0
 
     def compute_mps(
-        self, candidate: MemoryCandidate, now: Optional[datetime] = None
+        self, candidate: MemoryCandidate, now: Optional[datetime] = None, query: str = ""
     ) -> float:
         """
         Compute the Composite Memory Persistence Score (MPS) for a candidate.
 
         Formula:
-            MPS = w_sim * S + w_time * R(t, E) + w_emo * E + w_rec * recency
+            MPS = w_sim * S + w_time * R(t, E) + w_emo * E + w_rec * recency + w_rel * reliability_term
 
         Each term is bounded in [0, 1], and weights sum to 1.0, so MPS ∈ [0, 1].
 
@@ -204,12 +225,23 @@ class DynamicMemoryUnit:
         # Guard against naive datetimes
         created = candidate.created_at
         if created.tzinfo is None:
-            created = created.replace(tzinfo=timezone.utc)
+            created = created.replace(timezone.utc)
 
         age_seconds = (now - created).total_seconds()
 
-        # Term 1: Semantic similarity (already computed by vector search)
-        S = max(0.0, min(1.0, candidate.semantic_score))
+        # Term 1: Semantic similarity with sparse keyword overlap boost
+        boost = 0.0
+        if query:
+            try:
+                import re
+                query_words = set(re.findall(r"\b\w{3,}\b", query.lower()))
+                content_words = set(re.findall(r"\b\w{3,}\b", candidate.text.lower()))
+                overlap = query_words.intersection(content_words)
+                if query_words:
+                    boost = 0.2 * (len(overlap) / len(query_words))
+            except Exception:
+                pass
+        S = max(0.0, min(1.0, candidate.semantic_score + boost))
 
         # Term 2: Time-decay retention with emotional modulation
         R = self._retention_curve(age_seconds, candidate.emotional_weight)
@@ -220,12 +252,17 @@ class DynamicMemoryUnit:
         # Term 4: Recency availability heuristic
         recency = self._recency_bonus(age_seconds)
 
+        # Term 5: Source Reliability
+        prov_score = PROVENANCE_SCORES.get(candidate.provenance, 0.5)
+        reliability_term = prov_score * candidate.source_reliability
+
         # Weighted sum
         mps = (
             WEIGHTS["semantic"] * S
             + WEIGHTS["temporal"] * R
             + WEIGHTS["emotional"] * E
             + WEIGHTS["recency"] * recency
+            + WEIGHTS["source_reliability"] * reliability_term
         )
 
         return round(max(0.0, min(1.0, mps)), 6)
@@ -249,7 +286,7 @@ class DynamicMemoryUnit:
 
         scored = []
         for cand in candidates:
-            mps = self.compute_mps(cand, now=now)
+            mps = self.compute_mps(cand, now=now, query=query)
             scored.append((cand, mps))
             self._log_ranking(query, cand, mps, now)
 
@@ -276,8 +313,8 @@ class DynamicMemoryUnit:
                 """
                 INSERT INTO dmu_rankings
                 (timestamp, query, memory_id, semantic_score, retention_score,
-                 emotional_weight, recency_bonus, mps)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                 emotional_weight, recency_bonus, source_reliability, provenance, mps)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     now.isoformat(),
@@ -287,6 +324,8 @@ class DynamicMemoryUnit:
                     retention,
                     cand.emotional_weight,
                     recency,
+                    cand.source_reliability,
+                    cand.provenance,
                     mps,
                 ),
             )
@@ -351,6 +390,8 @@ def rank_memory_entries(
                 "emotion_intensity", entry.metadata.get("emotional", 0.5)
             )
         )
+        provenance = entry.metadata.get("provenance", "user_explicit")
+        source_reliability = float(entry.metadata.get("source_reliability", 1.0))
         # Approximate raw semantic score from the unified DMU (upper bound)
         approx_semantic = min(1.0, entry.score * 1.2)
 
@@ -361,6 +402,8 @@ def rank_memory_entries(
             semantic_score=approx_semantic,
             emotional_weight=emotional,
             source=entry.metadata.get("type", "unknown"),
+            provenance=provenance,
+            source_reliability=source_reliability,
         )
         candidates.append(cand)
 
@@ -370,9 +413,12 @@ def rank_memory_entries(
 
 def format_ranked_entries(ranked: List[Tuple[MemoryCandidate, float]]) -> str:
     """Convert DMU-ranked entries into the string format expected by the prompt builder."""
+    # Chronological Prompt Sorting: sort selected memories chronologically ascending (oldest first)
+    chronological = sorted(ranked, key=lambda x: x[0].created_at)
+    
     lines = []
-    for cand, mps in ranked:
-        lines.append(f"[{cand.source}] (salience: {mps:.2f})\n{cand.text}")
+    for cand, mps in chronological:
+        lines.append(f"[{cand.source}] [provenance: {cand.provenance}] (salience: {mps:.2f})\n{cand.text}")
     return "\n---\n".join(lines)
 
 

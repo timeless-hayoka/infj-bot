@@ -25,7 +25,7 @@ class OllamaBridge:
         self._client = None
         if ollama is not None:
             try:
-                timeout = int(os.getenv("DRIFT_LOCAL_TIMEOUT", "120"))
+                timeout = int(os.getenv("DRIFT_LOCAL_TIMEOUT", "300"))
                 self._client = ollama.Client(host=self.host, timeout=timeout)
             except Exception:
                 self._client = None
@@ -111,6 +111,7 @@ class OllamaBridge:
         system: Optional[str] = None,
         stream: bool = False,
         temperature: float = 0.7,
+        **kwargs: Any,
     ) -> str:
         """Raw generate (non-chat)."""
         if not self.is_available():
@@ -118,12 +119,19 @@ class OllamaBridge:
         m = model or self.model
         try:
             assert self._client is not None
+            options = {"temperature": temperature}
+            if "top_p" in kwargs and kwargs["top_p"] is not None:
+                options["top_p"] = float(kwargs["top_p"])
+            max_tok = kwargs.get("max_tokens") or kwargs.get("max_output_tokens")
+            if max_tok is not None:
+                options["num_predict"] = int(max_tok)
+
             resp = self._client.generate(
                 model=m,
                 prompt=prompt,
                 system=system or "",
                 stream=False,
-                options={"temperature": temperature},
+                options=options,
             )
             return resp["response"]
         except LocalLLMError:
@@ -137,18 +145,26 @@ class OllamaBridge:
         model: Optional[str] = None,
         system: Optional[str] = None,
         temperature: float = 0.7,
+        **kwargs: Any,
     ) -> Generator[str, None, None]:
         if not self.is_available():
             raise LocalLLMError("Ollama is not available.")
         m = model or self.model
         try:
             assert self._client is not None
+            options = {"temperature": temperature}
+            if "top_p" in kwargs and kwargs["top_p"] is not None:
+                options["top_p"] = float(kwargs["top_p"])
+            max_tok = kwargs.get("max_tokens") or kwargs.get("max_output_tokens")
+            if max_tok is not None:
+                options["num_predict"] = int(max_tok)
+
             stream = self._client.generate(
                 model=m,
                 prompt=prompt,
                 system=system or "",
                 stream=True,
-                options={"temperature": temperature},
+                options=options,
             )
             for chunk in stream:
                 text = chunk.get("response", "")

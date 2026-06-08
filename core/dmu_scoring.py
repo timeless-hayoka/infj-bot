@@ -25,12 +25,20 @@ import time
 # ------------------------------------------------------------------ #
 
 MPS_WEIGHTS = {
-    "decay": 0.25,
-    "reinf": 0.20,
-    "contextual": 0.20,
-    "recency_bias": 0.15,
-    "novelty": 0.10,
-    "state_align": 0.10,
+    "decay": 0.2125,
+    "reinf": 0.17,
+    "contextual": 0.17,
+    "recency_bias": 0.1275,
+    "novelty": 0.085,
+    "state_align": 0.085,
+    "source_reliability": 0.15,
+}
+
+PROVENANCE_SCORES = {
+    "user_explicit": 1.0,
+    "bot_inference": 0.6,
+    "conflicting_block": 0.2,
+    "corrupted_block": 0.1,
 }
 
 # Gamma for decay shaping.
@@ -111,6 +119,12 @@ def compute_mps(
     # ---- State alignment ---- #
     state_align = _state_alignment_score(memory, current_state)
 
+    # ---- Source reliability ---- #
+    provenance = getattr(memory, "provenance", "user_explicit")
+    source_reliability = getattr(memory, "source_reliability", 1.0)
+    prov_score = PROVENANCE_SCORES.get(provenance, 0.5)
+    reliability_term = prov_score * source_reliability
+
     # ---- Additive MPS ---- #
     mps = (
         MPS_WEIGHTS["decay"] * decay
@@ -119,6 +133,7 @@ def compute_mps(
         + MPS_WEIGHTS["recency_bias"] * recency_bias
         + MPS_WEIGHTS["novelty"] * novelty_gated
         + MPS_WEIGHTS["state_align"] * state_align
+        + MPS_WEIGHTS["source_reliability"] * reliability_term
     )
     mps = max(0.0, min(1.0, mps))
 
@@ -130,6 +145,7 @@ def compute_mps(
         "recency_bias": recency_bias,
         "novelty": novelty_gated,
         "state_align": state_align,
+        "source_reliability": reliability_term,
         "final_mps": mps,
         "mode": current_mode,
     }
@@ -275,6 +291,8 @@ class _DMUMemory:
         novelty_score: float = 0.5,
         tags: list = None,
         extra_flags: dict = None,
+        provenance: str = "user_explicit",
+        source_reliability: float = 1.0,
     ):
         self.content = content
         self.id = memory_id or str(hash(content))[:8]
@@ -283,6 +301,8 @@ class _DMUMemory:
         self.novelty_score = novelty_score
         self.tags = tags or []
         self.extra_flags = extra_flags or {}
+        self.provenance = provenance
+        self.source_reliability = source_reliability
         self.score = 0.0
         self.score_components = {}
 
@@ -314,6 +334,8 @@ def _chromadb_results_to_memories(chromadb_results):
                 reinforcement_score=meta.get("reinforcement_score", 0.5),
                 novelty_score=meta.get("novelty_score", 0.5),
                 tags=meta.get("tags", []),
+                provenance=meta.get("provenance", "user_explicit"),
+                source_reliability=float(meta.get("source_reliability", 1.0)),
             )
         )
     return memories
