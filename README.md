@@ -309,7 +309,9 @@ Five tracked needs (rest, connection, purpose, stimulation, safety) decay over t
 
 ## Development Status & Functional Coverage
 
-PHI // DRIFT is an active research project. While the core cognitive architecture is functional, certain subsystems use **production-ready stubs** or **local mocks** to ensure stability across different environments (e.g., air-gapped or API-less testing).
+PHI // DRIFT is an active research project. While the core cognitive architecture is functional, certain subsystems use **production-ready stubs** or **local mocks** to ensure stability across different environments. 
+
+For a transparent record of the challenges, syntax crises, and methodology errors we've encountered, see **[MISHAPS.md](./MISHAPS.md)**.
 
 ### Stubs & Mocked Functions
 
