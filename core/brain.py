@@ -282,11 +282,21 @@ class DriftBrain(_BrainGenerationMixin):
     # ------------------------------------------------------------------
 
     def _generate_new_sdk(self, model_name, system_instruction, prompt, **kwargs):
-        config = genai_types.GenerateContentConfig(
-            system_instruction=system_instruction,
-            temperature=kwargs.get("temperature"),
-            top_p=kwargs.get("top_p"),
-        )
+        config_kwargs = {
+            "temperature": kwargs.get("temperature"),
+            "top_p": kwargs.get("top_p"),
+            "tools": [{"google_search": {}}],
+        }
+        
+        # Support Context Caching for better token usage if passed
+        if "cached_content" in kwargs:
+            config_kwargs["cached_content"] = kwargs["cached_content"]
+        elif hasattr(self, "_cached_system_content") and self._cached_system_content:
+            config_kwargs["cached_content"] = self._cached_system_content
+        else:
+            config_kwargs["system_instruction"] = system_instruction
+            
+        config = genai_types.GenerateContentConfig(**config_kwargs)
         response = self.client.models.generate_content(
             model=model_name,
             contents=prompt,
@@ -295,11 +305,20 @@ class DriftBrain(_BrainGenerationMixin):
         return response.text or ""
 
     def _generate_new_sdk_stream(self, model_name, system_instruction, prompt, **kwargs):
-        config = genai_types.GenerateContentConfig(
-            system_instruction=system_instruction,
-            temperature=kwargs.get("temperature"),
-            top_p=kwargs.get("top_p"),
-        )
+        config_kwargs = {
+            "temperature": kwargs.get("temperature"),
+            "top_p": kwargs.get("top_p"),
+            "tools": [{"google_search": {}}],
+        }
+        
+        if "cached_content" in kwargs:
+            config_kwargs["cached_content"] = kwargs["cached_content"]
+        elif hasattr(self, "_cached_system_content") and self._cached_system_content:
+            config_kwargs["cached_content"] = self._cached_system_content
+        else:
+            config_kwargs["system_instruction"] = system_instruction
+
+        config = genai_types.GenerateContentConfig(**config_kwargs)
         for chunk in self.client.models.generate_content_stream(
             model=model_name,
             contents=prompt,
