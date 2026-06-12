@@ -5,7 +5,7 @@ import wave
 from pathlib import Path
 from typing import Optional
 
-from infj_bot.core.config import PROJECT_ROOT
+from drift.core.config import PROJECT_ROOT
 
 VOICE_DIR = PROJECT_ROOT / "voices"
 DEFAULT_VOICE = VOICE_DIR / "en_US-lessac-medium.onnx"

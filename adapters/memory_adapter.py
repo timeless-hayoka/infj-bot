@@ -1,11 +1,11 @@
 """
 Phase 1 Adapter: Memory (Compatibility Spine)
-Provides a unified interface for infj_bot, core, and hive memory.
+Provides a unified interface for drift, core, and hive memory.
 """
 
-from infj_bot import memory as infj_memory
-from infj_bot.core import memory as core_memory
-from infj_bot.hive_mind import shared_memory as hive_memory
+from drift import memory as infj_memory
+from drift.core import memory as core_memory
+from drift.hive_mind import shared_memory as hive_memory
 
 
 class MemoryAdapter:

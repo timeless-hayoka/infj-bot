@@ -24,7 +24,7 @@ def execute_environment_check():
     for name, path in REQUIRED_FILES.items():
         if not os.path.exists(path):
             print(f"[!] ERROR: Target file missing for {name} at location: ./{path}")
-            print("    Fix: Ensure you are running this script from the root of 'infj-bot/'.")
+            print("    Fix: Ensure you are running this script from the root of 'drift/'.")
             missing_files = True
             
     if missing_files:

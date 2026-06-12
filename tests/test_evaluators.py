@@ -7,9 +7,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from infj_bot.evals.consistency_eval import ConsistencyEvaluator
-from infj_bot.evals.mode_discrimination import ModeDiscriminator
-from infj_bot.evals.self_modify_audit import SelfModificationAudit
+from drift.evals.consistency_eval import ConsistencyEvaluator
+from drift.evals.mode_discrimination import ModeDiscriminator
+from drift.evals.self_modify_audit import SelfModificationAudit
 
 
 class TestConsistencyEvaluator(unittest.TestCase):

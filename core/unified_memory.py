@@ -10,7 +10,7 @@ from pathlib import Path
 import anyio
 import chromadb
 
-from infj_bot.core.config import PERSIST_DIRECTORY
+from drift.core.config import PERSIST_DIRECTORY
 
 
 @dataclass
@@ -56,7 +56,7 @@ class MemoryManager:
         self._init_sqlite()
         
         # Explicitly use project's default embedding function
-        from infj_bot.core.embeddings import get_default_embedding_function
+        from drift.core.embeddings import get_default_embedding_function
         self.embedding_function = get_default_embedding_function()
         
         self._client = chromadb.PersistentClient(path=self.chroma_path)
@@ -439,7 +439,7 @@ class MemoryManager:
 
         Call this periodically (e.g. every consciousness cycle or N user turns).
         """
-        from infj_bot.core.config import (
+        from drift.core.config import (
             BACKGROUND_PRUNE_INTERVAL_SECONDS,
             PRUNE_EVERY_N_TURNS,
             PRUNING_THRESHOLD,
@@ -488,7 +488,7 @@ class MemoryManager:
             "after": after,
         }
         try:
-            from infj_bot.core.jsonl_logger import HardenedJsonlLogger
+            from drift.core.jsonl_logger import HardenedJsonlLogger
             HardenedJsonlLogger(log_path).append(entry)
         except Exception:
             pass

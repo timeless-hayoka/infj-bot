@@ -9,8 +9,8 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 # Force load config
-from infj_bot.core.config import DATA_DIR
-from infj_bot.core.being import get_being
+from drift.core.config import DATA_DIR
+from drift.core.being import get_being
 
 BEING_DB = DATA_DIR / "being.db"
 NEXUS_DB = DATA_DIR / "nexus.db"

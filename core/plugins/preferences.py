@@ -10,7 +10,7 @@ import sqlite3
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from infj_bot.core.config import DATA_DIR
+from drift.core.config import DATA_DIR
 
 PREFS_DB = DATA_DIR / "preferences.db"
 

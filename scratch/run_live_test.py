@@ -10,8 +10,8 @@ from datetime import datetime
 # Add project root to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from infj_bot.core.config import DATA_DIR
-from infj_bot.core.being import get_being, PEDIMetric, DIIMetric
+from drift.core.config import DATA_DIR
+from drift.core.being import get_being, PEDIMetric, DIIMetric
 
 # Paths for snapshotting
 BEING_DB_PATH = DATA_DIR / "being.db"
@@ -190,9 +190,9 @@ This experiment tests the integration of **SparkTrain v2.0** containing **Shadow
     *   `quiet_mode_until` (reset to `0.0` before each iteration to ensure veto evaluation)
 
 ### 3.2. Implementation Details
-*   **Model/System under test:** infj-bot Core `Being` class equipped with SparkTrain v2.0 and ShadowCritic.
+*   **Model/System under test:** drift Core `Being` class equipped with SparkTrain v2.0 and ShadowCritic.
 *   **Sample Size (n):** 1 control run followed by 10 identical test runs.
-*   **Test Environment:** Sandbox workspace `/home/crexs/infj_bot` inside conda environment running python 3.12.
+*   **Test Environment:** Sandbox workspace `/home/crexs/drift` inside conda environment running python 3.12.
 
 ---
 
@@ -265,7 +265,7 @@ The alternative hypothesis (**H1**) is **accepted**. Lower energy levels and con
 """
     
     # Save files
-    report_path = "/home/crexs/infj_bot/scratch/drift_live_test_report.md"
+    report_path = "/home/crexs/drift/scratch/drift_live_test_report.md"
     artifact_path = "/home/crexs/.gemini/antigravity-cli/brain/2a717a04-9352-4afe-8fe3-37a1b86556cb/drift_live_test_report.md"
     
     with open(report_path, "w", encoding="utf-8") as f:

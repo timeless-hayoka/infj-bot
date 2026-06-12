@@ -1,9 +1,28 @@
-version: '3.8'
+version: "3.8"
+
 services:
-  ollama:
-    image: ollama/ollama:latest
+  drift-core:
+    build: .
     ports:
-      - "11434:11434"
+      - "8000:8000"
+    environment:
+      - DRIFT_USE_GCP=true
+      - CLOUD_SQL_CONNECTION_NAME=your-project:region:drift-db
+      - DB_USER=drift_user
+      - DB_PASS=drift_password
+      - DB_NAME=drift_memory
     volumes:
-      - ./ollama_data:/root/.ollama
-    restart: unless-stopped
+      - ~/.drift_os:/root/.drift_os
+    depends_on:
+      - cloud-sql-proxy
+
+  cloud-sql-proxy:
+    image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.1.0
+    command:
+      - "--address=0.0.0.0"
+      - "--port=5432"
+      - "your-project:region:drift-db"
+    ports:
+      - "5432:5432"
+    volumes:
+      - ~/.config/gcloud:/root/.config/gcloud:ro

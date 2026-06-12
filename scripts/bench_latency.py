@@ -24,7 +24,7 @@ else:
 
 snippet = r"""
 import time, os
-from infj_bot.core.brain import DriftBrain
+from drift.core.brain import DriftBrain
 b = DriftBrain()
 start = time.time()
 # run a quick think — use short prompt

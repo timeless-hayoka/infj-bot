@@ -37,7 +37,7 @@ from typing import Callable, Iterator, Optional
 
 import requests
 
-from infj_bot.core.config import (
+from drift.core.config import (
     API_KEY,
     DRIFT_USE_GROQ,
     GROQ_API_KEY,
@@ -1022,7 +1022,7 @@ class _BrainGenerationMixin:
             request_budget = getattr(request_budget_local, "budget", None)
         
         # Pull dynamic generation parameters from context variable if not explicitly passed
-        from infj_bot.core.causal_wiring import generation_params_var
+        from drift.core.causal_wiring import generation_params_var
         gp = generation_params_var.get()
         if gp:
             if "temperature" not in kwargs and gp.get("temperature") is not None:
@@ -1043,7 +1043,7 @@ class _BrainGenerationMixin:
             request_budget = getattr(request_budget_local, "budget", None)
 
         # Pull dynamic generation parameters from context variable if not explicitly passed
-        from infj_bot.core.causal_wiring import generation_params_var
+        from drift.core.causal_wiring import generation_params_var
         gp = generation_params_var.get()
         if gp:
             if "temperature" not in kwargs and gp.get("temperature") is not None:

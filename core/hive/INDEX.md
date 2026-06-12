@@ -1,6 +1,6 @@
 # Elysium Phase 5 — File Index
 
-All paths are relative to `infj_bot/` (the project root).
+All paths are relative to `drift/` (the project root).
 
 ## Core Elysium Files (new)
 
@@ -41,7 +41,7 @@ All paths are relative to `infj_bot/` (the project root).
 
 ```bash
 # Run only Elysium tests
-cd /home/crexs/infj_bot
+cd /home/crexs/drift
 ./venv/bin/pytest tests/test_elysium.py -v
 
 # Run full suite (skip known-broken collectors)

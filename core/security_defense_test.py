@@ -1,6 +1,6 @@
 """Tests for the security defense scanner."""
 
-from infj_bot.core.security_defense import (
+from drift.core.security_defense import (
     SecurityScanner,
     _score_text,
     PROMPT_INJECTION_PATTERNS,

@@ -11,7 +11,7 @@ from dataclasses import dataclass
 import sqlite3
 import chromadb
 
-from infj_bot.core.unified_memory import Event
+from drift.core.unified_memory import Event
 
 THRESHOLD_PRUNE = 0.15
 THRESHOLD_HIGH = 0.65

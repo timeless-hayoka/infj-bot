@@ -20,16 +20,16 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from infj_bot.core.brain import DriftBrain
-from infj_bot.core.being import get_being
-from infj_bot.core.websocket_manager import manager
-from infj_bot.core.config import PROJECT_ROOT
-from infj_bot.core.cognition import map_dissonance
-from infj_bot.core.plugins.documents import DocumentStore, format_doc_results
-from infj_bot.core.plugins.emotion import detect_emotion
-from infj_bot.core.plugins.goals import GoalsDB
-from infj_bot.core.memory import DriftMemory
-from infj_bot.core.global_workspace import GlobalWorkspace
+from drift.core.brain import DriftBrain
+from drift.core.being import get_being
+from drift.core.websocket_manager import manager
+from drift.core.config import PROJECT_ROOT
+from drift.core.cognition import map_dissonance
+from drift.core.plugins.documents import DocumentStore, format_doc_results
+from drift.core.plugins.emotion import detect_emotion
+from drift.core.plugins.goals import GoalsDB
+from drift.core.memory import DriftMemory
+from drift.core.global_workspace import GlobalWorkspace
 
 try:
     from hive_mind.orchestrator import HiveOrchestrator

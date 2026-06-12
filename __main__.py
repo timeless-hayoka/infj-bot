@@ -1,6 +1,6 @@
-"""Allow running as `python -m infj_bot`."""
+"""Allow running as `python -m drift`."""
 
-from infj_bot.interfaces.cli import main
+from drift.interfaces.cli import main
 
 if __name__ == "__main__":
     main()

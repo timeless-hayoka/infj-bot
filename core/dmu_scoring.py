@@ -182,7 +182,7 @@ def _normalized_contextual_sim(memory, current_state: dict) -> float:
     Uses LocalEmbeddingFunction for deterministic hash-based similarity.
     Returns float in [0.0, 1.0].
     """
-    from infj_bot.core.embeddings import LocalEmbeddingFunction
+    from drift.core.embeddings import LocalEmbeddingFunction
 
     emb = LocalEmbeddingFunction()
     mem_vec = emb.embed_query(getattr(memory, "content", str(memory)))

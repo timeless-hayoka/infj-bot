@@ -37,18 +37,18 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 # ── DRIFT imports (same path as ablation_suite) ───────────────────────────────
-from infj_bot.core.brain import DriftBrain
-from infj_bot.core.memory import DriftMemory
-from infj_bot.core.cognitive_orchestrator import CognitiveOrchestrator
-from infj_bot.core.commands import BotState
-from infj_bot.core.config import DEFAULT_AUTHORIZED_TARGETS
-from infj_bot.core.plugins.goals import GoalsDB
-from infj_bot.core.plugins.documents import DocumentStore
-from infj_bot.core.being import get_being
-from infj_bot.core.homeostasis import get_homeostasis
-from infj_bot.core.dii_tracker import get_dii_tracker
-from infj_bot.core.global_workspace import get_workspace
-from infj_bot.core.shadow import get_shadow
+from drift.core.brain import DriftBrain
+from drift.core.memory import DriftMemory
+from drift.core.cognitive_orchestrator import CognitiveOrchestrator
+from drift.core.commands import BotState
+from drift.core.config import DEFAULT_AUTHORIZED_TARGETS
+from drift.core.plugins.goals import GoalsDB
+from drift.core.plugins.documents import DocumentStore
+from drift.core.being import get_being
+from drift.core.homeostasis import get_homeostasis
+from drift.core.dii_tracker import get_dii_tracker
+from drift.core.global_workspace import get_workspace
+from drift.core.shadow import get_shadow
 
 # ── CONFIG ────────────────────────────────────────────────────────────────────
 
@@ -217,11 +217,11 @@ def _save_originals():
 
 def _restore_originals():
     """Restore original singleton instances."""
-    import infj_bot.core.being as being_mod
-    import infj_bot.core.homeostasis as homeo_mod
-    import infj_bot.core.dii_tracker as dii_mod
-    import infj_bot.core.global_workspace as ws_mod
-    import infj_bot.core.shadow as shadow_mod
+    import drift.core.being as being_mod
+    import drift.core.homeostasis as homeo_mod
+    import drift.core.dii_tracker as dii_mod
+    import drift.core.global_workspace as ws_mod
+    import drift.core.shadow as shadow_mod
 
     being_mod._being_instance = _original_instances["being"]
     homeo_mod._homeostasis_instance = _original_instances["homeostasis"]
@@ -232,11 +232,11 @@ def _restore_originals():
 
 def _apply_condition(condition: dict):
     """Swap singleton instances based on condition."""
-    import infj_bot.core.being as being_mod
-    import infj_bot.core.homeostasis as homeo_mod
-    import infj_bot.core.dii_tracker as dii_mod
-    import infj_bot.core.global_workspace as ws_mod
-    import infj_bot.core.shadow as shadow_mod
+    import drift.core.being as being_mod
+    import drift.core.homeostasis as homeo_mod
+    import drift.core.dii_tracker as dii_mod
+    import drift.core.global_workspace as ws_mod
+    import drift.core.shadow as shadow_mod
 
     # ── PEDI / Being ──
     if condition["pedi"] == "zeroed":

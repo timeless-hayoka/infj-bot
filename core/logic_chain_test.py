@@ -1,6 +1,6 @@
 """Tests for the logic chain reasoning system."""
 
-from infj_bot.core.logic_chain import (
+from drift.core.logic_chain import (
     ChainNode,
     LogicChain,
     ChainNavigator,

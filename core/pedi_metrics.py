@@ -37,7 +37,7 @@ class PEDIEngine:
             import os
             import json
             try:
-                from infj_bot.core.svalbard_vault import VAULT_PATH
+                from drift.core.svalbard_vault import VAULT_PATH
             except ImportError:
                 from svalbard_vault import VAULT_PATH
                 

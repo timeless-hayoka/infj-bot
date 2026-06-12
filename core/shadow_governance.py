@@ -1,6 +1,6 @@
 """
 shadow_governance.py — PHI // DRIFT Shadow Layer
-infj_bot/core/shadow_governance.py
+drift/core/shadow_governance.py
 
 Implements bounded uncertainty management for the Shadow layer.
 Shadow is unresolved contradiction under time pressure.

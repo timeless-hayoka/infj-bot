@@ -3,10 +3,10 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Set
-from infj_bot.core.cognition import map_dissonance
-from infj_bot.core.plugins.growth import format_growth, growth_profile
-from infj_bot.core.plugins.scheduler import TaskScheduler, parse_duration
-from infj_bot.core.plugins.preferences import PreferenceStore
+from drift.core.cognition import map_dissonance
+from drift.core.plugins.growth import format_growth, growth_profile
+from drift.core.plugins.scheduler import TaskScheduler, parse_duration
+from drift.core.plugins.preferences import PreferenceStore
 
 
 MODES = {
@@ -498,7 +498,7 @@ def handle_docs_command(args, doc_store):
     if not args:
         return command_help("docs")
     results = doc_store.search(args, n_results=5)
-    from infj_bot.core.plugins.documents import format_doc_results
+    from drift.core.plugins.documents import format_doc_results
 
     return format_doc_results(results)
 
@@ -564,7 +564,7 @@ def handle_recon_fuzz_command(args, state):
 
 
 def handle_meow_command(_args, _state):
-    from infj_bot.core.plugins.meow_scanner import meow_hunt
+    from drift.core.plugins.meow_scanner import meow_hunt
 
     return meow_hunt(str(Path(__file__).parent.parent))
 
@@ -604,7 +604,7 @@ def handle_bug_command(args, _state, brain=None, memory=None):
     _ = memory  # noqa: F841
     if not args:
         return command_help("bug")
-    from infj_bot.core.bug_bot import BugBot
+    from drift.core.bug_bot import BugBot
 
     bot = BugBot()
     subcmd, _, rest = args.partition(" ")
@@ -686,7 +686,7 @@ def handle_computer_use_command(args, state):
     if not args:
         return command_help("computer-use")
     url = args.strip()
-    from infj_bot.core.plugins.computer_use import run_computer_actions
+    from drift.core.plugins.computer_use import run_computer_actions
 
     domain = (
         url.replace("https://", "")
@@ -704,13 +704,13 @@ def handle_computer_use_command(args, state):
 
 
 def handle_computer_status_command():
-    from infj_bot.core.plugins.computer_use import get_computer_session_status
+    from drift.core.plugins.computer_use import get_computer_session_status
 
     return get_computer_session_status()
 
 
 def handle_computer_close_command():
-    from infj_bot.core.plugins.computer_use import close_computer_session
+    from drift.core.plugins.computer_use import close_computer_session
 
     return close_computer_session()
 
@@ -728,7 +728,7 @@ def handle_health_command(brain, memory):
 
 
 def handle_security_command(args):
-    from infj_bot.core.security_defense import get_security_scanner
+    from drift.core.security_defense import get_security_scanner
 
     scanner = get_security_scanner()
     if not args or args.strip() == "status":
@@ -736,7 +736,7 @@ def handle_security_command(args):
         status = "calm" if trend < 0.1 else ("elevated" if trend < 0.3 else "high")
         return f"Security scanner status: {status} (trend={trend:.3f}, recent_inputs={len(scanner._recent_scores)})"
     if args.strip().startswith("audit"):
-        from infj_bot.core.security_defense import SECURITY_AUDIT_PATH
+        from drift.core.security_defense import SECURITY_AUDIT_PATH
 
         if not SECURITY_AUDIT_PATH.exists():
             return "No security events logged yet."
@@ -758,7 +758,7 @@ def handle_security_command(args):
         )
     if args.strip().startswith("test "):
         text = args[5:].strip()
-        from infj_bot.core.security_defense import scan_input
+        from drift.core.security_defense import scan_input
 
         result = scan_input(text)
         lines = [
@@ -781,7 +781,7 @@ def handle_security_command(args):
 
 
 def handle_chain_command(args):
-    from infj_bot.core.logic_chain import get_chain_navigator
+    from drift.core.logic_chain import get_chain_navigator
 
     nav = get_chain_navigator()
     if not args or args.strip() == "list":
@@ -995,7 +995,7 @@ def handle_correct_command(args, state):
 
 
 def handle_mood_command():
-    from infj_bot.core.being import get_being
+    from drift.core.being import get_being
 
     being = get_being()
     s = being.state
@@ -1012,7 +1012,7 @@ def handle_mood_command():
 
 
 def handle_thoughts_command():
-    from infj_bot.core.being import get_being
+    from drift.core.being import get_being
 
     being = get_being()
     thoughts = being.recent_thoughts(limit=10)
@@ -1026,7 +1026,7 @@ def handle_thoughts_command():
 
 
 def handle_whoareyou_command():
-    from infj_bot.core.being import get_being
+    from drift.core.being import get_being
 
     being = get_being()
     narrative = being.get_narrative()
@@ -1040,14 +1040,14 @@ def handle_whoareyou_command():
 
 
 def handle_feel_command():
-    from infj_bot.core.emotional_field import EmotionalField
+    from drift.core.emotional_field import EmotionalField
 
     field = EmotionalField()
     return field.format_prompt_snippet()
 
 
 def handle_values_command():
-    from infj_bot.core.plugins.values import ValueSystem
+    from drift.core.plugins.values import ValueSystem
 
     vs = ValueSystem()
     return (
@@ -1059,7 +1059,7 @@ def handle_values_command():
 def handle_explore_command(args):
     if not args:
         return command_help("explore")
-    from infj_bot.core.plugins.explorer import AutonomousExplorer
+    from drift.core.plugins.explorer import AutonomousExplorer
 
     explorer = AutonomousExplorer()
     explorer.queue_topic(args.strip(), priority=0.8)
@@ -1067,7 +1067,7 @@ def handle_explore_command(args):
 
 
 def handle_discoveries_command():
-    from infj_bot.core.plugins.explorer import AutonomousExplorer
+    from drift.core.plugins.explorer import AutonomousExplorer
 
     explorer = AutonomousExplorer()
     discoveries = explorer.discoveries[:5]
@@ -1085,7 +1085,7 @@ def handle_create_command(args):
     parts = args.split(maxsplit=1)
     mode = parts[0].lower()
     topic = parts[1] if len(parts) > 1 else ""
-    from infj_bot.core.plugins.creativity import CreativeEngine
+    from drift.core.plugins.creativity import CreativeEngine
 
     engine = CreativeEngine()
     if mode == "story":
@@ -1105,7 +1105,7 @@ def handle_create_command(args):
 
 
 def handle_us_command():
-    from infj_bot.core.plugins.relationship import RelationshipModel
+    from drift.core.plugins.relationship import RelationshipModel
 
     rel = RelationshipModel()
     lines = [rel.format_relationship_prompt()]
@@ -1116,7 +1116,7 @@ def handle_us_command():
 
 
 def handle_aspire_command(args):
-    from infj_bot.core.plugins.aspirations import AspirationalSelf
+    from drift.core.plugins.aspirations import AspirationalSelf
 
     aspirational = AspirationalSelf()
     if args.strip().lower() == "manifesto":
@@ -1139,7 +1139,7 @@ def handle_aspire_command(args):
 
 
 def handle_meta_command(args):
-    from infj_bot.core.metacognition import MetacognitionEngine
+    from drift.core.metacognition import MetacognitionEngine
 
     meta = MetacognitionEngine()
     if args.strip().lower() == "biases":
@@ -1152,7 +1152,7 @@ def handle_meta_command(args):
 
 
 def handle_proposals_command(args):
-    from infj_bot.core.self_modify import SelfModification
+    from drift.core.self_modify import SelfModification
 
     sm = SelfModification()
     if not args:
@@ -1193,7 +1193,7 @@ def handle_proposals_command(args):
 
 
 def handle_trajectory_command(args):
-    from infj_bot.core.plugins.growth_trajectory import GrowthTrajectory
+    from drift.core.plugins.growth_trajectory import GrowthTrajectory
 
     gt = GrowthTrajectory()
     if args.strip().lower() == "narrative":
@@ -1204,7 +1204,7 @@ def handle_trajectory_command(args):
 
 
 def handle_predict_command(args):
-    from infj_bot.core.plugins.predictor import PredictiveNeeds
+    from drift.core.plugins.predictor import PredictiveNeeds
 
     predictor = PredictiveNeeds()
     if args.strip().lower() == "summary":
@@ -1228,14 +1228,14 @@ def handle_predict_command(args):
 
 
 def handle_patterns_command():
-    from infj_bot.core.plugins.predictor import PredictiveNeeds
+    from drift.core.plugins.predictor import PredictiveNeeds
 
     predictor = PredictiveNeeds()
     return predictor.get_pattern_summary()
 
 
 def handle_time_command(args):
-    from infj_bot.core.plugins.temporal import TemporalSense
+    from drift.core.plugins.temporal import TemporalSense
 
     temporal = TemporalSense()
     if args.strip().lower() == "absences":
@@ -1252,14 +1252,14 @@ def handle_time_command(args):
 
 
 def handle_missed_command():
-    from infj_bot.core.plugins.temporal import TemporalSense
+    from drift.core.plugins.temporal import TemporalSense
 
     temporal = TemporalSense()
     return temporal.get_absence_summary()
 
 
 def handle_dream_command(memory):
-    from infj_bot.core.being import get_being
+    from drift.core.being import get_being
 
     being = get_being()
     recent = memory.recent_interactions(10)
@@ -1279,7 +1279,7 @@ def handle_dream_command(memory):
 
 
 def handle_workspace_command(args):
-    from infj_bot.core.global_workspace import get_workspace
+    from drift.core.global_workspace import get_workspace
 
     ws = get_workspace()
     parts = args.strip().split()
@@ -1331,7 +1331,7 @@ def handle_workspace_command(args):
 
 
 def handle_being_command(args):
-    from infj_bot.core.being import get_being
+    from drift.core.being import get_being
 
     being = get_being()
     parts = args.strip().split()
@@ -1380,7 +1380,7 @@ def handle_being_command(args):
 
 
 def handle_mind_command(args):
-    from infj_bot.core.cognitive_orchestrator import CognitiveOrchestrator
+    from drift.core.cognitive_orchestrator import CognitiveOrchestrator
 
     orch = CognitiveOrchestrator()
     parts = args.strip().split()
@@ -1426,7 +1426,7 @@ def handle_mind_command(args):
 
 
 def handle_humanity_command(args):
-    from infj_bot.core.plugins.humanity import HumanityEngine
+    from drift.core.plugins.humanity import HumanityEngine
 
     humanity = HumanityEngine()
     parts = args.strip().split()
@@ -1487,7 +1487,7 @@ def handle_humanity_command(args):
 
 
 def handle_physics_command(args):
-    from infj_bot.core.plugins.physics import PhysicsEngine
+    from drift.core.plugins.physics import PhysicsEngine
 
     physics = PhysicsEngine()
     parts = args.strip().split()
@@ -1600,8 +1600,8 @@ def _physics_word(principle, value):
 
 
 def handle_architecture_command(args):
-    from infj_bot.core.cognitive_architecture import CognitiveArchitecture
-    from infj_bot.core.cognitive_factory import CognitiveFactory
+    from drift.core.cognitive_architecture import CognitiveArchitecture
+    from drift.core.cognitive_factory import CognitiveFactory
 
     arch = CognitiveArchitecture()
     factory = CognitiveFactory()
@@ -1687,14 +1687,14 @@ def handle_architecture_command(args):
 def handle_hive_command(args, brain=None, memory=None):
     """Handler for /hive — distributed cognition and consensus status."""
     try:
-        from infj_bot.core.coordination import get_coordination
+        from drift.core.coordination import get_coordination
 
         coord = get_coordination()
         if not coord.consensus:
             return "The Hive Mind is currently disconnected or offline."
 
         if not args:
-            from infj_bot.hive_mind.orchestrator import HiveOrchestrator
+            from drift.hive_mind.orchestrator import HiveOrchestrator
 
             orch = HiveOrchestrator()
             status = orch.get_status()
@@ -1708,7 +1708,7 @@ def handle_hive_command(args, brain=None, memory=None):
             if not thought:
                 return "Usage: /hive propose <thought>"
 
-            from infj_bot.hive_mind.protocol.dcp import DCPMessage, Resolution, NodeRole
+            from drift.hive_mind.protocol.dcp import DCPMessage, Resolution, NodeRole
 
             msg = DCPMessage.thought(
                 source_node="spark-0", source_role=NodeRole.PRIMARY, content=thought
@@ -1752,7 +1752,7 @@ def handle_hive_command(args, brain=None, memory=None):
             goal = args[len("nexus decide ") :].strip()
             if not goal:
                 return "Usage: /hive nexus decide <goal>"
-            from infj_bot.core.hive.elysium import get_elysium
+            from drift.core.hive.elysium import get_elysium
 
             elysium = get_elysium(memory=memory, brain=brain)
             import asyncio
@@ -1771,7 +1771,7 @@ def handle_hive_command(args, brain=None, memory=None):
             return "\n".join(lines)
 
         if args == "reflect":
-            from infj_bot.core.hive.elysium import get_elysium
+            from drift.core.hive.elysium import get_elysium
 
             elysium = get_elysium(memory=memory, brain=brain)
             import asyncio
@@ -1780,7 +1780,7 @@ def handle_hive_command(args, brain=None, memory=None):
             return f"═══ Council Reflection ═══\n{insight}"
 
         if args == "council status":
-            from infj_bot.core.hive.elysium import get_elysium
+            from drift.core.hive.elysium import get_elysium
 
             elysium = get_elysium(memory=memory, brain=brain)
             status = elysium.council_status()
@@ -1889,7 +1889,7 @@ def handle_command(
     if command == "remind-cancel":
         return handle_remind_cancel_command(args, state)
     if command == "tools":
-        from infj_bot.core.tools import format_tool_inventory
+        from drift.core.tools import format_tool_inventory
 
         return format_tool_inventory()
     if command == "export":

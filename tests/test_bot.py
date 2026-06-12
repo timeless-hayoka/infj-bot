@@ -7,37 +7,37 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock
 
-from infj_bot.core.plugins.emotion import detect_emotion, emotion_prompt_hint
-from infj_bot.core.cognition import (
+from drift.core.plugins.emotion import detect_emotion, emotion_prompt_hint
+from drift.core.cognition import (
     detect_dissonance,
     dissonance_prompt_hint,
     map_dissonance,
 )
-from infj_bot.core.commands import (
+from drift.core.commands import (
     is_command,
     parse_command,
     handle_command,
     MODES,
     BotState,
 )
-from infj_bot.core.guardrails import cyber_context_hint, mode_scope_rail
-from infj_bot.core.memory import LocalEmbeddingFunction, DriftMemory
+from drift.core.guardrails import cyber_context_hint, mode_scope_rail
+from drift.core.memory import LocalEmbeddingFunction, DriftMemory
 
 # Hive Mind lives on an external SSD; skip tests when unavailable
 try:
-    from infj_bot.hive_mind.consensus_engine import ConsensusEngine as _CE  # noqa: F401
+    from drift.hive_mind.consensus_engine import ConsensusEngine as _CE  # noqa: F401
 
     HIVE_AVAILABLE = True
 except (ImportError, ModuleNotFoundError):
     HIVE_AVAILABLE = False
-from infj_bot.core.plugins.growth import growth_profile
-from infj_bot.core.plugins.proactive import ProactiveState
-from infj_bot.core.plugins.documents import (
+from drift.core.plugins.growth import growth_profile
+from drift.core.plugins.proactive import ProactiveState
+from drift.core.plugins.documents import (
     DocumentStore,
     _chunk_text,
     format_doc_results,
 )
-from infj_bot.core.tools import (
+from drift.core.tools import (
     tool_get_datetime,
     tool_read_file,
     tool_write_file,
@@ -52,8 +52,8 @@ from infj_bot.core.tools import (
     build_tool_prompt,
     recent_tool_audit,
 )
-from infj_bot.core.config import PROJECT_ROOT
-from infj_bot.core.plugins.goals import GoalsDB
+from drift.core.config import PROJECT_ROOT
+from drift.core.plugins.goals import GoalsDB
 
 
 class TestEmotion(unittest.TestCase):
@@ -236,8 +236,8 @@ class TestMemory(unittest.TestCase):
             with self.assertRaises(ValueError):
                 memory.import_json(str(bad_path))
 
-    @unittest.mock.patch("infj_bot.core.unified_memory.datetime")
-    @unittest.mock.patch("infj_bot.core.memory.datetime")
+    @unittest.mock.patch("drift.core.unified_memory.datetime")
+    @unittest.mock.patch("drift.core.memory.datetime")
     def test_prune(self, mock_memory_datetime, mock_unified_datetime):
         # We mock unified_memory.datetime and memory.datetime so that when prune is called,
         # it thinks it is far in the future, thus Ebbinghaus decays the memory to 0.
@@ -284,9 +284,9 @@ class TestTools(unittest.TestCase):
         try:
             import tools
         except ImportError:
-            import infj_bot.core.tools as tools
-        import infj_bot.core.tools as core_tools
-        from infj_bot.core.jsonl_logger import HardenedJsonlLogger
+            import drift.core.tools as tools
+        import drift.core.tools as core_tools
+        from drift.core.jsonl_logger import HardenedJsonlLogger
 
         self._orig_safe_home = core_tools.SAFE_HOME
         self._orig_cold_storage_dir = core_tools.COLD_STORAGE_DIR
@@ -310,8 +310,8 @@ class TestTools(unittest.TestCase):
         try:
             import tools
         except ImportError:
-            import infj_bot.core.tools as tools
-        import infj_bot.core.tools as core_tools
+            import drift.core.tools as tools
+        import drift.core.tools as core_tools
 
         if self._orig_safe_home is not None:
             core_tools.SAFE_HOME = self._orig_safe_home
@@ -420,14 +420,14 @@ class TestGoals(unittest.TestCase):
     def setUp(self):
         # Point DB to a temp file for isolation
         self.tmp_db = Path(tempfile.mkdtemp()) / "goals_test.db"
-        from infj_bot.core.plugins import goals as core_goals
+        from drift.core.plugins import goals as core_goals
 
         self._orig_path = core_goals.DB_PATH
         core_goals.DB_PATH = self.tmp_db
         core_goals.init_db()
 
     def tearDown(self):
-        from infj_bot.core.plugins import goals as core_goals
+        from drift.core.plugins import goals as core_goals
 
         core_goals.DB_PATH = self._orig_path
         if self.tmp_db.exists():
@@ -573,7 +573,7 @@ class TestDocuments(unittest.TestCase):
 class TestHistory(unittest.TestCase):
     def test_export_and_import(self):
         import tempfile
-        from infj_bot.core.history import ChatHistory
+        from drift.core.history import ChatHistory
 
         with tempfile.TemporaryDirectory() as tmp:
             hist = ChatHistory(path=Path(tmp) / "hist.jsonl")
@@ -591,7 +591,7 @@ class TestHistory(unittest.TestCase):
 
     def test_import_skips_bad_lines(self):
         import tempfile
-        from infj_bot.core.history import ChatHistory
+        from drift.core.history import ChatHistory
 
         with tempfile.TemporaryDirectory() as tmp:
             bad_file = Path(tmp) / "bad.jsonl"
@@ -606,7 +606,7 @@ class TestHistory(unittest.TestCase):
 class TestApi(unittest.TestCase):
     def test_health_and_tools_endpoints(self):
         from fastapi.testclient import TestClient
-        from infj_bot.interfaces.api import app
+        from drift.interfaces.api import app
 
         client = TestClient(app)
         health = client.get("/api/health")
@@ -619,7 +619,7 @@ class TestApi(unittest.TestCase):
 
     def test_chat_rejects_invalid_json(self):
         from fastapi.testclient import TestClient
-        from infj_bot.interfaces.api import app
+        from drift.interfaces.api import app
 
         client = TestClient(app)
         response = client.post(
@@ -641,7 +641,7 @@ class TestApi(unittest.TestCase):
             del os.environ["DRIFT_ENV"]
 
         try:
-            from infj_bot.interfaces.api import app
+            from drift.interfaces.api import app
             client = TestClient(app)
             
             # Test 1: Identity without nonce
@@ -699,7 +699,7 @@ class TestApi(unittest.TestCase):
 
     def test_shadow_intent_enforcement_blocking(self):
         from fastapi.testclient import TestClient
-        from infj_bot.interfaces.api import app
+        from drift.interfaces.api import app
         import os
 
         # Ensure bypass is disabled
@@ -745,7 +745,7 @@ class TestApi(unittest.TestCase):
             del os.environ["DRIFT_ENV"]
 
         try:
-            from infj_bot.interfaces.api import app
+            from drift.interfaces.api import app
             client = TestClient(app)
 
             # 1. Valid Signature Test

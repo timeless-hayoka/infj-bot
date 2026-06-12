@@ -14,9 +14,9 @@ from unittest.mock import MagicMock
 # Add project root to path
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
-from infj_bot.core.logger import DriftLabLogger
-from infj_bot.core.brain import DriftBrain
-from infj_bot.core.hive.elysium import DeliberationResult
+from drift.core.logger import DriftLabLogger
+from drift.core.brain import DriftBrain
+from drift.core.hive.elysium import DeliberationResult
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)

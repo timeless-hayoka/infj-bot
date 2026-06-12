@@ -10,8 +10,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Callable, Optional
 
-from infj_bot.core.context_engine import CognitiveState, ContextWorker, CognitivePayload
-from infj_bot.core.jsonl_logger import HardenedJsonlLogger
+from drift.core.context_engine import CognitiveState, ContextWorker, CognitivePayload
+from drift.core.jsonl_logger import HardenedJsonlLogger
 
 
 @dataclass

@@ -14,8 +14,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Callable, Dict, List, Optional, Tuple
 
-from infj_bot.core.cognitive_architecture import CognitiveArchitecture, CycleContext
-from infj_bot.core.global_workspace import get_workspace
+from drift.core.cognitive_architecture import CognitiveArchitecture, CycleContext
+from drift.core.global_workspace import get_workspace
 
 logger = logging.getLogger("drift")
 
@@ -248,7 +248,7 @@ class CognitiveOrchestrator:
         After each phase, module outputs are submitted to the Global Workspace
         where they compete for conscious access.
         """
-        from infj_bot.core.resilience import get_resilience
+        from drift.core.resilience import get_resilience
 
         resilience = get_resilience()
 
@@ -328,7 +328,7 @@ class CognitiveOrchestrator:
         """Assemble the full prompt with budget tracking and conflict resolution."""
         # ── Shadow Intent Enforcement ──
         try:
-            from infj_bot.core.shadow import get_shadow
+            from drift.core.shadow import get_shadow
             shadow = get_shadow()
             if hasattr(shadow, "evaluate_intent"):
                 scan_result = shadow.evaluate_intent(message, mode=getattr(state, "mode", None))
@@ -345,16 +345,16 @@ class CognitiveOrchestrator:
         except Exception as exc:
             logger.error(f"Shadow Intent Enforcement failed: {exc}")
 
-        from infj_bot.core.prompt_budget import PromptBudget
-        from infj_bot.core.cognition import detect_dissonance
-        from infj_bot.core.plugins.emotion import detect_emotion
-        from infj_bot.core.guardrails import (
+        from drift.core.prompt_budget import PromptBudget
+        from drift.core.cognition import detect_dissonance
+        from drift.core.plugins.emotion import detect_emotion
+        from drift.core.guardrails import (
             cyber_context_hint,
             memory_context_block,
             mode_scope_rail,
         )
-        from infj_bot.core.tools import build_tool_prompt
-        from infj_bot.core.being import get_being
+        from drift.core.tools import build_tool_prompt
+        from drift.core.being import get_being
 
         emotion = detect_emotion(message)
         dissonance = detect_dissonance(message)
@@ -428,8 +428,8 @@ class CognitiveOrchestrator:
         # ── PEDI: capture pre-assembly homeostatic snapshot ──
         pre_snapshot = None
         try:
-            from infj_bot.metrics.pedi import StateSnapshot
-            from infj_bot.core.homeostasis import get_homeostasis
+            from drift.metrics.pedi import StateSnapshot
+            from drift.core.homeostasis import get_homeostasis
 
             pre_needs = get_homeostasis().get_need_summary()
             pre_snapshot = StateSnapshot(
@@ -445,7 +445,7 @@ class CognitiveOrchestrator:
         being = get_being()
 
         # --- CAUSAL WIRING INTEGRATION ---
-        from infj_bot.core.causal_wiring import (
+        from drift.core.causal_wiring import (
             pedi_to_weights,
             dii_to_generation_params,
             homeostasis_gate,
@@ -510,7 +510,7 @@ class CognitiveOrchestrator:
             # Live states from modules
             # PEDI
             try:
-                from infj_bot.metrics.pedi import get_pedi
+                from drift.metrics.pedi import get_pedi
                 pedi_snap = get_pedi().get_last_snapshot()
                 if pedi_snap:
                     current_pedi_state = pedi_snap.needs
@@ -521,7 +521,7 @@ class CognitiveOrchestrator:
 
             # DII
             try:
-                from infj_bot.core.dii_tracker import get_dii_tracker
+                from drift.core.dii_tracker import get_dii_tracker
                 dii_snap = get_dii_tracker().get_current()
                 if dii_snap:
                     current_dii_state = dii_snap.dii
@@ -532,7 +532,7 @@ class CognitiveOrchestrator:
 
             # Homeostasis
             try:
-                from infj_bot.core.homeostasis import get_homeostasis
+                from drift.core.homeostasis import get_homeostasis
                 homeo_inst = get_homeostasis()
                 energy_val = homeo_inst.needs.get("energy").current if homeo_inst.needs.get("energy") else 0.5
                 current_homeostasis = {
@@ -668,8 +668,8 @@ Use this to clarify inner conflict without pathologizing it.
 
         # ── PEDI: evaluate state fluidity across context-window reset ──
         try:
-            from infj_bot.metrics.pedi import get_pedi, StateSnapshot, ResetEvent
-            from infj_bot.core.homeostasis import get_homeostasis
+            from drift.metrics.pedi import get_pedi, StateSnapshot, ResetEvent
+            from drift.core.homeostasis import get_homeostasis
 
             post_needs = get_homeostasis().get_need_summary()
             post_snapshot = StateSnapshot(
@@ -726,7 +726,7 @@ Use this to clarify inner conflict without pathologizing it.
         Run a first-class deliberation cycle via the Elysium Engine.
         Used for high-risk actions, planning, and multi-node consensus.
         """
-        from infj_bot.core.hive.elysium import get_elysium
+        from drift.core.hive.elysium import get_elysium
         
         logger.info("[orchestrator] Initiating first-class deliberation for goal: %s", goal)
         
@@ -790,8 +790,8 @@ Use this to clarify inner conflict without pathologizing it.
     def get_full_observatory_state(self):
         """Single source of truth for the cognitive state."""
         import time
-        from infj_bot.core.environment.sanctuary import sanctuary
-        from infj_bot.core.being import get_being
+        from drift.core.environment.sanctuary import sanctuary
+        from drift.core.being import get_being
 
         being = get_being()
         
@@ -921,13 +921,13 @@ Use this to clarify inner conflict without pathologizing it.
 
 def emotion_prompt_hint(emotion: Dict) -> str:
     """Imported from emotion module to avoid circular import."""
-    from infj_bot.core.plugins.emotion import emotion_prompt_hint as _hint
+    from drift.core.plugins.emotion import emotion_prompt_hint as _hint
 
     return _hint(emotion)
 
 
 def dissonance_prompt_hint(dissonance: Dict) -> str:
     """Imported from cognition module to avoid circular import."""
-    from infj_bot.core.cognition import dissonance_prompt_hint as _hint
+    from drift.core.cognition import dissonance_prompt_hint as _hint
 
     return _hint(dissonance)

@@ -42,7 +42,7 @@ import re
 from typing import Any, Dict, List
 
 import contextvars
-from infj_bot.core.safe_math import compute, looks_like_math, MathError
+from drift.core.safe_math import compute, looks_like_math, MathError
 
 active_grounded_math_var: contextvars.ContextVar[List[GroundedResult]] = contextvars.ContextVar("active_grounded_math", default=[])
 

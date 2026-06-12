@@ -1,1 +1,1 @@
-"""Pytest configuration for infj_bot."""
+"""Pytest configuration for drift."""

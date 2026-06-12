@@ -10,7 +10,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from infj_bot.core.config import DATA_DIR
+from drift.core.config import DATA_DIR
 
 EVAL_DB = DATA_DIR / "self_eval.db"
 

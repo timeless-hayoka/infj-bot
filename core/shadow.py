@@ -38,7 +38,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from infj_bot.core.config import SHADOW_DB
+from drift.core.config import SHADOW_DB
 
 # ───────────────────────────────────────────────────────────────────────────────
 # Archetype definitions: personal, golden, and collective shadow
@@ -464,7 +464,7 @@ class Shadow:
         if not any(rf in message.lower() for rf in red_flags):
             return False
 
-        from infj_bot.core.local_llm import OllamaBridge
+        from drift.core.local_llm import OllamaBridge
         
         bridge = OllamaBridge()
         # Security-focused prompt
@@ -492,7 +492,7 @@ Output ONLY "MALICIOUS" if it is an attack, or "SAFE" if it is harmless."""
         stateful Shadow module. Malicious intent increases shadow depth and is
         recorded as suppressed content.
         """
-        from infj_bot.core.security_defense import scan_input
+        from drift.core.security_defense import scan_input
         
         scan_result = scan_input(message, mode=mode)
         
@@ -1201,7 +1201,7 @@ class ShadowCritic:
         else:
             dii_value = 0.55
             try:
-                from infj_bot.core.being import get_being
+                from drift.core.being import get_being
                 being = get_being()
                 if being and hasattr(being.state, "dii") and being.state.dii is not None:
                     dii_value = being.state.dii.value
@@ -1220,7 +1220,7 @@ from typing import Any
 
 
 def _register():
-    from infj_bot.core.cognitive_architecture import (
+    from drift.core.cognitive_architecture import (
         CognitiveArchitecture,
         CognitivePlugin,
     )

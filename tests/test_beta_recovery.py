@@ -8,9 +8,9 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from infj_bot.core.brain import DriftBrain
-from infj_bot.core.being import get_being
-from infj_bot.core.homeostasis import get_homeostasis
+from drift.core.brain import DriftBrain
+from drift.core.being import get_being
+from drift.core.homeostasis import get_homeostasis
 
 class TestBetaRecovery(unittest.TestCase):
     def setUp(self):

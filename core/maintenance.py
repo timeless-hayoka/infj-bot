@@ -3,7 +3,7 @@
 import asyncio
 import logging
 
-logger = logging.getLogger("infj_bot.maintenance")
+logger = logging.getLogger("drift.maintenance")
 
 
 async def memory_maintenance_loop(memory, interval_hours: int = 24):

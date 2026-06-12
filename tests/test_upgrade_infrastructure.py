@@ -25,7 +25,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 class TestRunLogger:
     def test_singleton(self):
-        from infj_bot.core.run_logger import RunLogger
+        from drift.core.run_logger import RunLogger
 
         # Use a temp db to avoid conflicts
         with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
@@ -39,7 +39,7 @@ class TestRunLogger:
             os.unlink(db_path)
 
     def test_log_run_start_and_event(self):
-        from infj_bot.core.run_logger import RunLogger
+        from drift.core.run_logger import RunLogger
 
         with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
             db_path = tmp.name
@@ -67,7 +67,7 @@ class TestRunLogger:
             RunLogger._instance = None
 
     def test_log_run_end(self):
-        from infj_bot.core.run_logger import RunLogger
+        from drift.core.run_logger import RunLogger
 
         with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
             db_path = tmp.name
@@ -96,7 +96,7 @@ class TestRunLogger:
 
 class TestExperimentControl:
     def test_start_end_run(self):
-        from infj_bot.core.experiment_control import ExperimentControl
+        from drift.core.experiment_control import ExperimentControl
 
         control = ExperimentControl()
         control.start_run("test_run", {"mode": "baseline"})
@@ -106,7 +106,7 @@ class TestExperimentControl:
         assert control.run_id is None
 
     def test_double_start_raises(self):
-        from infj_bot.core.experiment_control import ExperimentControl
+        from drift.core.experiment_control import ExperimentControl
 
         control = ExperimentControl()
         control.start_run("run_a", {})
@@ -118,7 +118,7 @@ class TestExperimentControl:
         control.end_run()
 
     def test_is_active_freeze(self):
-        from infj_bot.core.experiment_control import ExperimentControl
+        from drift.core.experiment_control import ExperimentControl
 
         control = ExperimentControl()
         control.start_run("run", {"freeze_memory": True, "freeze_state": False})
@@ -127,7 +127,7 @@ class TestExperimentControl:
         control.end_run()
 
     def test_ablation_discipline_violation(self):
-        from infj_bot.core.experiment_control import ExperimentControl
+        from drift.core.experiment_control import ExperimentControl
 
         control = ExperimentControl()
         bad_config = {
@@ -143,7 +143,7 @@ class TestExperimentControl:
             assert "ablation mode violation" in str(exc).lower()
 
     def test_guard_context_manager(self):
-        from infj_bot.core.experiment_control import ExperimentControl
+        from drift.core.experiment_control import ExperimentControl
 
         control = ExperimentControl()
         control.start_run("run", {"freeze_memory": True})
@@ -157,7 +157,7 @@ class TestExperimentControl:
 
 class TestContinuityVector:
     def test_compute_continuity_vector(self):
-        from infj_bot.core.continuity_vector import compute_continuity_vector
+        from drift.core.continuity_vector import compute_continuity_vector
 
         baselines = {
             "entity_overlap": {"mean": 0.5, "std": 0.2},
@@ -180,7 +180,7 @@ class TestContinuityVector:
         assert abs(cv["normalized"]["entity_overlap"] - 1.0) < 0.01
 
     def test_collect_baseline(self):
-        from infj_bot.core.continuity_vector import collect_baseline
+        from drift.core.continuity_vector import collect_baseline
 
         session_data = [
             {
@@ -194,7 +194,7 @@ class TestContinuityVector:
         with tempfile.TemporaryDirectory() as tmpdir:
             _orig_path = Path("drift_baseline_stats.json")
             # Patch baseline path temporarily
-            import infj_bot.core.continuity_vector as cv_mod
+            import drift.core.continuity_vector as cv_mod
 
             old_path = cv_mod.BASELINE_PATH
             cv_mod.BASELINE_PATH = Path(tmpdir) / "drift_baseline_stats.json"
@@ -207,7 +207,7 @@ class TestContinuityVector:
                 cv_mod.BASELINE_PATH = old_path
 
     def test_validate_baselines_pass(self):
-        from infj_bot.core.continuity_vector import validate_baselines
+        from drift.core.continuity_vector import validate_baselines
 
         stats = {
             "entity_overlap": {"mean": 0.5, "std": 0.2},
@@ -217,7 +217,7 @@ class TestContinuityVector:
         assert failed == []
 
     def test_validate_baselines_fail_low_variance(self):
-        from infj_bot.core.continuity_vector import validate_baselines
+        from drift.core.continuity_vector import validate_baselines
 
         stats = {
             "entity_overlap": {"mean": 0.5, "std": 0.0},
@@ -231,7 +231,7 @@ class TestContinuityVector:
 
 class TestDMUScoring:
     def test_compute_mps_basic(self):
-        from infj_bot.core.dmu_scoring import compute_mps, _DMUMemory
+        from drift.core.dmu_scoring import compute_mps, _DMUMemory
 
         mem = _DMUMemory(
             content="test memory",
@@ -250,7 +250,7 @@ class TestDMUScoring:
         assert "final_mps" in mem.score_components
 
     def test_mps_components_sum_reasonably(self):
-        from infj_bot.core.dmu_scoring import compute_mps, _DMUMemory
+        from drift.core.dmu_scoring import compute_mps, _DMUMemory
 
         mem = _DMUMemory(
             content="hello world",
@@ -274,7 +274,7 @@ class TestDMUScoring:
         ]:
             assert 0.0 <= comps[key] <= 1.0, f"{key} out of range: {comps[key]}"
         # Final MPS should be weighted sum using actual weights from dmu_scoring.py
-        from infj_bot.core.dmu_scoring import MPS_WEIGHTS
+        from drift.core.dmu_scoring import MPS_WEIGHTS
         expected = (
             MPS_WEIGHTS["decay"] * comps["decay"]
             + MPS_WEIGHTS["reinf"] * comps["reinf"]
@@ -287,8 +287,8 @@ class TestDMUScoring:
         assert abs(score - expected) < 0.001
 
     def test_mps_freeze_novelty(self):
-        from infj_bot.core.dmu_scoring import compute_mps, _DMUMemory
-        from infj_bot.core.experiment_control import ExperimentControl
+        from drift.core.dmu_scoring import compute_mps, _DMUMemory
+        from drift.core.experiment_control import ExperimentControl
 
         control = ExperimentControl()
         control.start_run("run", {"freeze_novelty": True})
@@ -305,14 +305,14 @@ class TestDMUScoring:
         control.end_run()
 
     def test_recency_weight(self):
-        from infj_bot.core.dmu_scoring import _get_decaying_recency_weight
+        from drift.core.dmu_scoring import _get_decaying_recency_weight
 
         recent = [("m1", 0), ("m2", 1), ("m1", 2)]
         w = _get_decaying_recency_weight("m1", recent)
         assert w >= 0.0
 
     def test_hard_gate_old_weak_memory(self):
-        from infj_bot.core.dmu_scoring import _is_hard_gated, _DMUMemory
+        from drift.core.dmu_scoring import _is_hard_gated, _DMUMemory
 
         old_mem = _DMUMemory(
             content="old",
@@ -327,7 +327,7 @@ class TestDMUScoring:
         assert not _is_hard_gated(fresh_mem)
 
     def test_contextual_similarity_range(self):
-        from infj_bot.core.dmu_scoring import _normalized_contextual_sim, _DMUMemory
+        from drift.core.dmu_scoring import _normalized_contextual_sim, _DMUMemory
 
         mem = _DMUMemory(content="hello world test memory")
         state = {"topic": "hello world"}
@@ -335,7 +335,7 @@ class TestDMUScoring:
         assert 0.0 <= sim <= 1.0
 
     def test_state_alignment_range(self):
-        from infj_bot.core.dmu_scoring import _state_alignment_score, _DMUMemory
+        from drift.core.dmu_scoring import _state_alignment_score, _DMUMemory
 
         mem = _DMUMemory(content="test", tags=["mood", "energy"])
         state = {"mood": 0.5, "energy": 0.3}

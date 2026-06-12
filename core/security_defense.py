@@ -10,16 +10,16 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from infj_bot.core.config import PROJECT_ROOT
-from infj_bot.core.jsonl_logger import HardenedJsonlLogger
-from infj_bot.core.types import SecurityScanResult
+from drift.core.config import PROJECT_ROOT
+from drift.core.jsonl_logger import HardenedJsonlLogger
+from drift.core.types import SecurityScanResult
 
 logger = logging.getLogger(__name__)
 
 # Lazy import for ShadowCritic to avoid circular deps
 def _get_shadow_critic():
     try:
-        from infj_bot.core.shadow import shadow_critic
+        from drift.core.shadow import shadow_critic
         return shadow_critic
     except Exception:
         return None
@@ -79,7 +79,7 @@ def _log_detection(
     
     # Broadcast to real-time dashboard if a broadcast helper exists
     try:
-        from infj_bot.mcp_server import broadcast_security_event
+        from drift.mcp_server import broadcast_security_event
         if asyncio.get_event_loop().is_running():
             asyncio.create_task(broadcast_security_event(record))
     except Exception:
@@ -296,7 +296,7 @@ class SecurityScanner:
         shadow_influence = 0.0
         
         # We'll pull organism state if possible for logging
-        from infj_bot.core.being import get_being
+        from drift.core.being import get_being
         being = get_being()
         
         pedi_val = getattr(being.state.pedi, "value", 0.0) if being else 0.0
@@ -307,7 +307,7 @@ class SecurityScanner:
 
         if shadow_critic and social_risk > 0.4:
             try:
-                from infj_bot.core.types import SparkImpulse
+                from drift.core.types import SparkImpulse
                 impulse = SparkImpulse()
                 impulse.shadow_influence = social_risk * 0.8
                 shadow_critic.critique_spark(impulse, {"energy": energy_val, "social_risk": social_risk})

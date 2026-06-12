@@ -1,10 +1,10 @@
-from infj_bot.core.context_engine import (
+from drift.core.context_engine import (
     CognitiveState,
     Context,
     ContextWorker,
     CognitivePayload,
 )
-from infj_bot.core.cognitive_ops import pedi_regulation_step, state_conditioned_llm
+from drift.core.cognitive_ops import pedi_regulation_step, state_conditioned_llm
 
 
 def calculate_state_diff(initial: CognitiveState, final: CognitiveState) -> dict:

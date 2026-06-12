@@ -1,5 +1,5 @@
 from typing import Callable
-from infj_bot.core.context_engine import ContextWorker, CognitiveState, CognitivePayload
+from drift.core.context_engine import ContextWorker, CognitiveState, CognitivePayload
 
 
 def pedi_regulation_step(

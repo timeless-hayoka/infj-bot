@@ -18,8 +18,8 @@ import sqlite3
 from datetime import datetime, timedelta
 from typing import List, Dict
 
-from infj_bot.core.config import DATA_DIR, BEING_DB, NEXUS_DB
-from infj_bot.core.local_llm import OllamaBridge
+from drift.core.config import DATA_DIR, BEING_DB, NEXUS_DB
+from drift.core.local_llm import OllamaBridge
 
 logger = logging.getLogger("drift.memory_maintenance")
 

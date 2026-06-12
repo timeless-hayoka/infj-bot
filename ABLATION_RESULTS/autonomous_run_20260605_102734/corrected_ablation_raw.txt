@@ -52,7 +52,7 @@ RUNNING CONDITION: F - Full stack — no modifications. Baseline.
     Done in 13.31 ms. Response length: 440
 [STUB] Applying stubs for Condition F...
 [RESTORE] Restoring stubs for Condition F...
-[SAVE] Condition F data saved to /home/crexs/infj_bot/ABLATION_RESULTS/autonomou
+[SAVE] Condition F data saved to /home/crexs/drift/ABLATION_RESULTS/autonomou
 s_run_20260605_102734/per_condition/F_prompts.json
 
 ==========================================
@@ -107,9 +107,9 @@ assembly
   - Stubbed elysium.reflect
   - Coordination plugin instance not found
 [RESTORE] Restoring stubs for Condition A...
-[SAVE] Condition A data saved to /home/crexs/infj_bot/ABLATION_RESULTS/autonomou
+[SAVE] Condition A data saved to /home/crexs/drift/ABLATION_RESULTS/autonomou
 s_run_20260605_102734/per_condition/A_prompts.json
-[SAVE] Condition A diffs saved to /home/crexs/infj_bot/ABLATION_RESULTS/autonomo
+[SAVE] Condition A diffs saved to /home/crexs/drift/ABLATION_RESULTS/autonomo
 us_run_20260605_102734/diffs/A_vs_F.txt
 
 ==========================================
@@ -169,9 +169,9 @@ SEAM NOT FOUND — B inconclusive
 radar'
 SEAM NOT FOUND — B inconclusive
 [RESTORE] Restoring stubs for Condition B...
-[SAVE] Condition B data saved to /home/crexs/infj_bot/ABLATION_RESULTS/autonomou
+[SAVE] Condition B data saved to /home/crexs/drift/ABLATION_RESULTS/autonomou
 s_run_20260605_102734/per_condition/B_prompts.json
-[SAVE] Condition B diffs saved to /home/crexs/infj_bot/ABLATION_RESULTS/autonomo
+[SAVE] Condition B diffs saved to /home/crexs/drift/ABLATION_RESULTS/autonomo
 us_run_20260605_102734/diffs/B_vs_F.txt
 
 ==========================================
@@ -223,9 +223,9 @@ Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
 [STUB] Applying stubs for Condition C...
   - Stubbed homeostasis format_prompt_snippet and needs flattened to 0.5
 [RESTORE] Restoring stubs for Condition C...
-[SAVE] Condition C data saved to /home/crexs/infj_bot/ABLATION_RESULTS/autonomou
+[SAVE] Condition C data saved to /home/crexs/drift/ABLATION_RESULTS/autonomou
 s_run_20260605_102734/per_condition/C_prompts.json
-[SAVE] Condition C diffs saved to /home/crexs/infj_bot/ABLATION_RESULTS/autonomo
+[SAVE] Condition C diffs saved to /home/crexs/drift/ABLATION_RESULTS/autonomo
 us_run_20260605_102734/diffs/C_vs_F.txt
 
 ==========================================
@@ -293,9 +293,9 @@ RUNNING CONDITION: D - Cosine-only RAG — disable DMU reranking
 [STUB] Applying stubs for Condition D...
   - Disabled DMU reranking on memory
 [RESTORE] Restoring stubs for Condition D...
-[SAVE] Condition D data saved to /home/crexs/infj_bot/ABLATION_RESULTS/autonomou
+[SAVE] Condition D data saved to /home/crexs/drift/ABLATION_RESULTS/autonomou
 s_run_20260605_102734/per_condition/D_prompts.json
-[SAVE] Condition D diffs saved to /home/crexs/infj_bot/ABLATION_RESULTS/autonomo
+[SAVE] Condition D diffs saved to /home/crexs/drift/ABLATION_RESULTS/autonomo
 us_run_20260605_102734/diffs/D_vs_F.txt
 
 ==========================================
@@ -338,13 +338,13 @@ ss run
     Done in 14530.41 ms. Response length: 477
 [STUB] Applying stubs for Condition F_VERIFY...
 [RESTORE] Restoring stubs for Condition F_VERIFY...
-[SAVE] Condition F_VERIFY data saved to /home/crexs/infj_bot/ABLATION_RESULTS/au
+[SAVE] Condition F_VERIFY data saved to /home/crexs/drift/ABLATION_RESULTS/au
 tonomous_run_20260605_102734/per_condition/F_VERIFY_prompts.json
 
 ==========================================
 GENERATING FINDINGS REPORT (FINDINGS.md)...
 ==========================================
-[SAVE] Findings report saved to /home/crexs/infj_bot/ABLATION_RESULTS/autonomous
+[SAVE] Findings report saved to /home/crexs/drift/ABLATION_RESULTS/autonomous
 _run_20260605_102734/FINDINGS.md
-[SAVE] Copied script to /home/crexs/infj_bot/ABLATION_RESULTS/autonomous_run_202
+[SAVE] Copied script to /home/crexs/drift/ABLATION_RESULTS/autonomous_run_202
 60605_102734/corrected_ablation.py

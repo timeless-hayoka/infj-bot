@@ -12,7 +12,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
-from infj_bot.core.config import PROJECT_ROOT
+from drift.core.config import PROJECT_ROOT
 
 logger = logging.getLogger("drift")
 
@@ -33,7 +33,7 @@ class DeveloperSuite:
         self.state = DeveloperSuiteState()
         self.authorized_roots = [
             str(Path.home() / "drift"),
-            str(Path.home() / "infj_bot"),
+            str(Path.home() / "drift"),
             str(Path.home() / "video_agent"),
             str(Path.home() / "hacker_hub"),
         ]
@@ -133,7 +133,7 @@ class DeveloperSuite:
 
 
 def _register():
-    from infj_bot.core.cognitive_architecture import (
+    from drift.core.cognitive_architecture import (
         CognitiveArchitecture,
         CognitivePlugin,
     )

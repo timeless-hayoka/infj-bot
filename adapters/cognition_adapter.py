@@ -1,9 +1,9 @@
 """
 Phase 1 Adapter: Cognition (Compatibility Spine)
-Routes infj_bot cognition calls to the canonical DRIFT core.
+Routes drift cognition calls to the canonical DRIFT core.
 """
 
-from infj_bot.core import being, homeostasis, cognition, global_workspace
+from drift.core import being, homeostasis, cognition, global_workspace
 
 
 class CognitionAdapter:

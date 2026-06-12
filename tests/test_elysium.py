@@ -4,15 +4,15 @@ import pytest
 import tempfile
 from pathlib import Path
 
-from infj_bot.core.hive.nexus import NexusSelfModel, ActiveTension
-from infj_bot.core.hive.council_member import (
+from drift.core.hive.nexus import NexusSelfModel, ActiveTension
+from drift.core.hive.council_member import (
     CouncilMember,
     CouncilRole,
     Council,
     MemoryViewFilter,
     Proposal,
 )
-from infj_bot.core.hive.elysium import ElysiumEngine, DeliberationResult
+from drift.core.hive.elysium import ElysiumEngine, DeliberationResult
 
 
 class TestNexusSelfModel:

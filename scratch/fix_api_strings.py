@@ -1,4 +1,4 @@
-with open("/home/crexs/infj_bot/interfaces/api.py", "r") as f:
+with open("/home/crexs/drift/interfaces/api.py", "r") as f:
     content = f.read()
 
 # Replace block 1
@@ -102,7 +102,7 @@ content = re.sub(
     content
 )
 
-with open("/home/crexs/infj_bot/interfaces/api.py", "w") as f:
+with open("/home/crexs/drift/interfaces/api.py", "w") as f:
     f.write(content)
 
 print("SUCCESS: cleaned up f-strings in api.py.")

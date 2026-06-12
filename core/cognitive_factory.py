@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, List, Optional
 
-from infj_bot.core.cognitive_architecture import CognitiveArchitecture
+from drift.core.cognitive_architecture import CognitiveArchitecture
 
 logger = logging.getLogger(__name__)
 
@@ -33,8 +33,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, List, Optional
 
-from infj_bot.core.cognitive_architecture import CognitiveArchitecture, CognitivePlugin
-from infj_bot.core.config import DATA_DIR
+from drift.core.cognitive_architecture import CognitiveArchitecture, CognitivePlugin
+from drift.core.config import DATA_DIR
 
 
 @dataclass
@@ -77,7 +77,7 @@ class {class_name}:
 
 
 def _register():
-    from infj_bot.core.cognitive_architecture import CognitiveArchitecture, CognitivePlugin
+    from drift.core.cognitive_architecture import CognitiveArchitecture, CognitivePlugin
     arch = CognitiveArchitecture()
     if "{name}" not in arch.list_plugins():
         arch.register(CognitivePlugin(

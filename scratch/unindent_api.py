@@ -1,4 +1,4 @@
-with open("/home/crexs/infj_bot/interfaces/api.py", "r") as f:
+with open("/home/crexs/drift/interfaces/api.py", "r") as f:
     lines = f.readlines()
 
 start_line = 781 # 0-indexed line 782
@@ -13,7 +13,7 @@ if "async def read_json" in lines[start_line] and "@app.post(\"/api/command\")" 
     for i in range(start_line, end_line):
         if lines[i].startswith("    "):
             lines[i] = lines[i][4:]
-    with open("/home/crexs/infj_bot/interfaces/api.py", "w") as f:
+    with open("/home/crexs/drift/interfaces/api.py", "w") as f:
         f.writelines(lines)
     print("SUCCESS: Unindented lines 782 to 1132 successfully.")
 else:

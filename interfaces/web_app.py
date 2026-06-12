@@ -10,7 +10,7 @@ import gevent
 from flask import Flask, request, jsonify
 from flask_socketio import SocketIO, emit
 import threading
-from infj_bot.core.cognitive_orchestrator import CognitiveOrchestrator
+from drift.core.cognitive_orchestrator import CognitiveOrchestrator
 
 # Observatory integration — hive_mind is an external symlinked dependency
 try:
@@ -26,23 +26,23 @@ try:
 except Exception:
     _OBSERVATORY_ENABLED = False
 
-from infj_bot.core.brain import DriftBrain
-from infj_bot.core.commands import BotState, handle_command
-from infj_bot.core.plugins.growth import growth_profile
-from infj_bot.core.history import ChatHistory
-from infj_bot.core.memory import DriftMemory
-from infj_bot.core.plugins.goals import GoalsDB
-from infj_bot.core.config import DATA_DIR, DEFAULT_AUTHORIZED_TARGETS
+from drift.core.brain import DriftBrain
+from drift.core.commands import BotState, handle_command
+from drift.core.plugins.growth import growth_profile
+from drift.core.history import ChatHistory
+from drift.core.memory import DriftMemory
+from drift.core.plugins.goals import GoalsDB
+from drift.core.config import DATA_DIR, DEFAULT_AUTHORIZED_TARGETS
 
 STATE_ROOT = DATA_DIR
-from infj_bot.core.plugins.documents import DocumentStore
-from infj_bot.core.prompt_builder import build_chat_prompt
+from drift.core.plugins.documents import DocumentStore
+from drift.core.prompt_builder import build_chat_prompt
 
 
-from infj_bot.core.plugins.preferences import PreferenceStore
-from infj_bot.core.plugins.scheduler import TaskScheduler
-from infj_bot.core.plugins.self_eval import SelfEvaluator
-from infj_bot.core.gen_cache import DiskGenCache
+from drift.core.plugins.preferences import PreferenceStore
+from drift.core.plugins.scheduler import TaskScheduler
+from drift.core.plugins.self_eval import SelfEvaluator
+from drift.core.gen_cache import DiskGenCache
 
 SESSIONS_DIR = STATE_ROOT / "sessions"
 SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
@@ -175,11 +175,11 @@ def prune_and_cleanup_sessions():
 
 def background_cognitive_loop():
     """Background loop to tick homeostasis, shadow, and embodiment for the active sessions."""
-    from infj_bot.core.being import get_being
-    from infj_bot.core.homeostasis import get_homeostasis
-    from infj_bot.core.shadow import get_shadow
-    from infj_bot.core.dii_tracker import get_dii_tracker
-    from infj_bot.core.global_workspace import get_workspace
+    from drift.core.being import get_being
+    from drift.core.homeostasis import get_homeostasis
+    from drift.core.shadow import get_shadow
+    from drift.core.dii_tracker import get_dii_tracker
+    from drift.core.global_workspace import get_workspace
     
     being = get_being()
     homeostasis = get_homeostasis()
@@ -960,8 +960,8 @@ def ollama_tags():
         {
             "models": [
                 {
-                    "name": "infj_bot:latest",
-                    "model": "infj_bot:latest",
+                    "name": "drift:latest",
+                    "model": "drift:latest",
                     "modified_at": "2023-11-04T14:56:49.277302595-07:00",
                     "size": 7323310500,
                     "digest": "9f438cb9cd581fc025612d27f7c1a6669ff83a8bb0ed86c94fcf4c5440555697",
@@ -1000,7 +1000,7 @@ def api_chat():
 
         return jsonify(
             {
-                "model": payload.get("model", "infj_bot:latest"),
+                "model": payload.get("model", "drift:latest"),
                 "created_at": time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime()),
                 "message": {"role": "assistant", "content": reply_text},
                 "done": True,
@@ -1045,7 +1045,7 @@ def openai_chat_completions():
     if not user_message:
         return jsonify({"error": "No user message found"}), 400
 
-    # Get reply from infj_bot
+    # Get reply from drift
     reply_text = chat_reply(user_message, session_res)
 
     # Format as OpenAI response
@@ -1055,7 +1055,7 @@ def openai_chat_completions():
         "id": f"chatcmpl-{uuid.uuid4().hex}",
         "object": "chat.completion",
         "created": int(time.time()),
-        "model": payload.get("model", "infj_bot"),
+        "model": payload.get("model", "drift"),
         "choices": [
             {
                 "index": 0,

@@ -6,7 +6,7 @@ import os
 # Add project root to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from infj_bot.core.being import get_being
+from drift.core.being import get_being
 
 def test_spark_v2_full_flow():
     b = get_being()

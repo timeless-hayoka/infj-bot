@@ -123,10 +123,10 @@ behavior intact.
 ## Quick reference: a minimal cycle
 
 ```python
-from infj_bot.core.context_engine import (
+from drift.core.context_engine import (
     CognitiveState, CognitivePayload, Context, ContextWorker,
 )
-from infj_bot.core.cognitive_ops import pedi_regulation_step, state_conditioned_llm
+from drift.core.cognitive_ops import pedi_regulation_step, state_conditioned_llm
 
 state = CognitiveState(coherence=0.8, resonance=0.5, tension=0.8, shadow_depth=0.2)
 payload = CognitivePayload(user_input="Why did you disagree with me yesterday?")

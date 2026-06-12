@@ -24,9 +24,9 @@ import argparse
 import time
 import uuid
 
-from infj_bot.core.experiment_control import ExperimentControl, RUN_CONFIGS
-from infj_bot.core.run_logger import RunLogger
-from infj_bot.core.continuity_vector import load_baselines, compute_continuity_vector
+from drift.core.experiment_control import ExperimentControl, RUN_CONFIGS
+from drift.core.run_logger import RunLogger
+from drift.core.continuity_vector import load_baselines, compute_continuity_vector
 
 
 # ------------------------------------------------------------------ #

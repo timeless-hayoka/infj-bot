@@ -4,7 +4,7 @@
 **Date:** 2026-05-22  
 **Project:** DRIFT — Distributed Response & Integrated Functional Thought  
 **Codebase:** ~18,500 lines Python across 55 core modules  
-**Repo:** `github.com/timeless-hayoka/infj-bot`
+**Repo:** `github.com/timeless-hayoka/drift`
 
 ---
 

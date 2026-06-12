@@ -20,7 +20,7 @@ What gets RESTORED (as if the test never happened):
   homeostasis.db                   (needs/energy history)
 
 Usage:
-  cd /home/crexs/infj_bot && source .venv/bin/activate
+  cd /home/crexs/drift && source .venv/bin/activate
   python3 scripts/live_test_harness.py
 
   In a SECOND terminal (live telemetry monitor):

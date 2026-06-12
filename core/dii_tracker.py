@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from infj_bot.core.config import DATA_DIR
+from drift.core.config import DATA_DIR
 
 DII_DB = DATA_DIR / "dii_history.db"
 

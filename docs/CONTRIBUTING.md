@@ -7,7 +7,7 @@ Thank you for your interest in the DRIFT / INFJ Bot project. This is a personal 
 ```bash
 # Clone
 git clone <repo-url>
-cd infj_bot
+cd drift
 
 # Create virtual environment
 python3 -m venv venv
@@ -27,7 +27,7 @@ cp .env.example .env
 ## Project Structure
 
 ```
-infj_bot/
+drift/
   config.py              # Central config, path resolution, API key validation
   brain.py               # Core LLM inference (Gemini + local fallback)
   memory.py              # ChromaDB semantic memory with secret scrubbing
@@ -50,7 +50,7 @@ infj_bot/
 - **Line length:** 100 characters (enforced by ruff)
 - **Imports:** `isort` style — stdlib first, third-party second, local third
 - **Type hints:** encouraged for new functions; not required for legacy modules
-- **Logging:** use `logging.getLogger("infj_bot.<module>")`, never `print()` in library code
+- **Logging:** use `logging.getLogger("drift.<module>")`, never `print()` in library code
 - **Exceptions:** catch specific exceptions; avoid bare `except:`
 - **Security:** scrub secrets before persistence; validate all paths
 

@@ -11,13 +11,13 @@ import logging
 import sqlite3
 from datetime import datetime
 
-from infj_bot.core.cognitive_architecture import CognitivePlugin
-from infj_bot.core.config import DATA_DIR
+from drift.core.cognitive_architecture import CognitivePlugin
+from drift.core.config import DATA_DIR
 
 # Hive Mind imports
 try:
-    from infj_bot.hive_mind.consensus_engine import ConsensusEngine
-    from infj_bot.hive_mind.protocol.dcp import DCPMessage, NodeRole
+    from drift.hive_mind.consensus_engine import ConsensusEngine
+    from drift.hive_mind.protocol.dcp import DCPMessage, NodeRole
 
     HAS_HIVE = True
 except ImportError:
@@ -151,7 +151,7 @@ def get_coordination():
 
 
 def _register():
-    from infj_bot.core.cognitive_architecture import CognitiveArchitecture
+    from drift.core.cognitive_architecture import CognitiveArchitecture
 
     arch = CognitiveArchitecture()
     if "coordination" not in arch.list_plugins():

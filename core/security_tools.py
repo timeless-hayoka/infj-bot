@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from urllib.parse import urlparse
 
-from infj_bot.core.tools import (
+from drift.core.tools import (
     tool_enumerate_subdomains,
     tool_fuzz_directories,
     tool_run_nuclei_scan,

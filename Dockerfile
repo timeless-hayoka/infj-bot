@@ -2,29 +2,20 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# System deps: build tools for native packages + audio libs for voice
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc g++ libffi-dev libssl-dev \
-    libsndfile1 portaudio19-dev \
-    sqlite3 curl \
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python deps first (layer cache — only rebuilds on requirements change)
 COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir google-cloud-sql-connector pg8000 sqlalchemy
 
-# Copy project code
 COPY . .
 
-# Install the project itself in editable mode so 'infj_bot' namespace is resolved
-RUN pip install --no-cache-dir -e .
+# Install the drift package in editable mode
+RUN pip install -e .
 
-# Data directory — override with INFJ_DATA_DIR env var to use PortableSSD
-RUN mkdir -p /app/chroma_db /app/data
+EXPOSE 8000
 
-# Default port for web UI (Hugging Face Spaces routes here)
-EXPOSE 7860
-
-# Default: run web interface
-CMD ["python", "interfaces/web_app.py"]
+CMD ["python", "-m", "drift.interfaces.api_server"]

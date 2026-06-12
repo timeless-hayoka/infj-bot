@@ -6,7 +6,7 @@
 
 ## Phase 1 — Finish Unification (Phases 3–5)
 
-Do this first. Until DRIFT and hive_mind are fully consolidated into infj_bot, any tests you write against fragmented modules will need to be rewritten. Stabilize the structure before building on top of it.
+Do this first. Until DRIFT and hive_mind are fully consolidated into drift, any tests you write against fragmented modules will need to be rewritten. Stabilize the structure before building on top of it.
 
 ## Phase 2 — Test Coverage
 

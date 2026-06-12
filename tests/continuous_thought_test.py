@@ -12,12 +12,12 @@ import os
 # Add project root to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
-from infj_bot.core.being import get_being
-from infj_bot.core.homeostasis import get_homeostasis
-from infj_bot.core.shadow import get_shadow
-from infj_bot.core.dii_tracker import get_dii_tracker
-from infj_bot.core.cognitive_orchestrator import CognitiveOrchestrator
-from infj_bot.core.global_workspace import get_workspace
+from drift.core.being import get_being
+from drift.core.homeostasis import get_homeostasis
+from drift.core.shadow import get_shadow
+from drift.core.dii_tracker import get_dii_tracker
+from drift.core.cognitive_orchestrator import CognitiveOrchestrator
+from drift.core.global_workspace import get_workspace
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("continuous_thought_test")

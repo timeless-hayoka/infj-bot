@@ -23,7 +23,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from infj_bot.core.config import DATA_DIR
+from drift.core.config import DATA_DIR
 
 HOMEOSTASIS_DB = DATA_DIR / "homeostasis.db"
 
@@ -293,7 +293,7 @@ class HomeostaticRegulator:
 
     def update_needs(self, event: str = "inference_complete", timing: Optional[Dict] = None, response_len: int = 0):
         """Update needs based on event and timing data (e.g., hardware-attributed energy cost)."""
-        from infj_bot.core.being import get_being
+        from drift.core.being import get_being
         being = get_being()
         
         if timing is not None and timing.get("infer_cpu_ms") is not None and timing.get("infer_cpu_ms") > 0:
@@ -444,7 +444,7 @@ class HomeostaticRegulator:
 
         # Coherence from workspace integration
         try:
-            from infj_bot.core.global_workspace import get_workspace
+            from drift.core.global_workspace import get_workspace
 
             ws = get_workspace()
             contents = getattr(ws, "contents", [])
@@ -462,7 +462,7 @@ class HomeostaticRegulator:
 
         # Integration from IIT
         try:
-            from infj_bot.core.phi_proxy import PhiProxy
+            from drift.core.phi_proxy import PhiProxy
 
             iit = PhiProxy()
             phi_norm = iit.state.phi / 100.0
@@ -472,7 +472,7 @@ class HomeostaticRegulator:
 
         # Integrity from embodiment
         try:
-            from infj_bot.core.embodiment import EmbodiedSelf
+            from drift.core.embodiment import EmbodiedSelf
 
             body = EmbodiedSelf()
             # Integrity = average of body state health
@@ -488,7 +488,7 @@ class HomeostaticRegulator:
 
         # Growth from growth_trajectory
         try:
-            from infj_bot.core.plugins.growth_trajectory import GrowthTrajectory
+            from drift.core.plugins.growth_trajectory import GrowthTrajectory
 
             gt = GrowthTrajectory()
             # Use metrics as proxy for growth
@@ -530,7 +530,7 @@ class HomeostaticRegulator:
 
         # Submit to workspace
         try:
-            from infj_bot.core.global_workspace import get_workspace
+            from drift.core.global_workspace import get_workspace
 
             ws = get_workspace()
             critical = self._critical_needs()
@@ -625,7 +625,7 @@ class HomeostaticRegulator:
                 self._quick_regulate()
 
             # Submit state to workspace (low-salience, background pulse)
-            from infj_bot.core.global_workspace import get_workspace
+            from drift.core.global_workspace import get_workspace
 
             ws = get_workspace()
             critical = self._critical_needs()
@@ -830,7 +830,7 @@ class HomeostaticRegulator:
 
 
 def _register():
-    from infj_bot.core.cognitive_architecture import (
+    from drift.core.cognitive_architecture import (
         CognitiveArchitecture,
         CognitivePlugin,
     )

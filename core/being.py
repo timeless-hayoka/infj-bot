@@ -17,13 +17,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from infj_bot.core.config import DATA_DIR
-from infj_bot.core.types import PEDIMetric, DIIMetric, SparkImpulse
+from drift.core.config import DATA_DIR
+from drift.core.types import PEDIMetric, DIIMetric, SparkImpulse
 
 logger = logging.getLogger(__name__)
 
 try:
-    from infj_bot.core.being_snapshot import snapshot_cognitive_state
+    from drift.core.being_snapshot import snapshot_cognitive_state
     _SNAPSHOT_ENABLED = True
 except ImportError:
     _SNAPSHOT_ENABLED = False
@@ -31,12 +31,12 @@ except ImportError:
 BEING_DB = DATA_DIR / "being.db"
 
 def _get_workspace():
-    from infj_bot.core.global_workspace import get_workspace
+    from drift.core.global_workspace import get_workspace
     return get_workspace()
 
 def _get_shadow_critic():
     try:
-        from infj_bot.core.shadow import shadow_critic
+        from drift.core.shadow import shadow_critic
         return shadow_critic
     except Exception:
         return None
@@ -425,7 +425,7 @@ class SparkSender:
                 await self.ws_manager.broadcast(message)
             else:
                 import sys
-                web_app_mod = sys.modules.get("infj_bot.interfaces.web_app")
+                web_app_mod = sys.modules.get("drift.interfaces.web_app")
                 if web_app_mod and hasattr(web_app_mod, "socketio"):
                     web_app_mod.socketio.emit("spark", message)
                 print(f"\n[DRIFT SPARK] {content}\n")
@@ -622,7 +622,7 @@ class Being:
             # Body and needs mood influence
             body_mood = None
             try:
-                from infj_bot.core.embodiment import EmbodiedSelf
+                from drift.core.embodiment import EmbodiedSelf
                 body = EmbodiedSelf()
                 if body.state.visceral["fatigue"] > 0.7:
                     body_mood = "tired"
@@ -637,7 +637,7 @@ class Being:
 
             need_mood = None
             try:
-                from infj_bot.core.homeostasis import HomeostaticRegulator
+                from drift.core.homeostasis import HomeostaticRegulator
                 reg = HomeostaticRegulator()
                 critical = reg._critical_needs()
                 if critical:
@@ -689,13 +689,13 @@ class Being:
                     },
                 }
                 try:
-                    from infj_bot.core.shadow import get_shadow
+                    from drift.core.shadow import get_shadow
                     merged["shadow_depth"] = get_shadow().get_state().depth
                 except Exception:
                     merged["shadow_depth"] = 0.0
 
                 try:
-                    from infj_bot.core.homeostasis import HomeostaticRegulator
+                    from drift.core.homeostasis import HomeostaticRegulator
                     reg = HomeostaticRegulator()
                     for need, level in reg.state.needs.items():
                         merged[need] = level
@@ -928,7 +928,7 @@ class Being:
 
         # Body state
         try:
-            from infj_bot.core.embodiment import EmbodiedSelf
+            from drift.core.embodiment import EmbodiedSelf
             body = EmbodiedSelf()
             lines.append("")
             lines.append("Body state:")
@@ -947,7 +947,7 @@ class Being:
             pass
 
         try:
-            from infj_bot.core.homeostasis import HomeostaticRegulator
+            from drift.core.homeostasis import HomeostaticRegulator
             reg = HomeostaticRegulator()
             critical = reg._critical_needs()
             if critical:
@@ -1161,7 +1161,7 @@ def get_being() -> Being:
 
 
 def _register():
-    from infj_bot.core.cognitive_architecture import (
+    from drift.core.cognitive_architecture import (
         CognitiveArchitecture,
         CognitivePlugin,
     )

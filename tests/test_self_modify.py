@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from infj_bot.core.self_modify import (
+from drift.core.self_modify import (
     SelfModification,
     IMPROVEMENT_AREAS,
     MAX_PENDING_PROPOSALS,

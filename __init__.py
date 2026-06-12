@@ -1,1 +1,1 @@
-# Empty init to make infj_bot a package
+# Empty init to make drift a package

@@ -6,7 +6,7 @@ type: software
 authors:
   - family-names: "Hayoka"
     given-names: "Timeless"
-repository-code: "https://github.com/timeless-hayoka/infj-bot"
+repository-code: "https://github.com/timeless-hayoka/drift"
 license: MIT
 version: "0.1.0"
 date-released: "2026-05-22"

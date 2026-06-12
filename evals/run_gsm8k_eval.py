@@ -17,8 +17,8 @@ import sys
 from pathlib import Path
 
 GSM8K_URL = "https://raw.githubusercontent.com/openai/grade-school-math/master/grade_school_math/data/test.jsonl"
-CACHE_PATH = Path("/home/crexs/infj_bot/data/gsm8k_test.jsonl")
-RESULTS_PATH = Path("/home/crexs/infj_bot/evals/gsm8k_results.jsonl")
+CACHE_PATH = Path("/home/crexs/drift/data/gsm8k_test.jsonl")
+RESULTS_PATH = Path("/home/crexs/drift/evals/gsm8k_results.jsonl")
 
 def download_dataset():
     """Download GSM8K test dataset if not cached."""

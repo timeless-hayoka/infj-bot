@@ -24,7 +24,7 @@ if [[ "${LIVE_API_CHECK:-0}" == "1" ]]; then
     echo ""
     echo "=== Live API Check ==="
     python3 -c "
-from infj_bot.core.brain import DriftBrain
+from drift.core.brain import DriftBrain
 print(DriftBrain().think('Health check: answer in one short sentence.'))
 "
 fi

@@ -1,7 +1,7 @@
 from typing import Optional
 from huggingface_hub import InferenceClient
 from huggingface_hub.errors import HfHubHTTPError
-from infj_bot.core.config import HF_PRO_TOKEN, DRIFT_HF_MODEL
+from drift.core.config import HF_PRO_TOKEN, DRIFT_HF_MODEL
 
 class DriftHFBridge:
     def __init__(self, api_token: str = None, model_id: str = None):

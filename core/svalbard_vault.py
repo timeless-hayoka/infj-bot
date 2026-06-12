@@ -15,7 +15,7 @@ from dataclasses import dataclass, asdict
 # CONFIGURATION & ENVIRONMENT
 # ==========================================
 try:
-    from infj_bot.core.config import DATA_ROOT
+    from drift.core.config import DATA_ROOT
     DEFAULT_VAULT_PATH = str(DATA_ROOT / "svalbard_ledger.jsonl")
 except ImportError:
     DEFAULT_VAULT_PATH = os.path.expanduser("~/.drift_os/svalbard_ledger.jsonl")
@@ -149,7 +149,7 @@ class SvalbardVault:
         )
         new_block.block_hash = new_block.calculate_hash()
 
-        from infj_bot.core.jsonl_logger import HardenedJsonlLogger
+        from drift.core.jsonl_logger import HardenedJsonlLogger
         HardenedJsonlLogger(VAULT_PATH).append(asdict(new_block))
 
         self.latest_hash = new_block.block_hash

@@ -1,4 +1,4 @@
-from infj_bot.core.memory import DriftMemory
+from drift.core.memory import DriftMemory
 
 
 COGNITIVE_CONCEPTS = [

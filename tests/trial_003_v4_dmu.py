@@ -12,9 +12,9 @@ from pathlib import Path
 # Add project root to path
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
-from infj_bot.core.logger import DriftLabLogger
-from infj_bot.core.memory import DriftMemory
-from infj_bot.core.psc_scaled import get_psc_engine
+from drift.core.logger import DriftLabLogger
+from drift.core.memory import DriftMemory
+from drift.core.psc_scaled import get_psc_engine
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -30,7 +30,7 @@ def dmu_trial_func(query, **kwargs):
     
     # 3. Verify observability (causal wiring)
     try:
-        from infj_bot.core.causal_wiring import retrieved_memory_keys_var
+        from drift.core.causal_wiring import retrieved_memory_keys_var
         keys = retrieved_memory_keys_var.get()
     except Exception:
         keys = []

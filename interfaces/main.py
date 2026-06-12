@@ -4,48 +4,48 @@ import random
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from typing import Dict, Optional
-from infj_bot.core.brain import DriftBrain
-from infj_bot.core.commands import BotState, handle_command, is_command, parse_command
-from infj_bot.core.cognitive_orchestrator import CognitiveOrchestrator
-from infj_bot.core.logic_chain import get_chain_navigator
-from infj_bot.core.global_workspace import get_workspace
-from infj_bot.core.resilience import get_resilience, HealthCheck
-from infj_bot.core.history import ChatHistory
-from infj_bot.core.memory import DriftMemory
-from infj_bot.core.plugins.goals import GoalsDB
-from infj_bot.core.plugins.proactive import ProactiveState
-from infj_bot.core.plugins.documents import DocumentStore
-from infj_bot.core.plugins.aspirations import AspirationalSelf
-from infj_bot.core.being import get_being
-from infj_bot.core.config import DEFAULT_AUTHORIZED_TARGETS, REFLECTION_INTERVAL
-from infj_bot.core.plugins.creativity import CreativeEngine
-from infj_bot.core.plugins.dreamer import Dreamer
-from infj_bot.core.emotional_field import EmotionalField
-from infj_bot.core.plugins.explorer import AutonomousExplorer
-from infj_bot.core.plugins.growth_trajectory import GrowthTrajectory
-from infj_bot.core.plugins.inner_voice import InnerVoice
-from infj_bot.core.metacognition import MetacognitionEngine
-from infj_bot.core.plugins.predictor import PredictiveNeeds
-from infj_bot.core.plugins.relationship import RelationshipModel
-from infj_bot.core.self_modify import SelfModification
-from infj_bot.core.plugins.temporal import TemporalSense
-from infj_bot.core.plugins.values import ValueSystem
-from infj_bot.core.plugins.physics import PhysicsEngine
-from infj_bot.core.plugins.humanity import HumanityEngine
-from infj_bot.core.intuition import IntuitionEngine
-from infj_bot.core.embodiment import EmbodiedSelf
-from infj_bot.core.phi_proxy import PhiProxy
-from infj_bot.core.homeostasis import HomeostaticRegulator
-from infj_bot.core.shadow import get_shadow
-from infj_bot.core.cognitive_architecture import CognitiveArchitecture, CycleContext
-from infj_bot.core.hive.elysium import get_elysium
-from infj_bot.core.dii_tracker import get_dii_tracker
+from drift.core.brain import DriftBrain
+from drift.core.commands import BotState, handle_command, is_command, parse_command
+from drift.core.cognitive_orchestrator import CognitiveOrchestrator
+from drift.core.logic_chain import get_chain_navigator
+from drift.core.global_workspace import get_workspace
+from drift.core.resilience import get_resilience, HealthCheck
+from drift.core.history import ChatHistory
+from drift.core.memory import DriftMemory
+from drift.core.plugins.goals import GoalsDB
+from drift.core.plugins.proactive import ProactiveState
+from drift.core.plugins.documents import DocumentStore
+from drift.core.plugins.aspirations import AspirationalSelf
+from drift.core.being import get_being
+from drift.core.config import DEFAULT_AUTHORIZED_TARGETS, REFLECTION_INTERVAL
+from drift.core.plugins.creativity import CreativeEngine
+from drift.core.plugins.dreamer import Dreamer
+from drift.core.emotional_field import EmotionalField
+from drift.core.plugins.explorer import AutonomousExplorer
+from drift.core.plugins.growth_trajectory import GrowthTrajectory
+from drift.core.plugins.inner_voice import InnerVoice
+from drift.core.metacognition import MetacognitionEngine
+from drift.core.plugins.predictor import PredictiveNeeds
+from drift.core.plugins.relationship import RelationshipModel
+from drift.core.self_modify import SelfModification
+from drift.core.plugins.temporal import TemporalSense
+from drift.core.plugins.values import ValueSystem
+from drift.core.plugins.physics import PhysicsEngine
+from drift.core.plugins.humanity import HumanityEngine
+from drift.core.intuition import IntuitionEngine
+from drift.core.embodiment import EmbodiedSelf
+from drift.core.phi_proxy import PhiProxy
+from drift.core.homeostasis import HomeostaticRegulator
+from drift.core.shadow import get_shadow
+from drift.core.cognitive_architecture import CognitiveArchitecture, CycleContext
+from drift.core.hive.elysium import get_elysium
+from drift.core.dii_tracker import get_dii_tracker
 import sys
-from infj_bot.core.context_engine import CognitiveState, Context, ContextWorker, CognitivePayload
-from infj_bot.core.cognitive_ops import pedi_regulation_step, state_conditioned_llm
-from infj_bot.interfaces.comonad_cli import calculate_state_diff
+from drift.core.context_engine import CognitiveState, Context, ContextWorker, CognitivePayload
+from drift.core.cognitive_ops import pedi_regulation_step, state_conditioned_llm
+from drift.interfaces.comonad_cli import calculate_state_diff
 
-logger = logging.getLogger("infj_bot")
+logger = logging.getLogger("drift")
 
 # Initialize Brain and Memory
 brain = DriftBrain()
@@ -56,7 +56,7 @@ history = ChatHistory()
 def deliberation_bridge(goal: str):
     """Synchronous bridge to the async Elysium deliberation, avoiding deadlocks."""
     import asyncio
-    from infj_bot.core.hive.elysium import DeliberationResult
+    from drift.core.hive.elysium import DeliberationResult
 
     def run_in_new_loop():
         new_loop = asyncio.new_event_loop()
@@ -162,7 +162,7 @@ _orchestrator.memory = memory
 _orchestrator.brain = brain
 
 # Phase 6: Unified Audit
-from infj_bot.core.unified_audit import wire_orchestrator_audit
+from drift.core.unified_audit import wire_orchestrator_audit
 wire_orchestrator_audit(_orchestrator)
 
 # Global Workspace — the bot's conscious mind
@@ -534,7 +534,7 @@ async def chat_loop():
                     prefs=state.prefs,
                 )
             except Exception as exc:
-                from infj_bot.core.cognitive_orchestrator import IntentBlockedError
+                from drift.core.cognitive_orchestrator import IntentBlockedError
                 if isinstance(exc, IntentBlockedError):
                     generate_response_func.is_blocked = True
                     return str(exc)
@@ -589,7 +589,7 @@ async def chat_loop():
                     prefs=state.prefs,
                 )
             except Exception as exc:
-                from infj_bot.core.cognitive_orchestrator import IntentBlockedError
+                from drift.core.cognitive_orchestrator import IntentBlockedError
                 if isinstance(exc, IntentBlockedError):
                     print(f"\n[INFJ COMPANION]: {exc}")
                     continue

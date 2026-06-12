@@ -24,9 +24,9 @@ This experiment tests the integration of **SparkTrain v2.0** containing **Shadow
     *   `quiet_mode_until` (reset to `0.0` before each iteration to ensure veto evaluation)
 
 ### 3.2. Implementation Details
-*   **Model/System under test:** infj-bot Core `Being` class equipped with SparkTrain v2.0 and ShadowCritic.
+*   **Model/System under test:** drift Core `Being` class equipped with SparkTrain v2.0 and ShadowCritic.
 *   **Sample Size (n):** 1 control run followed by 10 identical test runs.
-*   **Test Environment:** Sandbox workspace `/home/crexs/infj_bot` inside conda environment running python 3.12.
+*   **Test Environment:** Sandbox workspace `/home/crexs/drift` inside conda environment running python 3.12.
 
 ---
 

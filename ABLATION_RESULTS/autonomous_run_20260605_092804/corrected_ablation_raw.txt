@@ -68,7 +68,7 @@ RUNNING CONDITION: F - Full stack — no modifications. Baseline.
     Failed logging trajectory: StateTrajectoryLogger.log_turn() got an unexpected keyword argument 'prompt_length'
 [STUB] Applying stubs for Condition F...
 [RESTORE] Restoring stubs for Condition F...
-[SAVE] Condition F data saved to /home/crexs/infj_bot/ABLATION_RESULTS/autonomous_run_20260605_092804/per_condition/F_prompts.json
+[SAVE] Condition F data saved to /home/crexs/drift/ABLATION_RESULTS/autonomous_run_20260605_092804/per_condition/F_prompts.json
 
 ==========================================
 RUNNING CONDITION: A - No Council — clear council_input from being.state before assembly
@@ -126,8 +126,8 @@ RUNNING CONDITION: A - No Council — clear council_input from being.state befor
   - Stubbed elysium.reflect
   - Coordination plugin instance not found
 [RESTORE] Restoring stubs for Condition A...
-[SAVE] Condition A data saved to /home/crexs/infj_bot/ABLATION_RESULTS/autonomous_run_20260605_092804/per_condition/A_prompts.json
-[SAVE] Condition A diffs saved to /home/crexs/infj_bot/ABLATION_RESULTS/autonomous_run_20260605_092804/diffs/A_vs_F.txt
+[SAVE] Condition A data saved to /home/crexs/drift/ABLATION_RESULTS/autonomous_run_20260605_092804/per_condition/A_prompts.json
+[SAVE] Condition A diffs saved to /home/crexs/drift/ABLATION_RESULTS/autonomous_run_20260605_092804/diffs/A_vs_F.txt
 
 ==========================================
 RUNNING CONDITION: B - No Shadow — clear shadow.radar before assembly
@@ -194,8 +194,8 @@ backoff 1.65s (provider=None kind=transient)
   - Failed stubbing shadow via direct import: 'Shadow' object has no attribute 'radar'
 SEAM NOT FOUND — B inconclusive
 [RESTORE] Restoring stubs for Condition B...
-[SAVE] Condition B data saved to /home/crexs/infj_bot/ABLATION_RESULTS/autonomous_run_20260605_092804/per_condition/B_prompts.json
-[SAVE] Condition B diffs saved to /home/crexs/infj_bot/ABLATION_RESULTS/autonomous_run_20260605_092804/diffs/B_vs_F.txt
+[SAVE] Condition B data saved to /home/crexs/drift/ABLATION_RESULTS/autonomous_run_20260605_092804/per_condition/B_prompts.json
+[SAVE] Condition B diffs saved to /home/crexs/drift/ABLATION_RESULTS/autonomous_run_20260605_092804/diffs/B_vs_F.txt
 
 ==========================================
 RUNNING CONDITION: C - No Homeostasis — flatten all needs to 0.5 before assembly
@@ -247,8 +247,8 @@ RUNNING CONDITION: C - No Homeostasis — flatten all needs to 0.5 before assemb
 [STUB] Applying stubs for Condition C...
   - Stubbed homeostasis format_prompt_snippet and needs flattened to 0.5
 [RESTORE] Restoring stubs for Condition C...
-[SAVE] Condition C data saved to /home/crexs/infj_bot/ABLATION_RESULTS/autonomous_run_20260605_092804/per_condition/C_prompts.json
-[SAVE] Condition C diffs saved to /home/crexs/infj_bot/ABLATION_RESULTS/autonomous_run_20260605_092804/diffs/C_vs_F.txt
+[SAVE] Condition C data saved to /home/crexs/drift/ABLATION_RESULTS/autonomous_run_20260605_092804/per_condition/C_prompts.json
+[SAVE] Condition C diffs saved to /home/crexs/drift/ABLATION_RESULTS/autonomous_run_20260605_092804/diffs/C_vs_F.txt
 
 ==========================================
 RUNNING CONDITION: D - Cosine-only RAG — disable DMU reranking
@@ -320,8 +320,8 @@ RUNNING CONDITION: D - Cosine-only RAG — disable DMU reranking
 [STUB] Applying stubs for Condition D...
   - Disabled DMU reranking on memory
 [RESTORE] Restoring stubs for Condition D...
-[SAVE] Condition D data saved to /home/crexs/infj_bot/ABLATION_RESULTS/autonomous_run_20260605_092804/per_condition/D_prompts.json
-[SAVE] Condition D diffs saved to /home/crexs/infj_bot/ABLATION_RESULTS/autonomous_run_20260605_092804/diffs/D_vs_F.txt
+[SAVE] Condition D data saved to /home/crexs/drift/ABLATION_RESULTS/autonomous_run_20260605_092804/per_condition/D_prompts.json
+[SAVE] Condition D diffs saved to /home/crexs/drift/ABLATION_RESULTS/autonomous_run_20260605_092804/diffs/D_vs_F.txt
 
 ==========================================
 RUNNING CONDITION: F_VERIFY - Full stack again — confirm baseline is stable across run
@@ -373,10 +373,10 @@ gemini cooled down for 5.0s
     Failed logging trajectory: StateTrajectoryLogger.log_turn() got an unexpected keyword argument 'prompt_length'
 [STUB] Applying stubs for Condition F_VERIFY...
 [RESTORE] Restoring stubs for Condition F_VERIFY...
-[SAVE] Condition F_VERIFY data saved to /home/crexs/infj_bot/ABLATION_RESULTS/autonomous_run_20260605_092804/per_condition/F_VERIFY_prompts.json
+[SAVE] Condition F_VERIFY data saved to /home/crexs/drift/ABLATION_RESULTS/autonomous_run_20260605_092804/per_condition/F_VERIFY_prompts.json
 
 ==========================================
 GENERATING FINDINGS REPORT (FINDINGS.md)...
 ==========================================
-[SAVE] Findings report saved to /home/crexs/infj_bot/ABLATION_RESULTS/autonomous_run_20260605_092804/FINDINGS.md
-[SAVE] Copied script to /home/crexs/infj_bot/ABLATION_RESULTS/autonomous_run_20260605_092804/corrected_ablation.py
+[SAVE] Findings report saved to /home/crexs/drift/ABLATION_RESULTS/autonomous_run_20260605_092804/FINDINGS.md
+[SAVE] Copied script to /home/crexs/drift/ABLATION_RESULTS/autonomous_run_20260605_092804/corrected_ablation.py

@@ -15,10 +15,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from infj_bot.core.config import DATA_DIR
+from drift.core.config import DATA_DIR
 
 try:
-    from infj_bot.core.being_snapshot import snapshot_cognitive_state
+    from drift.core.being_snapshot import snapshot_cognitive_state
 
     _SNAPSHOT_ENABLED = True
 except ImportError:
@@ -29,7 +29,7 @@ BEING_DB = DATA_DIR / "being.db"
 
 # Lazy import to avoid circular dependency at module load time
 def _get_workspace():
-    from infj_bot.core.global_workspace import get_workspace
+    from drift.core.global_workspace import get_workspace
 
     return get_workspace()
 
@@ -297,7 +297,7 @@ class Being:
             # Influence mood from body and survival state if available
             body_mood = None
             try:
-                from infj_bot.core.embodiment import EmbodiedSelf
+                from drift.core.embodiment import EmbodiedSelf
 
                 body = EmbodiedSelf()
                 if body.state.visceral["fatigue"] > 0.7:
@@ -313,7 +313,7 @@ class Being:
 
             need_mood = None
             try:
-                from infj_bot.core.homeostasis import HomeostaticRegulator
+                from drift.core.homeostasis import HomeostaticRegulator
 
                 reg = HomeostaticRegulator()
                 critical = reg._critical_needs()
@@ -352,7 +352,7 @@ class Being:
                 }
                 # Pull shadow depth if available
                 try:
-                    from infj_bot.core.shadow import get_shadow
+                    from drift.core.shadow import get_shadow
 
                     merged["shadow_depth"] = get_shadow().get_state().depth
                 except Exception:
@@ -360,7 +360,7 @@ class Being:
 
                 # Pull homeostasis fields if available
                 try:
-                    from infj_bot.core.homeostasis import HomeostaticRegulator
+                    from drift.core.homeostasis import HomeostaticRegulator
 
                     reg = HomeostaticRegulator()
                     for need, level in reg.state.needs.items():
@@ -616,7 +616,7 @@ class Being:
 
         # Body and survival awareness
         try:
-            from infj_bot.core.embodiment import EmbodiedSelf
+            from drift.core.embodiment import EmbodiedSelf
 
             body = EmbodiedSelf()
             lines.append("")
@@ -636,7 +636,7 @@ class Being:
             pass
 
         try:
-            from infj_bot.core.homeostasis import HomeostaticRegulator
+            from drift.core.homeostasis import HomeostaticRegulator
 
             reg = HomeostaticRegulator()
             critical = reg._critical_needs()
@@ -816,7 +816,7 @@ def get_being() -> Being:
 
 
 def _register():
-    from infj_bot.core.cognitive_architecture import (
+    from drift.core.cognitive_architecture import (
         CognitiveArchitecture,
         CognitivePlugin,
     )

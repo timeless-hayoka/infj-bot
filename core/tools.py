@@ -12,8 +12,8 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 from urllib.parse import urlparse
 
-from infj_bot.core.config import DATA_DIR, PROJECT_ROOT
-from infj_bot.core.jsonl_logger import HardenedJsonlLogger
+from drift.core.config import DATA_DIR, PROJECT_ROOT
+from drift.core.jsonl_logger import HardenedJsonlLogger
 
 STATE_ROOT = DATA_DIR
 
@@ -149,7 +149,7 @@ def _audit_tool_call(name: str, arguments: Dict[str, Any], result: str) -> None:
         
         # Phase 6: Sync to Unified Audit
         try:
-            from infj_bot.core.unified_audit import audit_log
+            from drift.core.unified_audit import audit_log
             audit_log(
                 event_type="tool_execution",
                 source="tools",
@@ -471,7 +471,7 @@ def tool_computer_use(
             "manage, or have explicit permission to interact with. Use /authorize <domain> first.]"
         )
     try:
-        from infj_bot.core.plugins.computer_use import run_computer_actions
+        from drift.core.plugins.computer_use import run_computer_actions
 
         domains = set(authorized_domains) if authorized_domains else set()
         return run_computer_actions(actions, authorized_domains=domains)
@@ -482,7 +482,7 @@ def tool_computer_use(
 def tool_computer_session_status() -> str:
     """Check the active browser session state."""
     try:
-        from infj_bot.core.plugins.computer_use import get_computer_session_status
+        from drift.core.plugins.computer_use import get_computer_session_status
 
         return get_computer_session_status()
     except Exception as exc:
@@ -492,7 +492,7 @@ def tool_computer_session_status() -> str:
 def tool_close_computer_session() -> str:
     """Close the active browser session."""
     try:
-        from infj_bot.core.plugins.computer_use import close_computer_session
+        from drift.core.plugins.computer_use import close_computer_session
 
         return close_computer_session()
     except Exception as exc:

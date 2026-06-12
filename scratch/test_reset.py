@@ -4,23 +4,23 @@ import os
 import json
 from dotenv import load_dotenv
 
-sys.path.insert(0, '/home/crexs/infj_bot')
+sys.path.insert(0, '/home/crexs/drift')
 
 # Load env variables explicitly
-env_path = '/home/crexs/infj_bot/.env'
+env_path = '/home/crexs/drift/.env'
 load_dotenv(env_path)
 
-from infj_bot.core.brain import DriftBrain
-from infj_bot.core.memory import DriftMemory
-from infj_bot.core.history import ChatHistory
-from infj_bot.core.commands import BotState
-from infj_bot.core.plugins.goals import GoalsDB
-from infj_bot.core.plugins.documents import DocumentStore
-from infj_bot.core.prompt_builder import build_chat_prompt
+from drift.core.brain import DriftBrain
+from drift.core.memory import DriftMemory
+from drift.core.history import ChatHistory
+from drift.core.commands import BotState
+from drift.core.plugins.goals import GoalsDB
+from drift.core.plugins.documents import DocumentStore
+from drift.core.prompt_builder import build_chat_prompt
 
 def main():
     # Remove old trace log to start clean
-    log_path = '/home/crexs/infj_bot/logs/state_trace.jsonl'
+    log_path = '/home/crexs/drift/logs/state_trace.jsonl'
     if os.path.exists(log_path):
         os.remove(log_path)
         print("Removed old state_trace.jsonl")

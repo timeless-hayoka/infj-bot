@@ -27,7 +27,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from infj_bot.core.config import RELIABILITY_DB
+from drift.core.config import RELIABILITY_DB
 
 # Source types and base confidence
 SOURCE_CONFIDENCE = {

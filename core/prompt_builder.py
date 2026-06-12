@@ -5,8 +5,8 @@ wrapper so existing entry points (api.py, web_app.py, tui.py, cli.py)
 continue to work without modification.
 """
 
-from infj_bot.core.cognitive_orchestrator import CognitiveOrchestrator
-from infj_bot.core.safe_math_integration import inject_grounded_math, active_grounded_math_var
+from drift.core.cognitive_orchestrator import CognitiveOrchestrator
+from drift.core.safe_math_integration import inject_grounded_math, active_grounded_math_var
 
 _orchestrator = CognitiveOrchestrator()
 

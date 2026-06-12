@@ -34,7 +34,7 @@
 ## How to re-run
 
 ```bash
-cd /home/crexs/infj_bot
+cd /home/crexs/drift
 source .venv/bin/activate
 python tests/ablation_suite.py --conditions A,B,C,D,E,F --prompts 50
 ```

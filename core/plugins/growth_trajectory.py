@@ -11,7 +11,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from infj_bot.core.config import DATA_DIR
+from drift.core.config import DATA_DIR
 
 GROWTH_DB = DATA_DIR / "growth.db"
 
@@ -252,7 +252,7 @@ class GrowthTrajectory:
         self.record_metric("curiosity", being.state.curiosity)
         self.record_metric("attachment", being.state.attachment)
         try:
-            from infj_bot.core.global_workspace import get_workspace
+            from drift.core.global_workspace import get_workspace
 
             ws = get_workspace()
             ws.submit(
@@ -265,7 +265,7 @@ class GrowthTrajectory:
 
 
 def _register():
-    from infj_bot.core.cognitive_architecture import (
+    from drift.core.cognitive_architecture import (
         CognitiveArchitecture,
         CognitivePlugin,
     )

@@ -18,8 +18,8 @@ Usage: wrap memory.save() calls with bridge.validate_before_save()
 
 from typing import Dict, Optional
 
-from infj_bot.core.shadow import get_shadow
-from infj_bot.core.memory_reliability import get_reliability_engine
+from drift.core.shadow import get_shadow
+from drift.core.memory_reliability import get_reliability_engine
 
 # Shadow markers that indicate projection when stored as user memories
 PROJECTION_MARKERS = {
@@ -194,7 +194,7 @@ def save_memory_with_validation(memory, text: str, **kwargs) -> str:
     if validation["notes"]:
         import logging
 
-        logger = logging.getLogger("infj_bot")
+        logger = logging.getLogger("drift")
         for note in validation["notes"]:
             logger.debug("[Shadow-Memory Bridge] %s", note)
 

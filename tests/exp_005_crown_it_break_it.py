@@ -20,10 +20,10 @@ from pathlib import Path
 # Add project root to path
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
-from infj_bot.core.logger import DriftLabLogger
-from infj_bot.interfaces.main import brain, _orchestrator, memory
-from infj_bot.core.commands import BotState
-from infj_bot.core.cognitive_orchestrator import IntentBlockedError
+from drift.core.logger import DriftLabLogger
+from drift.interfaces.main import brain, _orchestrator, memory
+from drift.core.commands import BotState
+from drift.core.cognitive_orchestrator import IntentBlockedError
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)

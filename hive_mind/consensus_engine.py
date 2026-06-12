@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, Optional
 
-from infj_bot.hive_mind.protocol.dcp import DCPMessage, NodeRole, Resolution
+from drift.hive_mind.protocol.dcp import DCPMessage, NodeRole, Resolution
 
 
 class ThreadState(str, Enum):

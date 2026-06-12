@@ -4,7 +4,7 @@ import tempfile
 import os
 import anyio
 
-from infj_bot.core.unified_memory import MemoryManager, Event
+from drift.core.unified_memory import MemoryManager, Event
 
 
 @pytest.fixture

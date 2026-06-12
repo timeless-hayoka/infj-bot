@@ -97,7 +97,7 @@ class HealthCheck:
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
 
 
-from infj_bot.core.config import DATA_DIR
+from drift.core.config import DATA_DIR
 
 HEALTH_DB = DATA_DIR / "health.db"
 

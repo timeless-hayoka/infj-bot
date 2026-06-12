@@ -18,7 +18,7 @@ from typing import Dict, List, Tuple
 PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from infj_bot.core.config import (
+from drift.core.config import (
     BEING_DB,
     HISTORY_PATH,
     HOMEOSTASIS_DB,
@@ -80,7 +80,7 @@ def load_shadow_state() -> Tuple[int, int]:
 
 
 def load_memory_stats(logs: List[Dict]) -> Dict:
-    from infj_bot.core.memory import DriftMemory
+    from drift.core.memory import DriftMemory
 
     m = DriftMemory()
     return {
@@ -475,9 +475,9 @@ class RealModeDiscriminator:
     def _prompt_structure_analysis(self) -> Dict:
         """Check which modes have explicit rails in the prompt builder."""
         try:
-            from infj_bot.core.prompt_builder import build_chat_prompt
-            from infj_bot.core.commands import BotState
-            from infj_bot.core.memory import DriftMemory
+            from drift.core.prompt_builder import build_chat_prompt
+            from drift.core.commands import BotState
+            from drift.core.memory import DriftMemory
 
             state = BotState()
             mem = DriftMemory()

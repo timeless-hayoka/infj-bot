@@ -18,16 +18,16 @@ from rich.text import Text
 
 sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parent))
 
-from infj_bot.core.brain import DriftBrain
-from infj_bot.core.commands import BotState, handle_command, is_command, parse_command
-from infj_bot.core.config import DEFAULT_AUTHORIZED_TARGETS
-from infj_bot.core.plugins.documents import DocumentStore
-from infj_bot.core.plugins.goals import GoalsDB
-from infj_bot.core.plugins.growth import growth_profile
-from infj_bot.core.history import ChatHistory
-from infj_bot.core.memory import DriftMemory
-from infj_bot.core.prompt_builder import build_chat_prompt
-from infj_bot.core.plugins.proactive import ProactiveState
+from drift.core.brain import DriftBrain
+from drift.core.commands import BotState, handle_command, is_command, parse_command
+from drift.core.config import DEFAULT_AUTHORIZED_TARGETS
+from drift.core.plugins.documents import DocumentStore
+from drift.core.plugins.goals import GoalsDB
+from drift.core.plugins.growth import growth_profile
+from drift.core.history import ChatHistory
+from drift.core.memory import DriftMemory
+from drift.core.prompt_builder import build_chat_prompt
+from drift.core.plugins.proactive import ProactiveState
 
 console = Console()
 

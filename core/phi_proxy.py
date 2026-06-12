@@ -22,7 +22,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from infj_bot.core.config import DATA_DIR
+from drift.core.config import DATA_DIR
 
 PHI_PROXY_DB = DATA_DIR / "phi_proxy.db"
 
@@ -280,7 +280,7 @@ class PhiProxy:
             mechanisms.append("memory")
         # Use workspace history to infer active modules
         try:
-            from infj_bot.core.global_workspace import get_workspace
+            from drift.core.global_workspace import get_workspace
 
             ws = get_workspace()
             recent = ws.contents[-10:] if hasattr(ws, "contents") else []
@@ -294,7 +294,7 @@ class PhiProxy:
 
     def _get_workspace_contents(self) -> List[Dict]:
         try:
-            from infj_bot.core.global_workspace import get_workspace
+            from drift.core.global_workspace import get_workspace
 
             ws = get_workspace()
             contents = []
@@ -372,7 +372,7 @@ class PhiProxy:
 
         # Unity: coherence of workspace (inverse of conflict)
         try:
-            from infj_bot.core.cognitive_orchestrator import ConflictDetector
+            from drift.core.cognitive_orchestrator import ConflictDetector
 
             ConflictDetector()
             # Simplified: unity drops with high dissonance
@@ -485,7 +485,7 @@ class PhiProxy:
 
         # Submit to workspace
         try:
-            from infj_bot.core.global_workspace import get_workspace
+            from drift.core.global_workspace import get_workspace
 
             ws = get_workspace()
             qualia_desc = self._qualia_description()
@@ -644,7 +644,7 @@ class PhiProxy:
 
 
 def _register():
-    from infj_bot.core.cognitive_architecture import (
+    from drift.core.cognitive_architecture import (
         CognitiveArchitecture,
         CognitivePlugin,
     )

@@ -10,25 +10,25 @@ import difflib
 from pathlib import Path
 
 # Add project root to path
-PROJECT_ROOT = Path("/home/crexs/infj_bot")
+PROJECT_ROOT = Path("/home/crexs/drift")
 sys.path.insert(0, str(PROJECT_ROOT))
 
 import dotenv
 dotenv.load_dotenv(override=True)
 
 from core.being import get_being
-from infj_bot.core.cognitive_orchestrator import CognitiveOrchestrator
-from infj_bot.core.commands import BotState
-from infj_bot.core.config import DEFAULT_AUTHORIZED_TARGETS
-from infj_bot.core.plugins.goals import GoalsDB
-from infj_bot.core.plugins.documents import DocumentStore
+from drift.core.cognitive_orchestrator import CognitiveOrchestrator
+from drift.core.commands import BotState
+from drift.core.config import DEFAULT_AUTHORIZED_TARGETS
+from drift.core.plugins.goals import GoalsDB
+from drift.core.plugins.documents import DocumentStore
 from core.trajectory import StateTrajectoryLogger
 from core.homeostasis import get_homeostasis, NEED_DEFINITIONS
 from core.safe_math_integration import active_grounded_math_var
 from core.global_workspace import get_workspace
 
 # Setup output dir from script directory/environment
-OUTPUT_DIR = Path("/home/crexs/infj_bot/ABLATION_RESULTS/autonomous_run_20260605_102734")
+OUTPUT_DIR = Path("/home/crexs/drift/ABLATION_RESULTS/autonomous_run_20260605_102734")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 (OUTPUT_DIR / "per_condition").mkdir(exist_ok=True)
 (OUTPUT_DIR / "diffs").mkdir(exist_ok=True)
@@ -141,7 +141,7 @@ def apply_stubs(condition, orchestrator, memory):
         
         # Elysium reflect
         try:
-            from infj_bot.core.hive.elysium import get_elysium
+            from drift.core.hive.elysium import get_elysium
             elysium = get_elysium()
             original_reflect = elysium.reflect
             elysium.reflect = lambda *a, **k: None
@@ -183,7 +183,7 @@ def apply_stubs(condition, orchestrator, memory):
             
         if not shadow_found:
             try:
-                from infj_bot.core.shadow import get_shadow
+                from drift.core.shadow import get_shadow
                 shadow = get_shadow()
                 original_shadow_format = shadow.format_prompt_snippet
                 shadow.format_prompt_snippet = lambda *a, **k: ""
@@ -199,7 +199,7 @@ def apply_stubs(condition, orchestrator, memory):
             
     elif condition == "C":
         try:
-            from infj_bot.core.homeostasis import get_homeostasis
+            from drift.core.homeostasis import get_homeostasis
             homeo = get_homeostasis()
             original_homeo_format = homeo.format_prompt_snippet
             homeo.format_prompt_snippet = lambda *a, **k: ""
@@ -233,7 +233,7 @@ def restore_stubs(condition, orchestrator, memory):
         if hasattr(being.state, "council_input"):
             delattr(being.state, "council_input")
         try:
-            from infj_bot.core.hive.elysium import get_elysium
+            from drift.core.hive.elysium import get_elysium
             elysium = get_elysium()
             if original_reflect is not None:
                 elysium.reflect = original_reflect
@@ -259,7 +259,7 @@ def restore_stubs(condition, orchestrator, memory):
                 shadow._state.depth, shadow._state.dominant_archetype = original_shadow_state
         else:
             try:
-                from infj_bot.core.shadow import get_shadow
+                from drift.core.shadow import get_shadow
                 shadow = get_shadow()
                 if original_shadow_format is not None:
                     shadow.format_prompt_snippet = original_shadow_format
@@ -270,7 +270,7 @@ def restore_stubs(condition, orchestrator, memory):
                 
     elif condition == "C":
         try:
-            from infj_bot.core.homeostasis import get_homeostasis
+            from drift.core.homeostasis import get_homeostasis
             homeo = get_homeostasis()
             if original_homeo_format is not None:
                 homeo.format_prompt_snippet = original_homeo_format
@@ -296,7 +296,7 @@ def main():
     print("=== STARTING CORRECTED ABLATION RUN ===")
     
     # Initialize basic components
-    from infj_bot.core.memory import DriftMemory
+    from drift.core.memory import DriftMemory
     
     # Setup logger
     traj_logger = StateTrajectoryLogger()
@@ -309,7 +309,7 @@ def main():
         print("==========================================")
         
         # Instantiate fresh parts
-        from infj_bot.core.brain import DriftBrain
+        from drift.core.brain import DriftBrain
         brain = DriftBrain()
         memory = DriftMemory()
         
@@ -593,7 +593,7 @@ def generate_findings_report(results):
     lines.append("## Phase 2 — Trajectory Analysis")
     # Read pre-flight log and trajectory analysis
     try:
-        with open("/home/crexs/infj_bot/ABLATION_RESULTS/autonomous_run_20260605_092804/trajectory_analysis.txt", "r") as f:
+        with open("/home/crexs/drift/ABLATION_RESULTS/autonomous_run_20260605_092804/trajectory_analysis.txt", "r") as f:
             analysis_text = f.read()
         lines.append("```")
         lines.append(analysis_text)

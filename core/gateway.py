@@ -127,7 +127,7 @@ class HardenedGatewayMiddleware:
         
         # Resolve DB path using environment/data dir
         if not data_dir:
-            from infj_bot.core.config import DATA_DIR
+            from drift.core.config import DATA_DIR
             data_dir = DATA_DIR if DATA_DIR else "."
         
         self.db_path = Path(data_dir) / DEFAULT_KEYS_DB

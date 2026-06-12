@@ -12,13 +12,13 @@ import tempfile
 import pytest
 from pathlib import Path
 
-from infj_bot.core.shadow import Shadow
-import infj_bot.core.shadow as shadow_module
-from infj_bot.core.plugins.self_eval import SelfEvaluator
-from infj_bot.core.brain import DriftBrain
-from infj_bot.core.prompt_builder import build_chat_prompt
-from infj_bot.core.commands import BotState
-from infj_bot.core.memory import DriftMemory
+from drift.core.shadow import Shadow
+import drift.core.shadow as shadow_module
+from drift.core.plugins.self_eval import SelfEvaluator
+from drift.core.brain import DriftBrain
+from drift.core.prompt_builder import build_chat_prompt
+from drift.core.commands import BotState
+from drift.core.memory import DriftMemory
 
 @pytest.fixture
 def test_env():

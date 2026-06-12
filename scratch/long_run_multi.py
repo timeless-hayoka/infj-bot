@@ -10,15 +10,15 @@ from pathlib import Path
 os.environ["DRIFT_BYPASS_SECURITY"] = "0"
 os.environ["DRIFT_USE_LOCAL_FALLBACK"] = "0"
 
-from infj_bot.core.brain import DriftBrain
-from infj_bot.core.being import get_being
-from infj_bot.core.unified_memory import get_unified_memory
+from drift.core.brain import DriftBrain
+from drift.core.being import get_being
+from drift.core.unified_memory import get_unified_memory
 
 def run_single_simulation(run_id: str, cycles: int = 500, test_type: str = "control"):
     print(f"[{run_id}] Starting {cycles}-cycle simulation ({test_type})")
     
     # Isolate data directory for this run
-    base_data = Path(f"/home/crexs/infj_bot/scratch/long_runs/{run_id}")
+    base_data = Path(f"/home/crexs/drift/scratch/long_runs/{run_id}")
     if base_data.exists():
         shutil.rmtree(base_data)
     base_data.mkdir(parents=True)
@@ -28,9 +28,9 @@ def run_single_simulation(run_id: str, cycles: int = 500, test_type: str = "cont
     os.environ["DRIFT_OS_ROOT"] = str(base_data)
     
     # IMPORTANT: We must reload configuration and reset singletons
-    import infj_bot.core.being as core_being
-    import infj_bot.core.unified_memory as core_um
-    import infj_bot.core.shadow as core_shadow
+    import drift.core.being as core_being
+    import drift.core.unified_memory as core_um
+    import drift.core.shadow as core_shadow
     
     # Reset singletons
     core_being._being_instance = None
@@ -146,8 +146,8 @@ def plot_results(all_results):
         ax.grid(True, alpha=0.3)
         
     plt.tight_layout()
-    plt.savefig("/home/crexs/infj_bot/scratch/long_runs/combined_plot.png")
-    print("Saved plot to /home/crexs/infj_bot/scratch/long_runs/combined_plot.png")
+    plt.savefig("/home/crexs/drift/scratch/long_runs/combined_plot.png")
+    print("Saved plot to /home/crexs/drift/scratch/long_runs/combined_plot.png")
 
 
 if __name__ == "__main__":
@@ -168,7 +168,7 @@ if __name__ == "__main__":
     # Change cycles here. Setting to 100 for safety against rate limits, but the user requested 500-1000.
     CYCLES = 500
     
-    Path("/home/crexs/infj_bot/scratch/long_runs").mkdir(parents=True, exist_ok=True)
+    Path("/home/crexs/drift/scratch/long_runs").mkdir(parents=True, exist_ok=True)
     
     all_results = {}
     

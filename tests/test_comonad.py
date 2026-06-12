@@ -1,18 +1,18 @@
 import unittest
 from pydantic import ValidationError
-from infj_bot.core.context_engine import (
+from drift.core.context_engine import (
     CognitiveState,
     Context,
     ContextWorker,
     CognitivePayload,
 )
-from infj_bot.core.cognitive_ops import (
+from drift.core.cognitive_ops import (
     pedi_regulation_step,
     state_conditioned_llm,
     predicted_transition_step,
 )
-from infj_bot.interfaces.comonad_cli import calculate_state_diff
-from infj_bot.core.cognitive_snapshot import (
+from drift.interfaces.comonad_cli import calculate_state_diff
+from drift.core.cognitive_snapshot import (
     SnapshotLogger,
     TransitionComparator,
 )

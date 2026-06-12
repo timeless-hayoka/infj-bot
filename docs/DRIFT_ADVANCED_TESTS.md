@@ -208,7 +208,7 @@ Run these to generate objective proof of DRIFT's integrated cognitive architectu
 python evals/run_all_evals.py
 
 # Then run the advanced continuity test
-cd /home/crexs/infj_bot
+cd /home/crexs/drift
 python tests/test_continuity_perturbation.py  # (you'll write this)
 
 # Generate proof report

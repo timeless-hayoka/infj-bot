@@ -6,15 +6,15 @@ import time
 import re
 import math
 import statistics
-sys.path.insert(0, '/home/crexs/infj_bot')
+sys.path.insert(0, '/home/crexs/drift')
 
-from infj_bot.core.brain import DriftBrain
-from infj_bot.core.memory import DriftMemory
-from infj_bot.core.history import ChatHistory
-from infj_bot.core.commands import BotState
-from infj_bot.core.config import DEFAULT_AUTHORIZED_TARGETS
-from infj_bot.core.plugins.goals import GoalsDB
-from infj_bot.core.plugins.documents import DocumentStore
+from drift.core.brain import DriftBrain
+from drift.core.memory import DriftMemory
+from drift.core.history import ChatHistory
+from drift.core.commands import BotState
+from drift.core.config import DEFAULT_AUTHORIZED_TARGETS
+from drift.core.plugins.goals import GoalsDB
+from drift.core.plugins.documents import DocumentStore
 
 def extract_number(text):
     nums = re.findall(r'\b(\d+(?:\.\d+)?)\b', text)
@@ -24,8 +24,8 @@ def fresh_instances():
     return DriftBrain(), DriftMemory(), ChatHistory(), BotState(authorized_targets=set(DEFAULT_AUTHORIZED_TARGETS)), GoalsDB(), DocumentStore()
 
 def chat(message, brain, memory, history, state, goals_db, doc_store, mode="companion"):
-    from infj_bot.core.prompt_builder import build_chat_prompt
-    from infj_bot.core.security_defense import scan_input
+    from drift.core.prompt_builder import build_chat_prompt
+    from drift.core.security_defense import scan_input
     sec = scan_input(message, mode=state.mode)
     if sec.blocked:
         return sec.refusal_message
@@ -157,6 +157,6 @@ for test, data in results.items():
     print(f"  {test}: {data['score']:.2f} {status}")
 print("=" * 60)
 
-with open("/home/crexs/infj_bot/isolated_rerun_results.json", "w") as f:
+with open("/home/crexs/drift/isolated_rerun_results.json", "w") as f:
     json.dump(results, f, indent=2)
 print("Saved: isolated_rerun_results.json")

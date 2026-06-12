@@ -3,7 +3,7 @@
 import os
 from typing import Any, Dict, Generator, List, Optional
 
-from infj_bot.core.config import DRIFT_LOCAL_MODEL, OLLAMA_HOST
+from drift.core.config import DRIFT_LOCAL_MODEL, OLLAMA_HOST
 
 # Lazy import so the module loads even when ollama is not installed
 try:

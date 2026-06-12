@@ -13,9 +13,9 @@ from pathlib import Path
 # Add project root to path
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
-from infj_bot.core.logger import DriftLabLogger
-from infj_bot.core.being import get_being
-from infj_bot.core.config import BEING_DB
+from drift.core.logger import DriftLabLogger
+from drift.core.being import get_being
+from drift.core.config import BEING_DB
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -23,7 +23,7 @@ lab_logger = DriftLabLogger(variable="v4_telemetry")
 
 def telemetry_trial_func(input_text, **kwargs):
     being = get_being()
-    from infj_bot.core.being import _SNAPSHOT_ENABLED
+    from drift.core.being import _SNAPSHOT_ENABLED
     print(f"DEBUG: Snapshot Enabled: {_SNAPSHOT_ENABLED}")
     print(f"DEBUG: BEING_DB: {BEING_DB}")
     

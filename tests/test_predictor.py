@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from infj_bot.core.plugins.predictor import PredictiveNeeds
+from drift.core.plugins.predictor import PredictiveNeeds
 
 
 @pytest.fixture

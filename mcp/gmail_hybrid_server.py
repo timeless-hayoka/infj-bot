@@ -15,7 +15,7 @@ Claude Desktop config:
     "mcpServers": {
       "gmail": {
         "command": "python",
-        "args": ["/home/crexs/infj_bot/mcp/gmail_hybrid_server.py", "--transport", "stdio"]
+        "args": ["/home/crexs/drift/mcp/gmail_hybrid_server.py", "--transport", "stdio"]
       }
     }
   }
@@ -37,7 +37,7 @@ from google.auth.transport.requests import Request as GoogleRequest
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 
-CREDS_PATH = Path.home() / ".config" / "infj_bot" / "gmail_credentials.json"
+CREDS_PATH = Path.home() / ".config" / "drift" / "gmail_credentials.json"
 GMAIL_MCP_URL = "https://gmailmcp.googleapis.com/mcp/v1"
 SCOPES = [
     "https://www.googleapis.com/auth/gmail.modify",

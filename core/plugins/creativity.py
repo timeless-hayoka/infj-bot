@@ -7,7 +7,7 @@ internal landscape.
 
 import random
 
-from infj_bot.core.being import get_being
+from drift.core.being import get_being
 
 
 class CreativeEngine:
@@ -304,7 +304,7 @@ class CreativeEngine:
 
     def cycle(self, context):
         try:
-            from infj_bot.core.global_workspace import get_workspace
+            from drift.core.global_workspace import get_workspace
 
             ws = get_workspace()
             ws.submit(
@@ -315,7 +315,7 @@ class CreativeEngine:
 
 
 def _register():
-    from infj_bot.core.cognitive_architecture import (
+    from drift.core.cognitive_architecture import (
         CognitiveArchitecture,
         CognitivePlugin,
     )

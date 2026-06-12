@@ -26,7 +26,7 @@ Go to https://bugcrowd.com and log in to your researcher account.
 3. Copy the key immediately (you won't see it again)
 
 ## Step 5: Add to DRIFT
-Paste it into `/home/crexs/infj_bot/.env`:
+Paste it into `/home/crexs/drift/.env`:
 ```bash
 BUGCROWD_API_KEY=your-copied-key-here
 ```

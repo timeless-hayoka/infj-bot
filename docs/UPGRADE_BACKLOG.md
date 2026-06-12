@@ -100,7 +100,7 @@ Living list of improvements worth making, grouped by area. Reorder or check off 
 |----------|---------|--------|
 | **P1** | **Singleton / init churn** | Many cognitive classes instantiated per message (`EmotionalField()`, `ValueSystem()`, etc.); if they load DBs, consider shared instances or explicit lifecycle to avoid redundant I/O. |
 | **P2** | **Type hints + API contracts** | Tighten types on public functions; Pydantic models for tool I/O where helpful. |
-| **P2** | **Package layout** | As the project grows, `src/infj_bot/` layout or clear subpackages (`cognition/`, `infra/`) reduce circular imports. |
+| **P2** | **Package layout** | As the project grows, `src/drift/` layout or clear subpackages (`cognition/`, `infra/`) reduce circular imports. |
 
 ---
 

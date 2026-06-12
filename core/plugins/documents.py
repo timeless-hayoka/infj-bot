@@ -7,8 +7,8 @@ from typing import List, Optional
 
 import chromadb
 
-from infj_bot.core.config import PROJECT_ROOT, DATA_DIR
-from infj_bot.core.embeddings import (
+from drift.core.config import PROJECT_ROOT, DATA_DIR
+from drift.core.embeddings import (
     get_default_embedding_function,
     LocalEmbeddingFunction,
 )

@@ -11,7 +11,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from infj_bot.core.config import DATA_DIR
+from drift.core.config import DATA_DIR
 
 ASPIRATIONS_DB = DATA_DIR / "aspirations.db"
 
@@ -319,7 +319,7 @@ class AspirationalSelf:
         if not deepened:
             dreamed = self.dream_aspiration()
         try:
-            from infj_bot.core.global_workspace import get_workspace
+            from drift.core.global_workspace import get_workspace
 
             ws = get_workspace()
             if dreamed:
@@ -349,7 +349,7 @@ class AspirationalSelf:
 
 
 def _register():
-    from infj_bot.core.cognitive_architecture import (
+    from drift.core.cognitive_architecture import (
         CognitiveArchitecture,
         CognitivePlugin,
     )

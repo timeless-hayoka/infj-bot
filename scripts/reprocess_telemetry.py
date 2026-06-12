@@ -4,8 +4,8 @@ from pathlib import Path
 import shutil
 
 run_id = "20260606_035445"
-results_dir = Path("/home/crexs/infj_bot/ABLATION_RESULTS") / f"live_test_{run_id}" / "results"
-state_backup_dir = Path("/home/crexs/infj_bot/ABLATION_RESULTS") / f"live_test_{run_id}" / "state_backup"
+results_dir = Path("/home/crexs/drift/ABLATION_RESULTS") / f"live_test_{run_id}" / "results"
+state_backup_dir = Path("/home/crexs/drift/ABLATION_RESULTS") / f"live_test_{run_id}" / "state_backup"
 
 # Source active log
 active_log_path = Path("/home/crexs/logs/state_trace.jsonl")

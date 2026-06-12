@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from typing import List, Optional
 from pathlib import Path
 
-from infj_bot.core.config import DATA_DIR
+from drift.core.config import DATA_DIR
 
 DB_PATH = DATA_DIR / "goals.db"
 

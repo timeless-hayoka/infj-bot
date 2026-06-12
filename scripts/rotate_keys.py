@@ -8,7 +8,7 @@ from pathlib import Path
 def main():
     # Resolve configuration
     try:
-        from infj_bot.core.config import DATA_DIR
+        from drift.core.config import DATA_DIR
         data_dir = DATA_DIR if DATA_DIR else "."
     except ImportError:
         data_dir = os.getenv("INFJ_DATA_DIR", ".")

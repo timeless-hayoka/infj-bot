@@ -23,7 +23,7 @@ SCOPES = [
     "https://www.googleapis.com/auth/gmail.send",
 ]
 
-CREDS_DIR = Path.home() / ".config" / "infj_bot"
+CREDS_DIR = Path.home() / ".config" / "drift"
 CREDS_PATH = CREDS_DIR / "gmail_credentials.json"
 
 

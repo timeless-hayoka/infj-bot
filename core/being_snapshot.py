@@ -35,7 +35,7 @@ logger = logging.getLogger("drift.being_snapshot")
 
 # Match the DB path being.py uses — override via env var
 try:
-    from infj_bot.core.config import BEING_DB
+    from drift.core.config import BEING_DB
     _DEFAULT_BEING_DB = str(BEING_DB)
 except Exception:
     _DEFAULT_BEING_DB = "being.db"

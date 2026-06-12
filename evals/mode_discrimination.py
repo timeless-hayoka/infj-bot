@@ -23,7 +23,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from infj_bot.core.config import MODE_DISCRIMINATION_DB as EVAL_DB
+from drift.core.config import MODE_DISCRIMINATION_DB as EVAL_DB
 
 TEST_PROMPTS = [
     "I feel stuck in my career.",
@@ -126,9 +126,9 @@ class ModeDiscriminator:
         self, modes: List[str], prompts: List[str]
     ) -> Dict[str, List[Dict]]:
         """Collect responses from each mode for each prompt."""
-        from infj_bot.core.brain import DriftBrain
-        from infj_bot.core.commands import BotState
-        from infj_bot.core.prompt_builder import build_chat_prompt
+        from drift.core.brain import DriftBrain
+        from drift.core.commands import BotState
+        from drift.core.prompt_builder import build_chat_prompt
 
         brain = DriftBrain()
         state = BotState()

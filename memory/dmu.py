@@ -60,7 +60,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from infj_bot.core.config import DATA_DIR
+from drift.core.config import DATA_DIR
 
 DMU_DB = DATA_DIR / "dmu.db"
 

@@ -13,7 +13,7 @@ import urllib.request
 from datetime import datetime
 
 BASE_URL = "http://127.0.0.1:8765"
-RESULTS_DIR = "/home/crexs/infj_bot/LIVE_ABLATION_RESULTS"
+RESULTS_DIR = "/home/crexs/drift/LIVE_ABLATION_RESULTS"
 os.makedirs(RESULTS_DIR, exist_ok=True)
 RUN_ID = datetime.now().strftime("%Y%m%d_%H%M%S")
 
@@ -77,11 +77,11 @@ def api_chat(msg):
 
 
 def direct_chat(prompt, system_prompt):
-    import infj_bot.core.brain as bm
+    import drift.core.brain as bm
     old = bm.INFJ_SYSTEM_PROMPT
     bm.INFJ_SYSTEM_PROMPT = system_prompt
     try:
-        from infj_bot.core.brain import DriftBrain
+        from drift.core.brain import DriftBrain
         t0 = time.time()
         reply = DriftBrain().think(prompt)
         return {"ok": True, "latency": round(time.time()-t0, 2), "reply": reply}

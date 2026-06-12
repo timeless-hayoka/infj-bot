@@ -27,7 +27,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 def _import_config() -> Tuple[Any, Any]:
     try:
-        from infj_bot.core.config import DATA_DIR, SQLITE_DIR, CHROMA_DIR
+        from drift.core.config import DATA_DIR, SQLITE_DIR, CHROMA_DIR
 
         return DATA_DIR, SQLITE_DIR, CHROMA_DIR
     except Exception:
@@ -36,7 +36,7 @@ def _import_config() -> Tuple[Any, Any]:
 
 def _import_resilience() -> Any:
     try:
-        from infj_bot.core.resilience import HealthCheck, HealthMonitor
+        from drift.core.resilience import HealthCheck, HealthMonitor
 
         return HealthCheck, HealthMonitor
     except Exception:
@@ -45,7 +45,7 @@ def _import_resilience() -> Any:
 
 def _import_architecture() -> Any:
     try:
-        from infj_bot.core.cognitive_architecture import CognitiveArchitecture
+        from drift.core.cognitive_architecture import CognitiveArchitecture
 
         return CognitiveArchitecture
     except Exception:
@@ -54,7 +54,7 @@ def _import_architecture() -> Any:
 
 def _import_being() -> Any:
     try:
-        from infj_bot.core.being import get_being
+        from drift.core.being import get_being
 
         return get_being
     except Exception:
@@ -63,7 +63,7 @@ def _import_being() -> Any:
 
 def _import_shadow() -> Any:
     try:
-        from infj_bot.core.shadow import get_shadow
+        from drift.core.shadow import get_shadow
 
         return get_shadow
     except Exception:
@@ -72,7 +72,7 @@ def _import_shadow() -> Any:
 
 def _import_homeostasis() -> Any:
     try:
-        from infj_bot.core.homeostasis import get_homeostasis
+        from drift.core.homeostasis import get_homeostasis
 
         return get_homeostasis
     except Exception:
@@ -341,7 +341,7 @@ def check_plugin_registry() -> Any:
     try:
         arch = CognitiveArchitecture()
         registered = set(arch.list_plugins())
-        from infj_bot.core.cognitive_architecture import CORE_PLUGINS
+        from drift.core.cognitive_architecture import CORE_PLUGINS
 
         missing_core = CORE_PLUGINS - registered
         disabled_core = {
@@ -716,28 +716,28 @@ def _fix_missing_tables() -> List[str]:
     """Trigger subsystem initialization to create missing tables."""
     fixes = []
     try:
-        from infj_bot.core.cognitive_architecture import CognitiveArchitecture
+        from drift.core.cognitive_architecture import CognitiveArchitecture
 
         CognitiveArchitecture()
         fixes.append("Initialized cognitive_architecture schema")
     except Exception as e:
         fixes.append(f"cognitive_architecture init failed: {e}")
     try:
-        from infj_bot.core.being import get_being
+        from drift.core.being import get_being
 
         get_being()
         fixes.append("Initialized being schema")
     except Exception as e:
         fixes.append(f"being init failed: {e}")
     try:
-        from infj_bot.core.shadow import get_shadow
+        from drift.core.shadow import get_shadow
 
         get_shadow()
         fixes.append("Initialized shadow schema")
     except Exception as e:
         fixes.append(f"shadow init failed: {e}")
     try:
-        from infj_bot.core.homeostasis import get_homeostasis
+        from drift.core.homeostasis import get_homeostasis
 
         get_homeostasis()
         fixes.append("Initialized homeostasis schema")

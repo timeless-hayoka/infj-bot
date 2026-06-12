@@ -1,8 +1,8 @@
 import unittest
 from unittest.mock import MagicMock, patch
 import sys
-from infj_bot.core.generation import RateGovernor, Provider, ProviderError
-from infj_bot.core.brain import DriftBrain
+from drift.core.generation import RateGovernor, Provider, ProviderError
+from drift.core.brain import DriftBrain
 
 class TestRateGovernorFallback(unittest.TestCase):
     def test_run_chain_accumulates_errors(self):
@@ -31,7 +31,7 @@ class TestRateGovernorFallback(unittest.TestCase):
         self.assertIn("mock_fail_1: Rate limit exceeded (kind=rate_limit)", err_msg)
         self.assertIn("mock_fail_2: Connection timed out", err_msg)
 
-    @patch("infj_bot.core.brain.DRIFT_USE_HF", True)
+    @patch("drift.core.brain.DRIFT_USE_HF", True)
     def test_think_falls_back_on_hf_exception(self):
         # Initialize DriftBrain
         brain = DriftBrain()

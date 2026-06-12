@@ -13,7 +13,7 @@ Rule: freeze novelty at COMPUTATION TIME, not after caching.
 Rule: is_active() checks are always at the call site, not inside the subsystem.
 """
 
-from infj_bot.core.experiment_control import ExperimentControl
+from drift.core.experiment_control import ExperimentControl
 
 # Access the singleton control instance.
 # In practice, pass this in or access via your DI / global context pattern.

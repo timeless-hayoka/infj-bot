@@ -34,7 +34,7 @@ def discover_inference(target_dir: str):
     for call in found_prompts: print(call)
 
 if __name__ == "__main__":
-    target_directory = "/home/crexs/infj_bot"
+    target_directory = "/home/crexs/drift"
     if os.path.exists(target_directory):
         discover_inference(target_directory)
     else:

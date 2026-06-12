@@ -15,7 +15,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List
 
-from infj_bot.core.config import DATA_DIR
+from drift.core.config import DATA_DIR
 
 logger = logging.getLogger("drift.experiment")
 

@@ -3,7 +3,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 stamp="$(date +%Y%m%d-%H%M%S)"
-out="${1:-$HOME/infj_bot-backup-$stamp.tar.gz}"
+out="${1:-$HOME/drift-backup-$stamp.tar.gz}"
 
 tar \
   --exclude='venv' \

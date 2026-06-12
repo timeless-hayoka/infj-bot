@@ -54,7 +54,7 @@ def main():
                 EVAL_PYTHON_BIN, 
                 "src/evaluation/evaluate_qa.py", 
                 "gemini-2.5-flash", 
-                "infj_bot_longmemeval_adversarial_50.jsonl", 
+                "drift_longmemeval_adversarial_50.jsonl", 
                 "data/longmemeval_adversarial_50.json"
             ],
             cwd=str(LONG_MEM_DIR),

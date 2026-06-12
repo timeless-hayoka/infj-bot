@@ -6,7 +6,7 @@ import subprocess
 import sys
 import requests
 
-from infj_bot.config_adapter import PROJECT_ROOT
+from drift.config_adapter import PROJECT_ROOT
 
 
 def run_script(script_name, extra_env=None):
@@ -18,7 +18,7 @@ def run_script(script_name, extra_env=None):
 
 
 def cmd_chat(_args):
-    from infj_bot.interfaces.main import main
+    from drift.interfaces.main import main
 
     try:
         asyncio.run(main())
@@ -40,22 +40,22 @@ def cmd_tui(_args):
 
 
 def cmd_ask(args):
-    from infj_bot.core.brain import DriftBrain
-    from infj_bot.core.commands import BotState
-    from infj_bot.core.history import ChatHistory
-    from infj_bot.core.memory import DriftMemory
-    from infj_bot.core.prompt_builder import build_chat_prompt
-    from infj_bot.core.plugins.goals import GoalsDB
-    from infj_bot.core.plugins.documents import DocumentStore
+    from drift.core.brain import DriftBrain
+    from drift.core.commands import BotState
+    from drift.core.history import ChatHistory
+    from drift.core.memory import DriftMemory
+    from drift.core.prompt_builder import build_chat_prompt
+    from drift.core.plugins.goals import GoalsDB
+    from drift.core.plugins.documents import DocumentStore
 
     prompt = " ".join(args.prompt).strip()
     if not prompt:
         print(
-            "Give me something to ask. Example: infj_bot ask what should I focus on today?"
+            "Give me something to ask. Example: drift ask what should I focus on today?"
         )
         return 2
 
-    from infj_bot.core.config import DEFAULT_AUTHORIZED_TARGETS
+    from drift.core.config import DEFAULT_AUTHORIZED_TARGETS
 
     state = BotState(
         mode=args.mode,
@@ -67,19 +67,19 @@ def cmd_ask(args):
     history = ChatHistory()
     
     # Phase 5: Wire deliberation bridge
-    from infj_bot.core.cognitive_orchestrator import CognitiveOrchestrator
+    from drift.core.cognitive_orchestrator import CognitiveOrchestrator
     _orchestrator = CognitiveOrchestrator()
     _orchestrator.memory = memory
     _orchestrator.brain = brain
 
     # Phase 6: Unified Audit
-    from infj_bot.core.unified_audit import wire_orchestrator_audit
+    from drift.core.unified_audit import wire_orchestrator_audit
     wire_orchestrator_audit(_orchestrator)
 
     def deliberation_bridge(goal: str):
         """Synchronous bridge for CLI deliberation, avoiding deadlocks."""
         import asyncio
-        from infj_bot.core.hive.elysium import DeliberationResult
+        from drift.core.hive.elysium import DeliberationResult
         try:
             try:
                 asyncio.get_running_loop()
@@ -99,7 +99,7 @@ def cmd_ask(args):
             return DeliberationResult(goal=goal, resolution=f"BLOCK: deliberation failure ({e})", council_votes={}, winning_role="none", moral_weight=0.0, narrative_weight=0.0)
 
     brain.deliberation_callback = deliberation_bridge
-    from infj_bot.core.being import get_being
+    from drift.core.being import get_being
     get_being().deliberation_callback = deliberation_bridge
     
     goals_db = GoalsDB()
@@ -116,7 +116,7 @@ def cmd_ask(args):
         )
     except Exception as exc:
         # Catch Shadow Intent Enforcement blocks
-        from infj_bot.core.cognitive_orchestrator import IntentBlockedError
+        from drift.core.cognitive_orchestrator import IntentBlockedError
         if isinstance(exc, IntentBlockedError):
             print(f"\n[SECURITY BLOCK]: {exc}")
             return 1
@@ -179,7 +179,7 @@ def cmd_path(_args):
 
 
 def cmd_meow(_args):
-    from infj_bot.core.plugins.meow_scanner import meow_hunt
+    from drift.core.plugins.meow_scanner import meow_hunt
 
     print(meow_hunt(str(PROJECT_ROOT)))
     return 0
@@ -235,7 +235,7 @@ def cmd_bridge(args):
 
 
 def cmd_bug(args):
-    from infj_bot.core.bug_bot import BugBot
+    from drift.core.bug_bot import BugBot
 
     bot = BugBot()
     subcmd = args.subcmd or "health"
@@ -267,7 +267,7 @@ def cmd_bug(args):
 
 def build_parser():
     parser = argparse.ArgumentParser(
-        prog="infj_bot",
+        prog="drift",
         description="CLI launcher for the local INFJ companion bot.",
     )
     sub = parser.add_subparsers(dest="command")

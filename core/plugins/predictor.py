@@ -12,7 +12,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from infj_bot.core.config import DATA_DIR
+from drift.core.config import DATA_DIR
 
 PREDICTOR_DB = DATA_DIR / "predictor.db"
 
@@ -477,7 +477,7 @@ class PredictiveNeeds:
         prediction = self.predict_current_need()
         anomaly = self.detect_anomaly()
         if prediction and prediction["confidence"] > 0.5:
-            from infj_bot.core.plugins.growth_trajectory import GrowthTrajectory
+            from drift.core.plugins.growth_trajectory import GrowthTrajectory
 
             GrowthTrajectory().record_event(
                 "prediction",
@@ -485,13 +485,13 @@ class PredictiveNeeds:
                 significance=prediction["confidence"],
             )
         if anomaly and anomaly["significance"] > 0.5:
-            from infj_bot.core.plugins.growth_trajectory import GrowthTrajectory
+            from drift.core.plugins.growth_trajectory import GrowthTrajectory
 
             GrowthTrajectory().record_event(
                 "anomaly", anomaly["description"], significance=anomaly["significance"]
             )
         try:
-            from infj_bot.core.global_workspace import get_workspace
+            from drift.core.global_workspace import get_workspace
 
             ws = get_workspace()
             if anomaly and anomaly["significance"] > 0.5:
@@ -521,7 +521,7 @@ class PredictiveNeeds:
 
 
 def _register():
-    from infj_bot.core.cognitive_architecture import (
+    from drift.core.cognitive_architecture import (
         CognitiveArchitecture,
         CognitivePlugin,
     )

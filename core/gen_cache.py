@@ -7,7 +7,7 @@ from typing import Optional
 class DiskGenCache:
     def __init__(self, path: Optional[Path] = None, max_entries: int = 1024):
         if path is None:
-            path = Path.home() / ".infj_bot" / "drift_gen_cache.sqlite3"
+            path = Path.home() / ".drift" / "drift_gen_cache.sqlite3"
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.max_entries = max_entries

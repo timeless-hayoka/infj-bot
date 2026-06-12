@@ -1,8 +1,8 @@
 from datetime import datetime
 from pathlib import Path
 
-from infj_bot.core.config import HISTORY_PATH
-from infj_bot.core.jsonl_logger import HardenedJsonlLogger
+from drift.core.config import HISTORY_PATH
+from drift.core.jsonl_logger import HardenedJsonlLogger
 
 
 class ChatHistory:

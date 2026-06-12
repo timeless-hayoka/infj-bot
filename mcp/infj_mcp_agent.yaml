@@ -1,7 +1,7 @@
 name: infj_companion
 version: 0.1.0
 description: "MCP agent exposing the INFJ Companion via stdio."
-entrypoint: /home/crexs/infj_bot/scripts/run_mcp.sh
+entrypoint: /home/crexs/drift/scripts/run_mcp.sh
 transport: stdio
 runtime:
   language: python

@@ -219,9 +219,9 @@ short_description: Homeostatic cognitive architecture for AI companions
   <img src="docs/assets/drift-banner.jpg" alt="DRIFT wordmark" width="520" />
 </p>
 
-[![License](https://img.shields.io/badge/License-Proprietary-red.svg)](file:///home/crexs/infj_bot/LICENSE)
+[![License](https://img.shields.io/badge/License-Proprietary-red.svg)](file:///home/crexs/drift/LICENSE)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
-[![CI](https://github.com/timeless-hayoka/infj-bot/actions/workflows/ci.yml/badge.svg)](https://github.com/timeless-hayoka/infj-bot/actions/workflows/ci.yml)
+[![CI](https://github.com/timeless-hayoka/drift/actions/workflows/ci.yml/badge.svg)](https://github.com/timeless-hayoka/drift/actions/workflows/ci.yml)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20350249.svg)](https://doi.org/10.5281/zenodo.20350249)
 
 <a href="https://www.buymeacoffee.com/timelesshayoka" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
@@ -336,8 +336,8 @@ The following components are known to be placeholders or local mocks in the curr
 ### 1. Clone
 
 ```bash
-git clone https://github.com/timeless-hayoka/infj-bot.git
-cd infj-bot
+git clone https://github.com/timeless-hayoka/drift.git
+cd drift
 ```
 
 ### 2. Install
@@ -371,7 +371,7 @@ cp .env.example .env
 python interfaces/main.py
 
 # REST API  →  http://127.0.0.1:8765
-uvicorn infj_bot.interfaces.api:app --host 127.0.0.1 --port 8765 --reload
+uvicorn drift.interfaces.api:app --host 127.0.0.1 --port 8765 --reload
 
 # Web UI  →  http://127.0.0.1:5000
 python interfaces/web_app.py

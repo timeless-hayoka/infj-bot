@@ -26,7 +26,7 @@ source venv/bin/activate
 3. Register it with Codex:
 
 ```bash
-codex mcp add infj-companion -- /home/crexs/infj_bot/scripts/run_mcp.sh
+codex mcp add infj-companion -- /home/crexs/drift/scripts/run_mcp.sh
 ```
 
 Check the registration:

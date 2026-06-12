@@ -19,8 +19,8 @@ from pathlib import Path
 # Add project root to path
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
-from infj_bot.core.logger import DriftLabLogger
-from infj_bot.core.memory import DriftMemory
+from drift.core.logger import DriftLabLogger
+from drift.core.memory import DriftMemory
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -55,7 +55,7 @@ for i in range(21, 61):
     FACTS.append({"q": f"Memory Key ID {i:03d} value?", "a": f"Value_Sequence_{i*13}"})
 
 async def run_memeval():
-    from infj_bot.core.embeddings import SemanticEmbeddingFunction
+    from drift.core.embeddings import SemanticEmbeddingFunction
     
     # Force semantic embeddings to match production baseline (384-dim)
     memory = DriftMemory(embedding_function=SemanticEmbeddingFunction())

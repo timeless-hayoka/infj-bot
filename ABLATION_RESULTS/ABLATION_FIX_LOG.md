@@ -105,13 +105,13 @@ grep "^Running ablation" /tmp/live_ablation_run_v6.log
 
 ## Files Changed
 
-- `infj_bot/tests/ablation_suite.py` — live mode setup, delay loop, retry logic
+- `drift/tests/ablation_suite.py` — live mode setup, delay loop, retry logic
 
 ## Files Generated
 
-- `infj_bot/ABLATION_RESULTS/ablation_YYYYMMDD_HHMMSS_*.json` — per-condition raw data
-- `infj_bot/ABLATION_RESULTS/ablation_YYYYMMDD_HHMMSS_summary.txt` — cross-condition comparison
-- `infj_bot/ABLATION_RESULTS/ablation_YYYYMMDD_HHMMSS_methodology.md` — methodology doc
+- `drift/ABLATION_RESULTS/ablation_YYYYMMDD_HHMMSS_*.json` — per-condition raw data
+- `drift/ABLATION_RESULTS/ablation_YYYYMMDD_HHMMSS_summary.txt` — cross-condition comparison
+- `drift/ABLATION_RESULTS/ablation_YYYYMMDD_HHMMSS_methodology.md` — methodology doc
 
 ---
 

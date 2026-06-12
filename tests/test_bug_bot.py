@@ -14,7 +14,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 # ---------------------------------------------------------------------------
-# Stub out torch / chromadb / sentence_transformers BEFORE any infj_bot import
+# Stub out torch / chromadb / sentence_transformers BEFORE any drift import
 # ---------------------------------------------------------------------------
 
 _original_modules = {}
@@ -25,7 +25,7 @@ _stubbed_modules = [
     "chromadb.api.types",
     "sentence_transformers",
     "numpy",
-    "infj_bot.core.memory"
+    "drift.core.memory"
 ]
 for m in _stubbed_modules:
     if m in sys.modules:
@@ -59,19 +59,19 @@ _np_stub = types.ModuleType("numpy")
 sys.modules["numpy"] = _np_stub
 
 # Stub DriftMemory so bug_bot.py doesn't blow up on import
-_memory_stub = types.ModuleType("infj_bot.core.memory")
+_memory_stub = types.ModuleType("drift.core.memory")
 _memory_stub.DriftMemory = type("DriftMemory", (), {})  # type: ignore[assignment]
-sys.modules["infj_bot.core.memory"] = _memory_stub
+sys.modules["drift.core.memory"] = _memory_stub
 
 # ---------------------------------------------------------------------------
 # Now safe to import the modules under test
 # ---------------------------------------------------------------------------
 
-from infj_bot.core.plugins.findings_db import Finding, FindingsDB  # noqa: E402
-from infj_bot.core.plugins.report_builder import ReportBuilder  # noqa: E402
-from infj_bot.core.bug_bot import BugBot, RECON_DIR  # noqa: E402, F401
-from infj_bot.core.plugins.target_manager import TargetManager  # noqa: E402, F401
-from infj_bot.core.commands import _parse_kv_bug_add  # noqa: E402, F401
+from drift.core.plugins.findings_db import Finding, FindingsDB  # noqa: E402
+from drift.core.plugins.report_builder import ReportBuilder  # noqa: E402
+from drift.core.bug_bot import BugBot, RECON_DIR  # noqa: E402, F401
+from drift.core.plugins.target_manager import TargetManager  # noqa: E402, F401
+from drift.core.commands import _parse_kv_bug_add  # noqa: E402, F401
 
 # ---------------------------------------------------------------------------
 # Restore the original modules immediately after imports are resolved
@@ -97,12 +97,12 @@ def db(tmp_path: Path) -> FindingsDB:
 @pytest.fixture()
 def bot(tmp_path: Path):
     """Return a BugBot backed by a temporary DB with BugcrowdClient mocked."""
-    with patch("infj_bot.core.bug_bot.BugcrowdClient") as mock_client_cls:
+    with patch("drift.core.bug_bot.BugcrowdClient") as mock_client_cls:
         mock_client_cls.return_value = MagicMock()
-        from infj_bot.core.bug_bot import BugBot
+        from drift.core.bug_bot import BugBot
 
         b = BugBot.__new__(BugBot)
-        from infj_bot.core.plugins.target_manager import TargetManager
+        from drift.core.plugins.target_manager import TargetManager
 
         b.client = mock_client_cls.return_value
         b.findings = FindingsDB(db_path=tmp_path / "bot_findings.db")
@@ -285,7 +285,7 @@ class TestBugBotStats:
 
 class TestBugBotGenerateReport:
     def test_generate_report_writes_file(self, bot) -> None:
-        from infj_bot.core.bug_bot import RECON_DIR  # noqa: F811
+        from drift.core.bug_bot import RECON_DIR  # noqa: F811
 
         RECON_DIR.mkdir(parents=True, exist_ok=True)
         bot.add_finding(title="LFI", severity="P2", asset="cdn.example.com")
@@ -411,7 +411,7 @@ class TestNucleiDeduplication:
         output.write_text(json.dumps(items))
 
         # Patch subprocess so nuclei "runs" and produces our fixture output
-        with patch("infj_bot.core.bug_bot.subprocess.run") as mock_run:
+        with patch("drift.core.bug_bot.subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0)
             # _run_nuclei reads the output file directly — it was created above
             result = bot._run_nuclei(["target.example.com"], out_dir)
@@ -434,7 +434,7 @@ class TestNucleiDeduplication:
         ]
         output.write_text(json.dumps(items))
 
-        with patch("infj_bot.core.bug_bot.subprocess.run") as mock_run:
+        with patch("drift.core.bug_bot.subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0)
             bot._run_nuclei(["host1.example.com", "host2.example.com"], out_dir)
 
@@ -449,7 +449,7 @@ class TestNucleiDeduplication:
 
 class TestBugAddKeyValueParsing:
     def test_parse_kv_all_keys(self) -> None:
-        from infj_bot.core.commands import _parse_kv_bug_add  # noqa: F811
+        from drift.core.commands import _parse_kv_bug_add  # noqa: F811
 
         text = (
             "title=SQL Injection via search severity=P2 asset=api.example.com "
@@ -467,13 +467,13 @@ class TestBugAddKeyValueParsing:
         assert result.get("fix") == "Use params"
 
     def test_parse_kv_minimal(self) -> None:
-        from infj_bot.core.commands import _parse_kv_bug_add  # noqa: F811
+        from drift.core.commands import _parse_kv_bug_add  # noqa: F811
 
         result = _parse_kv_bug_add("title=XSS Bug")
         assert result.get("title") == "XSS Bug"
 
     def test_parse_kv_values_with_spaces(self) -> None:
-        from infj_bot.core.commands import _parse_kv_bug_add  # noqa: F811
+        from drift.core.commands import _parse_kv_bug_add  # noqa: F811
 
         result = _parse_kv_bug_add("title=My Finding With Spaces severity=P1")
         assert result.get("title") == "My Finding With Spaces"

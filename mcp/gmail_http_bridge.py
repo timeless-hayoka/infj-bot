@@ -22,7 +22,7 @@ from fastapi import FastAPI, Request
 from google.auth.transport.requests import Request as GoogleRequest
 from google.oauth2.credentials import Credentials
 
-CREDS_PATH = Path.home() / ".config" / "infj_bot" / "gmail_credentials.json"
+CREDS_PATH = Path.home() / ".config" / "drift" / "gmail_credentials.json"
 GMAIL_MCP_URL = "https://gmailmcp.googleapis.com/mcp/v1"
 SCOPES = [
     "https://www.googleapis.com/auth/gmail.modify",

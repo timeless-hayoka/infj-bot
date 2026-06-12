@@ -85,7 +85,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from infj_bot.core.config import DATA_DIR
+from drift.core.config import DATA_DIR
 
 PEDI_DB = DATA_DIR / "pedi.db"
 

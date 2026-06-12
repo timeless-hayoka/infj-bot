@@ -188,7 +188,7 @@ class CognitiveGovernor:
             
             # WHERE TO PLUG DATA: Push the recovered energy back to the Being state
             try:
-                from infj_bot.core.being import get_being
+                from drift.core.being import get_being
                 get_being().state.energy = new_energy
             except Exception:
                 pass

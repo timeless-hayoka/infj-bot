@@ -1,6 +1,6 @@
 # HIVE Roadmap
 
-Practical roadmap for turning `infj_bot + DRIFT + hive_mind` into a real multi-agent cognitive system instead of a collection of disconnected features.
+Practical roadmap for turning `drift + DRIFT + hive_mind` into a real multi-agent cognitive system instead of a collection of disconnected features.
 
 This plan is ordered by compounding leverage. Each phase should leave behind a usable capability, tests, and at least one operator-visible surface.
 

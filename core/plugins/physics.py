@@ -35,7 +35,7 @@ class PhysicsState:
     last_updated: Optional[str] = None
 
 
-from infj_bot.core.config import DATA_DIR
+from drift.core.config import DATA_DIR
 
 PHYSICS_DB = DATA_DIR / "physics.db"
 
@@ -221,7 +221,7 @@ class PhysicsEngine:
 
         self._save_state()
         try:
-            from infj_bot.core.global_workspace import get_workspace
+            from drift.core.global_workspace import get_workspace
 
             ws = get_workspace()
             ws.submit(
@@ -454,7 +454,7 @@ class PhysicsEngine:
 
 
 def _register():
-    from infj_bot.core.cognitive_architecture import (
+    from drift.core.cognitive_architecture import (
         CognitiveArchitecture,
         CognitivePlugin,
     )

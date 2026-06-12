@@ -5,11 +5,11 @@ import asyncio
 # Ensure project root is in path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from infj_bot.core.brain import DriftBrain
-from infj_bot.core.global_workspace import get_workspace
-from infj_bot.core.cognitive_orchestrator import CognitiveOrchestrator
-from infj_bot.core.commands import BotState
-from infj_bot.core.memory import DriftMemory
+from drift.core.brain import DriftBrain
+from drift.core.global_workspace import get_workspace
+from drift.core.cognitive_orchestrator import CognitiveOrchestrator
+from drift.core.commands import BotState
+from drift.core.memory import DriftMemory
 
 print("[TRACE] Initializing DriftBrain...")
 brain = DriftBrain()

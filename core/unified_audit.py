@@ -10,8 +10,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from infj_bot.config_adapter import ConfigAdapter
-from infj_bot.core.jsonl_logger import HardenedJsonlLogger
+from drift.config_adapter import ConfigAdapter
+from drift.core.jsonl_logger import HardenedJsonlLogger
 
 logger = logging.getLogger("drift.audit")
 

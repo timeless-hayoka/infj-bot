@@ -39,7 +39,7 @@ if new_genai is None and legacy_genai is None:
         legacy_genai = None
 
 
-from infj_bot.core.config import (
+from drift.core.config import (
     API_KEY,
     DRIFT_PRIMARY_MODEL,
     DRIFT_CRITIC_MODEL,
@@ -56,19 +56,19 @@ from infj_bot.core.config import (
     DRIFT_GEN_CACHE_SIZE,
 )
 import collections
-from infj_bot.core.gen_cache import DiskGenCache
-from infj_bot.core.hf_bridge import DriftHFBridge
-from infj_bot.core.local_llm import OllamaBridge
-from infj_bot.core.logic_chain import get_chain_navigator, ChainNavigator
-from infj_bot.core.plugins.self_eval import SelfEvaluator
-from infj_bot.core.security_defense import scan_input, get_security_scanner
-from infj_bot.core.types import SecurityScanResult
-from infj_bot.core.being import get_being
-from infj_bot.core.tools import build_tool_prompt, extract_tool_calls, execute_tool_call, HIGH_RISK_TOOLS
+from drift.core.gen_cache import DiskGenCache
+from drift.core.hf_bridge import DriftHFBridge
+from drift.core.local_llm import OllamaBridge
+from drift.core.logic_chain import get_chain_navigator, ChainNavigator
+from drift.core.plugins.self_eval import SelfEvaluator
+from drift.core.security_defense import scan_input, get_security_scanner
+from drift.core.types import SecurityScanResult
+from drift.core.being import get_being
+from drift.core.tools import build_tool_prompt, extract_tool_calls, execute_tool_call, HIGH_RISK_TOOLS
 import logging
-from infj_bot.core.safe_math_integration import critic_math_check, active_grounded_math_var
+from drift.core.safe_math_integration import critic_math_check, active_grounded_math_var
 from typing import Optional
-from infj_bot.core.generation import (
+from drift.core.generation import (
     RequestCancelled,
     RequestDeadlineExceeded,
     SystemOverload,
@@ -77,7 +77,7 @@ from infj_bot.core.generation import (
 
 
 try:
-    from infj_bot.core.prompts.word_list import CHILL_WORD_LIST
+    from drift.core.prompts.word_list import CHILL_WORD_LIST
 except Exception:
     CHILL_WORD_LIST = ""
 
@@ -88,8 +88,8 @@ if not API_KEY and not GROQ_API_KEY and not KIMI_API_KEY:
         file=sys.stderr
     )
 import subprocess as _subprocess
-from infj_bot.core.trajectory import StateTrajectoryLogger, CPUSampler
-from infj_bot.core.cognitive_governor import CognitiveGovernor
+from drift.core.trajectory import StateTrajectoryLogger, CPUSampler
+from drift.core.cognitive_governor import CognitiveGovernor
 
 _OLLAMA_PID: int | None = None
 
@@ -178,7 +178,7 @@ class DriftBrain(_BrainGenerationMixin):
         self.chat = None
         self._cognitive_governor = CognitiveGovernor()
         # logger for debug / bug-hunting
-        self.logger = logging.getLogger("infj_bot.core.brain")
+        self.logger = logging.getLogger("drift.core.brain")
         self.deliberation_callback = None # Phase 5: Internal deliberation hook
         if not self.logger.handlers:
             # basic config for interactive use
@@ -414,7 +414,7 @@ class DriftBrain(_BrainGenerationMixin):
 
     def _format_homeostatic_phenomenology(self) -> str:
         try:
-            from infj_bot.core.homeostasis import get_homeostasis
+            from drift.core.homeostasis import get_homeostasis
 
             homeo = get_homeostasis()
             needs = homeo.get_need_summary()
@@ -513,7 +513,7 @@ class DriftBrain(_BrainGenerationMixin):
         # 3. being_state
         being_state = ""
         try:
-            from infj_bot.core.being import get_being
+            from drift.core.being import get_being
 
             being = get_being()
             being_state = being.format_being_prompt()
@@ -530,7 +530,7 @@ class DriftBrain(_BrainGenerationMixin):
         # 5. shadow_state
         shadow_state = ""
         try:
-            from infj_bot.core.shadow import get_shadow
+            from drift.core.shadow import get_shadow
 
             shadow = get_shadow()
             shadow_state = shadow.format_prompt_snippet()
@@ -540,7 +540,7 @@ class DriftBrain(_BrainGenerationMixin):
         # 6. hive_consensus
         hive_consensus = ""
         try:
-            from infj_bot.core.coordination import get_coordination
+            from drift.core.coordination import get_coordination
 
             coord = get_coordination()
             hive_consensus = coord.format_prompt()
@@ -586,8 +586,8 @@ class DriftBrain(_BrainGenerationMixin):
         # Shadow integration on high social risk
         if sec.social_risk > 0.42:
             try:
-                from infj_bot.core.shadow import shadow_critic
-                from infj_bot.core.types import SparkImpulse
+                from drift.core.shadow import shadow_critic
+                from drift.core.types import SparkImpulse
                 impulse = SparkImpulse()
                 impulse.shadow_influence = sec.social_risk * 0.9
                 shadow_critic.critique_spark(impulse, {
@@ -638,7 +638,7 @@ class DriftBrain(_BrainGenerationMixin):
         request_budget = self._current_request_budget()
 
         # Token gate calculation
-        from infj_bot.core.being import get_being
+        from drift.core.being import get_being
         being = get_being()
         prev_energy = being.state.energy
         max_tokens = max(100, int(1000 * prev_energy))
@@ -802,7 +802,7 @@ class DriftBrain(_BrainGenerationMixin):
         request_budget = self._current_request_budget()
 
         # Token gate calculation
-        from infj_bot.core.being import get_being
+        from drift.core.being import get_being
         being = get_being()
         prev_energy = being.state.energy
         max_tokens = max(100, int(1000 * prev_energy))
@@ -861,7 +861,7 @@ class DriftBrain(_BrainGenerationMixin):
         request_budget = self._current_request_budget()
 
         # Token gate calculation via governor
-        from infj_bot.core.being import get_being
+        from drift.core.being import get_being
         being = get_being()
         prev_energy = being.state.energy
         
@@ -982,7 +982,7 @@ class DriftBrain(_BrainGenerationMixin):
             # DRIFT V2 — update homeostasis needs with timing and response length
             new_energy = prev_energy
             delta_energy = 0.0
-            from infj_bot.core.homeostasis import get_homeostasis
+            from drift.core.homeostasis import get_homeostasis
             homeo = get_homeostasis()
             try:
                 homeo.update_needs(event="inference_complete", timing=_timing, response_len=len(primary_text))
@@ -1010,7 +1010,7 @@ class DriftBrain(_BrainGenerationMixin):
             try:
                 # PEDI
                 try:
-                    from infj_bot.metrics.pedi import get_pedi
+                    from drift.metrics.pedi import get_pedi
                     pedi_snap = get_pedi().get_last_snapshot()
                     pedi_val = pedi_snap.needs if pedi_snap else {}
                 except Exception:
@@ -1018,13 +1018,13 @@ class DriftBrain(_BrainGenerationMixin):
 
                 # DII
                 try:
-                    from infj_bot.core.dii_tracker import get_dii_tracker
+                    from drift.core.dii_tracker import get_dii_tracker
                     dii_snap = get_dii_tracker().get_current()
                     dii_val = dii_snap.dii if dii_snap else 0.5
                 except Exception:
                     dii_val = 0.5
 
-                from infj_bot.core.causal_wiring import retrieved_memory_keys_var
+                from drift.core.causal_wiring import retrieved_memory_keys_var
                 memory_keys = retrieved_memory_keys_var.get()
 
                 # self.turns is already incremented at the start of the turn
@@ -1082,7 +1082,7 @@ class DriftBrain(_BrainGenerationMixin):
         ).start()
 
         # Token gate calculation via governor
-        from infj_bot.core.being import get_being
+        from drift.core.being import get_being
         being = get_being()
         prev_energy = being.state.energy
         
@@ -1166,7 +1166,7 @@ class DriftBrain(_BrainGenerationMixin):
             # DRIFT V2 — update homeostasis needs with timing and response length
             new_energy = prev_energy
             delta_energy = 0.0
-            from infj_bot.core.homeostasis import get_homeostasis
+            from drift.core.homeostasis import get_homeostasis
             homeo = get_homeostasis()
             try:
                 homeo.update_needs(event="inference_complete", timing=_timing, response_len=len(primary_text))
@@ -1194,7 +1194,7 @@ class DriftBrain(_BrainGenerationMixin):
             try:
                 # PEDI
                 try:
-                    from infj_bot.metrics.pedi import get_pedi
+                    from drift.metrics.pedi import get_pedi
                     pedi_snap = get_pedi().get_last_snapshot()
                     pedi_val = pedi_snap.needs if pedi_snap else {}
                 except Exception:
@@ -1202,13 +1202,13 @@ class DriftBrain(_BrainGenerationMixin):
 
                 # DII
                 try:
-                    from infj_bot.core.dii_tracker import get_dii_tracker
+                    from drift.core.dii_tracker import get_dii_tracker
                     dii_snap = get_dii_tracker().get_current()
                     dii_val = dii_snap.dii if dii_snap else 0.5
                 except Exception:
                     dii_val = 0.5
 
-                from infj_bot.core.causal_wiring import retrieved_memory_keys_var
+                from drift.core.causal_wiring import retrieved_memory_keys_var
                 memory_keys = retrieved_memory_keys_var.get()
 
                 # self.turns is already incremented at the start of the turn

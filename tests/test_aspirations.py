@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from infj_bot.core.plugins.aspirations import AspirationalSelf, MAX_ACTIVE_ASPIRATIONS
+from drift.core.plugins.aspirations import AspirationalSelf, MAX_ACTIVE_ASPIRATIONS
 
 
 @pytest.fixture

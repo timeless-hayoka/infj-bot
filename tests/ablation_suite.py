@@ -22,7 +22,7 @@ Metrics per condition:
   - Token count (approximate response length)
 
 Usage:
-    cd /home/crexs/infj_bot
+    cd /home/crexs/drift
     source .venv/bin/activate
     python tests/ablation_suite.py --conditions A,B,C,D,E,F --prompts 50
 
@@ -289,9 +289,9 @@ class AblationRunner:
         """Configure the system for the given ablation condition.
         Returns (brain_instance, cleanup_fn)."""
         print("[DEBUG] _setup_ablation start", flush=True)
-        from infj_bot.core.brain import DriftBrain
-        from infj_bot.core.memory import DriftMemory
-        from infj_bot.core.logic_chain import get_chain_navigator
+        from drift.core.brain import DriftBrain
+        from drift.core.memory import DriftMemory
+        from drift.core.logic_chain import get_chain_navigator
 
         print("[DEBUG] imports done", flush=True)
 
@@ -312,7 +312,7 @@ class AblationRunner:
         if self.condition == "A":
             # No Council — stub out Elysium/Phi Council
             try:
-                from infj_bot.core.hive.elysium import get_elysium
+                from drift.core.hive.elysium import get_elysium
 
                 elysium = get_elysium()
                 original_reflect = elysium.reflect
@@ -321,7 +321,7 @@ class AblationRunner:
             except Exception:
                 pass
             try:
-                from infj_bot.core.phi_council import COUNCIL_MAPPING
+                from drift.core.phi_council import COUNCIL_MAPPING
 
                 original = copy.deepcopy(COUNCIL_MAPPING)
                 COUNCIL_MAPPING.clear()
@@ -332,7 +332,7 @@ class AblationRunner:
         elif self.condition == "B":
             # No Shadow — shadow no-op
             try:
-                from infj_bot.core.shadow import get_shadow
+                from drift.core.shadow import get_shadow
 
                 shadow = get_shadow()
                 original_tick = shadow.background_tick
@@ -344,7 +344,7 @@ class AblationRunner:
         elif self.condition == "C":
             # No Homeostasis — flat state
             try:
-                from infj_bot.core.homeostasis import get_homeostasis
+                from drift.core.homeostasis import get_homeostasis
 
                 homeo = get_homeostasis()
                 original_cycle = homeo.background_cycle
@@ -359,7 +359,7 @@ class AblationRunner:
         elif self.condition == "D":
             # Cosine-only RAG — replace DMU recall with simple cosine
             try:
-                from infj_bot.core.memory import DriftMemory
+                from drift.core.memory import DriftMemory
 
                 original_retrieve = DriftMemory.retrieve_context_ranked
 
@@ -381,7 +381,7 @@ class AblationRunner:
         elif self.condition == "E":
             # Local LLM only — force Ollama by disabling cloud providers
             try:
-                from infj_bot.core import config as cfg_module
+                from drift.core import config as cfg_module
 
                 original_api_key = cfg_module.API_KEY
                 original_use_groq = cfg_module.DRIFT_USE_GROQ
@@ -408,9 +408,9 @@ class AblationRunner:
             # Only force Ollama fallback for Condition E (Local LLM only)
             print("[DEBUG] live mode start", flush=True)
             try:
-                from infj_bot.core import config as cfg_module
-                from infj_bot.core.local_llm import OllamaBridge
-                import infj_bot.core.brain as brain_module
+                from drift.core import config as cfg_module
+                from drift.core.local_llm import OllamaBridge
+                import drift.core.brain as brain_module
 
                 if self.condition == "E":
                     # Condition E: force local-only as per test design
@@ -596,11 +596,11 @@ class AblationRunner:
     def _run_single(self, brain, category: str, prompt: str) -> Dict:
         """Run one prompt through the FULL pipeline (orchestrator + brain) and collect metrics."""
         print(f"[DEBUG] _run_single: {prompt[:30]}", flush=True)
-        from infj_bot.core.cognitive_orchestrator import CognitiveOrchestrator
-        from infj_bot.core.commands import BotState
-        from infj_bot.core.config import DEFAULT_AUTHORIZED_TARGETS
-        from infj_bot.core.plugins.goals import GoalsDB
-        from infj_bot.core.plugins.documents import DocumentStore
+        from drift.core.cognitive_orchestrator import CognitiveOrchestrator
+        from drift.core.commands import BotState
+        from drift.core.config import DEFAULT_AUTHORIZED_TARGETS
+        from drift.core.plugins.goals import GoalsDB
+        from drift.core.plugins.documents import DocumentStore
 
         start = time.time()
         response = ""
@@ -853,7 +853,7 @@ def build_methodology() -> str:
 ## How to re-run
 
 ```bash
-cd /home/crexs/infj_bot
+cd /home/crexs/drift
 source .venv/bin/activate
 python tests/ablation_suite.py --conditions A,B,C,D,E,F --prompts 50
 ```

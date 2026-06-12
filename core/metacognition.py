@@ -10,7 +10,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from infj_bot.core.config import DATA_DIR
+from drift.core.config import DATA_DIR
 
 METACOGNITION_DB = DATA_DIR / "metacognition.db"
 
@@ -200,11 +200,11 @@ class MetacognitionEngine:
 
     def cycle(self, context):
         edge = self.current_growth_edge()
-        from infj_bot.core.plugins.growth_trajectory import GrowthTrajectory
+        from drift.core.plugins.growth_trajectory import GrowthTrajectory
 
         GrowthTrajectory().record_event("metacognition", edge, significance=0.6)
         try:
-            from infj_bot.core.global_workspace import get_workspace
+            from drift.core.global_workspace import get_workspace
 
             ws = get_workspace()
             ws.submit(
@@ -219,7 +219,7 @@ class MetacognitionEngine:
 
 
 def _register():
-    from infj_bot.core.cognitive_architecture import (
+    from drift.core.cognitive_architecture import (
         CognitiveArchitecture,
         CognitivePlugin,
     )

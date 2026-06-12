@@ -4,8 +4,8 @@ import logging
 from datetime import datetime, timedelta
 
 # Adjust imports to match your architecture
-from infj_bot.core.config import DATA_DIR
-from infj_bot.core.local_llm import OllamaBridge
+from drift.core.config import DATA_DIR
+from drift.core.local_llm import OllamaBridge
 
 logging.basicConfig(level=logging.INFO, format='[*] %(message)s')
 

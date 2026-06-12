@@ -4,15 +4,15 @@ import unittest
 from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
-from infj_bot.metrics.pedi import (
+from drift.metrics.pedi import (
     PediIndex,
     StateSnapshot,
     ResetEvent,
     NEED_DIMENSIONS,
     CRITICAL_FLUIDITY,
 )
-from infj_bot.core.cognitive_orchestrator import CognitiveOrchestrator
-from infj_bot.core.commands import BotState
+from drift.core.cognitive_orchestrator import CognitiveOrchestrator
+from drift.core.commands import BotState
 
 class TestPediIndex(unittest.TestCase):
     def setUp(self):
@@ -160,7 +160,7 @@ class TestPediIndex(unittest.TestCase):
         mock_memory.retrieve_context.return_value = ""
         
         # Patch PediIndex db_path to use our test db path
-        with patch("infj_bot.metrics.pedi.get_pedi") as mock_get_pedi:
+        with patch("drift.metrics.pedi.get_pedi") as mock_get_pedi:
             mock_get_pedi.return_value = self.pedi
             
             # Run prompt assembly

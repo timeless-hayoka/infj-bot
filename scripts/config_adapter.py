@@ -1,7 +1,7 @@
 """Unified state-root and path contract for Project DRIFT.
 
 This adapter is the single source of truth for durable runtime paths during the
-unification of infj_bot, DRIFT, and hive_mind. It implements a strict Singleton
+unification of drift, DRIFT, and hive_mind. It implements a strict Singleton
 pattern to enforce a single data root (~/.drift_os).
 """
 

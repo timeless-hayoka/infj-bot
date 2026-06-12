@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Lumen (Spark-0) now Council-aware
 - Complete real-time Observatory dashboard visuals
 ### Changed
-- Unified canonical DRIFT core into infj_bot/core/
+- Unified canonical DRIFT core into drift/core/
 - Enhanced /hive command with propose flow + Elysium subcommands
 ### Fixed
 - Torch meta tensor errors on CPU

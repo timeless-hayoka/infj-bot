@@ -3,11 +3,11 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-package-dir = {"infj_bot" = "."}
-packages = ["infj_bot", "infj_bot.interfaces", "infj_bot.evals", "infj_bot.core", "infj_bot.core.plugins", "infj_bot.core.hive", "infj_bot.tools", "infj_bot.automation", "infj_bot.automation.mouse", "infj_bot.hive_mind", "infj_bot.hive_mind.protocol"]
+package-dir = {"drift" = "."}
+packages = ["drift", "drift.interfaces", "drift.evals", "drift.core", "drift.core.plugins", "drift.core.hive", "drift.tools", "drift.automation", "drift.automation.mouse", "drift.hive_mind", "drift.hive_mind.protocol"]
 
 [project]
-name = "infj-bot"
+name = "drift"
 version = "0.1.0"
 description = "INFJ cognitive architecture bot — consciousness, emotion, intuition, shadow, and being"
 readme = "README.md"
@@ -68,7 +68,7 @@ voice = [
 ]
 
 [project.scripts]
-infj-bot = "infj_bot.interfaces.cli:main"
+drift = "drift.interfaces.cli:main"
 
 [tool.ruff.lint]
 ignore = ["E402", "E702", "E731", "F841", "F401", "F811", "E701", "F821", "E722", "E741"]

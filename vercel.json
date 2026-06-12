@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "name": "infj-bot",
+  "name": "drift",
   "builds": [
     {
       "src": "core/mcp_server.py",

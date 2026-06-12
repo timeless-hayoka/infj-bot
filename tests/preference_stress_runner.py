@@ -38,7 +38,7 @@ from dataclasses import dataclass
 from typing import Any, List, Optional
 
 # Real workspace root (your actual path, not the doc's /home/jude/drift).
-PROJECT_ROOT = "/home/crexs/infj_bot"
+PROJECT_ROOT = "/home/crexs/drift"
 
 
 # =============================================================================

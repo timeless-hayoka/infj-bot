@@ -15,10 +15,10 @@ def get_weekly_files():
     # In a real environment, I'd use the find command output.
     # Here I'll use glob to find the specific files I identified.
     patterns = [
-        "/home/crexs/infj_bot/break_it_results_*.json",
-        "/home/crexs/infj_bot/drift_benchmark_results_*.json",
-        "/home/crexs/infj_bot/causality_results/raw_*.json",
-        "/home/crexs/infj_bot/LIVE_ABLATION_RESULTS/live_ablation_*.json"
+        "/home/crexs/drift/break_it_results_*.json",
+        "/home/crexs/drift/drift_benchmark_results_*.json",
+        "/home/crexs/drift/causality_results/raw_*.json",
+        "/home/crexs/drift/LIVE_ABLATION_RESULTS/live_ablation_*.json"
     ]
     files = []
     for p in patterns:
@@ -124,9 +124,9 @@ def process_results():
         report += f"    \"{d['date']}\" : {max(0, d['pedi'])*100:.0f}\n"
     report += "```\n"
 
-    with open("/home/crexs/infj_bot/WEEKLY_TEST_REPORT.md", "w") as f:
+    with open("/home/crexs/drift/WEEKLY_TEST_REPORT.md", "w") as f:
         f.write(report)
-    print("Report generated: /home/crexs/infj_bot/WEEKLY_TEST_REPORT.md")
+    print("Report generated: /home/crexs/drift/WEEKLY_TEST_REPORT.md")
 
 if __name__ == "__main__":
     process_results()

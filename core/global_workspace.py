@@ -1,4 +1,4 @@
-"""global_workspace.py — Tiered Attention System for infj-bot.
+"""global_workspace.py — Tiered Attention System for drift.
 
 Replaces the broken GWT stub with a genuine competition model:
 
@@ -26,11 +26,11 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Dict, List, Optional
 
-from infj_bot.core.config import DATA_DIR
+from drift.core.config import DATA_DIR
 
 try:
-    from infj_bot.core.svalbard_vault import SvalbardVault
-    from infj_bot.core.pedi_metrics import PEDIEngine
+    from drift.core.svalbard_vault import SvalbardVault
+    from drift.core.pedi_metrics import PEDIEngine
 except ImportError:
     from svalbard_vault import SvalbardVault
     from pedi_metrics import PEDIEngine
@@ -509,7 +509,7 @@ def get_workspace() -> GlobalWorkspace:
 
 
 def _register():
-    from infj_bot.core.cognitive_architecture import (
+    from drift.core.cognitive_architecture import (
         CognitiveArchitecture,
         CognitivePlugin,
     )

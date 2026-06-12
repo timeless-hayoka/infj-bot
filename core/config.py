@@ -12,7 +12,7 @@ except Exception:
         return False
 
 
-from infj_bot.config_adapter import (
+from drift.config_adapter import (
     CONFIG_DIR as CONFIG_DIR,
     DATA_DIR as DATA_DIR,
     DATA_ROOT as DATA_ROOT,
@@ -61,7 +61,7 @@ from infj_bot.config_adapter import (
 )
 
 # Load project-root .env first, then canonical config dir .env
-from infj_bot.config_adapter import PROJECT_ROOT_PATH
+from drift.config_adapter import PROJECT_ROOT_PATH
 
 load_dotenv(PROJECT_ROOT_PATH / ".env", override=False)
 load_dotenv(CONFIG_DIR / ".env", override=False)

@@ -6,13 +6,13 @@ import asyncio
 from pathlib import Path
 from typing import List, Tuple
 
-from infj_bot.core.config import PERSIST_DIRECTORY, DRIFT_USE_LOCAL_EMBEDDINGS
-from infj_bot.core.embeddings import (
+from drift.core.config import PERSIST_DIRECTORY, DRIFT_USE_LOCAL_EMBEDDINGS
+from drift.core.embeddings import (
     get_default_embedding_function,
     LocalEmbeddingFunction,
     SemanticEmbeddingFunction,
 )
-from infj_bot.core.unified_memory import MemoryManager, Event
+from drift.core.unified_memory import MemoryManager, Event
 
 
 # ── Secret scrubbing ──────────────────────────────────────────────
@@ -327,7 +327,7 @@ class DriftMemory:
         # We can just fetch via recall_sync.
         entries = self.unified_manager.recall_sync(query, limit=n_results)
         try:
-            from infj_bot.core.causal_wiring import retrieved_memory_keys_var
+            from drift.core.causal_wiring import retrieved_memory_keys_var
             retrieved_memory_keys_var.set([e.unified_id for e in entries])
         except Exception:
             pass
@@ -347,8 +347,8 @@ class DriftMemory:
         Falls back to standard `retrieve_context` if the DMU module is unavailable.
         """
         try:
-            from infj_bot.core.dmu import DMURetriever
-            from infj_bot.core.psc_scaled import get_psc_engine
+            from drift.core.dmu import DMURetriever
+            from drift.core.psc_scaled import get_psc_engine
 
             # Get embedding for re-ranking
             # self.embedding_function follows the Chroma protocol (takes list of docs)
@@ -379,7 +379,7 @@ class DriftMemory:
 
             # Log retrieved keys to causal wiring for observability
             try:
-                from infj_bot.core.causal_wiring import retrieved_memory_keys_var
+                from drift.core.causal_wiring import retrieved_memory_keys_var
                 retrieved_memory_keys_var.set([item.get("id", "unknown") for item in results])
             except Exception:
                 pass

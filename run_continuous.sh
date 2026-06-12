@@ -15,8 +15,8 @@ LOG_FILE="${PROJECT_ROOT}/logs/drift_continuous.log"
 MAIN_SCRIPT="${PROJECT_ROOT}/main.py"
 ENV_FILE="${PROJECT_ROOT}/.env"
 
-# Critical: preserve PYTHONPATH for infj_bot imports
-export PYTHONPATH="/home/crexs:/home/crexs/infj_bot/core:${PYTHONPATH:-}"
+# Critical: preserve PYTHONPATH for drift imports
+export PYTHONPATH="/home/crexs:/home/crexs/drift/core:${PYTHONPATH:-}"
 
 # ── Helpers ─────────────────────────────────────────────────────────
 ensure_dirs() {

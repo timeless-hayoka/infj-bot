@@ -1,6 +1,6 @@
 """
 retry_wrapper.py — PHI // DRIFT Retry & Timeout Manager
-infj_bot/core/retry_wrapper.py
+drift/core/retry_wrapper.py
 
 Dynamic timeout calculation and exponential backoff retry logic
 for local LLM generation (Ollama) and cloud API calls.

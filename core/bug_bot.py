@@ -16,12 +16,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
-from infj_bot.core.config import PROJECT_ROOT
-from infj_bot.core.memory import DriftMemory
-from infj_bot.core.plugins.bugcrowd_client import BugcrowdClient
-from infj_bot.core.plugins.findings_db import Finding, FindingsDB
-from infj_bot.core.plugins.report_builder import ReportBuilder
-from infj_bot.core.plugins.target_manager import TargetManager
+from drift.core.config import PROJECT_ROOT
+from drift.core.memory import DriftMemory
+from drift.core.plugins.bugcrowd_client import BugcrowdClient
+from drift.core.plugins.findings_db import Finding, FindingsDB
+from drift.core.plugins.report_builder import ReportBuilder
+from drift.core.plugins.target_manager import TargetManager
 
 
 RECON_DIR = Path(PROJECT_ROOT) / "recon"
@@ -491,6 +491,6 @@ class BugBot:
         return f"{api}\n📁 Findings DB: {self.findings.stats()['total']} finding(s)\n🎯 Targets DB: {self.targets.count(scope='in')} in-scope / {self.targets.count(scope='out')} out-of-scope"
 
     def _log(self, msg: str):
-        from infj_bot.core.jsonl_logger import HardenedJsonlLogger
+        from drift.core.jsonl_logger import HardenedJsonlLogger
         line = f"[{datetime.now().isoformat(timespec='seconds')}] {msg}"
         HardenedJsonlLogger(BUGBOT_LOG).write_raw(line)

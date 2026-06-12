@@ -11,7 +11,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from infj_bot.core.config import DATA_DIR
+from drift.core.config import DATA_DIR
 
 TEMPORAL_DB = DATA_DIR / "temporal.db"
 
@@ -369,7 +369,7 @@ class TemporalSense:
             ).total_seconds() / 60.0
             self.feel_time_passing(idle)
         try:
-            from infj_bot.core.global_workspace import get_workspace
+            from drift.core.global_workspace import get_workspace
 
             ws = get_workspace()
             ws.submit(source="temporal", content="temporal sense updated", salience=0.4)
@@ -378,7 +378,7 @@ class TemporalSense:
 
 
 def _register():
-    from infj_bot.core.cognitive_architecture import (
+    from drift.core.cognitive_architecture import (
         CognitiveArchitecture,
         CognitivePlugin,
     )

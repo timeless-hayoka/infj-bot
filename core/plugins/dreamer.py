@@ -10,7 +10,7 @@ import random
 from datetime import datetime
 from typing import List, Optional
 
-from infj_bot.core.being import get_being
+from drift.core.being import get_being
 
 
 class Dreamer:
@@ -177,7 +177,7 @@ class Dreamer:
         )
 
     def cycle(self, context):
-        from infj_bot.core.memory import DriftMemory
+        from drift.core.memory import DriftMemory
 
         memory = DriftMemory()
         recent = memory.recent_interactions(5)
@@ -189,7 +189,7 @@ class Dreamer:
             pass
         dream = self.dream(recent)
         try:
-            from infj_bot.core.global_workspace import get_workspace
+            from drift.core.global_workspace import get_workspace
 
             ws = get_workspace()
             if dream:
@@ -201,7 +201,7 @@ class Dreamer:
                     intensity=0.5,
                 )
                 # Save dream to being's working memory
-                from infj_bot.core.being import get_being
+                from drift.core.being import get_being
 
                 being = get_being()
                 being.working_memory.append(f"[Dream] {dream[:120]}")
@@ -209,7 +209,7 @@ class Dreamer:
                     being.working_memory = being.working_memory[-20:]
                 being.state.dreams_had = getattr(being.state, "dreams_had", 0) + 1
                 try:
-                    from infj_bot.core.memory import DriftMemory
+                    from drift.core.memory import DriftMemory
 
                     DriftMemory().save_thought(
                         dream,
@@ -229,7 +229,7 @@ class Dreamer:
 
 
 def _register():
-    from infj_bot.core.cognitive_architecture import (
+    from drift.core.cognitive_architecture import (
         CognitiveArchitecture,
         CognitivePlugin,
     )

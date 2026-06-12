@@ -7,7 +7,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-from infj_bot.core.memory import DriftMemory, LocalEmbeddingFunction
+from drift.core.memory import DriftMemory, LocalEmbeddingFunction
 
 
 PROMPTS = [
@@ -119,7 +119,7 @@ def main():
     temp_dir = None
     persist_directory = args.persist_directory
     if persist_directory is None:
-        temp_dir = Path(tempfile.mkdtemp(prefix="infj-bot-stress-"))
+        temp_dir = Path(tempfile.mkdtemp(prefix="drift-stress-"))
         persist_directory = temp_dir
 
     memory = DriftMemory(

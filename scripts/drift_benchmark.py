@@ -41,7 +41,7 @@ def resolve_data_dir() -> Path:
     # 1. Try importing from the installed module
     try:
         import importlib.util
-        spec = importlib.util.find_spec("infj_bot.core.config")
+        spec = importlib.util.find_spec("drift.core.config")
         if spec and spec.origin:
             mod = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(mod)

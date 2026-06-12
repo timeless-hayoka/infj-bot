@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from infj_bot.core.plugins.growth_trajectory import (
+from drift.core.plugins.growth_trajectory import (
     GrowthTrajectory,
     CONSCIOUSNESS_STAGES,
 )

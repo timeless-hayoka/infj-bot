@@ -7,7 +7,7 @@ severity justification, and remediation suggestions.
 from datetime import datetime
 from typing import Any, Dict, List
 
-from infj_bot.core.plugins.findings_db import Finding
+from drift.core.plugins.findings_db import Finding
 
 
 SEVERITY_MAP = {

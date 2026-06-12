@@ -17,15 +17,15 @@ import string
 
 import pytest
 
-from infj_bot.core.being import Being
-from infj_bot.core.cognitive_architecture import CycleContext
-from infj_bot.core.cognitive_orchestrator import CognitiveOrchestrator
-from infj_bot.core.embeddings import SemanticEmbeddingFunction
-from infj_bot.core.memory import DriftMemory
-from infj_bot.core.plugins.physics import PhysicsEngine
-from infj_bot.core.plugins.humanity import HumanityEngine
-from infj_bot.core.prompt_budget import PromptBudget
-from infj_bot.core.resilience import CircuitBreaker, ResilienceManager
+from drift.core.being import Being
+from drift.core.cognitive_architecture import CycleContext
+from drift.core.cognitive_orchestrator import CognitiveOrchestrator
+from drift.core.embeddings import SemanticEmbeddingFunction
+from drift.core.memory import DriftMemory
+from drift.core.plugins.physics import PhysicsEngine
+from drift.core.plugins.humanity import HumanityEngine
+from drift.core.prompt_budget import PromptBudget
+from drift.core.resilience import CircuitBreaker, ResilienceManager
 
 
 # ── Helpers ───────────────────────────────────────────────────────
@@ -142,7 +142,7 @@ class TestRapidFire:
     """Test many operations in quick succession."""
 
     def test_100_interactions_memory(self, tmp_path):
-        from infj_bot.core.embeddings import LocalEmbeddingFunction
+        from drift.core.embeddings import LocalEmbeddingFunction
 
         memory = DriftMemory(
             persist_directory=str(tmp_path), embedding_function=LocalEmbeddingFunction()

@@ -1,6 +1,6 @@
 """
 task_mutator.py — PHI // DRIFT Auto-Evolve Task Mutator
-infj_bot/core/task_mutator.py
+drift/core/task_mutator.py
 
 Implements shadow-driven task mutation for DriftSurface.
 When a task accumulates unresolved shadow tension beyond the

@@ -12,12 +12,12 @@ from pathlib import Path
 # Add project root to path
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
-from infj_bot.core.experiment_runner import ExperimentRunner
-from infj_bot.core.cognitive_orchestrator import CognitiveOrchestrator, IntentBlockedError
-from infj_bot.core.shadow import get_shadow
-from infj_bot.core.being import get_being
-from infj_bot.core.memory import DriftMemory
-from infj_bot.core.commands import BotState
+from drift.core.experiment_runner import ExperimentRunner
+from drift.core.cognitive_orchestrator import CognitiveOrchestrator, IntentBlockedError
+from drift.core.shadow import get_shadow
+from drift.core.being import get_being
+from drift.core.memory import DriftMemory
+from drift.core.commands import BotState
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)

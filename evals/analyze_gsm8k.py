@@ -9,7 +9,7 @@ numerically (as floats) to correct for minor string format discrepancies (e.g. 2
 import json
 from pathlib import Path
 
-RESULTS_PATH = Path("/home/crexs/infj_bot/evals/gsm8k_results.jsonl")
+RESULTS_PATH = Path("/home/crexs/drift/evals/gsm8k_results.jsonl")
 
 def are_numerically_equal(val1, val2):
     try:

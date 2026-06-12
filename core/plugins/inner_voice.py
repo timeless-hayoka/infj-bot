@@ -7,7 +7,7 @@ by user input. The bot thinks even when no one is speaking to it.
 import random
 from typing import List, Optional
 
-from infj_bot.core.being import get_being
+from drift.core.being import get_being
 
 
 class InnerVoice:
@@ -161,7 +161,7 @@ class InnerVoice:
             being.working_memory = being.working_memory[-20:]
         being.state.last_thought = thought
         try:
-            from infj_bot.core.memory import DriftMemory
+            from drift.core.memory import DriftMemory
 
             DriftMemory().save_thought(
                 thought,
@@ -173,7 +173,7 @@ class InnerVoice:
         except Exception:
             pass
         try:
-            from infj_bot.core.global_workspace import get_workspace
+            from drift.core.global_workspace import get_workspace
 
             ws = get_workspace()
             ws.submit(
@@ -188,7 +188,7 @@ class InnerVoice:
 
 
 def _register():
-    from infj_bot.core.cognitive_architecture import (
+    from drift.core.cognitive_architecture import (
         CognitiveArchitecture,
         CognitivePlugin,
     )

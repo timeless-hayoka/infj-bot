@@ -13,27 +13,27 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from infj_bot.core.generation import (
+from drift.core.generation import (
     SystemOverload,
     RequestCancelled,
     RequestDeadlineExceeded,
     RequestBudget,
 )
 
-from infj_bot.core.brain import DriftBrain
-from infj_bot.core.commands import BotState, handle_command
-from infj_bot.core.config import DEFAULT_AUTHORIZED_TARGETS
-from infj_bot.core.plugins.documents import DocumentStore
-from infj_bot.core.plugins.goals import GoalsDB
-from infj_bot.core.plugins.growth import growth_profile
-from infj_bot.core.history import ChatHistory
-from infj_bot.core.memory import DriftMemory
-from infj_bot.core.prompt_builder import build_chat_prompt
-from infj_bot.core.tools import format_tool_inventory
-from infj_bot.core.cognitive_orchestrator import CognitiveOrchestrator, IntentBlockedError
-from infj_bot.core.phi_council import COUNCIL_MAPPING
+from drift.core.brain import DriftBrain
+from drift.core.commands import BotState, handle_command
+from drift.core.config import DEFAULT_AUTHORIZED_TARGETS
+from drift.core.plugins.documents import DocumentStore
+from drift.core.plugins.goals import GoalsDB
+from drift.core.plugins.growth import growth_profile
+from drift.core.history import ChatHistory
+from drift.core.memory import DriftMemory
+from drift.core.prompt_builder import build_chat_prompt
+from drift.core.tools import format_tool_inventory
+from drift.core.cognitive_orchestrator import CognitiveOrchestrator, IntentBlockedError
+from drift.core.phi_council import COUNCIL_MAPPING
 
-logger = logging.getLogger("infj_bot")
+logger = logging.getLogger("drift")
 
 brain = DriftBrain()
 memory = DriftMemory()
@@ -45,13 +45,13 @@ doc_store = DocumentStore()
 
 async def background_drift_cycle():
     """Background task to run drift cycles and compute aliveness metrics."""
-    from infj_bot.core.being import get_being
-    from infj_bot.core.homeostasis import get_homeostasis
-    from infj_bot.core.shadow import get_shadow
-    from infj_bot.core.dii_tracker import get_dii_tracker
-    from infj_bot.core.config import STRONG_CONTINUOUS_MODE, BACKGROUND_CYCLE_SECONDS
-    from infj_bot.core.cognitive_orchestrator import CognitiveOrchestrator
-    from infj_bot.core.global_workspace import get_workspace
+    from drift.core.being import get_being
+    from drift.core.homeostasis import get_homeostasis
+    from drift.core.shadow import get_shadow
+    from drift.core.dii_tracker import get_dii_tracker
+    from drift.core.config import STRONG_CONTINUOUS_MODE, BACKGROUND_CYCLE_SECONDS
+    from drift.core.cognitive_orchestrator import CognitiveOrchestrator
+    from drift.core.global_workspace import get_workspace
 
     if not STRONG_CONTINUOUS_MODE:
         return
@@ -111,7 +111,7 @@ async def lifespan(_app: FastAPI):
         pass
 
 
-from infj_bot.core.gateway import HardenedGatewayMiddleware
+from drift.core.gateway import HardenedGatewayMiddleware
 
 app = FastAPI(title="PHI // Drift", lifespan=lifespan)
 app.add_middleware(HardenedGatewayMiddleware)
@@ -857,7 +857,7 @@ async def api_reset():
     
     # 1. Reset ContextVars
     try:
-        from infj_bot.core.causal_wiring import state_override_var, generation_params_var
+        from drift.core.causal_wiring import state_override_var, generation_params_var
         state_override_var.set(None)
         generation_params_var.set(None)
     except Exception:
@@ -865,31 +865,31 @@ async def api_reset():
 
     # 2. Reset singletons/global modules
     try:
-        import infj_bot.core.being as being_mod
+        import drift.core.being as being_mod
         being_mod._being_instance = None
     except Exception:
         pass
 
     try:
-        import infj_bot.core.homeostasis as homeostasis_mod
+        import drift.core.homeostasis as homeostasis_mod
         homeostasis_mod._homeostasis_instance = None
     except Exception:
         pass
 
     try:
-        import infj_bot.core.shadow as shadow_mod
+        import drift.core.shadow as shadow_mod
         shadow_mod._shadow_instance = None
     except Exception:
         pass
 
     try:
-        import infj_bot.core.dii_tracker as dii_mod
+        import drift.core.dii_tracker as dii_mod
         dii_mod._dii_instance = None
     except Exception:
         pass
 
     try:
-        import infj_bot.core.global_workspace as workspace_mod
+        import drift.core.global_workspace as workspace_mod
         workspace_mod._workspace_instance = None
     except Exception:
         pass
@@ -905,7 +905,7 @@ async def api_reset():
     # 4. Clean database tables
     try:
         import sqlite3
-        from infj_bot.core.config import MEMORY_DB, HOMEOSTASIS_DB
+        from drift.core.config import MEMORY_DB, HOMEOSTASIS_DB
         
         # Clear Memory
         with sqlite3.connect(MEMORY_DB) as conn:
@@ -945,7 +945,7 @@ async def api_chat(request: Request):
         return JSONResponse({"error": "message is required"}, status_code=400)
 
     # Set state override context variable
-    from infj_bot.core.causal_wiring import state_override_var
+    from drift.core.causal_wiring import state_override_var
     state_override_var.set(payload.get("state"))
 
     prompt, emotion, dissonance = build_chat_prompt(
@@ -1000,11 +1000,11 @@ async def api_chat(request: Request):
 
         # ── Aliveness Tracking (DII) ──
         try:
-            from infj_bot.core.being import get_being
-            from infj_bot.core.homeostasis import get_homeostasis
-            from infj_bot.core.shadow import get_shadow
-            from infj_bot.core.dii_tracker import get_dii_tracker
-            from infj_bot.core.global_workspace import get_workspace
+            from drift.core.being import get_being
+            from drift.core.homeostasis import get_homeostasis
+            from drift.core.shadow import get_shadow
+            from drift.core.dii_tracker import get_dii_tracker
+            from drift.core.global_workspace import get_workspace
 
             tracker = get_dii_tracker()
             tracker.compute(
@@ -1042,7 +1042,7 @@ async def api_chat_stream(request: Request):
         )
 
     # Set state override context variable
-    from infj_bot.core.causal_wiring import state_override_var
+    from drift.core.causal_wiring import state_override_var
     state_override_var.set(payload.get("state"))
 
     prompt, emotion, dissonance = build_chat_prompt(
@@ -1101,11 +1101,11 @@ async def api_chat_stream(request: Request):
 
             # ── Aliveness Tracking (DII) ──
             try:
-                from infj_bot.core.being import get_being
-                from infj_bot.core.homeostasis import get_homeostasis
-                from infj_bot.core.shadow import get_shadow
-                from infj_bot.core.dii_tracker import get_dii_tracker
-                from infj_bot.core.global_workspace import get_workspace
+                from drift.core.being import get_being
+                from drift.core.homeostasis import get_homeostasis
+                from drift.core.shadow import get_shadow
+                from drift.core.dii_tracker import get_dii_tracker
+                from drift.core.global_workspace import get_workspace
 
                 tracker = get_dii_tracker()
                 tracker.compute(
@@ -1169,10 +1169,10 @@ async def api_tools():
 
 @app.get("/api/phi")
 async def api_phi():
-    from infj_bot.core.being import get_being
-    from infj_bot.core.homeostasis import get_homeostasis
-    from infj_bot.core.phi_proxy import PhiProxy
-    from infj_bot.adapters.cognition_adapter import adapter as cog_adapter
+    from drift.core.being import get_being
+    from drift.core.homeostasis import get_homeostasis
+    from drift.core.phi_proxy import PhiProxy
+    from drift.adapters.cognition_adapter import adapter as cog_adapter
 
     being = get_being()
     homeo = get_homeostasis()
@@ -1195,7 +1195,7 @@ async def api_phi():
 @app.get("/api/hive")
 async def api_hive():
     try:
-        from infj_bot.hive_mind.orchestrator import HiveOrchestrator
+        from drift.hive_mind.orchestrator import HiveOrchestrator
 
         orch = HiveOrchestrator()
         return orch.get_status()
@@ -1206,7 +1206,7 @@ async def api_hive():
 @app.get("/api/health")
 async def api_health():
     try:
-        from infj_bot.hive_mind.orchestrator import HiveOrchestrator
+        from drift.hive_mind.orchestrator import HiveOrchestrator
 
         orch = HiveOrchestrator()
         hive_status = orch.get_status()
@@ -1277,7 +1277,7 @@ async def api_identity(key_id: str = "v1", nonce: str = None):
 
 @app.get("/api/dii")
 async def api_dii():
-    from infj_bot.core.dii_tracker import get_dii_tracker
+    from drift.core.dii_tracker import get_dii_tracker
 
     tracker = get_dii_tracker()
     return tracker.get_trend(n=20)
@@ -1285,7 +1285,7 @@ async def api_dii():
 
 @app.get("/api/dii/history")
 async def api_dii_history(limit: int = 100):
-    from infj_bot.core.dii_tracker import get_dii_tracker
+    from drift.core.dii_tracker import get_dii_tracker
 
     tracker = get_dii_tracker()
     return {"history": tracker.get_history(limit=limit)}
@@ -1295,10 +1295,10 @@ async def api_dii_history(limit: int = 100):
 async def api_audit(limit: int = 50):
     """Retrieve the unified audit log for monitoring and safety verification."""
     try:
-        from infj_bot.core.unified_audit import get_audit_logger
+        from drift.core.unified_audit import get_audit_logger
         audit_logger = get_audit_logger()
         # Use read_any as a static helper or tail
-        from infj_bot.core.jsonl_logger import HardenedJsonlLogger
+        from drift.core.jsonl_logger import HardenedJsonlLogger
         return HardenedJsonlLogger.tail(audit_logger.path, n=limit)
     except Exception as e:
         return {"error": f"Failed to retrieve audit log: {e}"}
@@ -1308,7 +1308,7 @@ async def api_audit(limit: int = 50):
 async def api_hive_deliberations(limit: int = 10):
     """Retrieve history of high-order deliberations from the Elysium engine."""
     try:
-        from infj_bot.core.hive.elysium import get_elysium
+        from drift.core.hive.elysium import get_elysium
         elysium = get_elysium()
         return elysium.get_deliberation_history(limit=limit)
     except Exception as e:
@@ -1318,11 +1318,11 @@ async def api_hive_deliberations(limit: int = 10):
 @app.get("/api/observer")
 async def api_observer():
     """Full real-time cognitive state for the observer dashboard."""
-    from infj_bot.core.being import get_being
-    from infj_bot.core.homeostasis import get_homeostasis
-    from infj_bot.core.shadow import get_shadow
-    from infj_bot.core.dii_tracker import get_dii_tracker
-    from infj_bot.core.global_workspace import get_workspace
+    from drift.core.being import get_being
+    from drift.core.homeostasis import get_homeostasis
+    from drift.core.shadow import get_shadow
+    from drift.core.dii_tracker import get_dii_tracker
+    from drift.core.global_workspace import get_workspace
 
     being = get_being()
     homeo = get_homeostasis()

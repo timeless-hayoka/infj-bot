@@ -3,19 +3,19 @@ import sys
 import os
 from dotenv import load_dotenv
 
-sys.path.insert(0, '/home/crexs/infj_bot')
+sys.path.insert(0, '/home/crexs/drift')
 
 # Load env variables explicitly
-env_path = '/home/crexs/infj_bot/.env'
+env_path = '/home/crexs/drift/.env'
 print(f"Loading .env from {env_path}: {load_dotenv(env_path)}")
 
-from infj_bot.core.brain import DriftBrain
-from infj_bot.core.memory import DriftMemory
-from infj_bot.core.history import ChatHistory
-from infj_bot.core.commands import BotState
-from infj_bot.core.plugins.goals import GoalsDB
-from infj_bot.core.plugins.documents import DocumentStore
-from infj_bot.core.prompt_builder import build_chat_prompt
+from drift.core.brain import DriftBrain
+from drift.core.memory import DriftMemory
+from drift.core.history import ChatHistory
+from drift.core.commands import BotState
+from drift.core.plugins.goals import GoalsDB
+from drift.core.plugins.documents import DocumentStore
+from drift.core.prompt_builder import build_chat_prompt
 
 def main():
     print("Instantiating components...")
@@ -44,7 +44,7 @@ def main():
     print(f"Agent response: {output}")
     
     # 3. Verify trajectory log
-    log_path = '/home/crexs/infj_bot/logs/state_trace.jsonl'
+    log_path = '/home/crexs/drift/logs/state_trace.jsonl'
     print(f"\n3. Checking trajectory log at {log_path}...")
     if os.path.exists(log_path):
         print("Log exists!")

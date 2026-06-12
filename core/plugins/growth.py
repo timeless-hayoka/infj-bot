@@ -52,7 +52,7 @@ def _count_type(memory, record_type):
 
 
 def growth_profile(memory, turns=0):
-    from infj_bot.core.being import get_being
+    from drift.core.being import get_being
     being = get_being()
     
     interactions = _count_type(memory, "interaction")

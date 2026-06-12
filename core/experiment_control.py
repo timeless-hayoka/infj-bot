@@ -20,7 +20,7 @@ import warnings
 import subprocess
 from contextlib import contextmanager
 
-from infj_bot.core.run_logger import RunLogger
+from drift.core.run_logger import RunLogger
 
 
 class ExperimentControl:

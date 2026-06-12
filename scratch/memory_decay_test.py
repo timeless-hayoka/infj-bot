@@ -1,8 +1,8 @@
 
-from infj_bot.core.brain import DriftBrain
-from infj_bot.core.being import get_being
-from infj_bot.core.memory import DriftMemory
-from infj_bot.core.config import DATA_DIR
+from drift.core.brain import DriftBrain
+from drift.core.being import get_being
+from drift.core.memory import DriftMemory
+from drift.core.config import DATA_DIR
 import time
 import json
 import matplotlib.pyplot as plt
