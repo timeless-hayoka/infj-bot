@@ -1396,7 +1396,8 @@ async def api_observer():
 
 if __name__ == "__main__":
     import uvicorn
-
     import os
-    host = os.getenv("DRIFT_API_HOST", "127.0.0.1")
-    uvicorn.run(app, host=host, port=8765)
+    
+    port = int(os.environ.get("PORT", 8765))
+    host = os.environ.get("DRIFT_API_HOST", "0.0.0.0")
+    uvicorn.run(app, host=host, port=port)

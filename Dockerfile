@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y \
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-RUN pip install --no-cache-dir google-cloud-sql-connector pg8000 sqlalchemy
+RUN pip install --no-cache-dir cloud-sql-python-connector pg8000 sqlalchemy
 
 COPY . .
 
@@ -18,4 +18,4 @@ RUN pip install -e .
 
 EXPOSE 8000
 
-CMD ["python", "-m", "drift.interfaces.api_server"]
+CMD ["python", "-m", "drift.interfaces.api"]
