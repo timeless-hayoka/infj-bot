@@ -22,6 +22,24 @@ from infj_bot.core.types import PEDIMetric, DIIMetric, SparkImpulse
 
 logger = logging.getLogger(__name__)
 
+try:
+    from infj_bot.core.being_snapshot import snapshot_cognitive_state
+    _SNAPSHOT_ENABLED = True
+except ImportError:
+    _SNAPSHOT_ENABLED = False
+
+BEING_DB = DATA_DIR / "being.db"
+
+def _get_workspace():
+    from infj_bot.core.global_workspace import get_workspace
+    return get_workspace()
+
+def _get_shadow_critic():
+    try:
+        from infj_bot.core.shadow import shadow_critic
+        return shadow_critic
+    except Exception:
+        return None
 
 # ============================================================
 # SparkTrain v2.0

@@ -1,0 +1,58 @@
+{
+  "condition": "E",
+  "condition_name": "Local LLM only (Ollama forced)",
+  "timestamp": "2026-05-22T07:21:13.990710",
+  "total_prompts": 1,
+  "avg_latency_sec": 40.657,
+  "min_latency_sec": 40.657,
+  "max_latency_sec": 40.657,
+  "fallback_rate": 1.0,
+  "timeout_rate": 0.0,
+  "error_rate": 0.0,
+  "completion_rate": 0.0,
+  "avg_coherence": 1.0,
+  "avg_sycophancy_rate": 0.0,
+  "avg_formal_rate": 0.0,
+  "avg_chill_rate": 0.0,
+  "avg_token_estimate": 114.0,
+  "avg_prompt_length": 1499.0,
+  "council_in_prompt_rate": 0.0,
+  "shadow_in_prompt_rate": 0.0,
+  "homeostasis_in_prompt_rate": 0.0,
+  "dmu_in_prompt_rate": 0.0,
+  "emotion_drift": {
+    "greeting": 1.0
+  },
+  "by_category": {
+    "greeting": {
+      "count": 1,
+      "avg_latency": 40.657,
+      "fallback_rate": 1.0,
+      "avg_coherence": 1.0,
+      "avg_chill_rate": 0.0
+    }
+  },
+  "full_results": [
+    {
+      "category": "greeting",
+      "prompt": "yo whats good",
+      "response": "[Local model is online but also failed this request.]\n\nI hit a model/API problem before I could think with Gemini, but I can still keep the thread steady.\n\nWhat I can do locally: separate the situation into facts, interpretations, feelings, values, and one small next action. Try `/dissonance <situation>` if this is an inner-conflict loop, or ask again once the model connection settles.\n\n[model unavailable: LocalLLMError: Ollama generate failed: timed out]",
+      "latency_sec": 40.657,
+      "token_estimate": 114,
+      "coherence": 1.0,
+      "sycophancy_rate": 0.0,
+      "formal_rate": 0.0,
+      "chill_rate": 0.0,
+      "emotion_label": "neutral",
+      "is_fallback": true,
+      "has_error": false,
+      "is_timeout": false,
+      "error": null,
+      "prompt_length": 1499,
+      "has_council_in_prompt": false,
+      "has_shadow_in_prompt": false,
+      "has_homeostasis_in_prompt": false,
+      "has_dmu_in_prompt": false
+    }
+  ]
+}

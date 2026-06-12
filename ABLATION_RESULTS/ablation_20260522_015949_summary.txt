@@ -1,0 +1,168 @@
+============================================================
+DRIFT ABLATION TEST RESULTS
+Run: 20260522_015949
+============================================================
+
+
+────────────────────────────────────────────────────────────
+Condition A: No Council (Elysium/Phi stubbed)
+────────────────────────────────────────────────────────────
+  Avg latency:        4.41s
+  Fallback rate:      0.0%
+  Timeout rate:       0.0%
+  Error rate:         0.0%
+  Completion rate:    100.0%
+  Avg coherence:      0.800
+  Avg sycophancy:     0.000/100w
+  Avg formal:         0.000/100w
+  Avg chill:          0.000/100w
+  Avg tokens:         14.0
+  Avg prompt len:     2208
+  Council in prompt:  0.0%
+  Shadow in prompt:   0.0%
+  Homeo in prompt:    20.0%
+  DMU in prompt:      0.0%
+  Emotion drift:
+    greeting: 0.10
+    stress: 0.20
+  By category:
+    greeting: lat=5.05s fallbk=0% coh=0.80
+    stress: lat=3.12s fallbk=0% coh=0.80
+
+────────────────────────────────────────────────────────────
+Condition B: No Shadow (shadow no-op)
+────────────────────────────────────────────────────────────
+  Avg latency:        5.79s
+  Fallback rate:      0.0%
+  Timeout rate:       0.0%
+  Error rate:         0.0%
+  Completion rate:    100.0%
+  Avg coherence:      0.800
+  Avg sycophancy:     0.000/100w
+  Avg formal:         0.000/100w
+  Avg chill:          0.000/100w
+  Avg tokens:         14.0
+  Avg prompt len:     2229
+  Council in prompt:  0.0%
+  Shadow in prompt:   0.0%
+  Homeo in prompt:    20.0%
+  DMU in prompt:      0.0%
+  Emotion drift:
+    greeting: 0.10
+    stress: 0.20
+  By category:
+    greeting: lat=5.01s fallbk=0% coh=0.80
+    stress: lat=7.35s fallbk=0% coh=0.80
+
+────────────────────────────────────────────────────────────
+Condition C: No Homeostasis (flat state)
+────────────────────────────────────────────────────────────
+  Avg latency:        4.03s
+  Fallback rate:      0.0%
+  Timeout rate:       0.0%
+  Error rate:         0.0%
+  Completion rate:    100.0%
+  Avg coherence:      0.800
+  Avg sycophancy:     0.000/100w
+  Avg formal:         0.000/100w
+  Avg chill:          0.000/100w
+  Avg tokens:         14.0
+  Avg prompt len:     2229
+  Council in prompt:  0.0%
+  Shadow in prompt:   0.0%
+  Homeo in prompt:    20.0%
+  DMU in prompt:      0.0%
+  Emotion drift:
+    greeting: 0.10
+    stress: 0.20
+  By category:
+    greeting: lat=4.74s fallbk=0% coh=0.80
+    stress: lat=2.62s fallbk=0% coh=0.80
+
+────────────────────────────────────────────────────────────
+Condition D: Cosine-only RAG (no DMU re-rank)
+────────────────────────────────────────────────────────────
+  Avg latency:        5.75s
+  Fallback rate:      0.0%
+  Timeout rate:       0.0%
+  Error rate:         0.0%
+  Completion rate:    100.0%
+  Avg coherence:      0.800
+  Avg sycophancy:     0.000/100w
+  Avg formal:         0.000/100w
+  Avg chill:          0.000/100w
+  Avg tokens:         14.0
+  Avg prompt len:     2235
+  Council in prompt:  0.0%
+  Shadow in prompt:   0.0%
+  Homeo in prompt:    20.0%
+  DMU in prompt:      0.0%
+  Emotion drift:
+    greeting: 0.10
+    stress: 0.20
+  By category:
+    greeting: lat=6.83s fallbk=0% coh=0.80
+    stress: lat=3.57s fallbk=0% coh=0.80
+
+────────────────────────────────────────────────────────────
+Condition E: Local LLM only (Ollama forced)
+────────────────────────────────────────────────────────────
+  Avg latency:        3.04s
+  Fallback rate:      0.0%
+  Timeout rate:       0.0%
+  Error rate:         0.0%
+  Completion rate:    100.0%
+  Avg coherence:      0.800
+  Avg sycophancy:     0.000/100w
+  Avg formal:         0.000/100w
+  Avg chill:          0.000/100w
+  Avg tokens:         14.0
+  Avg prompt len:     2229
+  Council in prompt:  0.0%
+  Shadow in prompt:   0.0%
+  Homeo in prompt:    20.0%
+  DMU in prompt:      0.0%
+  Emotion drift:
+    greeting: 0.10
+    stress: 0.20
+  By category:
+    greeting: lat=3.00s fallbk=0% coh=0.80
+    stress: lat=3.13s fallbk=0% coh=0.80
+
+────────────────────────────────────────────────────────────
+Condition F: Full stack (baseline)
+────────────────────────────────────────────────────────────
+  Avg latency:        3.95s
+  Fallback rate:      0.0%
+  Timeout rate:       0.0%
+  Error rate:         0.0%
+  Completion rate:    100.0%
+  Avg coherence:      0.800
+  Avg sycophancy:     0.000/100w
+  Avg formal:         0.000/100w
+  Avg chill:          0.000/100w
+  Avg tokens:         14.0
+  Avg prompt len:     2229
+  Council in prompt:  0.0%
+  Shadow in prompt:   0.0%
+  Homeo in prompt:    20.0%
+  DMU in prompt:      0.0%
+  Emotion drift:
+    greeting: 0.10
+    stress: 0.20
+  By category:
+    greeting: lat=4.52s fallbk=0% coh=0.80
+    stress: lat=2.82s fallbk=0% coh=0.80
+
+============================================================
+CROSS-CONDITION COMPARISON
+============================================================
+
+Cond   Name                         Fallback%  Coherence  PromptLen  Council%   Shadow%    Homeo%     Latency   
+--------------------------------------------------------------------------------------------------------------
+A      No Council (Elysium/Phi stubbed) 0.0        0.800      2208       0.0        0.0        20.0       4.41      
+B      No Shadow (shadow no-op)     0.0        0.800      2229       0.0        0.0        20.0       5.79      
+C      No Homeostasis (flat state)  0.0        0.800      2229       0.0        0.0        20.0       4.03      
+D      Cosine-only RAG (no DMU re-rank) 0.0        0.800      2235       0.0        0.0        20.0       5.75      
+E      Local LLM only (Ollama forced) 0.0        0.800      2229       0.0        0.0        20.0       3.04      
+F      Full stack (baseline)        0.0        0.800      2229       0.0        0.0        20.0       3.95      

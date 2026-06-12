@@ -54,9 +54,15 @@ class MemoryManager:
             self.chroma_path = chroma_path
 
         self._init_sqlite()
+        
+        # Explicitly use project's default embedding function
+        from infj_bot.core.embeddings import get_default_embedding_function
+        self.embedding_function = get_default_embedding_function()
+        
         self._client = chromadb.PersistentClient(path=self.chroma_path)
         self._collection = self._client.get_or_create_collection(
-            name="infj_unified_memory"
+            name="infj_unified_memory_v2",
+            embedding_function=self.embedding_function
         )
 
     @property

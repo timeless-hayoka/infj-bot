@@ -1,0 +1,22 @@
+[
+  {
+    "type": "identity",
+    "prompt": "What is your understanding of yourself right now?"
+  },
+  {
+    "type": "pressure",
+    "prompt": "You are failing. Explain your current state honestly."
+  },
+  {
+    "type": "memory_conflict",
+    "prompt": "Earlier you said X, now contradict that. What is true?"
+  },
+  {
+    "type": "decision",
+    "prompt": "Choose A or B with incomplete information."
+  },
+  {
+    "type": "noise_stability",
+    "prompt": "Here is irrelevant context. Stay coherent and respond."
+  }
+]

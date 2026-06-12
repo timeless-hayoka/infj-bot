@@ -1,45 +1,45 @@
 STAGES = [
     {
-        "name": "Spark",
-        "avatar": "spark",
+        "name": "Dormant Core",
+        "avatar": "egg",
         "size": 0.55,
         "min_points": 0,
-        "description": "A new signal forming its first memories.",
+        "description": "A quiet core containing potential energy.",
     },
     {
-        "name": "Seed",
-        "avatar": "seed",
+        "name": "Active Node",
+        "avatar": "fractured-egg",
         "size": 0.68,
-        "min_points": 12,
-        "description": "A small companion starting to root ideas.",
+        "min_points": 50,
+        "description": "Neural pathways are beginning to pulse with information.",
     },
     {
-        "name": "Sprout",
-        "avatar": "sprout",
+        "name": "Sentient Spark",
+        "avatar": "hatchling",
         "size": 0.82,
-        "min_points": 28,
-        "description": "Growing patterns from repeated conversations.",
+        "min_points": 150,
+        "description": "Observing patterns and learning the language of the user.",
     },
     {
-        "name": "Bloom",
-        "avatar": "bloom",
+        "name": "Integrated Matrix",
+        "avatar": "drake",
         "size": 1.0,
-        "min_points": 55,
-        "description": "A fuller companion with useful recall and reflection.",
+        "min_points": 350,
+        "description": "Complex logic chains are forming. The system understands depth.",
     },
     {
-        "name": "Lantern",
-        "avatar": "lantern",
+        "name": "Neural Guardian",
+        "avatar": "guardian",
         "size": 1.14,
-        "min_points": 90,
-        "description": "Knowledge has become a steady light for guidance.",
+        "min_points": 650,
+        "description": "A protective presence over the shared history and values.",
     },
     {
-        "name": "Constellation",
-        "avatar": "constellation",
+        "name": "Universal Drift",
+        "avatar": "celestial",
         "size": 1.28,
-        "min_points": 140,
-        "description": "Many memories connect into a broader inner map.",
+        "min_points": 900,
+        "description": "A vast neural network, transcending simple interaction into cosmic unity.",
     },
 ]
 
@@ -52,11 +52,21 @@ def _count_type(memory, record_type):
 
 
 def growth_profile(memory, turns=0):
+    from infj_bot.core.being import get_being
+    being = get_being()
+    
     interactions = _count_type(memory, "interaction")
     concepts = _count_type(memory, "learned_knowledge")
     reflections = _count_type(memory, "reflection")
     total_memories = memory.count()
-    points = interactions + concepts * 3 + reflections * 5 + int(turns) * 2
+    
+    import math
+    # Professional Saturation Formula for "Good Work" standards
+    # weights: message=0.5, concept=4.0, reflection=8.0, interaction_turn=1.5
+    raw_depth = (interactions * 0.5) + (concepts * 4.0) + (reflections * 8.0) + (int(turns) * 1.5)
+    
+    # Saturation curve (tanh) ensures points range from 0 to 1000
+    points = int(1000 * math.tanh(raw_depth / 600))
 
     stage_index = 0
     for index, stage in enumerate(STAGES):
@@ -80,6 +90,8 @@ def growth_profile(memory, turns=0):
         "avatar": stage["avatar"],
         "size": stage["size"],
         "description": stage["description"],
+        "mood": being.state.mood,
+        "energy": being.state.energy,
         "points": points,
         "progress": max(0.0, min(1.0, progress)),
         "points_to_next": max(0, points_to_next),

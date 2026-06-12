@@ -10,8 +10,12 @@ import threading
 
 import numpy as np
 import torch
+import os
 
+# Force CPU device for all subsequent torch operations in this process
+os.environ["TORCH_DEVICE"] = "cpu"
 torch.set_default_device("cpu")
+
 from chromadb.api.types import Documents, Embeddings
 
 
@@ -26,11 +30,18 @@ class SemanticEmbeddingFunction:
         with self._lock:
             if self._model is None:
                 from sentence_transformers import SentenceTransformer
-
                 import torch
-
+                
+                # Ensure we are on CPU before loading
                 torch.set_default_device("cpu")
-                self._model = SentenceTransformer("all-MiniLM-L6-v2", device="cpu")
+                try:
+                    self._model = SentenceTransformer("all-MiniLM-L6-v2", device="cpu")
+                except Exception as e:
+                    if "meta tensor" in str(e):
+                        # Attempt recovery if somehow still on meta
+                        self._model = SentenceTransformer("all-MiniLM-L6-v2", device="cpu", trust_remote_code=True)
+                    else:
+                        raise e
         return self._model
 
     @property

@@ -232,62 +232,125 @@ _MAX_PAYLOAD = 1_048_576  # 1 MB
 
 
 INDEX_HTML = """<!doctype html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>DRIFT // DASHBOARD</title>
+  <title>DRIFT // CHROMATIC CORE</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700&family=Rajdhani:wght@400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&family=Fira+Code:wght@300;400;500&display=swap');
     
     :root {
-        --bg-deep: #050505;
-        --bg-surface: #111111;
-        --accent-orange: #FF5500;
-        --accent-white: #FFFFFF;
-        --text-muted: #A0A0A0;
-        --border-dim: #222;
+        --c-blue: #00A3FF;
+        --c-violet: #8F00FF;
+        --c-red: #FF003D;
+        --c-yellow: #FFD600;
+        --bg-black: #030303;
+        --glass: rgba(255, 255, 255, 0.03);
+        --glass-border: rgba(255, 255, 255, 0.08);
+        --text: #F0F0F0;
+        --text-dim: #888;
     }
+
+    * { box-sizing: border-box; }
 
     body { 
         margin: 0; 
         font-family: 'Rajdhani', sans-serif; 
-        background: var(--bg-deep); 
-        color: var(--accent-white); 
-        overflow: hidden;
+        background: var(--bg-black); 
+        color: var(--text); 
+        overflow: hidden; 
+        height: 100vh;
+        /* Flowing Background */
+        background: linear-gradient(-45deg, #001A33, #1A0033, #330008, #332B00);
+        background-size: 400% 400%;
+        animation: gradientFlow 15s ease infinite;
+    }
+
+    @keyframes gradientFlow {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+
+    /* Overall Shine Overlay */
+    body::after {
+        content: '';
+        position: absolute;
+        top: -50%; left: -50%; width: 200%; height: 200%;
+        background: linear-gradient(45deg, transparent 45%, rgba(255,255,255,0.03) 50%, transparent 55%);
+        transform: rotate(30deg);
+        animation: shineSweep 10s linear infinite;
+        pointer-events: none;
+        z-index: 100;
+    }
+
+    @keyframes shineSweep {
+        0% { transform: translateX(-100%) rotate(30deg); }
+        100% { transform: translateX(100%) rotate(30deg); }
     }
 
     main { 
         display: grid; 
-        grid-template-columns: 1fr 340px; 
+        grid-template-columns: 1fr 380px; 
         height: 100vh; 
-        overflow: hidden;
+        padding: 20px;
+        gap: 20px;
+        position: relative;
+        z-index: 10;
     }
 
-    section#chat { 
-        display: flex; 
-        flex-direction: column; 
-        padding: 20px;
-        min-height: 0;
+    /* --- GLASS PANELS --- */
+    .panel {
+        background: var(--glass);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        border: 1px solid var(--glass-border);
+        border-radius: 12px;
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
+        display: flex;
+        flex-direction: column;
         overflow: hidden;
-        background-image: radial-gradient(circle at 50% 50%, #0a0a0a 0%, #050505 100%);
+        position: relative;
+    }
+
+    /* Chromatic Border Glow */
+    .panel::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: 12px;
+        padding: 1px;
+        background: linear-gradient(90deg, var(--c-blue), var(--c-violet), var(--c-red), var(--c-yellow));
+        -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+        -webkit-mask-composite: xor;
+        mask-composite: exclude;
+        opacity: 0.3;
+    }
+
+    /* --- CHAT AREA --- */
+    section#chat {
+        padding: 30px;
     }
 
     header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 20px;
-        border-bottom: 1px solid var(--border-dim);
-        padding-bottom: 10px;
+        margin-bottom: 25px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid var(--glass-border);
     }
 
     header h1 {
         font-family: 'Orbitron', sans-serif;
         font-size: 1.2rem;
-        letter-spacing: 2px;
+        font-weight: 800;
         margin: 0;
-        color: var(--accent-orange);
+        background: linear-gradient(90deg, var(--c-blue), var(--c-violet), var(--c-red), var(--c-yellow));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        letter-spacing: 4px;
     }
 
     #messages { 
@@ -295,318 +358,431 @@ INDEX_HTML = """<!doctype html>
         overflow-y: auto; 
         display: flex; 
         flex-direction: column; 
-        gap: 15px; 
-        padding-right: 10px;
-        scrollbar-width: thin;
-        scrollbar-color: var(--accent-orange) var(--bg-deep);
+        gap: 20px; 
+        padding-right: 15px;
+        scroll-behavior: smooth;
+    }
+
+    #messages::-webkit-scrollbar { width: 4px; }
+    #messages::-webkit-scrollbar-thumb { 
+        background: linear-gradient(var(--c-blue), var(--c-violet));
+        border-radius: 10px;
     }
 
     .msg { 
-        padding: 12px 16px; 
-        border-radius: 2px; 
-        max-width: 85%;
-        line-height: 1.5;
+        padding: 16px 20px; 
+        border-radius: 8px; 
+        max-width: 80%;
+        line-height: 1.6;
+        font-size: 1rem;
         position: relative;
+        animation: msgAppear 0.3s ease-out;
+    }
+
+    @keyframes msgAppear {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
     }
 
     .user { 
         align-self: flex-end; 
-        background: var(--bg-surface); 
-        border: 1px solid #444; 
-        color: var(--accent-white);
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: #fff;
     }
 
     .bot { 
         align-self: flex-start; 
-        background: rgba(255, 85, 0, 0.05); 
-        border: 1px solid var(--accent-orange); 
-        color: var(--accent-white);
-        border-left-width: 4px;
+        background: rgba(0, 163, 255, 0.03);
+        border: 1px solid rgba(0, 163, 255, 0.2);
+        box-shadow: 0 0 20px rgba(0, 163, 255, 0.05);
+    }
+
+    .bot-tag {
+        font-family: 'Orbitron', sans-serif;
+        font-size: 0.55rem;
+        color: var(--c-blue);
+        letter-spacing: 2px;
+        margin-bottom: 8px;
+        display: block;
+        opacity: 0.8;
+    }
+
+    .input-area {
+        margin-top: 25px;
     }
 
     form#form { 
         display: flex; 
-        gap: 10px; 
-        margin-top: 20px;
-        background: var(--bg-surface);
+        background: rgba(0, 0, 0, 0.3);
+        border: 1px solid var(--glass-border);
+        border-radius: 8px;
         padding: 5px;
-        border: 1px solid var(--border-dim);
+        transition: all 0.3s;
+    }
+
+    form#form:focus-within {
+        border-color: var(--c-blue);
+        box-shadow: 0 0 15px rgba(0, 163, 255, 0.2);
     }
 
     input#input { 
         flex: 1; 
         background: transparent; 
         border: none; 
-        color: var(--accent-white); 
-        padding: 12px; 
+        color: #fff; 
+        padding: 12px 15px; 
         font-family: 'Rajdhani', sans-serif;
-        font-size: 1rem;
+        font-size: 1.1rem;
     }
 
     input#input:focus { outline: none; }
 
-    button { 
-        background: var(--accent-orange); 
-        color: var(--bg-deep); 
+    button#send-btn { 
+        background: linear-gradient(90deg, var(--c-blue), var(--c-violet));
+        color: #fff; 
         border: none; 
         padding: 0 25px; 
         font-family: 'Orbitron', sans-serif; 
         font-weight: 700; 
+        border-radius: 6px;
         cursor: pointer;
         text-transform: uppercase;
-        font-size: 0.8rem;
-        transition: all 0.2s;
+        font-size: 0.75rem;
+        letter-spacing: 1px;
+        transition: all 0.3s;
     }
 
-    button:hover { background: var(--accent-white); }
-
-    aside { 
-        background: var(--bg-surface); 
-        border-left: 1px solid var(--border-dim); 
-        padding: 20px;
-        min-height: 0;
-        overflow-y: auto;
-        scrollbar-width: none;
+    button#send-btn:hover { 
+        filter: brightness(1.2);
+        transform: scale(1.02);
     }
 
-    .panel { 
-        margin-bottom: 25px; 
-        border: 1px solid var(--border-dim);
-        padding: 15px;
-        position: relative;
+    /* --- SIDEBAR --- */
+    aside {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
     }
 
-    .panel::after {
-        content: '';
-        position: absolute;
-        top: 0; left: 0; width: 10px; height: 10px;
-        border-top: 2px solid var(--accent-orange);
-        border-left: 2px solid var(--accent-orange);
+    .side-panel {
+        flex: 1;
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
     }
 
-    .panel label {
+    .label {
         font-family: 'Orbitron', sans-serif;
-        font-size: 0.7rem;
-        color: var(--accent-orange);
+        font-size: 0.65rem;
+        color: var(--text-dim);
         text-transform: uppercase;
-        letter-spacing: 1px;
+        letter-spacing: 3px;
+        margin-bottom: 20px;
         display: block;
-        margin-bottom: 10px;
     }
 
-    select, textarea, input.side-input {
+    /* Mood Visage (The Face) */
+    #visageFrame {
+        height: 200px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        position: relative;
+        margin-bottom: 20px;
+    }
+
+    .visage-orb {
+        width: 120px; height: 120px;
+        border-radius: 50%;
+        position: relative;
+        background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.1), transparent);
+        box-shadow: inset 0 0 40px rgba(0,0,0,0.5);
+        transition: all 1s ease;
+    }
+
+    .face {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .eyes {
+        display: flex;
+        gap: 30px;
+    }
+
+    .eye {
+        width: 12px; height: 12px;
+        background: #fff;
+        border-radius: 50%;
+        box-shadow: 0 0 15px #fff;
+        transition: all 0.5s ease;
+    }
+
+    .mouth {
+        width: 40px; height: 4px;
+        background: rgba(255,255,255,0.3);
+        border-radius: 2px;
+        transition: all 0.5s ease;
+    }
+
+    /* Stats Grid */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+        font-family: 'Fira Code', monospace;
+        font-size: 0.65rem;
+        color: var(--text-dim);
+    }
+
+    .stat-val { color: #fff; font-weight: 600; }
+
+    .control-group {
+        margin-top: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    select, textarea {
         width: 100%;
-        background: #0a0a0a;
-        border: 1px solid var(--border-dim);
-        color: var(--accent-white);
-        padding: 8px;
+        background: rgba(0,0,0,0.4);
+        border: 1px solid var(--glass-border);
+        color: #fff;
+        padding: 10px;
+        border-radius: 6px;
         font-family: 'Rajdhani', sans-serif;
-        margin-bottom: 10px;
-        box-sizing: border-box;
     }
 
-    #growthCard { 
-        text-align: center;
-    }
-
-    #growthAvatar { 
-        height: 120px; 
-        display: flex; 
-        justify-content: center; 
-        align-items: center; 
-        background: #0a0a0a; 
-        border: 1px solid var(--border-dim);
-        margin-bottom: 15px;
-        position: relative;
-    }
-
-    #growthBar { 
-        height: 4px; 
-        background: #222; 
-        margin: 10px 0; 
-        position: relative;
-    }
-
-    #growthFill { 
-        height: 100%; 
-        width: 0%; 
-        background: var(--accent-orange); 
-        box-shadow: 0 0 10px var(--accent-orange);
-        transition: width 0.5s ease; 
-    }
-
-    #growthStage { 
+    .btn-action {
+        background: var(--glass);
+        border: 1px solid var(--glass-border);
+        color: #fff;
+        padding: 10px;
+        border-radius: 6px;
         font-family: 'Orbitron', sans-serif;
-        font-weight: 700; 
-        color: var(--accent-white);
-        font-size: 0.9rem;
-    }
-
-    .small { 
-        color: var(--text-muted); 
-        font-size: 0.8rem; 
-        white-space: pre-wrap;
-    }
-
-    .obs-link {
-        display: block;
-        text-align: center;
-        padding: 12px;
-        background: var(--accent-orange);
-        color: var(--bg-deep);
-        font-family: 'Orbitron', sans-serif;
-        font-weight: 700;
-        text-decoration: none;
-        font-size: 0.8rem;
-        letter-spacing: 1px;
+        font-size: 0.6rem;
+        cursor: pointer;
         transition: all 0.2s;
     }
 
-    .obs-link:hover { background: var(--accent-white); }
+    .btn-action:hover {
+        background: rgba(255,255,255,0.05);
+        border-color: var(--c-blue);
+    }
 
-    /* Creature Styles (adapted for orange theme) */
-    .creature { --scale: 1; position: relative; width: 64px; height: 72px; transform: scale(var(--scale)); }
-    .creature .body { position: absolute; left: 10px; top: 18px; width: 44px; height: 46px; border-radius: 45% 45% 38% 38%; background: var(--accent-orange); box-shadow: inset -8px -10px 0 #cc4400; }
-    .creature .eye { position: absolute; top: 34px; width: 6px; height: 8px; border-radius: 50%; background: #000; z-index: 2; }
-    .creature .eye.left { left: 24px; }
-    .creature .eye.right { right: 24px; }
-    .creature .mouth { position: absolute; left: 29px; top: 47px; width: 10px; height: 5px; border-bottom: 2px solid #000; border-radius: 0 0 12px 12px; z-index: 2; }
-    .creature .leaf { position: absolute; left: 28px; top: 3px; width: 10px; height: 24px; border-radius: 90% 10% 90% 10%; background: #fff; transform-origin: bottom center; transform: rotate(-22deg); opacity: 0; }
-    .creature .glow { position: absolute; left: 18px; top: 22px; width: 28px; height: 28px; border-radius: 50%; background: #fff; opacity: 0; filter: blur(6px); }
+    #sysLog {
+        font-family: 'Fira Code', monospace;
+        font-size: 0.6rem;
+        color: var(--c-blue);
+        margin-top: 10px;
+        opacity: 0.6;
+    }
 
-    @media (max-width: 768px) {
-        body { overflow: auto; }
-        main {
-            grid-template-columns: 1fr;
-            grid-template-rows: auto auto;
-            height: auto;
-            min-height: 100vh;
-            overflow: visible;
-        }
-        section#chat {
-            min-height: 60vh;
-            overflow: visible;
-        }
-        aside {
-            border-left: none;
-            border-top: 1px solid var(--border-dim);
-            max-height: none;
-        }
+    @media (max-width: 1000px) {
+        main { grid-template-columns: 1fr; }
+        aside { display: none; }
     }
   </style>
 </head>
 <body>
 <main>
-  <section id="chat">
+  <section id="chat" class="panel">
     <header>
-      <h1>DRIFT // NEURAL INTERFACE</h1>
-      <div class="small" id="connection-status">ONLINE // SESSION ACTIVE</div>
+      <h1>DRIFT // NEURAL</h1>
+      <div style="font-family:'Orbitron', sans-serif; font-size:0.6rem; color:var(--c-cyan);">CORE_STABILITY: NOMINAL</div>
     </header>
-    <div id="messages"></div>
-    <form id="form">
-      <input id="input" autocomplete="off" placeholder="TRANSMIT MESSAGE...">
-      <button>SEND</button>
-    </form>
+
+    <div id="messages">
+        <!-- Messages Injected Here -->
+    </div>
+
+    <div class="input-area">
+        <form id="form">
+          <input id="input" autocomplete="off" placeholder="TRANSMIT TO COGNITIVE CORE..." autofocus>
+          <button id="send-btn">SEND</button>
+        </form>
+    </div>
   </section>
+
   <aside>
-    <div class="panel" id="growthCard">
-      <label>Biological Growth</label>
-      <div id="growthAvatar">
-        <div id="growthCreature" class="creature spark">
-            <div class="glow"></div><div class="leaf"></div><div class="body"></div><div class="eye left"></div><div class="eye right"></div><div class="mouth"></div>
-        </div>
+    <div class="side-panel panel">
+      <span class="label">NEURAL VISAGE</span>
+      <div id="visageFrame">
+          <div class="visage-orb" id="visageOrb">
+              <div class="face">
+                  <div class="eyes">
+                      <div class="eye" id="eyeL"></div>
+                      <div class="eye" id="eyeR"></div>
+                  </div>
+                  <div class="mouth" id="visageMouth"></div>
+              </div>
+          </div>
       </div>
-      <div id="growthStage">INITIALIZING...</div>
-      <div id="growthBar"><div id="growthFill"></div></div>
-      <div id="growthDesc" class="small"></div>
-      <pre id="growthStats" class="small" style="text-align:left; margin-top:10px;"></pre>
-    </div>
-
-    <div class="panel">
-      <label>Cognitive Mode</label>
-      <select id="mode">
-        <option>companion</option><option>engineer</option><option>critic</option>
-        <option>coach</option><option>clarity</option><option>researcher</option><option>bughunter</option><option>quiet</option>
-      </select>
-      <div style="display:flex; gap:5px;">
-        <button id="status" style="flex:1; padding:8px 0;">STATUS</button>
-        <button id="reflect" style="flex:1; padding:8px 0;">REFLECT</button>
+      <div id="stageName" style="font-family:'Orbitron', sans-serif; font-weight:700; text-align:center; color:var(--c-blue); letter-spacing:2px; margin-bottom:5px;">INITIALIZING...</div>
+      <div id="stageDesc" style="font-size:0.75rem; color:var(--text-dim); text-align:center; margin-bottom:20px;">Synchronizing with being state...</div>
+      
+      <div class="stats-grid">
+          <div>MEMS: <span class="stat-val" id="stat-mems">0</span></div>
+          <div>LEVEL: <span class="stat-val" id="stat-pts">0</span></div>
       </div>
-      <pre id="side" class="small" style="margin-top:10px;"></pre>
-    </div>
 
-    <div class="panel">
-      <label>Memory Retrieval</label>
-      <textarea id="query" rows="2" placeholder="QUERY PARAMETERS..."></textarea>
-      <button id="search" style="width:100%; padding:8px 0;">SEARCH</button>
+      <div class="control-group">
+          <label class="label" style="margin-bottom:10px;">COGNITIVE_MODE</label>
+          <select id="modeSelect">
+              <option>companion</option><option>engineer</option><option>critic</option>
+              <option>coach</option><option>clarity</option><option>researcher</option>
+          </select>
+          <div style="display:flex; gap:8px;">
+              <button id="statusBtn" class="btn-action" style="flex:1;">STATUS</button>
+              <button id="reflectBtn" class="btn-action" style="flex:1;">REFLECT</button>
+          </div>
+          <div id="sysLog">Awaiting signal...</div>
+      </div>
     </div>
-
-    <div class="panel" style="border:none; padding:0; display:flex; flex-direction:column; gap:8px;">
-      <a href="/observatory" target="_blank" class="obs-link">OPEN OBSERVATORY</a>
-      <a href="/glyph" target="_blank" class="obs-link" style="background:#111; color:var(--accent-orange); border:1px solid var(--accent-orange);">GLYPH SYSTEM</a>
+    
+    <div class="link-group">
+        <a href="/observatory" target="_blank" class="btn-action" style="text-align:center; padding:15px; border-color:var(--c-violet); color:var(--c-violet);">OPEN_OBSERVATORY</a>
     </div>
   </aside>
 </main>
+
 <script>
-const messages = document.querySelector('#messages');
-function add(cls, text) {
+const msgContainer = document.querySelector('#messages');
+const visageOrb = document.querySelector('#visageOrb');
+const eyeL = document.querySelector('#eyeL');
+const eyeR = document.querySelector('#eyeR');
+const mouth = document.querySelector('#visageMouth');
+
+// Chat Scroll Fix
+function scrollToBottom() {
+    msgContainer.scrollTop = msgContainer.scrollHeight;
+}
+
+function addMsg(cls, text) {
   const div = document.createElement('div');
   div.className = 'msg ' + cls;
-  div.textContent = text;
-  messages.appendChild(div);
-  messages.scrollTop = messages.scrollHeight;
+  if(cls === 'bot') {
+      const tag = document.createElement('span');
+      tag.className = 'bot-tag';
+      tag.textContent = 'DRIFT // RESPONSE';
+      div.appendChild(tag);
+  }
+  const content = document.createElement('div');
+  content.textContent = text;
+  div.appendChild(content);
+  msgContainer.appendChild(div);
+  
+  // Force scroll after brief delay to ensure layout
+  setTimeout(scrollToBottom, 50);
 }
+
 async function post(path, body={}) {
   const res = await fetch(path, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
   return await res.json();
 }
-async function refreshGrowth() {
+
+// Mood Mapping to Visuals
+const MOOD_MAP = {
+    'curious': { color: 'var(--c-blue)', eyeScale: 1.2, mouthW: '30px', mouthH: '10px', mouthR: '50% 50% 0 0' },
+    'playful': { color: 'var(--c-yellow)', eyeScale: 1.1, mouthW: '40px', mouthH: '15px', mouthR: '0 0 50% 50%' },
+    'hopeful': { color: 'var(--c-blue)', eyeScale: 1.0, mouthW: '35px', mouthH: '8px', mouthR: '0 0 40% 40%' },
+    'tired':   { color: '#555', eyeScale: 0.6, mouthW: '20px', mouthH: '2px', mouthR: '0' },
+    'quiet':   { color: 'var(--c-violet)', eyeScale: 0.8, mouthW: '15px', mouthH: '2px', mouthR: '0' },
+    'neutral': { color: '#888', eyeScale: 1.0, mouthW: '30px', mouthH: '3px', mouthR: '0' },
+    'excited': { color: 'var(--c-red)', eyeScale: 1.3, mouthW: '45px', mouthH: '20px', mouthR: '0 0 50% 50%' },
+    'contemplative': { color: 'var(--c-violet)', eyeScale: 0.9, mouthW: '25px', mouthH: '3px', mouthR: '5px' }
+};
+
+function updateVisage(mood) {
+    const config = MOOD_MAP[mood] || MOOD_MAP['neutral'];
+    visageOrb.style.boxShadow = `0 0 50px ${config.color}, inset 0 0 30px ${config.color}`;
+    visageOrb.style.borderColor = config.color;
+    
+    eyeL.style.transform = `scale(${config.eyeScale})`;
+    eyeR.style.transform = `scale(${config.eyeScale})`;
+    eyeL.style.background = config.color;
+    eyeR.style.background = config.color;
+    eyeL.style.boxShadow = `0 0 15px ${config.color}`;
+    eyeR.style.boxShadow = `0 0 15px ${config.color}`;
+    
+    mouth.style.width = config.mouthW;
+    mouth.style.height = config.mouthH;
+    mouth.style.borderRadius = config.mouthR;
+    mouth.style.background = config.color;
+    mouth.style.boxShadow = `0 0 10px ${config.color}`;
+}
+
+async function refresh() {
   const res = await fetch('/api/growth');
   const data = await res.json();
-  const creature = document.querySelector('#growthCreature');
-  creature.className = 'creature ' + data.avatar;
-  creature.style.setProperty('--scale', data.size || 1);
-  document.querySelector('#growthStage').textContent = data.stage.toUpperCase() + ' [' + data.points + ' XP]';
-  document.querySelector('#growthFill').style.width = Math.round(data.progress * 100) + '%';
-  document.querySelector('#growthDesc').textContent = data.description;
-  document.querySelector('#growthStats').textContent =
-    'MEMORIES: ' + data.stats.total_memories +
-    '\\nCHATS: ' + data.stats.interactions +
-    '\\nCONCEPTS: ' + data.stats.concepts +
-    '\\nREFLECTIONS: ' + data.stats.reflections;
+  
+  document.querySelector('#stageName').textContent = data.stage;
+  document.querySelector('#stageDesc').textContent = data.description;
+  document.querySelector('#stat-mems').textContent = data.stats.total_memories;
+  document.querySelector('#stat-pts').textContent = data.points;
+  
+  updateVisage(data.mood);
 }
+
 document.querySelector('#form').onsubmit = async (e) => {
   e.preventDefault();
   const input = document.querySelector('#input');
+  const btn = document.querySelector('#send-btn');
   const text = input.value.trim();
-  if (!text) return;
+  if (!text || btn.disabled) return;
+  
   input.value = '';
-  add('user', text);
-  const data = await post('/api/chat', {message: text});
-  add('bot', data.reply || data.error);
-  refreshGrowth();
+  btn.disabled = true;
+  btn.textContent = '...';
+  addMsg('user', text);
+  
+  try {
+    const data = await post('/api/chat', {message: text});
+    if (data.reply) addMsg('bot', data.reply);
+    else if (data.error) addMsg('bot', 'SIGNAL_INTERRUPTED: ' + data.error);
+  } catch (err) {
+    addMsg('bot', 'CONNECTION_ERROR: Core unresponsive.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'SEND';
+    refresh();
+  }
 };
-document.querySelector('#mode').onchange = async (e) => {
-  const data = await post('/api/command', {command: 'mode', args: e.target.value});
-  document.querySelector('#side').textContent = data.reply;
+
+document.querySelector('#modeSelect').onchange = async (e) => {
+    const data = await post('/api/command', {command: 'mode', args: e.target.value});
+    document.querySelector('#sysLog').textContent = data.reply;
 };
-document.querySelector('#status').onclick = async () => {
-  const data = await post('/api/command', {command: 'status', args: ''});
-  document.querySelector('#side').textContent = data.reply;
+
+document.querySelector('#statusBtn').onclick = async () => {
+    const data = await post('/api/command', {command: 'status', args: ''});
+    document.querySelector('#sysLog').textContent = data.reply;
 };
-document.querySelector('#reflect').onclick = async () => {
-  const data = await post('/api/command', {command: 'reflect', args: ''});
-  document.querySelector('#side').textContent = data.reply;
-  refreshGrowth();
+
+document.querySelector('#reflectBtn').onclick = async () => {
+    document.querySelector('#sysLog').textContent = "CONSULTING_INNER_VOICE...";
+    const data = await post('/api/command', {command: 'reflect', args: ''});
+    document.querySelector('#sysLog').textContent = data.reply;
+    refresh();
 };
-document.querySelector('#search').onclick = async () => {
-  const data = await post('/api/command', {command: 'memory', args: document.querySelector('#query').value});
-  document.querySelector('#side').textContent = data.reply;
-};
-refreshGrowth();
+
+// Periodic Refresh
+setInterval(refresh, 5000);
+refresh();
+
+// Handle window resize scroll fix
+window.addEventListener('resize', scrollToBottom);
 </script>
 </body>
-</html>"""
+</html>
+"""
 
 
 def chat_reply(message, session_res: SessionResources):

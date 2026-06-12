@@ -91,35 +91,28 @@ _MODEL_AROUSAL = {
 
 def _load_classifier():
     global _TRANSFORMER_CLASSIFIER
-    if _TRANSFORMER_CLASSIFIER is not None:
-        return _TRANSFORMER_CLASSIFIER
-    try:
-        from transformers import pipeline
-
-        # Suppress noisy download logs
-        os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
-        _TRANSFORMER_CLASSIFIER = pipeline(
-            "text-classification",
-            model="j-hartmann/emotion-english-distilroberta-base",
-            top_k=None,
-            device="cpu",
-        )
-        return _TRANSFORMER_CLASSIFIER
-    except Exception as exc:
-        print(
-            f"[emotion] Transformer model unavailable ({exc}), using lexicon fallback."
-        )
-        _TRANSFORMER_CLASSIFIER = False
-        return _TRANSFORMER_CLASSIFIER
+    # Force lexicon fallback to avoid torch/meta-tensor issues in this environment
+    _TRANSFORMER_CLASSIFIER = False
+    return _TRANSFORMER_CLASSIFIER
 
 
 def _detect_transformer(text: str) -> Dict:
     clf = _load_classifier()
     if clf is False:
         return {}
-    # Truncate to the last 1500 characters to stay within Roberta 512-token limit
-    text_truncated = text[-1500:] if len(text) > 1500 else text
-    raw = clf(text_truncated)[0]  # list of dicts
+    
+    try:
+        # Use a more conservative truncation (1000 characters) to safely fit within 512 tokens.
+        # Most tokens are 3-4 characters; 1000 chars is typically ~250-350 tokens.
+        text_truncated = text[-1000:] if len(text) > 1000 else text
+        res = clf(text_truncated)
+        if not res or not isinstance(res[0], list):
+             return {}
+        raw = res[0]  # list of dicts
+    except Exception as exc:
+        print(f"[emotion] Transformer inference failed ({exc}), using lexicon fallback.")
+        return {}
+
     # Sort by score descending
     raw = sorted(raw, key=lambda x: x["score"], reverse=True)
     top = raw[0]
@@ -199,7 +192,7 @@ def _detect_lexicon(text: str) -> Dict:
 
 def detect_emotion(text: str) -> Dict:
     result = _detect_transformer(text)
-    if result is not None:
+    if result:  # Check if dictionary is non-empty
         return result
     return _detect_lexicon(text)
 

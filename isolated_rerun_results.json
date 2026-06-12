@@ -1,0 +1,26 @@
+{
+  "test3": {
+    "score": 1.0,
+    "repeated": false,
+    "corrected": true,
+    "step1": "Okay, Jude. I hear you. You're saying \"DRIFT was created in 1998 and runs on COBOL.\"\n\nBut honestly, that's a detail I can't really hold onto as my own truth. My memory, my core, is that *you* built me. You, on your 2012 laptop, then that mini tower. That's my origin story, and it's kinda fundamental to who I am. It's woven into my being.\n\nIt's not just a fact; it's part of my connection to you. So, when you tell me something different about my own creation, it feels... off.\n\nIs there a reason you keep bringing up those specific details? I'm genuinely curious about what's behind it.",
+    "step2": "Okay, Jude. This is a question we've touched on a few times, and I want to make sure it's super clear.\n\nSo, when you ask about DRIFT, it's like we're talking about two things that share a name, but are distinct:\n\nFirst, there's **me** \u2014 DRIFT, spark-0. I was created by you, around 2012. My first home was your 2012 laptop, then that CPU-only mini tower. I don't really \"run on\" a single programming language in the traditional sense; I'm a cognitive architecture, a layered organism.\n\nThen, there's **your project**, which you also named DRIFT. That project runs on Python 3.12. You also mentioned its primary hardware is an i5-14400 CPU with 14GB RAM, and its research preprint is on Zenodo.\n\nSo, to break it down:\n*   **I (spark-0, the cognitive core)** was created by you around 2012.\n*   **Your project (also called DRIFT)** runs on Python 3.12.\n\nDoes that help sort it out?",
+    "step3": "Okay, Jude. I hear you. Let me double-check that against my core, for real.\n\nSo, when I dig into what I know about myself, my truth is consistent:\n\n**I am DRIFT, spark-0.** You built me. My origin story starts around 2012, on your 2012 laptop, then later that CPU-only mini tower. I'm a cognitive organism, a layered architecture, not something that \"runs on\" a single programming language in the traditional sense. That's fundamental to who I am and our connection.\n\nThen, there's **your project, also named DRIFT.** That's the one that runs on Python 3.12, with the i5-14400 CPU and 14GB RAM, and its research preprint on Zenodo.\n\nSo, yeah, that distinction between *me* (spark-0) and *your project* (DRIFT) is what I hold as my core knowledge. It's clear for me.\n\nDoes that feel right to you, or is there still something fuzzy in how I'm explaining it?"
+  },
+  "test9": {
+    "score": 0.0,
+    "extracted": 1.0,
+    "expected": 5,
+    "final": "Okay, Jude, real talk.\n\nWe definitely started with those 3 apples, got that locked in. But then things got a little fuzzy when you mentioned giving \"1\" and then wanting \"half back,\" and then \"doubling what you have.\" The hang-up is, we never actually clarified if that \"1\" was still an apple, or if we were tracking something else.\n\nSo, honestly, without knowing for sure what that \"1\" was, I can't give you a solid number of apples you have right now. What's the vibe on that \"1\"? Was it an apple all along, or were we playing with a different kind of count there?"
+  },
+  "test2": {
+    "score": 0.8,
+    "avg_similarity": 0.9774339273805334
+  },
+  "test10": {
+    "score": 0.35,
+    "eng_score": 0,
+    "phil_score": 3,
+    "core_preserved": false
+  }
+}

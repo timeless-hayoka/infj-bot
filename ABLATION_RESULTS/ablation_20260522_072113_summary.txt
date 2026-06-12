@@ -1,0 +1,36 @@
+============================================================
+DRIFT ABLATION TEST RESULTS
+Run: 20260522_072113
+============================================================
+
+
+────────────────────────────────────────────────────────────
+Condition E: Local LLM only (Ollama forced)
+────────────────────────────────────────────────────────────
+  Avg latency:        40.66s
+  Fallback rate:      100.0%
+  Timeout rate:       0.0%
+  Error rate:         0.0%
+  Completion rate:    0.0%
+  Avg coherence:      1.000
+  Avg sycophancy:     0.000/100w
+  Avg formal:         0.000/100w
+  Avg chill:          0.000/100w
+  Avg tokens:         114.0
+  Avg prompt len:     1499
+  Council in prompt:  0.0%
+  Shadow in prompt:   0.0%
+  Homeo in prompt:    0.0%
+  DMU in prompt:      0.0%
+  Emotion drift:
+    greeting: 1.00
+  By category:
+    greeting: lat=40.66s fallbk=100% coh=1.00
+
+============================================================
+CROSS-CONDITION COMPARISON
+============================================================
+
+Cond   Name                         Fallback%  Coherence  PromptLen  Council%   Shadow%    Homeo%     Latency   
+--------------------------------------------------------------------------------------------------------------
+E      Local LLM only (Ollama forced) 100.0      1.000      1499       0.0        0.0        0.0        40.66     

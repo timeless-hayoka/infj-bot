@@ -379,7 +379,8 @@ class RateGovernor:
     def _default_cooldown(self, name: str) -> float:
         with self._pstate_lock:
             fails = self._pstate[name].consecutive_failures
-        return min(self.backoff_cap, 5.0 * (2 ** fails))
+        # Reduced from 5.0 to 2.0 for faster recovery in "good work" environments
+        return min(self.backoff_cap, 2.0 * (2 ** fails))
 
     def _in_cooldown(self, name: str) -> bool:
         with self._pstate_lock:

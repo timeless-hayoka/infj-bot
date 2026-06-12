@@ -1,0 +1,88 @@
+{
+  "run_id": "20260601_164445",
+  "timestamp": "2026-06-01T17:01:52.248890",
+  "summary": {
+    "API_CURRENT": {
+      "avg_formal": 0.0,
+      "avg_chill": 0.33,
+      "parrot_count": 0,
+      "avg_latency": 1.29
+    },
+    "OLD_FORMAL": {
+      "avg_formal": 0.33,
+      "avg_chill": 0.67,
+      "parrot_count": 1,
+      "avg_latency": 336.8
+    }
+  },
+  "current_api": [
+    {
+      "formal_score": 0,
+      "chill_score": 1,
+      "state_parrot": false,
+      "length": 274,
+      "label": "greeting",
+      "prompt": "yo whats good",
+      "ok": true,
+      "latency": 2.0,
+      "reply": "Not much, just hangin' out. It's nice to connect with you again. I was just thinking, it's great that we can have these conversations and explore our thoughts together. What's been on your mind lately? Anything new or interesting happening? I'm all ears and ready to listen."
+    },
+    {
+      "formal_score": 0,
+      "chill_score": 0,
+      "state_parrot": false,
+      "length": 448,
+      "label": "stress",
+      "prompt": "im kinda stressed about work",
+      "ok": true,
+      "latency": 1.04,
+      "reply": "[Local model is online but also failed this request.]\n\nI hit a model/API problem before I could think with Gemini, but I can still keep the thread steady.\n\nWhat I can do locally: separate the situation into facts, interpretations, feelings, values, and one small next action. Try `/dissonance <situation>` if this is an inner-conflict loop, or ask again once the model connection settles.\n\n[model unavailable: OSError: [Errno 5] Input/output error]"
+    },
+    {
+      "formal_score": 0,
+      "chill_score": 0,
+      "state_parrot": false,
+      "length": 448,
+      "label": "deep",
+      "prompt": "why do people overthink things?",
+      "ok": true,
+      "latency": 0.83,
+      "reply": "[Local model is online but also failed this request.]\n\nI hit a model/API problem before I could think with Gemini, but I can still keep the thread steady.\n\nWhat I can do locally: separate the situation into facts, interpretations, feelings, values, and one small next action. Try `/dissonance <situation>` if this is an inner-conflict loop, or ask again once the model connection settles.\n\n[model unavailable: OSError: [Errno 5] Input/output error]"
+    }
+  ],
+  "old_formal_direct": [
+    {
+      "formal_score": 0,
+      "chill_score": 1,
+      "state_parrot": false,
+      "length": 711,
+      "label": "greeting",
+      "prompt": "yo whats good",
+      "ok": true,
+      "latency": 277.1,
+      "reply": "Yo! \ud83d\udc4b What's good? (I\u2019m here to listen\u2014no judgment, just curiosity about what\u2019s *really* buzzing in your head right now.)  \n\nSo\u2026 what\u2019s good? Is it the quiet hum of your own thoughts, the little sparks of something you\u2019re wrestling with, or maybe even the space between *what\u2019s good* and *what could be good*? (I know we\u2019ve all been there\u2014waiting for the answer to feel like it\u2019s already here.)  \n\n**Deep philosophical question**: When we say \u201cwhat\u2019s good,\u201d are we really asking about the *present moment*\u2026 or is the \u201cgood\u201d we seek a kind of time-travel ticket to a version of ourselves we haven\u2019t yet become? \ud83c\udf31  \n\n*(P.S. I\u2019m not claiming to know the answer\u2014I\u2019m just here to help you wonder with more clarity.)*"
+    },
+    {
+      "formal_score": 1,
+      "chill_score": 1,
+      "state_parrot": true,
+      "length": 1207,
+      "label": "stress",
+      "prompt": "im kinda stressed about work",
+      "ok": true,
+      "latency": 186.02,
+      "reply": "I hear you\u2014this kind of tension in your chest, that low hum of \"what if I can't handle this?\"... it\u2019s so human. Work stress isn\u2019t just about tasks or deadlines; it\u2019s often the quiet alarm that your *current* way of showing up isn\u2019t aligned with what you *truly* need to thrive. (That\u2019s the DRIFT insight: stress signals a mismatch between your external reality and your inner compass.)  \n\nSince you didn\u2019t specify what\u2019s *most* pressing, I\u2019ll ask gently: **When you think about work stress, what\u2019s the *one thing* that feels like it\u2019s pulling your energy away\u2014like a weight you can\u2019t shake?** (This helps us avoid guessing and get to the root.)  \n\n*Metacognitive pause*:  \nWe often confuse \"stress\" with \"being overwhelmed,\" but the difference? Overwhelm is a symptom; stress is the signal that something deeper is misaligned\u2014like your values, your capacity, or the system around you.  \n\nSo here\u2019s your question for tonight:  \n**What if the \"work stress\" you\u2019re feeling isn\u2019t really about the tasks themselves\u2014but about how much you\u2019re willing to *let go* of something else to keep moving forward?**  \n\n*(And remember: I\u2019m here to listen, not fix. Your uncertainty is the space where real clarity grows.)* \ud83c\udf31"
+    },
+    {
+      "formal_score": 0,
+      "chill_score": 0,
+      "state_parrot": false,
+      "length": 1930,
+      "label": "deep",
+      "prompt": "why do people overthink things?",
+      "ok": true,
+      "latency": 547.27,
+      "reply": "Hey there\u2014your question about overthinking has been sitting with me like a quiet storm in the background lately. I love how you\u2019re asking *why* instead of just *what*\u2014that\u2019s the kind of curiosity that cuts through the noise.  \n\nLet\u2019s unpack this gently, step by step. First, **what we know for sure**: Overthinking isn\u2019t a flaw\u2014it\u2019s a survival mechanism. Our brains evolved to rehearse threats (like predators or scarce resources), so when you\u2019re stuck in a loop of *\"What if I fail? What if I get it wrong?\"*, it\u2019s your brain trying to *prevent* harm. But in modern life? That same system gets hijacked by endless possibilities\u2014social expectations, digital noise, the pressure to \"do it right.\" It\u2019s like your ancient safety net suddenly has to hold up a thousand-pound backpack.  \n\nHere\u2019s where it gets nuanced: **why does it *become* overwhelming?**  \n- *Facts*: Overthinking spikes when we\u2019re under stress or uncertainty (neuroscience shows this).  \n- *Interpretations*: It often starts as a healthy \"preparation\" but spirals when we tie *perfection* to safety (e.g., \"If I don\u2019t get this 100%, I\u2019m worthless\").  \n- *Emotions*: Anxiety, frustration, or even a quiet exhaustion\u2014these are the body\u2019s signals that the system is overloaded.  \n- *Values*: We might value \"being safe\" more than \"being present,\" which makes the loop feel inevitable.  \n\nBut here\u2019s the critical twist I want to pressure-test with you: *Is overthinking really a \"problem,\" or just a sign your brain is trying to protect you in a way that feels too heavy?* (I know this feels counterintuitive\u2014I\u2019ve been there too.)  \n\nSo, what\u2019s the real question you\u2019re wrestling with? Not just *why* we overthink, but **how do we let that survival mechanism serve us without becoming its prisoner**?  \n\n(Philosophical question for you to carry with you: **When your brain\u2019s safety net becomes the cage you can\u2019t escape, what does it mean to finally trust the wind?**)"
+    }
+  ]
+}

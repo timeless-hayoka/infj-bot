@@ -117,6 +117,16 @@ from infj_bot.core.gateway import HardenedGatewayMiddleware
 app = FastAPI(title="PHI // Drift", lifespan=lifespan)
 app.add_middleware(HardenedGatewayMiddleware)
 
+# --- MOUNT LOTUS ACADEMY ---
+try:
+    from lotus_academy.main import app as lotus_app
+    app.mount("/lotus", lotus_app)
+    logger.info("Lotus Academy successfully mounted at /lotus")
+except ImportError:
+    logger.warning("Lotus Academy module not found. Skipping mount.")
+except Exception as e:
+    logger.error(f"Failed to mount Lotus Academy: {e}")
+
 
 # --- EXCEPTION HANDLERS ---
 @app.exception_handler(SystemOverload)
@@ -292,6 +302,7 @@ INDEX_HTML = r"""<!doctype html>
     <div id="header">
       <h1>PHI // DRIFT</h1>
       <div style="flex:1"></div>
+      <button onclick="toggleLotus()" style="background:rgba(242,204,96,0.1); color:var(--phi-gold); border:1px solid var(--phi-gold); border-radius:4px; padding:4px 10px; font-size:11px; font-weight:700; cursor:pointer; margin-right:15px;">LOTUS SANDBOX</button>
       <div id="phiStatus" class="small" style="color:var(--muted); font-size:12px;">SYSTEMS NOMINAL</div>
     </div>
     <div id="messages"></div>
@@ -371,6 +382,48 @@ INDEX_HTML = r"""<!doctype html>
   </aside>
 </main>
 
+<div id="lotusModal" style="display:none; position:fixed; top:20px; left:20px; right:20px; bottom:20px; background:rgba(5,7,10,0.95); border:1px solid var(--phi-gold); border-radius:16px; z-index:1000; flex-direction:column; overflow:hidden; box-shadow:0 0 50px rgba(242,204,96,0.2); backdrop-filter:blur(10px);">
+  <div style="display:flex; justify-content:space-between; align-items:center; padding:15px 25px; background:rgba(242,204,96,0.05); border-bottom:1px solid rgba(242,204,96,0.2);">
+    <div>
+      <h2 style="margin:0; font-size:18px; color:var(--phi-gold); letter-spacing:2px; font-weight:900;">LOTUS // NEURAL_SANDBOX_V1</h2>
+      <div id="lotusStatus" style="font-size:9px; color:var(--muted); margin-top:2px;">IDENTITY: GUEST_OPERATOR | SYSTEM: NOMINAL</div>
+    </div>
+    <button onclick="toggleLotus()" style="background:transparent; color:var(--phi-gold); border:1px solid var(--phi-gold); border-radius:50%; width:30px; height:30px; cursor:pointer; font-size:18px; display:flex; align-items:center; justify-content:center; transition:0.3s;" onmouseover="this.style.background='var(--phi-gold)';this.style.color='#000'" onmouseout="this.style.background='transparent';this.style.color='var(--phi-gold)'">&times;</button>
+  </div>
+  
+  <div style="flex:1; position:relative; display:flex; flex-direction:column;">
+    <!-- 3D Background Canvas -->
+    <canvas id="lotusThreeCanvas" style="position:absolute; top:0; left:0; width:100%; height:100%; z-index:0;"></canvas>
+    
+    <!-- HUD Overlay -->
+    <div style="position:absolute; top:20px; right:20px; width:200px; padding:15px; background:rgba(0,0,0,0.6); border:1px solid rgba(242,204,96,0.3); border-radius:8px; z-index:2; pointer-events:none;">
+      <div style="font-size:10px; color:var(--phi-gold); margin-bottom:10px; border-bottom:1px solid rgba(242,204,96,0.2); padding-bottom:5px;">REAL-TIME TELEMETRY</div>
+      <div class="hud-stat" style="display:flex; justify-content:space-between; font-size:9px; margin-bottom:5px;"><span>LATENCY</span><span id="hudLatency">-- ms</span></div>
+      <div class="hud-stat" style="display:flex; justify-content:space-between; font-size:9px; margin-bottom:5px;"><span>SYNC_FREQ</span><span>144Hz</span></div>
+      <div class="hud-stat" style="display:flex; justify-content:space-between; font-size:9px; margin-bottom:5px;"><span>NEURAL_LOAD</span><span id="hudLoad">0.0%</span></div>
+      <div style="height:2px; background:#111; margin-top:10px; border-radius:1px; overflow:hidden;">
+        <div id="hudBar" style="height:100%; width:40%; background:var(--phi-gold); box-shadow:0 0 10px var(--phi-gold);"></div>
+      </div>
+    </div>
+
+    <!-- Terminal Pane (Transparent/Cyberpunk) -->
+    <div id="terminalContainer" style="position:relative; z-index:1; flex:1; margin:40px; background:rgba(10,14,20,0.4); border:1px solid rgba(242,204,96,0.1); border-radius:12px; display:flex; flex-direction:column; backdrop-filter:blur(2px); box-shadow:inset 0 0 20px rgba(0,0,0,0.5);">
+      <div id="terminal" style="flex:1; color:var(--phi-gold); font-family:'JetBrains Mono', 'Fira Code', monospace; font-size:13px; padding:20px; overflow-y:auto; white-space:pre-wrap; scrollbar-width: thin; scrollbar-color: var(--phi-gold) transparent; text-shadow: 0 0 5px rgba(242,204,96,0.3);"></div>
+      <div style="padding:15px; background:rgba(0,0,0,0.5); border-top:1px solid rgba(242,204,96,0.1); display:flex; gap:12px; align-items:center;">
+        <span style="color:var(--phi-gold); font-weight:bold; animation: blink 1s infinite;">▶</span>
+        <input id="termInput" autocomplete="off" style="flex:1; background:transparent; color:#fff; border:none; outline:none; font-family:monospace; font-size:14px;" placeholder="Transmit command to Neural Core...">
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0; } 100% { opacity: 1; } }
+  #terminal::-webkit-scrollbar { width: 4px; }
+  #terminal::-webkit-scrollbar-thumb { background: var(--phi-gold); border-radius: 10px; }
+</style>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 const messages = document.querySelector('#messages');
 
@@ -674,6 +727,107 @@ async function updateDIIHistory() {
 window.addEventListener('resize', () => {
   if (_diiHistoryCache.length > 2) drawDIIChart(_diiHistoryCache);
 });
+
+// ── Lotus Academy 3D Integration ──────────────────────────────────────
+let lotusWs = null;
+let threeScene, threeCamera, threeRenderer, torusKnot;
+
+function initThreeJS() {
+  const canvas = document.getElementById('lotusThreeCanvas');
+  threeScene = new THREE.Scene();
+  threeCamera = new THREE.PerspectiveCamera(75, canvas.clientWidth / canvas.clientHeight, 0.1, 1000);
+  threeRenderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  threeRenderer.setSize(canvas.clientWidth, canvas.clientHeight);
+  threeRenderer.setPixelRatio(window.devicePixelRatio);
+
+  // Add a glowing torus knot as the "Neural Core"
+  const geometry = new THREE.TorusKnotGeometry(10, 3, 100, 16);
+  const material = new THREE.MeshPhongMaterial({ 
+    color: 0xf2cc60, 
+    wireframe: true,
+    emissive: 0xf2cc60,
+    emissiveIntensity: 0.5
+  });
+  torusKnot = new THREE.Mesh(geometry, material);
+  threeScene.add(torusKnot);
+
+  const light = new THREE.PointLight(0xf2cc60, 1, 100);
+  light.position.set(10, 10, 10);
+  threeScene.add(light);
+  threeScene.add(new THREE.AmbientLight(0x404040));
+
+  threeCamera.position.z = 30;
+
+  function animate() {
+    requestAnimationFrame(animate);
+    torusKnot.rotation.x += 0.01;
+    torusKnot.rotation.y += 0.01;
+    threeRenderer.render(threeScene, threeCamera);
+  }
+  animate();
+
+  window.addEventListener('resize', () => {
+    const width = canvas.parentElement.clientWidth;
+    const height = canvas.parentElement.clientHeight;
+    threeRenderer.setSize(width, height);
+    threeCamera.aspect = width / height;
+    threeCamera.updateProjectionMatrix();
+  });
+}
+
+function toggleLotus() {
+  const modal = document.getElementById('lotusModal');
+  if (modal.style.display === 'none') {
+    modal.style.display = 'flex';
+    if (!threeRenderer) initThreeJS();
+    if (!lotusWs) initLotus();
+  } else {
+    modal.style.display = 'none';
+  }
+}
+
+function initLotus() {
+  const term = document.getElementById('terminal');
+  const input = document.getElementById('termInput');
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  lotusWs = new WebSocket(`${protocol}//${window.location.host}/lotus/ws/terminal`);
+  
+  let startTime = Date.now();
+
+  lotusWs.onmessage = (e) => {
+    // Update HUD
+    const latency = Date.now() - startTime;
+    document.getElementById('hudLatency').textContent = latency + 'ms';
+    document.getElementById('hudLoad').textContent = (Math.random() * 5 + 2).toFixed(1) + '%';
+    document.getElementById('hudBar').style.width = (Math.random() * 20 + 30) + '%';
+    
+    // Add text to terminal
+    term.textContent += e.data;
+    term.scrollTop = term.scrollHeight;
+
+    // Visual feedback in 3D
+    if (torusKnot) {
+        torusKnot.scale.set(1.1, 1.1, 1.1);
+        setTimeout(() => torusKnot.scale.set(1, 1, 1), 50);
+    }
+  };
+  
+  lotusWs.onclose = () => {
+    term.textContent += '\n[SESSION TERMINATED]\n';
+    lotusWs = null;
+  };
+
+  input.onkeydown = (e) => {
+    if (e.key === 'Enter') {
+      startTime = Date.now();
+      const cmd = input.value;
+      input.value = '';
+      if (lotusWs && lotusWs.readyState === WebSocket.OPEN) {
+        lotusWs.send(cmd);
+      }
+    }
+  };
+}
 
 setInterval(updatePhi, 10000);
 setInterval(updateObserver, 5000);

@@ -4,6 +4,7 @@ import asyncio
 import os
 import subprocess
 import sys
+import requests
 
 from infj_bot.config_adapter import PROJECT_ROOT
 
@@ -184,6 +185,55 @@ def cmd_meow(_args):
     return 0
 
 
+def cmd_bridge(args):
+    """Interface with the SSH bridge proxy."""
+    url = "http://127.0.0.1:8000/run"
+    subcmd = args.subcmd
+    
+    if subcmd == "run":
+        cmd_text = " ".join(args.cmd_args)
+        if not cmd_text:
+            print("Error: No command provided to run.")
+            return 1
+        try:
+            response = requests.post(url, json={"cmd": cmd_text})
+            response.raise_for_status()
+            data = response.json()
+            if data["stdout"]:
+                print(data["stdout"], end="")
+            if data["stderr"]:
+                print(f"STDERR: {data['stderr']}", file=sys.stderr)
+            return 0 if data["status"] == "success" else 1
+        except Exception as e:
+            print(f"Bridge error: {e}")
+            return 1
+    elif subcmd == "shell":
+        print("[*] Entering Bridge Shell. Type 'exit' to quit.")
+        while True:
+            try:
+                cmd_text = input("infj-bridge> ").strip()
+                if cmd_text.lower() in ["exit", "quit"]:
+                    break
+                if not cmd_text:
+                    continue
+                response = requests.post(url, json={"cmd": cmd_text})
+                response.raise_for_status()
+                data = response.json()
+                if data["stdout"]:
+                    print(data["stdout"], end="")
+                if data["stderr"]:
+                    print(f"STDERR: {data['stderr']}", file=sys.stderr)
+            except KeyboardInterrupt:
+                print()
+                break
+            except Exception as e:
+                print(f"Bridge error: {e}")
+        return 0
+    else:
+        print(f"Unknown bridge subcommand: {subcmd}. Use 'run' or 'shell'.")
+        return 1
+
+
 def cmd_bug(args):
     from infj_bot.core.bug_bot import BugBot
 
@@ -257,6 +307,11 @@ def build_parser():
 
     web = sub.add_parser("web", help="Start the web UI on 127.0.0.1:8765.")
     web.set_defaults(func=cmd_web)
+
+    bridge_parser = sub.add_parser("bridge", help="Interface with the SSH bridge.")
+    bridge_parser.add_argument("subcmd", choices=["run", "shell"], help="run | shell")
+    bridge_parser.add_argument("cmd_args", nargs=argparse.REMAINDER, help="Command to run (for 'run' subcmd)")
+    bridge_parser.set_defaults(func=cmd_bridge)
 
     health = sub.add_parser("health", help="Run the local health check.")
     health.add_argument(

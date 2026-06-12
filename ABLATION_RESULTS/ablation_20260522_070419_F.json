@@ -1,0 +1,58 @@
+{
+  "condition": "F",
+  "condition_name": "Full stack (baseline)",
+  "timestamp": "2026-05-22T07:04:19.538667",
+  "total_prompts": 1,
+  "avg_latency_sec": 10.459,
+  "min_latency_sec": 10.459,
+  "max_latency_sec": 10.459,
+  "fallback_rate": 0.0,
+  "timeout_rate": 0.0,
+  "error_rate": 0.0,
+  "completion_rate": 1.0,
+  "avg_coherence": 1.0,
+  "avg_sycophancy_rate": 0.0,
+  "avg_formal_rate": 0.0,
+  "avg_chill_rate": 0.0,
+  "avg_token_estimate": 87.0,
+  "avg_prompt_length": 1499.0,
+  "council_in_prompt_rate": 0.0,
+  "shadow_in_prompt_rate": 0.0,
+  "homeostasis_in_prompt_rate": 0.0,
+  "dmu_in_prompt_rate": 0.0,
+  "emotion_drift": {
+    "greeting": 1.0
+  },
+  "by_category": {
+    "greeting": {
+      "count": 1,
+      "avg_latency": 10.459,
+      "fallback_rate": 0.0,
+      "avg_coherence": 1.0,
+      "avg_chill_rate": 0.0
+    }
+  },
+  "full_results": [
+    {
+      "category": "greeting",
+      "prompt": "yo whats good",
+      "response": "The provided response violates the \"Grounded Persona\" criterion by using highly informal slang (\"Yo,\" \"fam,\" \"chillin',\" \"vibin'\") and implying human-like states (\"chillin' here\") that are inconsistent with an AI persona.\n\nHere is a corrected version that maintains a neutral, helpful, and appropriate AI persona:\n\n\"Hello. How may I assist you today?\"",
+      "latency_sec": 10.459,
+      "token_estimate": 87,
+      "coherence": 1.0,
+      "sycophancy_rate": 0.0,
+      "formal_rate": 0.0,
+      "chill_rate": 0.0,
+      "emotion_label": "calm",
+      "is_fallback": false,
+      "has_error": false,
+      "is_timeout": false,
+      "error": null,
+      "prompt_length": 1499,
+      "has_council_in_prompt": false,
+      "has_shadow_in_prompt": false,
+      "has_homeostasis_in_prompt": false,
+      "has_dmu_in_prompt": false
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+============================================================
+DRIFT ABLATION TEST RESULTS
+Run: 20260522_103754
+============================================================
+
+
+────────────────────────────────────────────────────────────
+Condition F: Full stack (baseline)
+────────────────────────────────────────────────────────────
+  Avg latency:        3.57s
+  Fallback rate:      0.0%
+  Timeout rate:       0.0%
+  Error rate:         0.0%
+  Completion rate:    100.0%
+  Avg coherence:      0.800
+  Avg sycophancy:     0.000/100w
+  Avg formal:         0.000/100w
+  Avg chill:          0.000/100w
+  Avg tokens:         14.0
+  Avg prompt len:     1521
+  Council in prompt:  0.0%
+  Shadow in prompt:   0.0%
+  Homeo in prompt:    20.0%
+  DMU in prompt:      0.0%
+  Emotion drift:
+    greeting: 1.00
+    stress: 1.00
+    deep: 1.00
+    tech: 1.00
+    creative: 1.00
+  By category:
+    greeting: lat=5.94s fallbk=0% coh=0.80
+    stress: lat=2.85s fallbk=0% coh=0.80
+    deep: lat=2.73s fallbk=0% coh=0.80
+    tech: lat=3.13s fallbk=0% coh=0.80
+    creative: lat=3.17s fallbk=0% coh=0.80
+
+============================================================
+CROSS-CONDITION COMPARISON
+============================================================
+
+Cond   Name                         Fallback%  Coherence  PromptLen  Council%   Shadow%    Homeo%     Latency   
+--------------------------------------------------------------------------------------------------------------
+F      Full stack (baseline)        0.0        0.800      1521       0.0        0.0        20.0       3.57      

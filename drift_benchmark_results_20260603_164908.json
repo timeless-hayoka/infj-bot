@@ -1,0 +1,83 @@
+{
+  "health": {
+    "status": "online",
+    "endpoints_tried": [
+      "http://localhost:8765/api/health"
+    ],
+    "latency_ms": 7.3
+  },
+  "math": {
+    "total": 20,
+    "correct": 0,
+    "skipped": 20,
+    "latencies_ms": [],
+    "failures": []
+  },
+  "consistency": {
+    "scores": [],
+    "avg_similarity": null,
+    "skipped": true
+  },
+  "memory": {
+    "writes": 0,
+    "verified": 0,
+    "skipped": true
+  },
+  "pedi": {
+    "snapshots": 1162,
+    "reports": 546,
+    "drift": {
+      "energy": -0.196,
+      "coherence": 0.22,
+      "integration": 0.3631,
+      "connection": -0.07,
+      "growth": 0.1945,
+      "autonomy": 0.306,
+      "integrity": 0.4626
+    },
+    "bug_detected": true,
+    "total_absolute_drift": 1.812
+  },
+  "dii": {
+    "samples": 154719,
+    "dii_min": 0.0003,
+    "dii_max": 0.2058,
+    "dii_avg": 0.0068,
+    "persistence_range": [
+      0.2906,
+      0.8129
+    ],
+    "ignition_range": [
+      0.5,
+      0.9143
+    ],
+    "integration_range": [
+      0.0,
+      0.4688
+    ],
+    "embodiment_range": [
+      0.0,
+      0.45
+    ],
+    "drift_range": [
+      0.43,
+      0.5966
+    ]
+  },
+  "homeostasis": {
+    "need_history": 6156,
+    "sqlite_sequence": 3,
+    "survival_events": 2,
+    "regulation_actions": 262,
+    "swings": {
+      "energy": 0.738,
+      "integration": 0.731,
+      "coherence": 0.54,
+      "growth": 0.289,
+      "autonomy": 0.206,
+      "connection": 0.13,
+      "integrity": 0.08
+    },
+    "crisis_count": 98
+  }
+}

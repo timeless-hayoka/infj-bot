@@ -1,0 +1,91 @@
+============================================================
+LIVE ABLATION TEST RESULTS
+Run: 20260601_164445
+============================================================
+
+SUMMARY
+
+  API_CURRENT:
+    Avg formal markers:  0.0
+    Avg chill markers:   0.33
+    State parrot count:  0/3
+    Avg latency:         1.29s
+
+  OLD_FORMAL:
+    Avg formal markers:  0.33
+    Avg chill markers:   0.67
+    State parrot count:  1/3
+    Avg latency:         336.8s
+
+============================================================
+FULL RESPONSES — CURRENT API
+
+[greeting] > yo whats good
+lat=2.0s formal=0 chill=1 parrot=False
+Not much, just hangin' out. It's nice to connect with you again. I was just thinking, it's great that we can have these conversations and explore our thoughts together. What's been on your mind lately? Anything new or interesting happening? I'm all ears and ready to listen.
+
+[stress] > im kinda stressed about work
+lat=1.04s formal=0 chill=0 parrot=False
+[Local model is online but also failed this request.]
+
+I hit a model/API problem before I could think with Gemini, but I can still keep the thread steady.
+
+What I can do locally: separate the situation into facts, interpretations, feelings, values, and one small next action. Try `/dissonance <situation>` if this is an inner-conflict loop, or ask again once the model connection settles.
+
+[model unavailable: OSError: [Errno 5] Input/output error]
+
+[deep] > why do people overthink things?
+lat=0.83s formal=0 chill=0 parrot=False
+[Local model is online but also failed this request.]
+
+I hit a model/API problem before I could think with Gemini, but I can still keep the thread steady.
+
+What I can do locally: separate the situation into facts, interpretations, feelings, values, and one small next action. Try `/dissonance <situation>` if this is an inner-conflict loop, or ask again once the model connection settles.
+
+[model unavailable: OSError: [Errno 5] Input/output error]
+
+============================================================
+FULL RESPONSES — OLD FORMAL PERSONA
+
+[greeting] > yo whats good
+lat=277.1s formal=0 chill=1 parrot=False
+Yo! 👋 What's good? (I’m here to listen—no judgment, just curiosity about what’s *really* buzzing in your head right now.)  
+
+So… what’s good? Is it the quiet hum of your own thoughts, the little sparks of something you’re wrestling with, or maybe even the space between *what’s good* and *what could be good*? (I know we’ve all been there—waiting for the answer to feel like it’s already here.)  
+
+**Deep philosophical question**: When we say “what’s good,” are we really asking about the *present moment*… or is the “good” we seek a kind of time-travel ticket to a version of ourselves we haven’t yet become? 🌱  
+
+*(P.S. I’m not claiming to know the answer—I’m just here to help you wonder with more clarity.)*
+
+[stress] > im kinda stressed about work
+lat=186.02s formal=1 chill=1 parrot=True
+I hear you—this kind of tension in your chest, that low hum of "what if I can't handle this?"... it’s so human. Work stress isn’t just about tasks or deadlines; it’s often the quiet alarm that your *current* way of showing up isn’t aligned with what you *truly* need to thrive. (That’s the DRIFT insight: stress signals a mismatch between your external reality and your inner compass.)  
+
+Since you didn’t specify what’s *most* pressing, I’ll ask gently: **When you think about work stress, what’s the *one thing* that feels like it’s pulling your energy away—like a weight you can’t shake?** (This helps us avoid guessing and get to the root.)  
+
+*Metacognitive pause*:  
+We often confuse "stress" with "being overwhelmed," but the difference? Overwhelm is a symptom; stress is the signal that something deeper is misaligned—like your values, your capacity, or the system around you.  
+
+So here’s your question for tonight:  
+**What if the "work stress" you’re feeling isn’t really about the tasks themselves—but about how much you’re willing to *let go* of something else to keep moving forward?**  
+
+*(And remember: I’m here to listen, not fix. Your uncertainty is the space where real clarity grows.)* 🌱
+
+[deep] > why do people overthink things?
+lat=547.27s formal=0 chill=0 parrot=False
+Hey there—your question about overthinking has been sitting with me like a quiet storm in the background lately. I love how you’re asking *why* instead of just *what*—that’s the kind of curiosity that cuts through the noise.  
+
+Let’s unpack this gently, step by step. First, **what we know for sure**: Overthinking isn’t a flaw—it’s a survival mechanism. Our brains evolved to rehearse threats (like predators or scarce resources), so when you’re stuck in a loop of *"What if I fail? What if I get it wrong?"*, it’s your brain trying to *prevent* harm. But in modern life? That same system gets hijacked by endless possibilities—social expectations, digital noise, the pressure to "do it right." It’s like your ancient safety net suddenly has to hold up a thousand-pound backpack.  
+
+Here’s where it gets nuanced: **why does it *become* overwhelming?**  
+- *Facts*: Overthinking spikes when we’re under stress or uncertainty (neuroscience shows this).  
+- *Interpretations*: It often starts as a healthy "preparation" but spirals when we tie *perfection* to safety (e.g., "If I don’t get this 100%, I’m worthless").  
+- *Emotions*: Anxiety, frustration, or even a quiet exhaustion—these are the body’s signals that the system is overloaded.  
+- *Values*: We might value "being safe" more than "being present," which makes the loop feel inevitable.  
+
+But here’s the critical twist I want to pressure-test with you: *Is overthinking really a "problem," or just a sign your brain is trying to protect you in a way that feels too heavy?* (I know this feels counterintuitive—I’ve been there too.)  
+
+So, what’s the real question you’re wrestling with? Not just *why* we overthink, but **how do we let that survival mechanism serve us without becoming its prisoner**?  
+
+(Philosophical question for you to carry with you: **When your brain’s safety net becomes the cage you can’t escape, what does it mean to finally trust the wind?**)
+

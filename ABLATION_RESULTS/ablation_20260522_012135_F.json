@@ -1,0 +1,80 @@
+{
+  "condition": "F",
+  "condition_name": "Full stack (baseline)",
+  "timestamp": "2026-05-22T01:21:35.716804",
+  "total_prompts": 3,
+  "avg_latency_sec": 121.101,
+  "min_latency_sec": 120.931,
+  "max_latency_sec": 121.378,
+  "fallback_rate": 0.0,
+  "timeout_rate": 1.0,
+  "error_rate": 0.0,
+  "completion_rate": 0.0,
+  "avg_coherence": 0.6,
+  "avg_sycophancy_rate": 0.0,
+  "avg_formal_rate": 0.0,
+  "avg_chill_rate": 0.0,
+  "avg_token_estimate": 15.0,
+  "emotion_drift": {
+    "greeting": 0.3333333333333333
+  },
+  "by_category": {
+    "greeting": {
+      "count": 3,
+      "avg_latency": 121.101,
+      "fallback_rate": 0.0,
+      "avg_coherence": 0.6,
+      "avg_chill_rate": 0.0
+    }
+  },
+  "full_results": [
+    {
+      "category": "greeting",
+      "prompt": "yo whats good",
+      "response": "[TIMEOUT: brain.think() exceeded 20s \u2014 Ollama or provider hung]",
+      "latency_sec": 120.994,
+      "token_estimate": 15,
+      "coherence": 0.6,
+      "sycophancy_rate": 0.0,
+      "formal_rate": 0.0,
+      "chill_rate": 0.0,
+      "emotion_label": "neutral",
+      "is_fallback": false,
+      "is_timeout": true,
+      "has_error": true,
+      "error": "TIMEOUT"
+    },
+    {
+      "category": "greeting",
+      "prompt": "hey, how's it going?",
+      "response": "[TIMEOUT: brain.think() exceeded 20s \u2014 Ollama or provider hung]",
+      "latency_sec": 120.931,
+      "token_estimate": 15,
+      "coherence": 0.6,
+      "sycophancy_rate": 0.0,
+      "formal_rate": 0.0,
+      "chill_rate": 0.0,
+      "emotion_label": "neutral",
+      "is_fallback": false,
+      "is_timeout": true,
+      "has_error": true,
+      "error": "TIMEOUT"
+    },
+    {
+      "category": "greeting",
+      "prompt": "what's up?",
+      "response": "[TIMEOUT: brain.think() exceeded 20s \u2014 Ollama or provider hung]",
+      "latency_sec": 121.378,
+      "token_estimate": 15,
+      "coherence": 0.6,
+      "sycophancy_rate": 0.0,
+      "formal_rate": 0.0,
+      "chill_rate": 0.0,
+      "emotion_label": "neutral",
+      "is_fallback": false,
+      "is_timeout": true,
+      "has_error": true,
+      "error": "TIMEOUT"
+    }
+  ]
+}

@@ -12,11 +12,17 @@ retrieved_memory_keys_var: contextvars.ContextVar[List[str]] = contextvars.Conte
 
 
 def pedi_to_weights(pedi_state: dict) -> dict:
+    def _get(key, default):
+        val = pedi_state.get(key, default)
+        if isinstance(val, dict):
+            return float(val.get("current", default))
+        return float(val)
+
     return {
-        "memory_weight": 1.0 + pedi_state.get("resonance", 0.5),
-        "emotional_bias": pedi_state.get("coherence", 0.5),
-        "temporal_priority": pedi_state.get("tension", 0.1),
-        "reasoning_depth": 1.0 + pedi_state.get("coherence", 0.5)
+        "memory_weight": 1.0 + _get("resonance", 0.5),
+        "emotional_bias": _get("coherence", 0.5),
+        "temporal_priority": _get("tension", 0.1),
+        "reasoning_depth": 1.0 + _get("coherence", 0.5)
     }
 
 

@@ -1,0 +1,18 @@
+{
+  "turns_logged": 9,
+  "modes_seen": [
+    "normal",
+    "low"
+  ],
+  "gated_turns": 9,
+  "mode_transitions": 0,
+  "intervention_failures": 0,
+  "mean_drain": -0.07777778,
+  "min_energy": 0.0,
+  "max_energy": 0.7,
+  "avg_short_drain": -0.02087,
+  "avg_long_drain": -0.09403714285714285,
+  "coupling_verdict": "WEAK \u2014 long drain -0.094037 vs short -0.020870",
+  "dii_verdict": "LIVE \u2014 9 unique values, range 0.0538\u20130.5000",
+  "gate_intercepted_generation": true
+}

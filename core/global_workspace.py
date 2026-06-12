@@ -131,11 +131,11 @@ class GlobalWorkspace:
         self._self_check_diagnostics(self.pedi, self.vault)
 
     def _self_check_diagnostics(self, pedi_engine, vault):
-        print("[SYSTEM] Running Global Workspace integration check...")
+        print("[SYSTEM] Running Global Workspace integration check...", file=sys.stderr)
         if not pedi_engine or not vault:
-            print("[CRITICAL] Workspace disconnected from identity regulator or vault.")
+            print("[CRITICAL] Workspace disconnected from identity regulator or vault.", file=sys.stderr)
             sys.exit(1)
-        print("[SYSTEM] Regulatory triad verified. Workspace is live.")
+        print("[SYSTEM] Regulatory triad verified. Workspace is live.", file=sys.stderr)
 
     def _lantern_4_veto(self, user_input: str, sys_response: str, active_state: dict) -> tuple[bool, bool]:
         """Returns (approved: bool, quarantine: bool)"""

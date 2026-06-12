@@ -111,6 +111,7 @@ uvloop==0.22.1
 watchfiles==1.1.1
 websocket-client==1.9.0
 websockets==16.0
+docker==7.1.0
 zipp==3.23.1
 playwright>=1.59.0
 ollama>=0.6.0

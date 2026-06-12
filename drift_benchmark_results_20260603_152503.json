@@ -1,0 +1,75 @@
+{
+  "health": {
+    "status": "online",
+    "endpoints_tried": [
+      "http://localhost:8765/api/health"
+    ],
+    "latency_ms": 11.9
+  },
+  "math": {
+    "total": 20,
+    "correct": 19,
+    "skipped": 0,
+    "latencies_ms": [
+      12655.259267019574,
+      6299.793254001997,
+      9363.317903014831,
+      6325.991454010364,
+      5889.895277039614,
+      6867.902615980711,
+      8496.561206993647,
+      8821.31125498563,
+      6393.462820036802,
+      14501.711544988211,
+      8340.947582037188,
+      10008.33091599634,
+      6630.670287006069,
+      6470.16576101305,
+      6547.320689016487,
+      7587.560292973649,
+      6576.614253979642,
+      8190.701944986358,
+      7317.023476003669,
+      6671.377970022149
+    ],
+    "failures": [
+      {
+        "id": 17,
+        "expected": 67,
+        "got": 66
+      }
+    ],
+    "accuracy_pct": 95.0,
+    "p50_ms": 7092.5,
+    "p95_ms": 14501.7
+  },
+  "consistency": {
+    "scores": [
+      0.839,
+      0.765,
+      0.783
+    ],
+    "avg_similarity": 0.796,
+    "skipped": false
+  },
+  "memory": {
+    "writes": 3,
+    "verified": 3,
+    "skipped": false
+  },
+  "pedi": {
+    "snapshots": 0,
+    "reports": 0,
+    "drift": {},
+    "bug_detected": false
+  },
+  "dii": {
+    "samples": 0
+  },
+  "homeostasis": {
+    "need_history": 0,
+    "sqlite_sequence": 0,
+    "survival_events": 0,
+    "regulation_actions": 0
+  }
+}

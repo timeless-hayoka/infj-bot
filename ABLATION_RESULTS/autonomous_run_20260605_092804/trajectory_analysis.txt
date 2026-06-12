@@ -1,0 +1,48 @@
+=== TRAJECTORY ANALYSIS ===
+Total entries: 15
+
+=== FIELD PRESENCE AUDIT ===
+  energy               populated: 15/15 ("OK" if len(non_null) > len(rows)*0.5 else "WARNING: mostly empty")
+  mood                 populated: 0/15 ("OK" if len(non_null) > len(rows)*0.5 else "WARNING: mostly empty")
+  curiosity            populated: 0/15 ("OK" if len(non_null) > len(rows)*0.5 else "WARNING: mostly empty")
+  fatigue              populated: 15/15 ("OK" if len(non_null) > len(rows)*0.5 else "WARNING: mostly empty")
+  dii                  populated: 15/15 ("OK" if len(non_null) > len(rows)*0.5 else "WARNING: mostly empty")
+  pedi                 populated: 15/15 ("OK" if len(non_null) > len(rows)*0.5 else "WARNING: mostly empty")
+  mode                 populated: 15/15 ("OK" if len(non_null) > len(rows)*0.5 else "WARNING: mostly empty")
+  prompt_length        populated: 15/15 ("OK" if len(non_null) > len(rows)*0.5 else "WARNING: mostly empty")
+  response_length      populated: 15/15 ("OK" if len(non_null) > len(rows)*0.5 else "WARNING: mostly empty")
+  provider             populated: 15/15 ("OK" if len(non_null) > len(rows)*0.5 else "WARNING: mostly empty")
+
+=== PROVIDER BREAKDOWN ===
+  gemini: 15 turns
+
+=== COMPUTE ATTRIBUTION (infer_cpu_ms) ===
+  Ollama turns: 0
+  infer_cpu_ms populated: 0
+
+=== CORRELATIONS (causal signal check) ===
+Target: non-zero correlations = subsystems are load-bearing
+Near-zero = subsystem is decorative for that variable pair
+  corr(energy, prompt_length) = -0.024  [FLAT]
+  corr(energy, response_length) = -0.409  [SIGNAL]
+  corr(fatigue, response_length) = 0.409  [SIGNAL]
+  corr(dii, response_length) = undefined (zero variance)
+
+=== ENERGY TRAJECTORY (last 20 turns) ===
+  turn    1  energy=0.40399999999999925  fatigue=0.596  provider=gemini
+  turn    2  energy=0.38399999999999923  fatigue=0.616  provider=gemini
+  turn    1  energy=0.40399999999999925  fatigue=0.596  provider=gemini
+  turn    1  energy=0.40399999999999925  fatigue=0.596  provider=gemini
+  turn    1  energy=0.40399999999999925  fatigue=0.596  provider=gemini
+  turn    2  energy=0.38399999999999923  fatigue=0.616  provider=gemini
+  turn    3  energy=0.3639999999999992  fatigue=0.636  provider=gemini
+  turn    4  energy=0.3439999999999992  fatigue=0.656  provider=gemini
+  turn    5  energy=0.3239999999999992  fatigue=0.676  provider=gemini
+  turn    6  energy=0.30399999999999916  fatigue=0.696  provider=gemini
+  turn    7  energy=0.28399999999999914  fatigue=0.716  provider=gemini
+  turn    8  energy=0.2639999999999991  fatigue=0.736  provider=gemini
+  turn    9  energy=0.24399999999999913  fatigue=0.756  provider=gemini
+  turn   10  energy=0.22399999999999914  fatigue=0.776  provider=gemini
+  turn   11  energy=0.20399999999999915  fatigue=0.796  provider=gemini
+
+=== ANALYSIS COMPLETE ===

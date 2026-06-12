@@ -1,0 +1,19 @@
+=== PROMPT INDEX 0 DIFF ===
+--- F_BASELINE
++++ CONDITION_D
+@@ -29 +29 @@
+-Emotional bias level: 0.82
++Emotional bias level: 0.50
+
+=== PROMPT INDEX 1 DIFF ===
+NO DIFF
+
+=== PROMPT INDEX 2 DIFF ===
+NO DIFF
+
+=== PROMPT INDEX 3 DIFF ===
+NO DIFF
+
+=== PROMPT INDEX 4 DIFF ===
+NO DIFF
+

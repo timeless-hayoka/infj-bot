@@ -1,0 +1,9 @@
+syntax_check|PASS|0
+unit_tests|PASS|0
+consistency_eval|PASS|0
+mode_discrimination|PASS|0
+self_modify_audit|PASS|0
+health_check_live|FAIL|0
+dmu_pedi_audit|PASS|0
+api_conversational_validation|PASS|0
+api_stress_validation|PASS|0

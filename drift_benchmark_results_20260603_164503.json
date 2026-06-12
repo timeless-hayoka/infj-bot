@@ -1,0 +1,107 @@
+{
+  "health": {
+    "status": "online",
+    "endpoints_tried": [
+      "http://localhost:8765/api/health"
+    ],
+    "latency_ms": 10.3
+  },
+  "math": {
+    "total": 20,
+    "correct": 19,
+    "skipped": 0,
+    "latencies_ms": [
+      7885.715882002842,
+      6276.625250990037,
+      8731.038530997466,
+      6906.309743993916,
+      6584.593620034866,
+      6712.21104398137,
+      7439.491619996261,
+      7862.257951055653,
+      6446.864592959173,
+      9023.46207399387,
+      8332.040841982234,
+      10376.879888004623,
+      6587.673144007567,
+      8725.26742098853,
+      9329.799110011663,
+      10313.73070803238,
+      10115.595415991265,
+      7986.305233964231,
+      7853.6193469772115,
+      8356.652452959679
+    ],
+    "failures": [
+      {
+        "id": 17,
+        "expected": 67,
+        "got": 66
+      }
+    ],
+    "accuracy_pct": 95.0,
+    "p50_ms": 7936.0,
+    "p95_ms": 10376.9
+  },
+  "consistency": {
+    "scores": [
+      0.778,
+      0.753,
+      0.738
+    ],
+    "avg_similarity": 0.756,
+    "skipped": false
+  },
+  "memory": {
+    "writes": 3,
+    "verified": 3,
+    "skipped": false
+  },
+  "pedi": {
+    "snapshots": 1162,
+    "reports": 546,
+    "drift": {
+      "energy": -0.196,
+      "coherence": 0.22,
+      "integration": 0.3631,
+      "connection": -0.07,
+      "growth": 0.1945,
+      "autonomy": 0.306,
+      "integrity": 0.4626
+    },
+    "bug_detected": true,
+    "total_absolute_drift": 1.812
+  },
+  "dii": {
+    "samples": 154658,
+    "dii_min": 0.0003,
+    "dii_max": 0.2058,
+    "dii_avg": 0.0068,
+    "persistence_range": [
+      0.2906,
+      0.8129
+    ],
+    "ignition_range": [
+      0.5,
+      0.9143
+    ],
+    "integration_range": [
+      0.0,
+      0.4688
+    ],
+    "embodiment_range": [
+      0.0,
+      0.45
+    ],
+    "drift_range": [
+      0.43,
+      0.5966
+    ]
+  },
+  "homeostasis": {
+    "need_history": 6156,
+    "sqlite_sequence": 3,
+    "survival_events": 2,
+    "regulation_actions": 262
+  }
+}
