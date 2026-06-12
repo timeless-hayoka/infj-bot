@@ -13,6 +13,9 @@ services:
       - DB_NAME=drift_memory
     volumes:
       - ~/.drift_os:/root/.drift_os
+      - /media/crexs/PortableSSD/ARSENAL:/root/ARSENAL:ro
+      - /media/crexs/PortableSSD/BLKKNIGHT1:/root/BLKKNIGHT1:ro
+      - /media/crexs/PortableSSD/driftcode:/root/driftcode:ro
     depends_on:
       - cloud-sql-proxy
 
