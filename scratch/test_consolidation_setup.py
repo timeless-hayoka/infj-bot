@@ -1,7 +1,6 @@
 import sqlite3
 import shutil
 import sys
-import os
 from pathlib import Path
 from datetime import datetime, timedelta
 

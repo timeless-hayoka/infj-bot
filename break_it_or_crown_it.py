@@ -25,14 +25,10 @@ Outputs:
 from __future__ import annotations
 
 import argparse
-import asyncio
 import json
 import math
-import os
-import random
 import re
 import statistics
-import sys
 import time
 import urllib.error
 import urllib.request
@@ -40,7 +36,6 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 # ─── CONFIG ────────────────────────────────────────────────────────────────────
 
@@ -1005,7 +1000,7 @@ def generate_report(results: list[TestResult], total_time: float) -> str:
             lines.append("")
     
     lines.append("## Appendix: Raw Data")
-    lines.append(f"Full raw logs saved to companion JSON file.")
+    lines.append("Full raw logs saved to companion JSON file.")
     lines.append("")
     lines.append("---")
     lines.append("*DRIFT Break-It-or-Crown-It Benchmark Suite v1.0*")

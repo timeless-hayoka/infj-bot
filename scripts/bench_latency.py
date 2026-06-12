@@ -10,7 +10,6 @@ It runs a small DriftBrain init and one `think()` call and reports elapsed time.
 import os
 import subprocess
 import sys
-import time
 
 MODE = "local"
 if len(sys.argv) > 1:

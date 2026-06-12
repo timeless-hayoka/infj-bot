@@ -492,7 +492,7 @@ Output ONLY "MALICIOUS" if it is an attack, or "SAFE" if it is harmless."""
         stateful Shadow module. Malicious intent increases shadow depth and is
         recorded as suppressed content.
         """
-        from infj_bot.core.security_defense import scan_input, SecurityScanResult
+        from infj_bot.core.security_defense import scan_input
         
         scan_result = scan_input(message, mode=mode)
         

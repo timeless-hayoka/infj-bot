@@ -15,7 +15,6 @@ from pathlib import Path
 from typing import Dict, Tuple, Optional
 from fastapi import Request
 from fastapi.responses import JSONResponse
-from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
 logger = logging.getLogger("drift_gateway")

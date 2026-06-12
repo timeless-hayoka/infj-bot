@@ -22,19 +22,15 @@ Higher CES = stronger causal impact.
 
 from __future__ import annotations
 
-import copy
 import json
 import math
-import os
 import random
 import re
 import statistics
 import sys
 import time
-from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 # Ensure project root is importable
 PROJECT_ROOT = Path(__file__).resolve().parent
@@ -441,7 +437,7 @@ def generate_report(results: list[dict], analysis: dict) -> str:
     lines = []
     lines.append("# DRIFT Causality Harness Report v1")
     lines.append(f"**Generated:** {ts}")
-    lines.append(f"**Model:** gemini-2.5-flash (exclusive)")
+    lines.append("**Model:** gemini-2.5-flash (exclusive)")
     lines.append(f"**Prompts:** {len(PROMPTS)} types × {REPEATS} repeats × {len(CONDITIONS)} conditions")
     lines.append("")
     lines.append("---")
@@ -451,9 +447,9 @@ def generate_report(results: list[dict], analysis: dict) -> str:
     baseline_ces = analysis["by_condition"].get("A_BASELINE", 0)
     lines.append("## Executive Summary")
     lines.append(f"- **Baseline CES:** {baseline_ces:.3f}")
-    lines.append(f"- CES measures how much perturbing a subsystem changes output.")
-    lines.append(f"- **Higher CES = the subsystem is load-bearing.**")
-    lines.append(f"- **Lower CES = the subsystem is decorative / observational.**")
+    lines.append("- CES measures how much perturbing a subsystem changes output.")
+    lines.append("- **Higher CES = the subsystem is load-bearing.**")
+    lines.append("- **Lower CES = the subsystem is decorative / observational.**")
     lines.append("")
 
     # Condition table
@@ -527,7 +523,7 @@ def main():
     print(f"  Prompts:    {len(PROMPTS)}")
     print(f"  Repeats:    {REPEATS}")
     print(f"  Total runs: {len(CONDITIONS) * len(PROMPTS) * REPEATS}")
-    print(f"  Model:      gemini-2.5-flash (exclusive)")
+    print("  Model:      gemini-2.5-flash (exclusive)")
     print("")
 
     results = run_experiment()

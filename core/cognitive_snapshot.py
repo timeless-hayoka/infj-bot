@@ -5,7 +5,6 @@ Provides:
 - TransitionComparator: evaluates predictor accuracy against actual transitions
 """
 
-import json
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path

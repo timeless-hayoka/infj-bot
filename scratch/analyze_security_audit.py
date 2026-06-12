@@ -2,9 +2,8 @@
 """Quick analysis tool for security_audit.jsonl"""
 
 import json
-from datetime import datetime
 from pathlib import Path
-from collections import Counter, defaultdict
+from collections import Counter
 import statistics
 
 def analyze_security_audit(log_path: str = "security_audit.jsonl", last_n: int = 500):

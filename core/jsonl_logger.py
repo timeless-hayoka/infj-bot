@@ -20,7 +20,7 @@ import os
 import shutil
 import threading
 from pathlib import Path
-from typing import Any, Iterator, Optional
+from typing import Iterator, Optional
 
 
 class HardenedJsonlLogger:

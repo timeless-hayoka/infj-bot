@@ -1,5 +1,3 @@
-import os
-import sys
 from typing import Optional
 from huggingface_hub import InferenceClient
 from huggingface_hub.errors import HfHubHTTPError
@@ -77,7 +75,7 @@ def self_check_hf_integration(token: str, model: str):
     else:
         print("  [✓] API Token format appears valid.")
 
-    if not model or not "/" in model:
+    if not model or "/" not in model:
         print(f"  [X] ERROR: Model ID '{model}' is malformed.")
         errors_found = True
     else:

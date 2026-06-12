@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import sys
 import os
-import json
 from dotenv import load_dotenv
 
 sys.path.insert(0, '/home/crexs/infj_bot')

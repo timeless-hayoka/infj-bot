@@ -19,7 +19,9 @@ Exit:  0 = all pass, 1 = failures
 """
 
 from __future__ import annotations
-import json, os, subprocess, sys
+import json
+import subprocess
+import sys
 from pathlib import Path
 
 # Point at your real module location

@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 """Re-run contaminated tests with FRESH state per test."""
-import sys, json, time, re, math, statistics
+import sys
+import json
+import time
+import re
+import math
+import statistics
 sys.path.insert(0, '/home/crexs/infj_bot')
 
 from infj_bot.core.brain import DriftBrain

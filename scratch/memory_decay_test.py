@@ -1,5 +1,3 @@
-import os
-import sys
 
 from infj_bot.core.brain import DriftBrain
 from infj_bot.core.being import get_being
@@ -9,7 +7,6 @@ import time
 import json
 import matplotlib.pyplot as plt
 import sqlite3
-import os
 
 def run_memory_decay_test(cycles=500):
     print(f"Starting {cycles}-cycle memory decay and limitation test...")

@@ -16,7 +16,7 @@ Part of Phase 6 (Safety/Stability) and Nexus Roadmap.
 import logging
 import sqlite3
 from datetime import datetime, timedelta
-from typing import List, Dict, Any, Optional
+from typing import List, Dict
 
 from infj_bot.core.config import DATA_DIR, BEING_DB, NEXUS_DB
 from infj_bot.core.local_llm import OllamaBridge
@@ -99,7 +99,8 @@ THOUGHTS:
             # Note: Using brain.think or brain._generate
             # For now, we assume self.brain is functional
             response = self.brain.think(prompt, mode="engineer")
-            import json, re
+            import json
+            import re
             # Extract JSON
             match = re.search(r"\[.*\]", response, re.DOTALL)
             if match:

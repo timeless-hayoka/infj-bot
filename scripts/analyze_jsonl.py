@@ -17,11 +17,9 @@ Design goals (from operator feedback):
 
 import argparse
 import json
-import sys
 from collections import Counter
-from datetime import datetime
 from pathlib import Path
-from typing import Any, Iterator, Optional
+from typing import Iterator, Optional
 
 
 def _read_jsonl_fault_tolerant(path: Path) -> Iterator[dict]:

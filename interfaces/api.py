@@ -29,7 +29,6 @@ from infj_bot.core.plugins.growth import growth_profile
 from infj_bot.core.history import ChatHistory
 from infj_bot.core.memory import DriftMemory
 from infj_bot.core.prompt_builder import build_chat_prompt
-from infj_bot.core.security_defense import scan_input
 from infj_bot.core.tools import format_tool_inventory
 from infj_bot.core.cognitive_orchestrator import CognitiveOrchestrator, IntentBlockedError
 from infj_bot.core.phi_council import COUNCIL_MAPPING

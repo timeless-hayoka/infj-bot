@@ -13,8 +13,7 @@ import shutil
 import time
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
-from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from infj_bot.core.config import DATA_DIR
 

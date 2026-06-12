@@ -1,6 +1,5 @@
 import sys
 import threading
-import time
 
 try:
     from dotenv import load_dotenv
@@ -51,14 +50,12 @@ from infj_bot.core.config import (
     KIMI_API_KEY,
     DRIFT_KIMI_MODEL,
     DRIFT_USE_KIMI,
-    KIMI_BASE_URL,
     DRIFT_USE_HF,
     DRIFT_PREFER_LOCAL,
     DRIFT_HISTORY_SIZE,
     DRIFT_GEN_CACHE_SIZE,
 )
 import collections
-import hashlib
 from infj_bot.core.gen_cache import DiskGenCache
 from infj_bot.core.hf_bridge import DriftHFBridge
 from infj_bot.core.local_llm import OllamaBridge

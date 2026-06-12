@@ -36,7 +36,7 @@ def get_weekly_files():
 def process_results():
     weekly_files = get_weekly_files()
     report = "# PHI // DRIFT Weekly Performance Report\n"
-    report += f"**Reporting Period:** 2026-06-01 to 2026-06-08\n\n"
+    report += "**Reporting Period:** 2026-06-01 to 2026-06-08\n\n"
 
     # 1. Break It or Crown It Summary
     report += "## 1. Break It or Crown It (Behavioral Benchmarks)\n"

@@ -16,13 +16,12 @@ import sys
 import json
 import asyncio
 from pathlib import Path
-from concurrent.futures import ThreadPoolExecutor
 
 # Add project root to path
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from infj_bot.core.logger import DriftLabLogger
-from infj_bot.interfaces.main import brain, _orchestrator, memory, get_being
+from infj_bot.interfaces.main import brain, _orchestrator, memory
 from infj_bot.core.commands import BotState
 from infj_bot.core.cognitive_orchestrator import IntentBlockedError
 

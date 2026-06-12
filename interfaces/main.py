@@ -7,7 +7,6 @@ from typing import Dict, Optional
 from infj_bot.core.brain import DriftBrain
 from infj_bot.core.commands import BotState, handle_command, is_command, parse_command
 from infj_bot.core.cognitive_orchestrator import CognitiveOrchestrator
-from infj_bot.core.security_defense import scan_input
 from infj_bot.core.logic_chain import get_chain_navigator
 from infj_bot.core.global_workspace import get_workspace
 from infj_bot.core.resilience import get_resilience, HealthCheck
@@ -57,7 +56,6 @@ history = ChatHistory()
 def deliberation_bridge(goal: str):
     """Synchronous bridge to the async Elysium deliberation, avoiding deadlocks."""
     import asyncio
-    import threading
     from infj_bot.core.hive.elysium import DeliberationResult
 
     def run_in_new_loop():

@@ -21,7 +21,6 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from infj_bot.core.logger import DriftLabLogger
 from infj_bot.core.memory import DriftMemory
-from infj_bot.interfaces.main import brain
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)

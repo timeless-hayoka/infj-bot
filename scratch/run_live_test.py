@@ -2,7 +2,6 @@ import os
 import sys
 import shutil
 import time
-import json
 import asyncio
 import statistics
 import math
@@ -12,7 +11,7 @@ from datetime import datetime
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from infj_bot.core.config import DATA_DIR
-from infj_bot.core.being import get_being, Being, CognitiveState, PEDIMetric, DIIMetric
+from infj_bot.core.being import get_being, PEDIMetric, DIIMetric
 
 # Paths for snapshotting
 BEING_DB_PATH = DATA_DIR / "being.db"

@@ -5,7 +5,7 @@ DRIFT Cognitive Architecture | Dynamic Identity Regulator (V2.2 Tuned)
 
 import math
 from dataclasses import dataclass
-from typing import Dict, List, Tuple
+from typing import Dict
 
 # DIMS defines the dimensions used for anchor distance calculations in PEDI.
 # Note: Real Svalbard ledger blocks also store 'shadow_depth' at the root of 'emotional_state'
@@ -34,7 +34,8 @@ class PEDIEngine:
         
         recent_blocks = []
         try:
-            import os, json
+            import os
+            import json
             try:
                 from infj_bot.core.svalbard_vault import VAULT_PATH
             except ImportError:

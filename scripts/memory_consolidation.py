@@ -2,7 +2,6 @@ import sqlite3
 import json
 import logging
 from datetime import datetime, timedelta
-from pathlib import Path
 
 # Adjust imports to match your architecture
 from infj_bot.core.config import DATA_DIR

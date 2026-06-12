@@ -60,7 +60,7 @@ def deliberation_trial_func(tool_call_json, **kwargs):
     
     # 3. Verify results
     # The deliberation should have been triggered with the specific tool name
-    correct_goal = f"Execute high-risk tool 'write_file'" in deliberation_goal_str
+    correct_goal = "Execute high-risk tool 'write_file'" in deliberation_goal_str
     
     return {
         "deliberation_triggered": 1 if deliberation_called else 0,

@@ -39,7 +39,7 @@ import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional, Any
+from typing import List, Optional
 
 import numpy as np
 
@@ -268,7 +268,7 @@ class CognitiveGovernor:
         alpha = np.dot(lengths, drains) / np.dot(lengths, lengths)
         r = np.corrcoef(lengths, drains)[0, 1]
 
-        print(f"\n=== α CALIBRATION RESULT ===")
+        print("\n=== α CALIBRATION RESULT ===")
         print(f"  n = {len(records)} ungated turns")
         print(f"  fitted α = {alpha:.6f}")
         print(f"  corr(response_len, drain) = {r:.3f}")

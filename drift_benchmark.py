@@ -10,7 +10,6 @@ import math
 import re
 import sqlite3
 import statistics
-import sys
 import time
 import urllib.error
 import urllib.parse
@@ -532,7 +531,7 @@ def generate_report(results: dict, args) -> str:
         total   = math_r.get("total", 0) - math_r.get("skipped", 0)
         lines.append(f"- **Accuracy: {correct}/{total} ({math_r.get('accuracy_pct', 0)}%)**")
         lines.append(f"- Latency p50: {math_r.get('p50_ms', 0)}ms  |  p95: {math_r.get('p95_ms', 0)}ms")
-        lines.append(f"- Environment: DigitalOcean droplet (since June 1)")
+        lines.append("- Environment: DigitalOcean droplet (since June 1)")
     lines.append("")
 
     cons_r = results.get("consistency", {})

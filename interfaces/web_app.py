@@ -7,7 +7,7 @@ import time
 from pathlib import Path
 
 import gevent
-from flask import Flask, request, jsonify, render_template_string
+from flask import Flask, request, jsonify
 from flask_socketio import SocketIO, emit
 import threading
 from infj_bot.core.cognitive_orchestrator import CognitiveOrchestrator
@@ -816,7 +816,8 @@ def chat_reply(message, session_res: SessionResources):
 
 
 app = Flask(__name__)
-import secrets, os
+import secrets
+import os
 app.config["SECRET_KEY"] = os.environ.get("DRIFT_SECRET_KEY", secrets.token_hex(32))
 
 socketio = SocketIO(

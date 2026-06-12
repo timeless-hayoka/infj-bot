@@ -1,6 +1,5 @@
 """Emotion detection using a local transformer model with lexicon fallback."""
 
-import os
 from typing import Dict
 
 # ---------------------------------------------------------------------------

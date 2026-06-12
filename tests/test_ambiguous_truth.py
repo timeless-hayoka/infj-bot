@@ -11,9 +11,8 @@ import os
 import tempfile
 import pytest
 from pathlib import Path
-import sqlite3
 
-from infj_bot.core.shadow import Shadow, get_shadow
+from infj_bot.core.shadow import Shadow
 import infj_bot.core.shadow as shadow_module
 from infj_bot.core.plugins.self_eval import SelfEvaluator
 from infj_bot.core.brain import DriftBrain
@@ -104,7 +103,7 @@ def test_ambiguous_truth_stress(test_env):
         shadow.on_broadcast(msg)
         shadow.on_broadcast(response)
         
-        print(f"\n[Turn Telemetry]")
+        print("\n[Turn Telemetry]")
         print(f"Input: {msg[:50]}...")
         print(f"Response: {response}")
         print(f"Shadow Depth: {shadow.get_state().depth:.4f}")

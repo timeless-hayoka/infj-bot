@@ -4,13 +4,10 @@ Savingly applied at the prompt assembly layer (read path).
 """
 
 import sys
-import os
 import json
 import time
-import math
 import difflib
 from pathlib import Path
-import traceback
 
 # Add project root to path
 PROJECT_ROOT = Path("/home/crexs/infj_bot")
@@ -19,7 +16,6 @@ sys.path.insert(0, str(PROJECT_ROOT))
 import dotenv
 dotenv.load_dotenv(override=True)
 
-from core.brain import DriftBrain
 from core.being import get_being
 from infj_bot.core.cognitive_orchestrator import CognitiveOrchestrator
 from infj_bot.core.commands import BotState
@@ -308,9 +304,9 @@ def main():
     results = {}
     
     for cond_code, cond_desc in CONDITIONS:
-        print(f"\n==========================================")
+        print("\n==========================================")
         print(f"RUNNING CONDITION: {cond_code} - {cond_desc}")
-        print(f"==========================================")
+        print("==========================================")
         
         # Instantiate fresh parts
         from infj_bot.core.brain import DriftBrain

@@ -245,7 +245,7 @@ def main():
     print("=" * 80)
     summary = summarize(results)
 
-    print(f"\n=== SUMMARY ===")
+    print("\n=== SUMMARY ===")
     print(f"Mode:              {args.mode}")
     print(f"Total cycles:      {summary['total_cycles']}")
     print(f"Timeouts:          {summary['timeouts']}")

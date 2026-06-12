@@ -1,8 +1,6 @@
 import os
-import sys
 import shutil
 import json
-import time
 import sqlite3
 import multiprocessing
 import matplotlib.pyplot as plt
@@ -15,7 +13,6 @@ os.environ["DRIFT_USE_LOCAL_FALLBACK"] = "0"
 from infj_bot.core.brain import DriftBrain
 from infj_bot.core.being import get_being
 from infj_bot.core.unified_memory import get_unified_memory
-from infj_bot.config_adapter import ConfigAdapter
 
 def run_single_simulation(run_id: str, cycles: int = 500, test_type: str = "control"):
     print(f"[{run_id}] Starting {cycles}-cycle simulation ({test_type})")

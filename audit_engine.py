@@ -1,6 +1,5 @@
 import os
 import sys
-import google.generativeai as genai
 
 # =====================================================================
 # SELF-CHECK SYSTEM: Environment and Path Validation
@@ -25,7 +24,7 @@ def execute_environment_check():
     for name, path in REQUIRED_FILES.items():
         if not os.path.exists(path):
             print(f"[!] ERROR: Target file missing for {name} at location: ./{path}")
-            print(f"    Fix: Ensure you are running this script from the root of 'infj-bot/'.")
+            print("    Fix: Ensure you are running this script from the root of 'infj-bot/'.")
             missing_files = True
             
     if missing_files:

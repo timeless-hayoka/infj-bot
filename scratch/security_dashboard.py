@@ -3,7 +3,6 @@ import json
 from datetime import datetime
 from pathlib import Path
 import matplotlib.pyplot as plt
-from collections import defaultdict
 
 def generate_security_dashboard(
     log_path: str = "security_audit.jsonl", 
@@ -71,7 +70,7 @@ def generate_security_dashboard(
     
     plt.savefig(output_file, dpi=200)
     print(f"✅ Dashboard saved as: {output_file}")
-    print(f"Summary:")
+    print("Summary:")
     print(f"   • Total entries analyzed: {len(logs)}")
     print(f"   • Blocks triggered: {blocked_count}")
     print(f"   • High social risk events: {high_risk_count}")

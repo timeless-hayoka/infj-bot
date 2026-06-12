@@ -31,12 +31,9 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import shutil
 import sqlite3
-import subprocess
 import sys
-import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -316,8 +313,8 @@ def main() -> None:
     print("      Open DRIFT in another terminal, run them in order.")
     print("      Monitor telemetry: tail -f logs/governor_calibration.jsonl")
     print("      OR in a third terminal:")
-    print(f"      tail -f logs/governor_calibration.jsonl | "
-          f"python3 scripts/live_test_harness.py --monitor")
+    print("      tail -f logs/governor_calibration.jsonl | "
+          "python3 scripts/live_test_harness.py --monitor")
     print("=" * 66)
 
     print("""
@@ -389,7 +386,7 @@ def main() -> None:
         print("     or BASE_NETWORK_COST is too small to reach the threshold.")
 
     # --- Restore ---
-    print(f"\n[5/5] RESTORING STATE FROM SNAPSHOT")
+    print("\n[5/5] RESTORING STATE FROM SNAPSHOT")
     restore_state(backup_dir, state_paths)
 
     # --- Verify ---

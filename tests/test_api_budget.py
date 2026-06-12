@@ -1,8 +1,6 @@
 import asyncio
 import json
-import time
 import requests
-import http.client
 
 API_URL = "http://127.0.0.1:8765"
 

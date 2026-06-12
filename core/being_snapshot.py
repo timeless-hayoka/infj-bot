@@ -25,12 +25,10 @@ from __future__ import annotations
 
 import os
 import sqlite3
-import time
 import logging
 import json
 from datetime import datetime, timezone
 from dataclasses import asdict
-from pathlib import Path
 from typing import Union
 
 logger = logging.getLogger("drift.being_snapshot")
@@ -137,7 +135,6 @@ class CognitiveSnapshotWriter:
             latency_pressure: External pressure signal (from inference timing).
             resource_pressure: External pressure signal (CPU load, memory).
         """
-        import json
 
         # Convert dataclass to dict if needed
         if hasattr(cognitive_state, "__dataclass_fields__"):

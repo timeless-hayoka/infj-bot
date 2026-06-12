@@ -17,10 +17,10 @@ DRIFT V4 | Julien James (CREX)
 """
 
 import numpy as np
-import sqlite3, logging, os, time
-from dataclasses import dataclass, field
+import logging
+import time
+from dataclasses import dataclass
 from typing import Optional
-from collections import deque
 
 logger = logging.getLogger("drift.psc_scaled")
 
@@ -529,7 +529,7 @@ if __name__ == "__main__":
         alerts = [(d, result.alert_intensity[i])
                   for i,d in enumerate(dims) if result.alerted[i]]
         print(f"  Alerts: {alerts}")
-        print(f"  Chaos scores (top 3): "
+        print("  Chaos scores (top 3): "
               + ", ".join(f"{d}={result.chaos_scores[list(dims).index(d)]:.3f}"
                           for d,_ in alerts[:3]))
 

@@ -1,9 +1,7 @@
 import os
-import sqlite3
 import tempfile
 import unittest
 from datetime import datetime, timezone
-from pathlib import Path
 from unittest.mock import MagicMock
 
 from infj_bot.metrics.pedi import (
@@ -11,11 +9,9 @@ from infj_bot.metrics.pedi import (
     StateSnapshot,
     ResetEvent,
     NEED_DIMENSIONS,
-    MAX_TOLERATED_JUMP,
     CRITICAL_FLUIDITY,
 )
 from infj_bot.core.cognitive_orchestrator import CognitiveOrchestrator
-from infj_bot.core.homeostasis import get_homeostasis
 from infj_bot.core.commands import BotState
 
 class TestPediIndex(unittest.TestCase):

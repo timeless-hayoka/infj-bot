@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 import sys
-import os
-import json
 import time
 from dotenv import load_dotenv
 
@@ -56,7 +54,6 @@ def generate_logs():
 def analyze_correlations():
     print("\nLoading trajectory dataframe...")
     from core.trajectory import load_dataframe
-    import pandas as pd
     
     df = load_dataframe('logs/state_trace.jsonl')
     if df is None or df.empty:

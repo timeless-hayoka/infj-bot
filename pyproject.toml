@@ -70,4 +70,5 @@ voice = [
 [project.scripts]
 infj-bot = "infj_bot.interfaces.cli:main"
 
-
+[tool.ruff.lint]
+ignore = ["E402", "E702", "E731", "F841", "F401", "F811", "E701", "F821", "E722", "E741"]

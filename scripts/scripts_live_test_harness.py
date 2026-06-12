@@ -1,8 +1,6 @@
-import os
 import sys
 import shutil
 import json
-import time
 import argparse
 import hashlib
 from datetime import datetime
@@ -57,7 +55,7 @@ def backup_state():
             
     if CHROMA_DIR.exists():
         shutil.copytree(CHROMA_DIR, BACKUP_DIR / "chroma_db")
-        print(f"    [+] Backed up ChromaDB Vault")
+        print("    [+] Backed up ChromaDB Vault")
     print("[+] State frozen safely.")
 
 def restore_state():
@@ -76,12 +74,12 @@ def restore_state():
         if CHROMA_DIR.exists():
             shutil.rmtree(CHROMA_DIR)
         shutil.copytree(BACKUP_DIR / "chroma_db", CHROMA_DIR)
-        print(f"    [+] Restored ChromaDB Vault")
+        print("    [+] Restored ChromaDB Vault")
     print("[+] Clean state successfully restored.")
 
 def analyze_telemetry():
     """Parses the logs and generates the honest findings."""
-    print(f"\n[*] Analyzing telemetry...")
+    print("\n[*] Analyzing telemetry...")
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     
     gov_log = LOG_DIR / "governor_calibration.jsonl"

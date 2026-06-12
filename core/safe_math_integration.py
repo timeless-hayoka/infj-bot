@@ -39,7 +39,7 @@ FORBIDDEN_IMPORTS NOTE
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import contextvars
 from infj_bot.core.safe_math import compute, looks_like_math, MathError
