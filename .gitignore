@@ -74,3 +74,4 @@ dist/
 build/
 .vercel
 .env*
+node_modules/
