@@ -691,7 +691,7 @@ class SymbioticAI:
             else:
                 model = self.config.get("fallback_model", "llama3.2")
                 print(f"[AUTO] No models detected. Fallback: {model}")
-        self.client = OllamaClient(url, model)
+        self.client = OllamaClient(url, model, timeout=self.config.get("timeout", 300))
         if self.client.ping():
             return True
         print(f"[WARNING] Cannot reach Ollama at {url}. Is it running?")

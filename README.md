@@ -224,6 +224,8 @@ short_description: Homeostatic cognitive architecture for AI companions
 [![CI](https://github.com/timeless-hayoka/infj-bot/actions/workflows/ci.yml/badge.svg)](https://github.com/timeless-hayoka/infj-bot/actions/workflows/ci.yml)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20350249.svg)](https://doi.org/10.5281/zenodo.20350249)
 
+<a href="https://www.buymeacoffee.com/timelesshayoka" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
+
 **PHI // DRIFT** (Distributed Response & Integrated Functional Thought) is a homeostatic cognitive architecture with persistent state, salience-weighted memory, and falsifiable behavioral continuity metrics. It gives a language model a persistent inner life: emotion, memory, needs, shadow, consciousness, and distributed cognition — all assembled into the prompt on every turn.
 
 📄 **[Read the paper →](https://doi.org/10.5281/zenodo.20350249)**
