@@ -333,6 +333,7 @@ INDEX_HTML = """<!doctype html>
         -webkit-mask-composite: xor;
         mask-composite: exclude;
         opacity: 0.3;
+        pointer-events: none;
     }
 
     /* --- CHAT AREA --- */
