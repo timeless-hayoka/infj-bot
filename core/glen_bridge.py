@@ -5,7 +5,7 @@ Designed specifically for high-speed local inference in DRIFT Fast Mode.
 """
 
 import os
-from typing import List, Dict, Optional, Generator
+from typing import List, Dict, Optional, Generator, Any
 import torch
 
 try:

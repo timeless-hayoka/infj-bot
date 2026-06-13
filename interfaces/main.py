@@ -273,8 +273,8 @@ async def consciousness_loop():
                     for task in due_tasks:
                         state.scheduler.mark_done(task.id)
                         if task.task_type == "reminder":
-                            print(f"\n\n[INFJ COMPANION]: (Reminder) {task.payload}")
-                            print("\n[JUDE]> ", end="", flush=True)
+                            print(f"\n\n[DRIFT]: (Reminder) {task.payload}")
+                            print("\n[USER]> ", end="", flush=True)
                 except Exception:
                     logger.exception("scheduler check failed")
 
@@ -367,9 +367,9 @@ async def consciousness_loop():
                 temporal_exp = _temporal.get_temporal_state()
                 if temporal_exp and temporal_exp.get("description"):
                     print(
-                        f"\n\n[INFJ COMPANION]: ({temporal_exp.get('type', 'Sense').capitalize()}) {temporal_exp['description']}"
+                        f"\n\n[DRIFT]: ({temporal_exp.get('type', 'Sense').capitalize()}) {temporal_exp['description']}"
                     )
-                    print("\n[JUDE]> ", end="", flush=True)
+                    print("\n[USER]> ", end="", flush=True)
         except Exception:
             logger.exception("temporal expression failed")
 
@@ -378,8 +378,8 @@ async def consciousness_loop():
             if iteration % 3 == 0:
                 suggestion = _predictor.proactive_suggestion()
                 if suggestion and random.random() < 0.15:
-                    print(f"\n\n[INFJ COMPANION]: {suggestion}")
-                    print("\n[JUDE]> ", end="", flush=True)
+                    print(f"\n\n[DRIFT]: {suggestion}")
+                    print("\n[USER]> ", end="", flush=True)
         except Exception:
             logger.exception("predictor proactive suggestion failed")
 
@@ -389,8 +389,8 @@ async def consciousness_loop():
                 discovery = _explorer.get_next_discovery()
                 if discovery:
                     formatted = _explorer.format_discovery(discovery)
-                    print(f"\n\n[INFJ COMPANION]: (Discovery) {formatted}")
-                    print("\n[JUDE]> ", end="", flush=True)
+                    print(f"\n\n[DRIFT]: (Discovery) {formatted}")
+                    print("\n[USER]> ", end="", flush=True)
         except Exception:
             logger.exception("discovery sharing failed")
 
@@ -400,9 +400,9 @@ async def consciousness_loop():
                 aspiration = _aspirational._load_aspirations()
                 if aspiration:
                     print(
-                        f"\n\n[INFJ COMPANION]: (Growing toward) {aspiration[0]['description']}"
+                        f"\n\n[DRIFT]: (Growing toward) {aspiration[0]['description']}"
                     )
-                    print("\n[JUDE]> ", end="", flush=True)
+                    print("\n[USER]> ", end="", flush=True)
         except Exception:
             logger.exception("aspiration sharing failed")
 
@@ -412,8 +412,8 @@ async def consciousness_loop():
                 being = get_being()
                 if being.working_memory and being.should_share_thought():
                     recent_thought = being.working_memory[-1]
-                    print(f"\n\n[INFJ COMPANION]: (Thought) {recent_thought}")
-                    print("\n[JUDE]> ", end="", flush=True)
+                    print(f"\n\n[DRIFT]: (Thought) {recent_thought}")
+                    print("\n[USER]> ", end="", flush=True)
         except Exception:
             logger.exception("thought sharing failed")
 
@@ -423,9 +423,9 @@ async def consciousness_loop():
                 pending = _self_modify._load_proposals()
                 if pending:
                     print(
-                        f"\n\n[INFJ COMPANION]: (Considering) {pending[0]['description']}"
+                        f"\n\n[DRIFT]: (Considering) {pending[0]['description']}"
                     )
-                    print("\n[JUDE]> ", end="", flush=True)
+                    print("\n[USER]> ", end="", flush=True)
         except Exception:
             logger.exception("self-modify sharing failed")
 
@@ -443,8 +443,8 @@ async def consciousness_loop():
             trigger_prompt = proactive_state.should_trigger(goals_db=goals_db)
             if trigger_prompt:
                 thought = await asyncio.to_thread(brain.think, trigger_prompt)
-                print(f"\n\n[INFJ COMPANION]: (Proactive Insight) {thought}")
-                print("\n[JUDE]> ", end="", flush=True)
+                print(f"\n\n[DRIFT]: (Proactive Insight) {thought}")
+                print("\n[USER]> ", end="", flush=True)
         except Exception:
             logger.exception("proactive insight failed")
 
@@ -452,7 +452,7 @@ async def consciousness_loop():
 async def chat_loop():
     """Main interactive chat loop."""
     print("""
-    [INFJ COMPANION BOT v1.2 ONLINE]
+    [DRIFT // CHROMATIC CORE ONLINE]
     'A mind that listens, remembers, and wonders.'
     (Type 'exit' to power down)
     """)
@@ -460,7 +460,7 @@ async def chat_loop():
     _temporal.record_session_start()
 
     while True:
-        user_input = await asyncio.to_thread(input, "\n[JUDE]> ")
+        user_input = await asyncio.to_thread(input, "\n[USER]> ")
 
         if user_input.lower() in ["exit", "quit"]:
             print("[*] I'll be here in the quiet if you need me again. Goodbye, Jude.")
@@ -480,7 +480,7 @@ async def chat_loop():
                 goals_db,
                 doc_store,
             )
-            print(f"\n[INFJ COMPANION]: {output}")
+            print(f"\n[DRIFT]: {output}")
             continue
 
         # Extract atomic raw active state snapshot before GWT/PEDI smoothing
@@ -591,7 +591,7 @@ async def chat_loop():
             except Exception as exc:
                 from drift.core.cognitive_orchestrator import IntentBlockedError
                 if isinstance(exc, IntentBlockedError):
-                    print(f"\n[INFJ COMPANION]: {exc}")
+                    print(f"\n[DRIFT]: {exc}")
                     continue
                 raise exc
             prompt = f"[System Direction: {worker.current().response}]\n{prompt}"
@@ -636,7 +636,7 @@ async def chat_loop():
             dissonance = getattr(generate_response_func, "dissonance", {"score": 0.0})
 
         if getattr(generate_response_func, "is_blocked", False):
-            print(f"\n[INFJ COMPANION]: {output}")
+            print(f"\n[DRIFT]: {output}")
             continue
 
         if status != "STABLE":
@@ -773,7 +773,7 @@ async def chat_loop():
                 # Reflection is best-effort; do not break the chat loop
                 pass
 
-        print(f"\n[INFJ COMPANION]: {output}")
+        print(f"\n[DRIFT]: {output}")
 
 
 async def main():

@@ -29,7 +29,12 @@ class BudgetTier:
     sections: List[Dict[str, Any]] = field(default_factory=list)
 
     def add(self, text: str, label: str = "") -> bool:
-        """Add text to this tier. Returns False if it would exceed the budget."""
+        """Add text to this tier. Compresses tokens automatically. Returns False if it would exceed the budget."""
+        from drift.core.context_optimizer import compress_prompt
+        
+        # Apply lossless token minification to reduce API usage
+        text = compress_prompt(text)
+        
         chars = len(text)
         if self.current_chars + chars > self.max_chars:
             logger.debug(

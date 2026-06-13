@@ -359,11 +359,18 @@ class CognitiveOrchestrator:
         emotion = detect_emotion(message)
         dissonance = detect_dissonance(message)
 
+        import os
+        FAST_MODE = os.environ.get("DRIFT_FAST_MODE", "true").lower() == "true"
+        memory_k = 3 if FAST_MODE else 10
+
         # DMU-ranked memory retrieval: re-ranks by time-decay + emotional weight
         if hasattr(memory, "retrieve_context_ranked"):
-            context = memory.retrieve_context_ranked(message)
+            context = memory.retrieve_context_ranked(message, n_results=memory_k)
         else:
-            context = memory.retrieve_context(message)
+            context = memory.retrieve_context(message, n_results=memory_k)
+
+        if FAST_MODE:
+            context = context[:1500]
 
         # Determine Epistemic and Communicative Confidence
         epistemic_confidence = 0.95

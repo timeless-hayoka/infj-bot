@@ -72,10 +72,10 @@ API_KEY = (
 REFLECTION_INTERVAL = int(os.getenv("REFLECTION_INTERVAL", "10"))
 
 DRIFT_PRIMARY_MODEL = os.getenv(
-    "DRIFT_PRIMARY_MODEL", os.getenv("INFJ_PRIMARY_MODEL", "gemini-2.5-flash")
+    "DRIFT_PRIMARY_MODEL", os.getenv("INFJ_PRIMARY_MODEL", "gemini-2.5-flash-thinking-exp")
 )
 DRIFT_CRITIC_MODEL = os.getenv(
-    "DRIFT_CRITIC_MODEL", os.getenv("INFJ_CRITIC_MODEL", "gemini-2.5-flash")
+    "DRIFT_CRITIC_MODEL", os.getenv("INFJ_CRITIC_MODEL", "gemini-2.5-flash-thinking-exp")
 )
 
 _authorized_raw = os.getenv(

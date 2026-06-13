@@ -173,6 +173,9 @@ class TokenBucket:
         budget: Optional[RequestBudget] = None,
     ) -> bool:
         """Block (cooperatively) up to `timeout` for `tokens`. False on timeout."""
+        if tokens > self.capacity:
+            raise ValueError(f"Cannot acquire {tokens} tokens from bucket with capacity {self.capacity}")
+            
         deadline = time.monotonic() + timeout
         while True:
             if budget is not None:
