@@ -124,3 +124,73 @@ class GLENBridge:
         for new_text in streamer:
             yield new_text
 
+    def generate(
+        self,
+        prompt: str,
+        model: Optional[str] = None,
+        system: Optional[str] = None,
+        stream: bool = False,
+        temperature: float = 0.7,
+        **kwargs: Any,
+    ) -> str:
+        """Raw generate completion."""
+        self._load_model()
+        full_prompt = ""
+        if system:
+            full_prompt += f"<|im_start|>system\n{system}<|im_end|>\n"
+        full_prompt += f"<|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant\n"
+        
+        inputs = self.tokenizer(full_prompt, return_tensors="pt").to(self.device)
+        
+        max_tok = kwargs.get("max_tokens") or kwargs.get("max_output_tokens") or 256
+        
+        with torch.no_grad():
+            outputs = self.model.generate(
+                **inputs,
+                max_new_tokens=int(max_tok),
+                temperature=temperature,
+                do_sample=temperature > 0,
+                pad_token_id=self.tokenizer.eos_token_id
+            )
+            
+        response = self.tokenizer.decode(outputs[0][inputs.input_ids.shape[1]:], skip_special_tokens=True)
+        return response
+
+    def generate_stream(
+        self,
+        prompt: str,
+        model: Optional[str] = None,
+        system: Optional[str] = None,
+        temperature: float = 0.7,
+        **kwargs: Any,
+    ) -> Generator[str, None, None]:
+        """Streaming generate completion."""
+        from transformers import TextIteratorStreamer
+        from threading import Thread
+
+        self._load_model()
+        full_prompt = ""
+        if system:
+            full_prompt += f"<|im_start|>system\n{system}<|im_end|>\n"
+        full_prompt += f"<|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant\n"
+        
+        inputs = self.tokenizer(full_prompt, return_tensors="pt").to(self.device)
+        
+        streamer = TextIteratorStreamer(self.tokenizer, skip_prompt=True, skip_special_tokens=True)
+        
+        max_tok = kwargs.get("max_tokens") or kwargs.get("max_output_tokens") or 256
+        
+        generation_kwargs = dict(
+            **inputs,
+            streamer=streamer,
+            max_new_tokens=int(max_tok),
+            temperature=temperature,
+            do_sample=temperature > 0,
+            pad_token_id=self.tokenizer.eos_token_id
+        )
+        
+        thread = Thread(target=self.model.generate, kwargs=generation_kwargs)
+        thread.start()
+        
+        for new_text in streamer:
+            yield new_text
