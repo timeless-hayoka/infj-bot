@@ -8,6 +8,8 @@ import os
 from typing import List, Dict, Optional, Generator, Any
 import torch
 
+from drift.core.local_llm import BaseLocalBridge
+
 try:
     from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 except ImportError:
@@ -15,7 +17,7 @@ except ImportError:
     AutoTokenizer = None
     BitsAndBytesConfig = None
 
-class GLENBridge:
+class GLENBridge(BaseLocalBridge):
     def __init__(self, model_name: str = "unsloth/Qwen2.5-1.5B-Instruct"):
         """Initialize the GLEN bridge with 4-bit quantization."""
         self.model_name = model_name
@@ -27,6 +29,11 @@ class GLENBridge:
         if AutoModelForCausalLM is None:
             return False
         return True
+
+    def list_models(self) -> List[str]:
+        if not self.is_available():
+            return []
+        return [self.model_name]
 
     def _load_model(self):
         """Lazy load the model to save RAM until actually used."""

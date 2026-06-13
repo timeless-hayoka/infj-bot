@@ -1,6 +1,7 @@
 """Local LLM bridge via Ollama for offline/fallback operation."""
 
 import os
+from abc import ABC, abstractmethod
 from typing import Any, Dict, Generator, List, Optional
 
 from drift.core.config import DRIFT_LOCAL_MODEL, OLLAMA_HOST
@@ -16,7 +17,63 @@ class LocalLLMError(Exception):
     pass
 
 
-class OllamaBridge:
+class BaseLocalBridge(ABC):
+    """Abstract Base Class for local inference bridges."""
+
+    @abstractmethod
+    def is_available(self) -> bool:
+        pass
+
+    @abstractmethod
+    def list_models(self) -> List[str]:
+        pass
+
+    @abstractmethod
+    def chat(
+        self,
+        messages: List[Dict[str, str]],
+        model: Optional[str] = None,
+        system: Optional[str] = None,
+        stream: bool = False,
+        temperature: float = 0.7,
+    ) -> str:
+        pass
+
+    @abstractmethod
+    def chat_stream(
+        self,
+        messages: List[Dict[str, str]],
+        model: Optional[str] = None,
+        system: Optional[str] = None,
+        temperature: float = 0.7,
+    ) -> Generator[str, None, None]:
+        pass
+
+    @abstractmethod
+    def generate(
+        self,
+        prompt: str,
+        model: Optional[str] = None,
+        system: Optional[str] = None,
+        stream: bool = False,
+        temperature: float = 0.7,
+        **kwargs: Any,
+    ) -> str:
+        pass
+
+    @abstractmethod
+    def generate_stream(
+        self,
+        prompt: str,
+        model: Optional[str] = None,
+        system: Optional[str] = None,
+        temperature: float = 0.7,
+        **kwargs: Any,
+    ) -> Generator[str, None, None]:
+        pass
+
+
+class OllamaBridge(BaseLocalBridge):
     """Bridge to an Ollama server for local inference."""
 
     def __init__(self, host: Optional[str] = None, model: Optional[str] = None):
