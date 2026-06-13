@@ -168,7 +168,13 @@ class DriftBrain(_BrainGenerationMixin):
                 self._disk_cache = DiskGenCache(max_entries=self._gen_cache_size * 4)
             except Exception:
                 self._disk_cache = None
-        self.local_bridge = OllamaBridge()
+        import os
+        FAST_MODE = os.environ.get("DRIFT_FAST_MODE", "true").lower() == "true"
+        if FAST_MODE:
+            from drift.core.glen_bridge import GLENBridge
+            self.local_bridge = GLENBridge()
+        else:
+            self.local_bridge = OllamaBridge()
         self.hf_bridge = DriftHFBridge()
         self.evaluator = evaluator if evaluator is not None else SelfEvaluator()
         self.chain_navigator: ChainNavigator = get_chain_navigator()
