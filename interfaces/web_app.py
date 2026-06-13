@@ -241,15 +241,22 @@ INDEX_HTML = """<!doctype html>
     @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&family=Fira+Code:wght@300;400;500&display=swap');
     
     :root {
-        --c-blue: #00A3FF;
-        --c-violet: #8F00FF;
-        --c-red: #FF003D;
-        --c-yellow: #FFD600;
-        --bg-black: #030303;
-        --glass: rgba(255, 255, 255, 0.03);
-        --glass-border: rgba(255, 255, 255, 0.08);
+        --c-orange: #FF5A00;
+        --c-green: #00E676;
+        --c-dark-green: #004D40;
+        --c-black: #0D0D0D;
+        --bg-black: #050505;
+        --glass: rgba(0, 0, 0, 0.4);
+        --glass-border: rgba(0, 230, 118, 0.2);
         --text: #F0F0F0;
         --text-dim: #888;
+        
+        /* Fallbacks for old vars to prevent breaking */
+        --c-blue: var(--c-orange);
+        --c-violet: var(--c-dark-green);
+        --c-red: var(--c-orange);
+        --c-yellow: var(--c-green);
+        --c-cyan: var(--c-green);
     }
 
     * { box-sizing: border-box; }
@@ -262,7 +269,7 @@ INDEX_HTML = """<!doctype html>
         overflow: hidden; 
         height: 100vh;
         /* Flowing Background */
-        background: linear-gradient(-45deg, #001A33, #1A0033, #330008, #332B00);
+        background: linear-gradient(-45deg, #050505, #1A0D00, #001A0D, #050505);
         background-size: 400% 400%;
         animation: gradientFlow 15s ease infinite;
     }
@@ -463,7 +470,75 @@ INDEX_HTML = """<!doctype html>
         display: flex;
         flex-direction: column;
         gap: 20px;
+        overflow-y: auto;
+        padding-right: 10px;
     }
+    aside::-webkit-scrollbar { width: 4px; }
+    aside::-webkit-scrollbar-thumb { 
+        background: linear-gradient(var(--c-orange), var(--c-green));
+        border-radius: 10px;
+    }
+
+    .canvas-wrap {
+      position: relative;
+      width: 100%;
+      height: 200px;
+      margin-bottom: 20px;
+      border: 1px solid var(--glass-border);
+      border-radius: 8px;
+      overflow: hidden;
+      background: rgba(0,0,0,0.4);
+    }
+    canvas#glyphCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .overlay {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      pointer-events: none;
+    }
+    .dii-readout {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #fff;
+      text-shadow: 0 0 10px rgba(0,255,100,0.5);
+    }
+    .dii-label {
+      font-size: 0.6rem;
+      letter-spacing: 0.2em;
+      color: var(--text-dim);
+    }
+    .council-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 20px;
+      background: rgba(0,0,0,0.4);
+      padding: 15px;
+      border-radius: 8px;
+      border: 1px solid var(--glass-border);
+    }
+    .council-node {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.7rem;
+      font-family: 'Fira Code', monospace;
+    }
+    .council-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--c-green);
+      box-shadow: 0 0 6px var(--c-green);
+    }
+    .council-dot.standby { background: var(--text-dim); box-shadow: none; }
+    .council-dot.active  { background: var(--c-orange); box-shadow: 0 0 6px var(--c-orange); }
 
     .side-panel {
         flex: 1;
@@ -625,9 +700,26 @@ INDEX_HTML = """<!doctype html>
               </div>
           </div>
       </div>
-      <div id="stageName" style="font-family:'Orbitron', sans-serif; font-weight:700; text-align:center; color:var(--c-blue); letter-spacing:2px; margin-bottom:5px;">INITIALIZING...</div>
+      <div id="stageName" style="font-family:'Orbitron', sans-serif; font-weight:700; text-align:center; color:var(--c-orange); letter-spacing:2px; margin-bottom:5px;">INITIALIZING...</div>
       <div id="stageDesc" style="font-size:0.75rem; color:var(--text-dim); text-align:center; margin-bottom:20px;">Synchronizing with being state...</div>
       
+      <span class="label">COUNCIL OF 7</span>
+      <div class="council-list" id="councilPanel">
+        <div class="council-node"><span class="council-dot"></span>spark-0 · PRIMARY · ONLINE</div>
+        <div class="council-node"><span class="council-dot standby"></span>seed-1 · CRITIC · STANDBY</div>
+        <div class="council-node"><span class="council-dot active"></span>lantern-4 · WATCHER · ACTIVE</div>
+        <div class="council-node"><span class="council-dot"></span>nexus · CONDUCTOR · ONLINE</div>
+      </div>
+
+      <span class="label">DII SENSOR</span>
+      <div class="canvas-wrap">
+        <canvas id="glyphCanvas"></canvas>
+        <div class="overlay">
+          <div class="dii-readout" id="diiValue">0.76</div>
+          <div class="dii-label" id="diiLabel">DII · COHERENT</div>
+        </div>
+      </div>
+
       <div class="stats-grid">
           <div>MEMS: <span class="stat-val" id="stat-mems">0</span></div>
           <div>LEVEL: <span class="stat-val" id="stat-pts">0</span></div>
@@ -638,10 +730,15 @@ INDEX_HTML = """<!doctype html>
           <select id="modeSelect">
               <option>companion</option><option>engineer</option><option>critic</option>
               <option>coach</option><option>clarity</option><option>researcher</option>
+              <option>bughunter</option>
           </select>
           <div style="display:flex; gap:8px;">
               <button id="statusBtn" class="btn-action" style="flex:1;">STATUS</button>
               <button id="reflectBtn" class="btn-action" style="flex:1;">REFLECT</button>
+          </div>
+          <div style="display:flex; gap:8px;">
+              <button id="historyBtn" class="btn-action" style="flex:1; border-color:var(--c-orange);">CHAT_HISTORY</button>
+              <button id="bughuntBtn" class="btn-action" style="flex:1; border-color:var(--c-green);">BUGHUNT_MODE</button>
           </div>
           <div id="sysLog">Awaiting signal...</div>
       </div>
@@ -653,7 +750,14 @@ INDEX_HTML = """<!doctype html>
   </aside>
 </main>
 
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 <script>
+let socket = null;
+try {
+    socket = io();
+} catch (e) {
+    console.warn("Socket.io failed to initialize. Telemetry will be offline.");
+}
 const msgContainer = document.querySelector('#messages');
 const visageOrb = document.querySelector('#visageOrb');
 const eyeL = document.querySelector('#eyeL');
@@ -739,6 +843,7 @@ document.querySelector('#form').onsubmit = async (e) => {
   if (!text || btn.disabled) return;
   
   input.value = '';
+  input.disabled = true;
   btn.disabled = true;
   btn.textContent = '...';
   addMsg('user', text);
@@ -751,7 +856,9 @@ document.querySelector('#form').onsubmit = async (e) => {
     addMsg('bot', 'CONNECTION_ERROR: Core unresponsive.');
   } finally {
     btn.disabled = false;
+    input.disabled = false;
     btn.textContent = 'SEND';
+    input.focus();
     refresh();
   }
 };
@@ -773,12 +880,171 @@ document.querySelector('#reflectBtn').onclick = async () => {
     refresh();
 };
 
+document.querySelector('#historyBtn').onclick = async () => {
+    const data = await post('/api/command', {command: 'history', args: '10'});
+    document.querySelector('#sysLog').textContent = "HISTORY_RETRIEVED. Check console or display.";
+    // Let's add the history directly to the chat
+    if (data.reply) {
+        addMsg('bot', '--- CHAT HISTORY LOG ---\\n' + data.reply);
+    }
+};
+
+document.querySelector('#bughuntBtn').onclick = async () => {
+    const data = await post('/api/command', {command: 'mode', args: 'bughunter'});
+    document.querySelector('#sysLog').textContent = data.reply;
+    document.querySelector('#modeSelect').value = 'bughunter';
+};
+
 // Periodic Refresh
 setInterval(refresh, 5000);
 refresh();
 
 // Handle window resize scroll fix
 window.addEventListener('resize', scrollToBottom);
+
+// --- DII CANVAS AND COUNCIL JS ---
+let glyphState = {
+  needs: {
+    Energy: 0.82, Coherence: 0.88, Integration: 0.75,
+    Connection: 0.60, Growth: 0.71, Autonomy: 0.85, Integrity: 0.94
+  },
+  shadow_influence: 0.08,
+  dii: 0.76,
+  phi_proxy: 0.62,
+  turn_count: 0
+};
+
+const needKeys = Object.keys(glyphState.needs);
+const needColors = ['#FF5A00', '#FF7733', '#FF9955', '#00E676', '#55aaff', '#aa55ff', '#ff55aa'];
+
+const canvas = document.getElementById('glyphCanvas');
+const ctx = canvas.getContext('2d');
+let W, H, cx, cy, radius;
+
+function resizeCanvas() {
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width * window.devicePixelRatio;
+  canvas.height = rect.height * window.devicePixelRatio;
+  W = canvas.width;
+  H = canvas.height;
+  cx = W / 2;
+  cy = H / 2;
+  radius = Math.min(W, H) * 0.35;
+  ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+  W /= window.devicePixelRatio;
+  H /= window.devicePixelRatio;
+  cx /= window.devicePixelRatio;
+  cy /= window.devicePixelRatio;
+  radius /= window.devicePixelRatio;
+}
+window.addEventListener('resize', resizeCanvas);
+// Call after a small delay to ensure DOM is ready
+setTimeout(resizeCanvas, 100);
+
+function drawGlyph() {
+  if (!W) return requestAnimationFrame(drawGlyph);
+  ctx.clearRect(0, 0, W, H);
+  const time = Date.now() * 0.001;
+  const n = needKeys.length;
+  const angles = needKeys.map((_, i) => (Math.PI * 2 * i / n) - Math.PI / 2);
+
+  // Radial lines
+  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < n; i++) {
+    const a = angles[i];
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.cos(a) * radius, cy + Math.sin(a) * radius);
+    ctx.stroke();
+  }
+
+  // Need polygon
+  ctx.beginPath();
+  const points = [];
+  for (let i = 0; i < n; i++) {
+    const a = angles[i];
+    const v = glyphState.needs[needKeys[i]];
+    const r = radius * v;
+    const x = cx + Math.cos(a) * r;
+    const y = cy + Math.sin(a) * r;
+    points.push({ x, y, v, a });
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+
+  const diiHue = glyphState.dii > 0.8 ? 150 : glyphState.dii > 0.6 ? 200 : glyphState.dii > 0.4 ? 30 : 0;
+  ctx.fillStyle = `hsla(${diiHue}, 80%, 50%, 0.15)`;
+  ctx.fill();
+  ctx.strokeStyle = `hsla(${diiHue}, 80%, 55%, 0.6)`;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Need vertices (glowing dots)
+  for (let i = 0; i < n; i++) {
+    const p = points[i];
+    const color = needColors[i];
+    const pulse = 1 + Math.sin(time * 2 + i) * 0.15;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 4 * pulse, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+    
+    // Labels
+    const labelR = radius + 20;
+    const lx = cx + Math.cos(p.a) * labelR;
+    const ly = cy + Math.sin(p.a) * labelR;
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.font = '8px "Fira Code", monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(needKeys[i].substring(0,3).toUpperCase(), lx, ly);
+  }
+
+  // Orbiting council nodes
+  const orbitR = radius * 0.55;
+  ctx.beginPath();
+  ctx.arc(cx, cy, orbitR, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(0, 230, 118, 0.1)';
+  ctx.stroke();
+
+  const councilNodes = [
+    { offset: 0, color: '#FF5A00' },
+    { offset: Math.PI / 2, color: '#00E676' },
+    { offset: Math.PI, color: '#FF5A00' },
+    { offset: Math.PI * 1.5, color: '#004D40' }
+  ];
+
+  for (const node of councilNodes) {
+    const a = time * 0.4 + node.offset;
+    const x = cx + Math.cos(a) * orbitR;
+    const y = cy + Math.sin(a) * orbitR;
+    ctx.beginPath();
+    ctx.arc(x, y, 3, 0, Math.PI * 2);
+    ctx.fillStyle = node.color;
+    ctx.fill();
+  }
+
+  requestAnimationFrame(drawGlyph);
+}
+drawGlyph();
+
+if (socket) {
+  socket.on('observatory_delta', (delta) => {
+    if (delta.needs) glyphState.needs = delta.needs;
+    if (delta.shadow_influence !== undefined) glyphState.shadow_influence = delta.shadow_influence;
+    if (delta.dii !== undefined) {
+        glyphState.dii = delta.dii;
+        document.getElementById('diiValue').textContent = glyphState.dii.toFixed(3);
+        const diiLabel = glyphState.dii >= 0.8 ? 'COHERENT' : glyphState.dii >= 0.6 ? 'STABLE' : glyphState.dii >= 0.4 ? 'DRIFTING' : 'REVIEW';
+        document.getElementById('diiLabel').textContent = `DII · ${diiLabel}`;
+    }
+    if (delta.phi_proxy !== undefined) glyphState.phi_proxy = delta.phi_proxy;
+    if (delta.turn_count !== undefined) glyphState.turn_count = delta.turn_count;
+  });
+}
+// ------------------------------------
 </script>
 </body>
 </html>
@@ -786,6 +1052,9 @@ window.addEventListener('resize', scrollToBottom);
 
 
 def chat_reply(message, session_res: SessionResources):
+    import os
+    FAST_MODE = os.environ.get("DRIFT_FAST_MODE", "true").lower() == "true"
+
     prompt, emotion, dissonance = build_chat_prompt(
         message,
         session_res.state,
@@ -794,24 +1063,36 @@ def chat_reply(message, session_res: SessionResources):
         doc_store=session_res.doc_store,
         prefs=session_res.state.prefs,
     )
-    output = session_res.brain.agent_turn(prompt, tools_enabled=True, raw_user_input=message)
-    try:
-        session_res.brain.evaluate_last(prompt, output)
-    except Exception:
-        pass
-    importance = min(
-        0.95, 0.45 + emotion["intensity"] * 0.3 + dissonance["score"] * 0.15
-    )
-    session_res.memory.save_interaction(
-        message,
-        output,
-        mode=session_res.state.mode,
-        emotion=emotion,
-        importance=importance,
-        dissonance=dissonance,
-    )
-    session_res.history.append(message, output, session_res.state.mode, emotion, dissonance)
-    session_res.state.turns += 1
+    
+    max_iters = 1 if FAST_MODE else 3
+    tools = False if FAST_MODE else True
+    output = session_res.brain.agent_turn(prompt, tools_enabled=tools, max_iterations=max_iters, raw_user_input=message)
+    
+    def background_evolution():
+        try:
+            session_res.brain.evaluate_last(prompt, output)
+        except Exception:
+            pass
+        importance = min(
+            0.95, 0.45 + emotion["intensity"] * 0.3 + dissonance["score"] * 0.15
+        )
+        session_res.memory.save_interaction(
+            message,
+            output,
+            mode=session_res.state.mode,
+            emotion=emotion,
+            importance=importance,
+            dissonance=dissonance,
+        )
+        session_res.history.append(message, output, session_res.state.mode, emotion, dissonance)
+        session_res.state.turns += 1
+
+    if FAST_MODE:
+        import threading
+        threading.Thread(target=background_evolution).start()
+    else:
+        background_evolution()
+
     return output
 
 
