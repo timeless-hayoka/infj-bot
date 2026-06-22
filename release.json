@@ -1,0 +1,10 @@
+{
+  "product": "ANCHOR",
+  "engine": "Trinity",
+  "version": "0.10.0",
+  "build_date": "2026-06-22",
+  "tests_passed": 18,
+  "warnings": 1,
+  "status": "release_candidate",
+  "build_id": "anchor-0.10.0-20260622"
+}

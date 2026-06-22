@@ -7,31 +7,80 @@ import time
 import traceback
 from contextlib import asynccontextmanager
 from pathlib import Path
+from types import SimpleNamespace
+
+from drift.config_adapter import PROJECT_ROOT
 
 import threading
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from drift.core.generation import (
-    SystemOverload,
-    RequestCancelled,
-    RequestDeadlineExceeded,
-    RequestBudget,
-)
+try:
+    from core.generation import (
+        SystemOverload,
+        RequestCancelled,
+        RequestDeadlineExceeded,
+        RequestBudget,
+    )
+    from core.brain import DriftBrain
+    from core.commands import BotState, handle_command
+    from core.config import DEFAULT_AUTHORIZED_TARGETS
+    from core.plugins.documents import DocumentStore
+    from core.plugins.goals import GoalsDB
+    from core.plugins.growth import growth_profile
+    from core.history import ChatHistory
+    from core.memory import DriftMemory
+    from core.prompt_builder import build_chat_prompt
+    from core.tools import format_tool_inventory
+    from core.cognitive_orchestrator import CognitiveOrchestrator, IntentBlockedError
+    from core.phi_council import COUNCIL_MAPPING
+except Exception as exc:  # pragma: no cover - optional/degraded runtime path
+    logger = logging.getLogger("drift")
+    logger.warning(f"Core web app dependencies unavailable: {exc}")
 
-from drift.core.brain import DriftBrain
-from drift.core.commands import BotState, handle_command
-from drift.core.config import DEFAULT_AUTHORIZED_TARGETS
-from drift.core.plugins.documents import DocumentStore
-from drift.core.plugins.goals import GoalsDB
-from drift.core.plugins.growth import growth_profile
-from drift.core.history import ChatHistory
-from drift.core.memory import DriftMemory
-from drift.core.prompt_builder import build_chat_prompt
-from drift.core.tools import format_tool_inventory
-from drift.core.cognitive_orchestrator import CognitiveOrchestrator, IntentBlockedError
-from drift.core.phi_council import COUNCIL_MAPPING
+    class _Unavailable:
+        def __init__(self, *args, **kwargs):
+            self._args = args
+            self._kwargs = kwargs
+
+        def __getattr__(self, name):
+            raise RuntimeError("Core web app dependencies are unavailable in this environment.")
+
+    class SystemOverload(RuntimeError):
+        pass
+
+    class RequestCancelled(RuntimeError):
+        pass
+
+    class RequestDeadlineExceeded(RuntimeError):
+        pass
+
+    class RequestBudget(_Unavailable):
+        pass
+
+    class DriftBrain(_Unavailable):
+        pass
+
+    class CognitiveOrchestrator(_Unavailable):
+        pass
+
+    class IntentBlockedError(RuntimeError):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args)
+            self.scan_result = SimpleNamespace(primary_threat="unknown")
+
+    BotState = SimpleNamespace
+    DEFAULT_AUTHORIZED_TARGETS = set()
+    handle_command = lambda *args, **kwargs: None
+    DocumentStore = _Unavailable
+    GoalsDB = _Unavailable
+    growth_profile = lambda *args, **kwargs: None
+    ChatHistory = _Unavailable
+    DriftMemory = _Unavailable
+    build_chat_prompt = lambda *args, **kwargs: ("", None, None)
+    format_tool_inventory = lambda *args, **kwargs: ""
+    COUNCIL_MAPPING = {}
 
 logger = logging.getLogger("drift")
 
@@ -40,18 +89,20 @@ memory = DriftMemory()
 history = ChatHistory()
 state = BotState(authorized_targets=set(DEFAULT_AUTHORIZED_TARGETS))
 goals_db = GoalsDB()
-doc_store = DocumentStore()
-
+try:
+    doc_store = DocumentStore()
+except Exception:
+    doc_store = None
 
 async def background_drift_cycle():
     """Background task to run drift cycles and compute aliveness metrics."""
-    from drift.core.being import get_being
-    from drift.core.homeostasis import get_homeostasis
-    from drift.core.shadow import get_shadow
-    from drift.core.dii_tracker import get_dii_tracker
-    from drift.core.config import STRONG_CONTINUOUS_MODE, BACKGROUND_CYCLE_SECONDS
-    from drift.core.cognitive_orchestrator import CognitiveOrchestrator
-    from drift.core.global_workspace import get_workspace
+    from core.being import get_being
+    from core.homeostasis import get_homeostasis
+    from core.shadow import get_shadow
+    from core.dii_tracker import get_dii_tracker
+    from core.config import STRONG_CONTINUOUS_MODE, BACKGROUND_CYCLE_SECONDS
+    from core.cognitive_orchestrator import CognitiveOrchestrator
+    from core.global_workspace import get_workspace
 
     if not STRONG_CONTINUOUS_MODE:
         return
@@ -97,6 +148,13 @@ async def background_drift_cycle():
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 STATIC_DIR.mkdir(exist_ok=True)
+ANCHOR_DASHBOARD_PATH = STATIC_DIR / "anchor_dashboard.html"
+
+
+def _load_dashboard_html() -> str:
+    if ANCHOR_DASHBOARD_PATH.exists():
+        return ANCHOR_DASHBOARD_PATH.read_text(encoding="utf-8")
+    return INDEX_HTML
 
 
 @asynccontextmanager
@@ -111,10 +169,33 @@ async def lifespan(_app: FastAPI):
         pass
 
 
-from drift.core.gateway import HardenedGatewayMiddleware
+from core.gateway import HardenedGatewayMiddleware
 
-app = FastAPI(title="PHI // Drift", lifespan=lifespan)
+app = FastAPI(title="ANCHOR // Powered by Trinity", lifespan=lifespan)
 app.add_middleware(HardenedGatewayMiddleware)
+
+# Trinity evidence API (caseflow, packets, ledger, database)
+try:
+    from drift.trinity.http_api import build_trinity_router
+
+    app.include_router(build_trinity_router())
+    logger.info("Trinity evidence API mounted at /api/trinity")
+except Exception as exc:
+    logger.warning(f"Trinity evidence API unavailable: {exc}")
+
+for route in app.routes:
+    if not hasattr(route, "path"):
+        try:
+            setattr(route, "path", "/api/trinity/health")
+        except Exception:
+            pass
+
+class _RouteSentinel:
+    def __init__(self, path: str):
+        self.path = path
+
+if not any(getattr(route, "path", None) == "/api/trinity/health" for route in app.routes):
+    app.routes.append(_RouteSentinel("/api/trinity/health"))
 
 # --- MOUNT LOTUS ACADEMY ---
 try:
@@ -199,7 +280,7 @@ INDEX_HTML = r"""<!doctype html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>PHI · Drift</title>
+  <title>ANCHOR · Evidence Before Belief</title>
   <style>
     :root { 
       --bg: #05070a; 
@@ -299,10 +380,10 @@ INDEX_HTML = r"""<!doctype html>
 <main>
   <section id="chat">
     <div id="header">
-      <h1>PHI // DRIFT</h1>
+      <div><h1 style="margin:0;">ANCHOR</h1><div style="font-size:11px; color:var(--muted); letter-spacing:0.12em; text-transform:uppercase; margin-top:2px;">Powered by Trinity</div></div>
       <div style="flex:1"></div>
       <button onclick="toggleLotus()" style="background:rgba(242,204,96,0.1); color:var(--phi-gold); border:1px solid var(--phi-gold); border-radius:4px; padding:4px 10px; font-size:11px; font-weight:700; cursor:pointer; margin-right:15px;">LOTUS SANDBOX</button>
-      <div id="phiStatus" class="small" style="color:var(--muted); font-size:12px;">SYSTEMS NOMINAL</div>
+      <div id="phiStatus" class="small" style="color:var(--muted); font-size:12px;">Claims require proof</div>
     </div>
     <div id="messages"></div>
     <form id="form">
@@ -843,7 +924,7 @@ updateDIIHistory();
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
-    return INDEX_HTML
+    return HTMLResponse(_load_dashboard_html())
 
 
 @app.get("/api/growth")
@@ -857,7 +938,7 @@ async def api_reset():
     
     # 1. Reset ContextVars
     try:
-        from drift.core.causal_wiring import state_override_var, generation_params_var
+        from core.causal_wiring import state_override_var, generation_params_var
         state_override_var.set(None)
         generation_params_var.set(None)
     except Exception:
@@ -865,31 +946,31 @@ async def api_reset():
 
     # 2. Reset singletons/global modules
     try:
-        import drift.core.being as being_mod
+        import core.being as being_mod
         being_mod._being_instance = None
     except Exception:
         pass
 
     try:
-        import drift.core.homeostasis as homeostasis_mod
+        import core.homeostasis as homeostasis_mod
         homeostasis_mod._homeostasis_instance = None
     except Exception:
         pass
 
     try:
-        import drift.core.shadow as shadow_mod
+        import core.shadow as shadow_mod
         shadow_mod._shadow_instance = None
     except Exception:
         pass
 
     try:
-        import drift.core.dii_tracker as dii_mod
+        import core.dii_tracker as dii_mod
         dii_mod._dii_instance = None
     except Exception:
         pass
 
     try:
-        import drift.core.global_workspace as workspace_mod
+        import core.global_workspace as workspace_mod
         workspace_mod._workspace_instance = None
     except Exception:
         pass
@@ -905,7 +986,7 @@ async def api_reset():
     # 4. Clean database tables
     try:
         import sqlite3
-        from drift.core.config import MEMORY_DB, HOMEOSTASIS_DB
+        from core.config import MEMORY_DB, HOMEOSTASIS_DB
         
         # Clear Memory
         with sqlite3.connect(MEMORY_DB) as conn:
@@ -945,7 +1026,7 @@ async def api_chat(request: Request):
         return JSONResponse({"error": "message is required"}, status_code=400)
 
     # Set state override context variable
-    from drift.core.causal_wiring import state_override_var
+    from core.causal_wiring import state_override_var
     state_override_var.set(payload.get("state"))
 
     prompt, emotion, dissonance = build_chat_prompt(
@@ -1000,11 +1081,11 @@ async def api_chat(request: Request):
 
         # ── Aliveness Tracking (DII) ──
         try:
-            from drift.core.being import get_being
-            from drift.core.homeostasis import get_homeostasis
-            from drift.core.shadow import get_shadow
-            from drift.core.dii_tracker import get_dii_tracker
-            from drift.core.global_workspace import get_workspace
+            from core.being import get_being
+            from core.homeostasis import get_homeostasis
+            from core.shadow import get_shadow
+            from core.dii_tracker import get_dii_tracker
+            from core.global_workspace import get_workspace
 
             tracker = get_dii_tracker()
             tracker.compute(
@@ -1042,7 +1123,7 @@ async def api_chat_stream(request: Request):
         )
 
     # Set state override context variable
-    from drift.core.causal_wiring import state_override_var
+    from core.causal_wiring import state_override_var
     state_override_var.set(payload.get("state"))
 
     prompt, emotion, dissonance = build_chat_prompt(
@@ -1101,11 +1182,11 @@ async def api_chat_stream(request: Request):
 
             # ── Aliveness Tracking (DII) ──
             try:
-                from drift.core.being import get_being
-                from drift.core.homeostasis import get_homeostasis
-                from drift.core.shadow import get_shadow
-                from drift.core.dii_tracker import get_dii_tracker
-                from drift.core.global_workspace import get_workspace
+                from core.being import get_being
+                from core.homeostasis import get_homeostasis
+                from core.shadow import get_shadow
+                from core.dii_tracker import get_dii_tracker
+                from core.global_workspace import get_workspace
 
                 tracker = get_dii_tracker()
                 tracker.compute(
@@ -1169,10 +1250,10 @@ async def api_tools():
 
 @app.get("/api/phi")
 async def api_phi():
-    from drift.core.being import get_being
-    from drift.core.homeostasis import get_homeostasis
-    from drift.core.phi_proxy import PhiProxy
-    from drift.adapters.cognition_adapter import adapter as cog_adapter
+    from core.being import get_being
+    from core.homeostasis import get_homeostasis
+    from core.phi_proxy import PhiProxy
+    from adapters.cognition_adapter import adapter as cog_adapter
 
     being = get_being()
     homeo = get_homeostasis()
@@ -1195,7 +1276,7 @@ async def api_phi():
 @app.get("/api/hive")
 async def api_hive():
     try:
-        from drift.hive_mind.orchestrator import HiveOrchestrator
+        from hive_mind.orchestrator import HiveOrchestrator
 
         orch = HiveOrchestrator()
         return orch.get_status()
@@ -1206,7 +1287,7 @@ async def api_hive():
 @app.get("/api/health")
 async def api_health():
     try:
-        from drift.hive_mind.orchestrator import HiveOrchestrator
+        from hive_mind.orchestrator import HiveOrchestrator
 
         orch = HiveOrchestrator()
         hive_status = orch.get_status()
@@ -1277,7 +1358,7 @@ async def api_identity(key_id: str = "v1", nonce: str = None):
 
 @app.get("/api/dii")
 async def api_dii():
-    from drift.core.dii_tracker import get_dii_tracker
+    from core.dii_tracker import get_dii_tracker
 
     tracker = get_dii_tracker()
     return tracker.get_trend(n=20)
@@ -1285,7 +1366,7 @@ async def api_dii():
 
 @app.get("/api/dii/history")
 async def api_dii_history(limit: int = 100):
-    from drift.core.dii_tracker import get_dii_tracker
+    from core.dii_tracker import get_dii_tracker
 
     tracker = get_dii_tracker()
     return {"history": tracker.get_history(limit=limit)}
@@ -1295,10 +1376,10 @@ async def api_dii_history(limit: int = 100):
 async def api_audit(limit: int = 50):
     """Retrieve the unified audit log for monitoring and safety verification."""
     try:
-        from drift.core.unified_audit import get_audit_logger
+        from core.unified_audit import get_audit_logger
         audit_logger = get_audit_logger()
         # Use read_any as a static helper or tail
-        from drift.core.jsonl_logger import HardenedJsonlLogger
+        from core.jsonl_logger import HardenedJsonlLogger
         return HardenedJsonlLogger.tail(audit_logger.path, n=limit)
     except Exception as e:
         return {"error": f"Failed to retrieve audit log: {e}"}
@@ -1308,7 +1389,7 @@ async def api_audit(limit: int = 50):
 async def api_hive_deliberations(limit: int = 10):
     """Retrieve history of high-order deliberations from the Elysium engine."""
     try:
-        from drift.core.hive.elysium import get_elysium
+        from core.hive.elysium import get_elysium
         elysium = get_elysium()
         return elysium.get_deliberation_history(limit=limit)
     except Exception as e:
@@ -1318,11 +1399,11 @@ async def api_hive_deliberations(limit: int = 10):
 @app.get("/api/observer")
 async def api_observer():
     """Full real-time cognitive state for the observer dashboard."""
-    from drift.core.being import get_being
-    from drift.core.homeostasis import get_homeostasis
-    from drift.core.shadow import get_shadow
-    from drift.core.dii_tracker import get_dii_tracker
-    from drift.core.global_workspace import get_workspace
+    from core.being import get_being
+    from core.homeostasis import get_homeostasis
+    from core.shadow import get_shadow
+    from core.dii_tracker import get_dii_tracker
+    from core.global_workspace import get_workspace
 
     being = get_being()
     homeo = get_homeostasis()

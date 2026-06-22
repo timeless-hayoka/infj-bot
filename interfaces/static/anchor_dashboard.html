@@ -1,0 +1,635 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ANCHOR · Evidence Before Belief</title>
+  <style>
+    :root {
+      --bg: #060910;
+      --bg2: #0b1220;
+      --panel: rgba(13, 19, 31, 0.92);
+      --line: rgba(255,255,255,0.08);
+      --gold: #f2cc60;
+      --blue: #79c0ff;
+      --green: #7ee787;
+      --red: #ff7b72;
+      --text: #edf2f7;
+      --muted: #98a2b3;
+      --radius: 18px;
+      --shadow: 0 20px 60px rgba(0,0,0,0.35);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at 10% 10%, rgba(242,204,96,0.13), transparent 24%),
+        radial-gradient(circle at 90% 10%, rgba(121,192,255,0.12), transparent 26%),
+        linear-gradient(160deg, #04060a 0%, #08111b 100%);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .shell {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      min-height: 100vh;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: center;
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(4,8,15,0.72);
+      backdrop-filter: blur(14px);
+    }
+
+    .brand h1 {
+      margin: 0;
+      letter-spacing: 0.24em;
+      text-transform: uppercase;
+      font-size: 22px;
+    }
+
+    .brand .tagline {
+      color: var(--gold);
+      font-size: 12px;
+      letter-spacing: 0.26em;
+      text-transform: uppercase;
+      margin-top: 4px;
+    }
+
+    .brand .sub {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 4px;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+
+    .btn {
+      appearance: none;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.03);
+      color: var(--text);
+      padding: 10px 14px;
+      border-radius: 999px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: transform .15s ease, border-color .15s ease, background .15s ease;
+    }
+
+    .btn:hover { transform: translateY(-1px); border-color: rgba(242,204,96,0.35); }
+    .btn.primary { background: linear-gradient(135deg, rgba(242,204,96,0.18), rgba(121,192,255,0.14)); }
+
+    .grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.55fr) 360px;
+      gap: 18px;
+      padding: 18px;
+      min-height: 0;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    .main {
+      display: grid;
+      grid-template-rows: auto auto 1fr auto;
+    }
+
+    .section-head {
+      padding: 18px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .section-head h2 {
+      margin: 0;
+      color: var(--gold);
+      font-size: 14px;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+    }
+
+    .section-head .small,
+    .subtle { color: var(--muted); font-size: 12px; }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0,1fr));
+      gap: 12px;
+      padding: 18px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(242,204,96,0.05), transparent);
+    }
+
+    .card {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 14px;
+      min-height: 92px;
+    }
+
+    .card .label {
+      color: var(--muted);
+      font-size: 11px;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .card .value {
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+    }
+
+    .card .desc {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      min-height: 16px;
+    }
+
+    .chat {
+      display: grid;
+      grid-template-rows: 1fr auto;
+      min-height: 0;
+    }
+
+    .messages {
+      overflow: auto;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      min-height: 0;
+    }
+
+    .message {
+      max-width: 920px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 15px 16px;
+      line-height: 1.55;
+      background: rgba(255,255,255,0.02);
+    }
+
+    .message.user {
+      align-self: flex-end;
+      border-color: rgba(121,192,255,0.22);
+      background: linear-gradient(135deg, rgba(121,192,255,0.12), rgba(242,204,96,0.08));
+    }
+
+    .message.bot {
+      align-self: flex-start;
+      border-color: rgba(242,204,96,0.16);
+    }
+
+    .typing { color: var(--muted); font-style: italic; }
+
+    .markdown-body h1,
+    .markdown-body h2,
+    .markdown-body h3 { margin: .2em 0 .5em; }
+    .markdown-body pre {
+      background: #05070a;
+      padding: 14px;
+      border-radius: 14px;
+      overflow: auto;
+      border: 1px solid var(--line);
+    }
+    .markdown-body code {
+      color: var(--blue);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    .composer {
+      border-top: 1px solid var(--line);
+      padding: 16px 18px 18px;
+    }
+
+    .quick {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .quick button, .pill {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.03);
+      color: var(--text);
+      border-radius: 999px;
+      padding: 8px 12px;
+      cursor: pointer;
+    }
+
+    .row { display: flex; gap: 10px; }
+    input, select {
+      font: inherit;
+      border: 1px solid var(--line);
+      background: rgba(3,6,11,0.88);
+      color: var(--text);
+      border-radius: 16px;
+      padding: 14px 16px;
+      outline: none;
+      width: 100%;
+    }
+    input:focus, select:focus { border-color: rgba(242,204,96,0.38); box-shadow: 0 0 0 3px rgba(242,204,96,0.08); }
+    .row .btn { min-width: 112px; border-radius: 16px; }
+
+    .sidebar {
+      display: grid;
+      grid-template-rows: auto auto auto 1fr auto;
+      min-height: 0;
+    }
+
+    .sidebar .block {
+      padding: 18px;
+      border-bottom: 1px solid var(--line);
+    }
+    .sidebar .block:last-child { border-bottom: 0; }
+
+    .sidebar h3 {
+      margin: 0 0 12px;
+      color: var(--gold);
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: .16em;
+    }
+
+    .rows {
+      display: grid;
+      gap: 10px;
+      color: var(--text);
+      font-size: 13px;
+    }
+
+    .kv { display: flex; justify-content: space-between; gap: 12px; }
+    .kv span:first-child { color: var(--muted); }
+
+    .bar { height: 8px; border-radius: 999px; background: rgba(255,255,255,0.05); overflow: hidden; margin-top: 10px; }
+    .bar > div { height: 100%; width: 50%; background: linear-gradient(90deg, rgba(242,204,96,0.95), rgba(121,192,255,0.92)); }
+
+    .list {
+      display: grid;
+      gap: 8px;
+      margin-top: 10px;
+      font-size: 12px;
+    }
+
+    .list div {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: 12px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--line);
+    }
+
+    .footer {
+      padding: 16px 18px 18px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 1200px) {
+      .grid { grid-template-columns: 1fr; }
+      body { overflow: auto; }
+      .shell { min-height: 100%; }
+    }
+
+    @media (max-width: 900px) {
+      .topbar { flex-direction: column; align-items: flex-start; }
+      .actions { width: 100%; justify-content: flex-start; }
+      .stats { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .row { flex-direction: column; }
+      .row .btn { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <h1>ANCHOR</h1>
+        <div class="tagline">Evidence Before Belief</div>
+        <div class="sub">Powered by Trinity</div>
+      </div>
+      <div class="actions">
+        <button class="btn primary" type="button" onclick="scrollToComposer()">New message</button>
+        <button class="btn" type="button" onclick="refreshAll()">Refresh</button>
+        <button class="btn" type="button" onclick="loadIdentity()">Identity</button>
+      </div>
+    </header>
+
+    <main class="grid">
+      <section class="panel main">
+        <div class="section-head">
+          <div>
+            <h2>Workbench</h2>
+            <div class="small">Chat with the engine, inspect state, and keep the system visible.</div>
+          </div>
+          <div class="small" id="connectionState">Ready</div>
+        </div>
+
+        <div class="stats">
+          <div class="card"><div class="label">Mode</div><div class="value" id="phiMood">…</div><div class="desc" id="phiMoodDetail">Waiting</div></div>
+          <div class="card"><div class="label">Energy</div><div class="value" id="phiEnergy">…</div><div class="desc" id="phiEnergyDetail">Health signal</div></div>
+          <div class="card"><div class="label">Turns</div><div class="value" id="phiTurns">…</div><div class="desc" id="phiTurnsDetail">Conversation depth</div></div>
+          <div class="card"><div class="label">Memory</div><div class="value" id="phiMemory">…</div><div class="desc" id="phiMemoryDetail">Persistent nodes</div></div>
+        </div>
+
+        <div class="chat">
+          <div class="messages" id="messages"></div>
+          <div class="composer" id="composer">
+            <div class="quick">
+              <button type="button" onclick="setPrompt('Give me a concise status update of the current cognitive state.')">Status</button>
+              <button type="button" onclick="setPrompt('Summarize the most important things in memory and goals.')">Memory</button>
+              <button type="button" onclick="setPrompt('Suggest the next useful action and explain why.')">Next step</button>
+              <button type="button" onclick="setPrompt('Run a short reflection on the current state and output the result.')">Reflect</button>
+            </div>
+            <form id="form" class="row">
+              <input id="input" autocomplete="off" placeholder="Ask ANCHOR…" aria-label="Message input">
+              <button class="btn primary" type="submit">Send</button>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <aside class="panel sidebar">
+        <div class="block">
+          <h3>Release</h3>
+          <div class="rows">
+            <div class="kv"><span>Status</span><strong id="healthStatus">…</strong></div>
+            <div class="kv"><span>Build</span><strong id="releaseLine">…</strong></div>
+            <div class="kv"><span>Mode</span><strong id="activeMode">companion</strong></div>
+          </div>
+          <div class="bar"><div id="healthBar"></div></div>
+        </div>
+
+        <div class="block">
+          <h3>Observer</h3>
+          <div class="rows">
+            <div class="kv"><span>DII</span><strong id="diiValue">0.00</strong></div>
+            <div class="kv"><span>Trend</span><strong id="diiTrend">flat</strong></div>
+            <div class="kv"><span>Energy need</span><strong id="needEnergy">—</strong></div>
+            <div class="kv"><span>Weather</span><strong id="weatherState">—</strong></div>
+          </div>
+        </div>
+
+        <div class="block">
+          <h3>Prompt mode</h3>
+          <select id="mode">
+            <option>companion</option><option>engineer</option><option>critic</option>
+            <option>coach</option><option>clarity</option><option>researcher</option><option>bughunter</option><option>drift</option><option>quiet</option>
+          </select>
+          <div class="subtle" style="margin-top:10px;">Mode changes are pushed to the backend immediately.</div>
+        </div>
+
+        <div class="block" style="min-height:0;">
+          <h3>Needs & shadow</h3>
+          <div class="list">
+            <div><span>Needs</span><span id="obsNeeds">…</span></div>
+            <div><span>Shadow</span><span id="obsRadar">…</span></div>
+          </div>
+        </div>
+
+        <div class="footer">
+          Use this page as the daily cockpit. It keeps conversation, state, and health together without the extra noise.
+        </div>
+      </aside>
+    </main>
+  </div>
+
+<script>
+const messages = document.getElementById('messages');
+const input = document.getElementById('input');
+const releaseLine = document.getElementById('releaseLine');
+const activeMode = document.getElementById('activeMode');
+const healthStatus = document.getElementById('healthStatus');
+const healthBar = document.getElementById('healthBar');
+const connectionState = document.getElementById('connectionState');
+
+function escapeHtml(s) {
+  return String(s || '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+
+function renderMarkdown(text) {
+  let escaped = escapeHtml(text || '');
+  escaped = escaped.replace(/```([\s\S]*?)```/g, (_, code) => '<pre><code>' + code.trim() + '</code></pre>');
+  escaped = escaped.replace(/`([^`]+)`/g, '<code>$1</code>');
+  escaped = escaped.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  escaped = escaped.replace(/^### (.*)$/gm, '<h3>$1</h3>');
+  escaped = escaped.replace(/^## (.*)$/gm, '<h2>$1</h2>');
+  escaped = escaped.replace(/^# (.*)$/gm, '<h1>$1</h1>');
+  escaped = escaped.replace(/\n/g, '<br>');
+  return escaped;
+}
+
+function addMessage(cls, text, html=false) {
+  const div = document.createElement('div');
+  div.className = `message ${cls}`;
+  div.innerHTML = html ? `<div class="markdown-body">${text}</div>` : escapeHtml(text);
+  messages.appendChild(div);
+  messages.scrollTop = messages.scrollHeight;
+  return div;
+}
+
+function setPrompt(value) {
+  input.value = value;
+  input.focus();
+}
+
+function scrollToComposer() {
+  document.getElementById('composer').scrollIntoView({behavior: 'smooth', block: 'end'});
+  input.focus();
+}
+
+async function updatePhi() {
+  try {
+    const res = await fetch('/api/phi');
+    const data = await res.json();
+    const mood = data.subjective?.mood || 'neutral';
+    const energy = Math.round((data.subjective?.energy || 0.5) * 100);
+    document.getElementById('phiMood').textContent = mood;
+    document.getElementById('phiMoodDetail').textContent = data.subjective?.description || 'Stable';
+    document.getElementById('phiEnergy').textContent = energy + '%';
+    document.getElementById('phiEnergyDetail').textContent = data.needs?.energy?.status || 'normal';
+    document.getElementById('phiTurns').textContent = data.turns || '—';
+    document.getElementById('phiTurnsDetail').textContent = data.last_turn || 'Recent turn count';
+    document.getElementById('phiMemory').textContent = data.memory_count || '—';
+    document.getElementById('phiMemoryDetail').textContent = data.memory_state || 'persistent';
+  } catch (e) {}
+}
+
+async function updateHealth() {
+  try {
+    const res = await fetch('/api/health');
+    const data = await res.json();
+    const healthy = !!data.healthy;
+    healthStatus.textContent = healthy ? 'PASS' : 'CHECK';
+    healthStatus.style.color = healthy ? 'var(--green)' : 'var(--red)';
+    healthBar.style.width = healthy ? '100%' : '55%';
+    releaseLine.textContent = `${data.release?.product || 'ANCHOR'} ${data.release?.version || ''}`.trim();
+  } catch (e) {
+    healthStatus.textContent = 'OFFLINE';
+    healthStatus.style.color = 'var(--red)';
+    healthBar.style.width = '18%';
+  }
+}
+
+async function updateObserver() {
+  try {
+    const res = await fetch('/api/observer');
+    const data = await res.json();
+    const dii = data.dii || {};
+    document.getElementById('diiValue').textContent = Number(dii.dii_current || 0).toFixed(2);
+    document.getElementById('diiTrend').textContent = dii.trend || 'flat';
+    document.getElementById('needEnergy').textContent = data.homeostasis?.needs?.energy?.current != null
+      ? Math.round(data.homeostasis.needs.energy.current * 100) + '%'
+      : '—';
+    document.getElementById('weatherState').textContent = data.homeostasis?.weather || '—';
+
+    const needs = data.homeostasis?.needs || {};
+    const needsSummary = Object.entries(needs).slice(0, 3).map(([k, v]) => `${k}:${Math.round((v.current || 0) * 100)}%`).join(' · ') || 'none';
+    document.getElementById('obsNeeds').textContent = needsSummary;
+
+    const radar = data.shadow?.radar || {};
+    const radarSummary = Object.entries(radar).slice(0, 3).map(([k, v]) => `${k}:${Math.round((v || 0) * 100)}%`).join(' · ') || 'none';
+    document.getElementById('obsRadar').textContent = radarSummary;
+  } catch (e) {}
+}
+
+async function sendMessage(text) {
+  addMessage('user', text);
+  const reply = addMessage('bot', 'Thinking…');
+  reply.classList.add('typing');
+  connectionState.textContent = 'Working';
+
+  let buffer = '';
+  let streamOk = false;
+  try {
+    const res = await fetch('/api/chat/stream', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({message: text})
+    });
+    if (!res.ok || !res.body) throw new Error('stream unavailable');
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    while (true) {
+      const {value, done} = await reader.read();
+      if (done) break;
+      const chunk = decoder.decode(value, {stream: true});
+      for (const line of chunk.split('\n')) {
+        if (!line.startsWith('data: ')) continue;
+        const data = line.slice(6);
+        if (data === '[DONE]') continue;
+        try {
+          const obj = JSON.parse(data);
+          if (obj.chunk) {
+            buffer += obj.chunk;
+            reply.innerHTML = `<div class="markdown-body">${renderMarkdown(buffer)}</div>`;
+            streamOk = true;
+          }
+        } catch (e) {}
+      }
+    }
+  } catch (e) {}
+
+  if (!streamOk || !buffer.trim()) {
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({message: text})
+      });
+      const data = await res.json();
+      buffer = data.reply || data.response || data.message || '';
+      reply.innerHTML = `<div class="markdown-body">${renderMarkdown(buffer)}</div>`;
+    } catch (e) {
+      reply.innerHTML = `<div class="markdown-body">Error: ${escapeHtml(e.message || 'Unknown error')}</div>`;
+    }
+  }
+
+  reply.classList.remove('typing');
+  connectionState.textContent = 'Ready';
+  await Promise.all([updatePhi(), updateHealth(), updateObserver()]);
+}
+
+document.getElementById('form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  await sendMessage(text);
+});
+
+document.getElementById('mode').addEventListener('change', async (e) => {
+  activeMode.textContent = e.target.value;
+  try {
+    await fetch('/api/command', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({command: 'mode', args: e.target.value})
+    });
+  } catch (err) {}
+});
+
+async function loadIdentity() {
+  try {
+    const res = await fetch('/api/identity');
+    const data = await res.json();
+    const lines = [
+      '# ANCHOR Identity',
+      `Product: ${data.product || 'ANCHOR'}`,
+      `Engine: ${data.engine || 'Trinity'}`,
+      `Status: ${data.status || 'release_candidate'}`,
+      '',
+      'The engine underneath stays Trinity until the internal rename window opens.'
+    ].join('\n');
+    addMessage('bot', renderMarkdown(lines), true);
+  } catch (e) {}
+}
+
+async function refreshAll() {
+  await Promise.all([updatePhi(), updateHealth(), updateObserver()]);
+}
+
+window.addEventListener('load', async () => {
+  await refreshAll();
+  addMessage('bot', 'ANCHOR is ready. Ask for a status summary, a reflection, or the next useful action.', true);
+});
+
+setInterval(updatePhi, 10000);
+setInterval(updateObserver, 5000);
+setInterval(updateHealth, 15000);
+</script>
+</body>
+</html>
