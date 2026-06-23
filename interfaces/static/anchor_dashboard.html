@@ -77,6 +77,16 @@
       justify-content: flex-end;
     }
 
+    .subnav {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      padding: 0 24px 18px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(4,8,15,0.58);
+      backdrop-filter: blur(14px);
+    }
+
     .btn {
       appearance: none;
       border: 1px solid var(--line);
@@ -91,6 +101,7 @@
 
     .btn:hover { transform: translateY(-1px); border-color: rgba(242,204,96,0.35); }
     .btn.primary { background: linear-gradient(135deg, rgba(242,204,96,0.18), rgba(121,192,255,0.14)); }
+    .btn.subtle { background: rgba(255,255,255,0.02); }
 
     .grid {
       display: grid;
@@ -290,17 +301,30 @@
     .kv { display: flex; justify-content: space-between; gap: 12px; }
     .kv span:first-child { color: var(--muted); }
 
+    .detail {
+      margin-top: 12px;
+      padding: 12px;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--line);
+      color: var(--text);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
     .bar { height: 8px; border-radius: 999px; background: rgba(255,255,255,0.05); overflow: hidden; margin-top: 10px; }
     .bar > div { height: 100%; width: 50%; background: linear-gradient(90deg, rgba(242,204,96,0.95), rgba(121,192,255,0.92)); }
 
-    .list {
+    .list,
+    .record-list {
       display: grid;
       gap: 8px;
       margin-top: 10px;
       font-size: 12px;
     }
 
-    .list div {
+    .list div,
+    .record {
       display: flex;
       justify-content: space-between;
       gap: 10px;
@@ -308,6 +332,27 @@
       border-radius: 12px;
       background: rgba(255,255,255,0.03);
       border: 1px solid var(--line);
+    }
+
+    .record {
+      width: 100%;
+      text-align: left;
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    .record:hover {
+      border-color: rgba(121,192,255,0.32);
+      background: rgba(121,192,255,0.08);
+    }
+
+    .record strong {
+      color: var(--gold);
+      font-weight: 700;
+    }
+
+    .record .meta {
+      color: var(--muted);
     }
 
     .footer {
@@ -348,8 +393,15 @@
       </div>
     </header>
 
+    <nav class="subnav" aria-label="Dashboard sections">
+      <a class="btn subtle" href="#workbench" onclick="scrollToSection('workbench'); return false;">Workbench</a>
+      <a class="btn subtle" href="#release" onclick="scrollToSection('release'); return false;">Release</a>
+      <a class="btn subtle" href="#history" onclick="scrollToSection('history'); return false;">History</a>
+      <a class="btn subtle" href="#archive" onclick="scrollToSection('archive'); return false;">Archive</a>
+    </nav>
+
     <main class="grid">
-      <section class="panel main">
+      <section class="panel main" id="workbench">
         <div class="section-head">
           <div>
             <h2>Workbench</h2>
@@ -383,14 +435,45 @@
       </section>
 
       <aside class="panel sidebar">
-        <div class="block">
+        <div class="block" id="release">
           <h3>Release</h3>
           <div class="rows">
             <div class="kv"><span>Status</span><strong id="healthStatus">…</strong></div>
             <div class="kv"><span>Build</span><strong id="releaseLine">…</strong></div>
+            <div class="kv"><span>Build ID</span><strong id="releaseBuildId">…</strong></div>
+            <div class="kv"><span>Commit</span><strong id="releaseCommit">…</strong></div>
+            <div class="kv"><span>Branch</span><strong id="releaseBranch">…</strong></div>
+            <div class="kv"><span>Tests</span><strong id="releaseTests">…</strong></div>
             <div class="kv"><span>Mode</span><strong id="activeMode">companion</strong></div>
           </div>
           <div class="bar"><div id="healthBar"></div></div>
+          <div class="detail" id="releaseSummary">Manifest-backed release identity.</div>
+        </div>
+
+        <div class="block" id="history">
+          <h3>History</h3>
+          <div class="rows">
+            <div class="kv"><span>Runs</span><strong id="historyCount">…</strong></div>
+            <div class="kv"><span>Latest case</span><strong id="latestCase">…</strong></div>
+            <div class="kv"><span>Latest status</span><strong id="latestCaseStatus">…</strong></div>
+          </div>
+          <div class="record-list" id="historyList"></div>
+          <div class="detail" id="historySummary">Recent case activity will appear here.</div>
+          <div class="detail" id="historyDetail">Select a case to inspect its bundle summary.</div>
+        </div>
+
+        <div class="block" id="archive">
+          <h3>Archive</h3>
+          <div class="rows">
+            <div class="kv"><span>Archive dir</span><strong id="archiveDir">…</strong></div>
+            <div class="kv"><span>Ledger</span><strong id="archiveLedger">…</strong></div>
+            <div class="kv"><span>Manifest</span><strong id="manifestPath">…</strong></div>
+          </div>
+          <div class="list">
+            <div><span>Smoke</span><span>anchor archive create &lt;case_ref&gt;</span></div>
+            <div><span>Export</span><span>anchor export-report &lt;case_ref&gt;</span></div>
+          </div>
+          <div class="detail">Archives are created from the terminal so the UI stays read-only and safe.</div>
         </div>
 
         <div class="block">
@@ -431,6 +514,20 @@
 const messages = document.getElementById('messages');
 const input = document.getElementById('input');
 const releaseLine = document.getElementById('releaseLine');
+const releaseBuildId = document.getElementById('releaseBuildId');
+const releaseCommit = document.getElementById('releaseCommit');
+const releaseBranch = document.getElementById('releaseBranch');
+const releaseTests = document.getElementById('releaseTests');
+const releaseSummary = document.getElementById('releaseSummary');
+const historyCount = document.getElementById('historyCount');
+const latestCase = document.getElementById('latestCase');
+const latestCaseStatus = document.getElementById('latestCaseStatus');
+const historyList = document.getElementById('historyList');
+const historySummary = document.getElementById('historySummary');
+const historyDetail = document.getElementById('historyDetail');
+const archiveDir = document.getElementById('archiveDir');
+const archiveLedger = document.getElementById('archiveLedger');
+const manifestPath = document.getElementById('manifestPath');
 const activeMode = document.getElementById('activeMode');
 const healthStatus = document.getElementById('healthStatus');
 const healthBar = document.getElementById('healthBar');
@@ -471,6 +568,13 @@ function scrollToComposer() {
   input.focus();
 }
 
+function scrollToSection(id) {
+  const node = document.getElementById(id);
+  if (node) {
+    node.scrollIntoView({behavior: 'smooth', block: 'start'});
+  }
+}
+
 async function updatePhi() {
   try {
     const res = await fetch('/api/phi');
@@ -490,17 +594,99 @@ async function updatePhi() {
 
 async function updateHealth() {
   try {
-    const res = await fetch('/api/health');
-    const data = await res.json();
+    const [healthRes, identityRes, pathsRes] = await Promise.all([
+      fetch('/api/health'),
+      fetch('/api/identity'),
+      fetch('/api/trinity/paths'),
+    ]);
+    const data = await healthRes.json();
+    const identity = await identityRes.json();
+    const paths = await pathsRes.json();
     const healthy = !!data.healthy;
+    const release = data.release || identity || {};
     healthStatus.textContent = healthy ? 'PASS' : 'CHECK';
     healthStatus.style.color = healthy ? 'var(--green)' : 'var(--red)';
     healthBar.style.width = healthy ? '100%' : '55%';
-    releaseLine.textContent = `${data.release?.product || 'ANCHOR'} ${data.release?.version || ''}`.trim();
+    releaseLine.textContent = `${release.product || 'ANCHOR'} ${release.version || ''}`.trim();
+    releaseBuildId.textContent = release.build_id || '—';
+    releaseCommit.textContent = release.commit || '—';
+    releaseBranch.textContent = release.branch || '—';
+    releaseTests.textContent = release.tests_passed != null ? String(release.tests_passed) : '—';
+    releaseSummary.textContent = [
+      `Status: ${release.status || 'unknown'}`,
+      `Cases dir: ${paths.cases_dir || data.cases_dir || 'unknown'}`,
+      `Ledger: ${paths.ledger_path || data.ledger_path || 'unknown'}`,
+    ].join(' · ');
+    archiveDir.textContent = paths.archive_dir || release.archive_dir || '—';
+    archiveLedger.textContent = paths.ledger_path || release.archive_ledger_path || '—';
+    manifestPath.textContent = release.manifest_path || 'release.json';
+    if (data.latest_benchmark) {
+      historySummary.textContent = `Latest benchmark: recall ${Number(data.latest_benchmark.recall || 0).toFixed(2)} · precision ${Number(data.latest_benchmark.precision || 0).toFixed(2)} · reproduction ${Number(data.latest_benchmark.reproduction_success || 0).toFixed(2)}`;
+    }
   } catch (e) {
     healthStatus.textContent = 'OFFLINE';
     healthStatus.style.color = 'var(--red)';
     healthBar.style.width = '18%';
+  }
+}
+
+function escapeAttr(value) {
+  return escapeHtml(value || '').replace(/"/g, '&quot;');
+}
+
+async function loadHistory() {
+  try {
+    const res = await fetch('/api/trinity/cases?limit=5');
+    const data = await res.json();
+    const cases = data.cases || [];
+    historyCount.textContent = String(data.count ?? cases.length ?? 0);
+    latestCase.textContent = cases[0]?.case_id || 'none';
+    latestCaseStatus.textContent = cases[0]?.status || '—';
+    historyList.innerHTML = '';
+
+    if (!cases.length) {
+      historyList.innerHTML = '<div class="detail">No Trinity cases recorded yet.</div>';
+      historyDetail.textContent = 'Run a demo or an analysis to populate the archive.';
+      return;
+    }
+
+    cases.forEach((entry) => {
+      const row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'record';
+      row.innerHTML = `
+        <span>
+          <strong>${escapeHtml(entry.case_id || 'unknown')}</strong><br>
+          <span class="meta">${escapeHtml(entry.scanner_format || 'unknown')} · ${escapeHtml(entry.status || 'unknown')}</span>
+        </span>
+        <span class="meta">${escapeHtml(String(entry.finding_count ?? 0))} findings</span>
+      `;
+      row.addEventListener('click', () => loadCaseSummary(entry.case_id));
+      historyList.appendChild(row);
+    });
+
+    if (cases[0]?.case_id) {
+      await loadCaseSummary(cases[0].case_id);
+    }
+  } catch (e) {}
+}
+
+async function loadCaseSummary(caseRef) {
+  try {
+    const res = await fetch(`/api/trinity/cases/${encodeURIComponent(caseRef)}/summary`);
+    if (!res.ok) throw new Error('summary unavailable');
+    const data = await res.json();
+    historyDetail.innerHTML = [
+      `Case <strong>${escapeHtml(data.case_id || caseRef)}</strong>`,
+      `Status: ${escapeHtml(data.status || 'unknown')}`,
+      `Scanner: ${escapeHtml(data.scanner_format || 'unknown')}`,
+      `Findings: ${escapeHtml(String(data.finding_count ?? 0))}`,
+      `Claim: ${escapeHtml(data.claim_id || 'unknown')}`,
+      `Output: ${escapeHtml(data.output_dir || 'unknown')}`,
+      data.reproduction_command ? `Repro: <code>${escapeHtml(data.reproduction_command)}</code>` : null,
+    ].filter(Boolean).join('<br>');
+  } catch (e) {
+    historyDetail.textContent = `Could not load case summary for ${caseRef}.`;
   }
 }
 
@@ -619,7 +805,7 @@ async function loadIdentity() {
 }
 
 async function refreshAll() {
-  await Promise.all([updatePhi(), updateHealth(), updateObserver()]);
+  await Promise.all([updatePhi(), updateHealth(), loadHistory(), updateObserver()]);
 }
 
 window.addEventListener('load', async () => {
@@ -630,6 +816,7 @@ window.addEventListener('load', async () => {
 setInterval(updatePhi, 10000);
 setInterval(updateObserver, 5000);
 setInterval(updateHealth, 15000);
+setInterval(loadHistory, 20000);
 </script>
 </body>
 </html>

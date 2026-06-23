@@ -567,4 +567,8 @@ def test_main_fastapi_app_exposes_trinity_routes():
     assert root.status_code == 200
     assert 'ANCHOR' in root.text
     assert 'Evidence Before Belief' in root.text
+    assert 'Workbench' in root.text
+    assert 'Release' in root.text
+    assert 'History' in root.text
+    assert 'Archive' in root.text
     assert any(route.path == '/api/trinity/health' for route in main_api.app.routes)
