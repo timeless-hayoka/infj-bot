@@ -697,6 +697,39 @@ class TestApi(unittest.TestCase):
             elif "DRIFT_ENV" in os.environ:
                 del os.environ["DRIFT_ENV"]
 
+    def test_api_identity_public_mode_without_shared_key(self):
+        from fastapi.testclient import TestClient
+        import os
+
+        orig_key = os.environ.get("DRIFT_SHARED_KEY")
+        orig_key_v1 = os.environ.get("DRIFT_SHARED_KEY_V1")
+        orig_env = os.environ.get("DRIFT_ENV")
+
+        for name in ("DRIFT_SHARED_KEY", "DRIFT_SHARED_KEY_V1"):
+            if name in os.environ:
+                del os.environ[name]
+        if "DRIFT_ENV" in os.environ:
+            del os.environ["DRIFT_ENV"]
+
+        try:
+            from drift.interfaces.api import app
+            client = TestClient(app)
+            response = client.get("/api/identity?key_id=v1")
+            self.assertEqual(response.status_code, 200)
+            data = response.json()
+            self.assertEqual(data["product"], "ANCHOR")
+            self.assertEqual(data["engine"], "Trinity")
+            self.assertEqual(data["status"], "release_candidate")
+            self.assertEqual(data["Metadata"]["Mode"], "public")
+            self.assertIsNone(data["Metadata"]["Signature"])
+        finally:
+            if orig_key is not None:
+                os.environ["DRIFT_SHARED_KEY"] = orig_key
+            if orig_key_v1 is not None:
+                os.environ["DRIFT_SHARED_KEY_V1"] = orig_key_v1
+            if orig_env is not None:
+                os.environ["DRIFT_ENV"] = orig_env
+
     def test_shadow_intent_enforcement_blocking(self):
         from fastapi.testclient import TestClient
         from drift.interfaces.api import app

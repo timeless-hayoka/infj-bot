@@ -5,6 +5,8 @@ import json
 import logging
 import time
 import traceback
+import os
+import secrets
 from contextlib import asynccontextmanager
 from pathlib import Path
 from types import SimpleNamespace
@@ -84,15 +86,209 @@ except Exception as exc:  # pragma: no cover - optional/degraded runtime path
 
 logger = logging.getLogger("drift")
 
-brain = DriftBrain()
-memory = DriftMemory()
+brain = None
+memory = None
 history = ChatHistory()
 state = BotState(authorized_targets=set(DEFAULT_AUTHORIZED_TARGETS))
 goals_db = GoalsDB()
-try:
-    doc_store = DocumentStore()
-except Exception:
-    doc_store = None
+doc_store = None
+
+
+def _get_brain():
+    global brain
+    if brain is None:
+        brain = DriftBrain()
+    return brain
+
+
+def _get_memory():
+    global memory
+    if memory is None:
+        try:
+            memory = DriftMemory()
+        except Exception:
+            memory = None
+    return memory
+
+
+def _get_doc_store():
+    global doc_store
+    if doc_store is None:
+        try:
+            doc_store = DocumentStore()
+        except Exception:
+            doc_store = None
+    return doc_store
+
+
+def _health_snapshot() -> dict[str, object]:
+    """Build the health payload shared by the health and Anchor snapshot routes."""
+    try:
+        from hive_mind.orchestrator import HiveOrchestrator
+
+        orch = HiveOrchestrator()
+        hive_status = orch.get_status()
+    except Exception:
+        hive_status = "offline"
+
+    memory_obj = _get_memory()
+    try:
+        memory_count = memory_obj.count() if memory_obj is not None else 0
+    except Exception:
+        memory_count = 0
+
+    return {
+        "ok": True,
+        "company": "PHI",
+        "model": "Drift",
+        "memory_count": memory_count,
+        "turns": state.turns,
+        "mode": state.mode,
+        "hive": hive_status,
+    }
+
+
+def _anchor_snapshot(limit: int = 5) -> dict[str, object]:
+    from drift.trinity.release import get_release_info
+    from drift.trinity.http_api import build_trinity_snapshot
+    from core.being import get_being
+    from core.homeostasis import get_homeostasis
+    from core.phi_proxy import PhiProxy
+    from adapters.cognition_adapter import adapter as cog_adapter
+    from core.shadow import get_shadow
+    from core.dii_tracker import get_dii_tracker
+    from core.global_workspace import get_workspace
+    import hashlib
+    import hmac
+    import os
+    from datetime import datetime, timezone
+
+    being = get_being()
+    homeo = get_homeostasis()
+    iit = PhiProxy()
+    shadow = get_shadow()
+    dii = get_dii_tracker()
+    ws = get_workspace()
+    release = get_release_info()
+    trinity = build_trinity_snapshot(limit=limit)
+
+    env_var_name = "DRIFT_SHARED_KEY_V1"
+    secret_str = os.environ.get(env_var_name) or os.environ.get("DRIFT_SHARED_KEY")
+    is_prod = os.environ.get("DRIFT_ENV") == "production"
+    ts = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    body_hash = hashlib.sha256(b"").hexdigest()
+    message = f"GET\n/api/identity\n{ts}\n{body_hash}".encode()
+    metadata: dict[str, object] = {
+        "OriginModule": "brain",
+        "Timestamp": ts,
+        "KeyID": "v1",
+        "BodyHash": body_hash,
+        "Signature": None,
+        "Mode": "public",
+    }
+    if secret_str:
+        metadata["Signature"] = hmac.new(secret_str.encode(), message, hashlib.sha256).hexdigest()
+        metadata["Mode"] = "signed"
+    elif is_prod:
+        raise RuntimeError(f"CRITICAL: Shared key '{env_var_name}' is missing in production!")
+
+    radar = {}
+    try:
+        radar = (
+            {k: round(v, 2) for k, v in shadow.radar.items()}
+            if hasattr(shadow, "radar")
+            else {}
+        )
+    except Exception:
+        pass
+
+    needs = {}
+    try:
+        for name, need in homeo.needs.items():
+            needs[name] = {
+                "current": round(need.current, 2),
+                "setpoint": round(need.setpoint, 2),
+                "trend": round(need.trend, 2),
+            }
+    except Exception:
+        pass
+
+    dii_data = dii.get_trend(n=20)
+
+    observer = {
+        "timestamp": time.time(),
+        "being": {
+            "mood": being.state.mood if being else "unknown",
+            "energy": round(being.state.energy, 2) if being else 0.5,
+            "curiosity": round(being.state.curiosity, 2) if being else 0.5,
+            "attachment": round(being.state.attachment, 2) if being else 0.5,
+            "self_awareness": round(being.agency.self_awareness, 2) if being else 0.5,
+            "volition": round(being.agency.volition, 2) if being else 0.5,
+            "autonomy_drive": round(being.agency.autonomy_drive, 2) if being else 0.5,
+            "working_memory_size": len(being.working_memory) if being else 0,
+        },
+        "homeostasis": {
+            "needs": needs,
+            "allostatic_load": round(homeo.allostatic_load, 2) if homeo else 0.0,
+            "crisis_mode": homeo.crisis_mode if homeo else False,
+            "weather": homeo.weather if homeo else "clear",
+            "mood_ema": round(homeo.mood_ema, 2) if homeo else 0.5,
+        },
+        "shadow": {
+            "radar": radar,
+            "integration_level": round(shadow._state.integration_level, 2)
+            if hasattr(shadow, "_state")
+            else 0.0,
+            "dominant_archetype": shadow._state.dominant_archetype
+            if hasattr(shadow, "_state")
+            else "",
+        },
+        "workspace": {
+            "contents_count": len(ws._submissions) if ws else 0,
+            "spotlight": ws.state.spotlight.source
+            if (ws and ws.state and ws.state.spotlight)
+            else "none",
+        },
+        "dii": dii_data,
+    }
+
+    return {
+        "ok": True,
+        "timestamp": time.time(),
+        "release": release,
+        "identity": {
+            "product": release.get("product", "ANCHOR"),
+            "engine": release.get("engine", "Trinity"),
+            "status": release.get("status", "release_candidate"),
+            "version": release.get("version"),
+            "build_id": release.get("build_id"),
+            "commit": release.get("commit"),
+            "branch": release.get("branch"),
+            "tests_passed": release.get("tests_passed"),
+            "warnings": release.get("warnings"),
+            "manifest_path": release.get("manifest_path"),
+            "release": release,
+            "Metadata": metadata,
+        },
+        "health": _health_snapshot(),
+        "phi": {
+            "company": "PHI",
+            "model": "Drift",
+            "phi": iit.state.phi,
+            "council": COUNCIL_MAPPING,
+            "subjective": being.state.to_dict() if hasattr(being, "state") else {},
+            "needs": homeo.get_all_needs() if hasattr(homeo, "get_all_needs") else {},
+            "free_energy": homeo.compute_free_energy(0, 0.1, 0.9),
+            "status": cog_adapter.get_status(),
+        },
+        "paths": trinity.get("paths", {}),
+        "history": trinity.get("history", {}),
+        "metrics": trinity.get("metrics", {}),
+        "vault": trinity.get("vault", {}),
+        "contributions": trinity.get("contributions", {}),
+        "observer": observer,
+    }
+
 
 async def background_drift_cycle():
     """Background task to run drift cycles and compute aliveness metrics."""
@@ -149,13 +345,287 @@ async def background_drift_cycle():
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 STATIC_DIR.mkdir(exist_ok=True)
 ANCHOR_DASHBOARD_PATH = STATIC_DIR / "anchor_dashboard.html"
+TRINITY_HUNT_PATH = STATIC_DIR / "trinity_hunt.html"
+ANCHOR_HUNT_COOKIE = "anchor_hunt_session"
+ANCHOR_HUNT_SECRET_PATH = Path(
+    os.getenv(
+        "ANCHOR_HUNT_SECRET_PATH",
+        str(Path.home() / ".config" / "anchor" / "hunt_passphrase"),
+    )
+).expanduser()
+ANCHOR_HUNT_SESSION = os.getenv("ANCHOR_HUNT_SESSION") or secrets.token_urlsafe(24)
+ANCHOR_HUNT_PASSWORD: str
+ANCHOR_HUNT_PASSWORD_HINT: str
 
 
-def _load_dashboard_html() -> str:
+def _anchor_hunt_password_bootstrap() -> tuple[str, str]:
+    override = os.getenv("ANCHOR_HUNT_PASSWORD", "").strip()
+    if override:
+        return override, "environment override active"
+
+    secret_path = ANCHOR_HUNT_SECRET_PATH
+    try:
+        if secret_path.exists():
+            password = secret_path.read_text(encoding="utf-8").strip()
+            if password:
+                return password, f"stored locally at {secret_path}"
+        secret_path.parent.mkdir(parents=True, exist_ok=True)
+        password = secrets.token_urlsafe(24)
+        secret_path.write_text(password + "\n", encoding="utf-8")
+        try:
+            secret_path.chmod(0o600)
+        except Exception:
+            pass
+        logger.warning("ANCHOR hunt passphrase generated once and saved to %s", secret_path)
+        logger.warning("ANCHOR hunt passphrase: %s", password)
+        return password, f"generated locally at {secret_path}"
+    except Exception as exc:
+        fallback = secrets.token_urlsafe(24)
+        logger.warning("ANCHOR hunt passphrase bootstrap fell back to an in-memory secret: %s", exc)
+        logger.warning("ANCHOR hunt passphrase: %s", fallback)
+        return fallback, "in-memory fallback (no file write)"
+
+
+ANCHOR_HUNT_PASSWORD, ANCHOR_HUNT_PASSWORD_HINT = _anchor_hunt_password_bootstrap()
+
+
+def _anchor_release_banner() -> str:
+    try:
+        from drift.trinity.release import get_release_info
+        release = get_release_info()
+        return f"{release.get('product', 'ANCHOR')} {release.get('version', 'unknown')} • {str(release.get('status', 'unknown')).replace('_', ' ')}"
+    except Exception:
+        return "ANCHOR local"
+
+
+def _anchor_hunt_password() -> str:
+    return ANCHOR_HUNT_PASSWORD
+
+
+def _anchor_hunt_password_hint() -> str:
+    return ANCHOR_HUNT_PASSWORD_HINT
+
+
+def _anchor_hunt_cookie_secure(request: Request) -> bool:
+    env_secure = os.getenv("ANCHOR_COOKIE_SECURE", "").strip().lower()
+    if env_secure in {"1", "true", "yes", "on"}:
+        return True
+    proto = request.headers.get("x-forwarded-proto", "").split(",", 1)[0].strip().lower()
+    if proto == "https":
+        return True
+    return request.url.scheme == "https"
+
+
+def _anchor_hunt_authenticated(request: Request) -> bool:
+    return request.cookies.get(ANCHOR_HUNT_COOKIE) == ANCHOR_HUNT_SESSION
+
+
+def _load_anchor_dashboard_html() -> str:
     if ANCHOR_DASHBOARD_PATH.exists():
-        return ANCHOR_DASHBOARD_PATH.read_text(encoding="utf-8")
-    return INDEX_HTML
+        html = ANCHOR_DASHBOARD_PATH.read_text(encoding="utf-8")
+    else:
+        html = """<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ANCHOR</title>
+</head>
+<body>
+  <h1>ANCHOR dashboard unavailable</h1>
+</body>
+</html>
+"""
+    try:
+        from drift.trinity.release import get_release_info
+        release = get_release_info()
+        banner = f"{release.get('product', 'ANCHOR')} {release.get('version', 'unknown')} • {str(release.get('status', 'unknown')).replace('_', ' ')}"
+    except Exception:
+        banner = "ANCHOR"
+    return html.replace("{{ANCHOR_RELEASE}}", banner)
 
+
+def _load_anchor_hunt_login_html() -> str:
+    banner = _anchor_release_banner()
+    password_hint = _anchor_hunt_password_hint()
+    html = """<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ANCHOR Hunt Login</title>
+  <style>
+    :root{--bg:#060a07;--panel:#0b110c;--panel2:#0d150e;--line:rgba(54,226,122,.16);--phos:#36e27a;--lime:#b6ff3a;--amber:#ffb020;--red:#ff5d5d;--cyan:#3fd9e6;--text:#cfeede;--muted:#5f7e69;--faint:#3c5547;--radius:18px}
+    *{box-sizing:border-box}html,body{height:100%}body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,sans-serif;color:var(--text);background:radial-gradient(circle at 10% 10%, rgba(54,226,122,.08), transparent 24%),radial-gradient(circle at 90% 10%, rgba(63,217,230,.09), transparent 26%),linear-gradient(160deg,#04060a 0%,#08111b 100%)}
+    .wrap{min-height:100vh;display:grid;place-items:center;padding:24px;position:relative;overflow:hidden}
+    .bg{position:fixed;inset:0;pointer-events:none;opacity:.85;background-image:linear-gradient(rgba(54,226,122,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(54,226,122,.05) 1px,transparent 1px);background-size:44px 44px}
+    .card{width:min(760px,100%);border:1px solid var(--line);background:rgba(9,14,11,.96);border-radius:24px;box-shadow:0 30px 90px rgba(0,0,0,.45);overflow:hidden}
+    .head{padding:22px 24px;border-bottom:1px solid var(--line);background:rgba(11,17,12,.85)}
+    .brand{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.18em;text-transform:uppercase;color:var(--phos);font-weight:800;font-size:22px}
+    .sub{margin-top:6px;color:var(--muted);font-size:12px;letter-spacing:.08em}
+    .tag{margin-top:6px;color:var(--cyan);font-size:10px;letter-spacing:.2em;text-transform:uppercase}
+    .body{display:grid;grid-template-columns:1.05fr .95fr;gap:0}
+    .pane{padding:24px}
+    .pane + .pane{border-left:1px solid var(--line);background:rgba(13,21,14,.72)}
+    h1{margin:0 0 10px;font:700 24px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.08em}
+    .copy{color:var(--muted);line-height:1.6;font-size:14px}
+    .pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border:1px solid var(--line);border-radius:999px;background:rgba(255,255,255,.02);font:600 11px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.04em;color:var(--text)}
+    .dot{width:7px;height:7px;border-radius:50%;background:var(--phos);box-shadow:0 0 8px var(--phos)}
+    .field{display:block;margin-top:14px}
+    .field span{display:block;font:10px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+    input{width:100%;background:#0a0f0b;border:1px solid var(--line);border-radius:10px;color:var(--text);padding:12px 14px;font:inherit;outline:none}
+    input:focus{border-color:rgba(54,226,122,.6);box-shadow:0 0 0 3px rgba(54,226,122,.1)}
+    .btn{margin-top:14px;width:100%;padding:12px 14px;border-radius:10px;border:1px solid rgba(54,226,122,.4);background:rgba(54,226,122,.12);color:var(--phos);font:700 12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.16em;text-transform:uppercase;cursor:pointer}
+    .btn:hover{background:rgba(54,226,122,.16)}
+    .meta{display:grid;gap:10px;margin-top:18px}
+    .meta .row{display:flex;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.02)}
+    .meta .k{font:10px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+    .meta .v{font:12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--text);text-align:right}
+    .err{margin-top:10px;color:var(--red);font:12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;min-height:18px}
+    .hint{margin-top:12px;color:var(--faint);font-size:12px;line-height:1.5}
+    @media (max-width:760px){.body{grid-template-columns:1fr}.pane + .pane{border-left:0;border-top:1px solid var(--line)}}
+  </style>
+</head>
+<body>
+  <div class="bg"></div>
+  <div class="wrap">
+    <section class="card">
+      <div class="head">
+        <div class="brand">ANCHOR // HUNT</div>
+        <div class="tag">LOCAL LOGIN GATE · LAB SCOPE · AUTHORIZED ACCESS ONLY</div>
+        <div class="sub">{{ANCHOR_RELEASE}}</div>
+      </div>
+      <div class="body">
+        <div class="pane">
+          <h1>Enter the local passphrase</h1>
+          <div class="copy">This console is intentionally gated before it shows the boot sequence, recon feed, CVSS tools, and Trinity chat. The backend keeps the session in an HttpOnly cookie so the browser never stores model credentials or provider keys.</div>
+          <div class="meta">
+            <div class="row"><span class="k">session cookie</span><span class="v">{{ANCHOR_HUNT_COOKIE}}</span></div>
+            <div class="row"><span class="k">passphrase source</span><span class="v">{{ANCHOR_HUNT_PASSWORD_HINT}}</span></div>
+            <div class="row"><span class="k">mode</span><span class="v">localhost only</span></div>
+          </div>
+          <div class="hint">If you want a custom passphrase, set <code>ANCHOR_HUNT_PASSWORD</code> before starting the app.</div>
+        </div>
+        <div class="pane">
+          <label class="field"><span>Passphrase</span><input id="password" type="password" autocomplete="current-password" placeholder="local passphrase"></label>
+          <button class="btn" id="loginBtn">Unlock console</button>
+          <div class="err" id="error"></div>
+          <div class="hint">After a successful login the page reloads into the full operator console and the session is tied to a local-only cookie.</div>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+    const loginBtn = document.getElementById('loginBtn');
+    const password = document.getElementById('password');
+    const error = document.getElementById('error');
+    async function login(){
+      error.textContent = '';
+      const value = password.value.trim();
+      if (!value) { error.textContent = 'Enter the passphrase first.'; return; }
+      loginBtn.disabled = true;
+      loginBtn.textContent = 'Unlocking...';
+      try {
+        const res = await fetch('/anchor/hunt/login', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({password: value}),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.authenticated) {
+          error.textContent = data.error || 'Login failed.';
+          return;
+        }
+        window.location.href = '/anchor/hunt';
+      } catch (e) {
+        error.textContent = 'Could not reach the login endpoint.';
+      } finally {
+        loginBtn.disabled = false;
+        loginBtn.textContent = 'Unlock console';
+      }
+    }
+    loginBtn.addEventListener('click', login);
+    password.addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+    password.focus();
+  </script>
+</body>
+</html>
+"""
+    return html.replace("{{ANCHOR_RELEASE}}", banner).replace("{{ANCHOR_HUNT_COOKIE}}", ANCHOR_HUNT_COOKIE).replace("{{ANCHOR_HUNT_PASSWORD_HINT}}", password_hint)
+
+
+def _load_trinity_hunt_html() -> str:
+    if TRINITY_HUNT_PATH.exists():
+        html = TRINITY_HUNT_PATH.read_text(encoding="utf-8")
+    else:
+        html = """<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TRINITY // HUNT</title>
+</head>
+<body>
+  <h1>TRINITY // HUNT unavailable</h1>
+</body>
+</html>
+"""
+    return html.replace("{{ANCHOR_RELEASE}}", _anchor_release_banner())
+
+
+def _local_trinity_reply(message: str) -> str:
+    prompt = message.lower()
+    release = _anchor_release_banner()
+    memory_count = _health_snapshot().get("memory_count", 0)
+
+    gate = (
+        "Trinity follows the ANCHOR evidence gate: "
+        "signal -> hypothesis -> repro_attempted -> reproduced_real -> council_accepted -> report_ready. "
+        "A plausible claim is not a finding."
+    )
+
+    if not prompt:
+        return (
+            f"ANCHOR local chat bridge is ready. Current release: {release}. Memory count: {memory_count}. "
+            f"{gate} Ask about scope, mechanism, repro, impact, CVSS, evidence, or the run timeline."
+        )
+
+    if any(key in prompt for key in ("summary", "summarize", "overview", "what is this")):
+        return (
+            "ANCHOR is a local-first Trinity operator console with a strict proof gate. "
+            "It uses boot, recon, live run history, CVSS, provenance, and signed evidence to turn signals into reproducible cases. "
+            f"Current memory count: {memory_count}. {gate}"
+        )
+
+    if "cvss" in prompt or "severity" in prompt:
+        return (
+            "Use the CVSS panel to score the claim, but do not promote severity before the repro is stable. "
+            "Trinity should describe the mechanism, say what would falsify it, then score only the impact that the evidence already supports."
+        )
+
+    if "login" in prompt or "safe" in prompt or "cookie" in prompt:
+        return (
+            "The hunt console is protected by a local passphrase and an HttpOnly cookie. "
+            "The browser never sees provider keys, and Trinity chat goes through the server route instead."
+        )
+
+    if "boot" in prompt or "recon" in prompt or "feed" in prompt:
+        return (
+            "The boot sequence primes the snapshot and evidence context, then the recon feed summarizes findings, case history, and the active run timeline. "
+            "Use that context to frame each lead as scope, mechanism, reproduction, and impact."
+        )
+
+    if "report" in prompt or "submission" in prompt:
+        return (
+            "Before writing a report, lock the lead to the ANCHOR rubric: scope clean, mechanism concrete, repro repeatable, impact measurable. "
+            "If any one of those fails, downgrade the claim instead of drafting it as a finding."
+        )
+
+    return (
+        f"I’m running locally inside ANCHOR. {release}. "
+        "Use this hunt frame by default: Scope, Mechanism, Reproduction, Impact, Next Step. "
+        f"{gate}"
+    )
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
@@ -263,12 +733,13 @@ async def _watch_request_disconnect(request: Request, cancel_event: threading.Ev
 
 def _run_with_request_budget(callable_, request_budget, *args, **kwargs):
     """Binds the request budget to the current executing worker thread's thread-local store."""
-    brain._request_budget_local.budget = request_budget
+    brain_worker = _get_brain()
+    brain_worker._request_budget_local.budget = request_budget
     try:
         return callable_(*args, **kwargs)
     finally:
-        if hasattr(brain._request_budget_local, "budget"):
-            del brain._request_budget_local.budget
+        if hasattr(brain_worker._request_budget_local, "budget"):
+            del brain_worker._request_budget_local.budget
 
 # Serve static files if any exist
 if STATIC_DIR.exists():
@@ -924,12 +1395,83 @@ updateDIIHistory();
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
-    return HTMLResponse(_load_dashboard_html())
+    return HTMLResponse(INDEX_HTML)
+
+
+@app.get("/anchor", response_class=HTMLResponse)
+async def anchor_dashboard():
+    return HTMLResponse(_load_anchor_dashboard_html())
+
+
+@app.get("/anchor/hunt", response_class=HTMLResponse)
+async def anchor_hunt_dashboard(request: Request):
+    if not _anchor_hunt_authenticated(request):
+        return HTMLResponse(_load_anchor_hunt_login_html())
+    return HTMLResponse(_load_trinity_hunt_html())
+
+
+@app.get("/api/anchor/session")
+async def api_anchor_session(request: Request):
+    return JSONResponse({
+        "authenticated": _anchor_hunt_authenticated(request),
+        "cookie": ANCHOR_HUNT_COOKIE,
+        "release": _anchor_release_banner(),
+    })
+
+
+@app.post("/anchor/hunt/login")
+async def anchor_hunt_login(request: Request):
+    payload = await request.json()
+    password = str(payload.get("password", "")).strip()
+    if password != _anchor_hunt_password():
+        return JSONResponse({"ok": False, "error": "invalid passphrase"}, status_code=401)
+    response = JSONResponse({"ok": True, "authenticated": True})
+    response.set_cookie(
+        ANCHOR_HUNT_COOKIE,
+        ANCHOR_HUNT_SESSION,
+        httponly=True,
+        samesite="strict",
+        secure=_anchor_hunt_cookie_secure(request),
+        path="/",
+    )
+    return response
+
+
+@app.post("/anchor/hunt/logout")
+async def anchor_hunt_logout():
+    response = JSONResponse({"ok": True, "authenticated": False})
+    response.delete_cookie(ANCHOR_HUNT_COOKIE, path="/")
+    return response
+
+
+@app.post("/api/trinity/evidence/sign")
+async def api_trinity_evidence_sign(request: Request):
+    if not _anchor_hunt_authenticated(request):
+        return JSONResponse({"ok": False, "error": "login required"}, status_code=401)
+    payload = await request.json()
+    if not isinstance(payload, dict):
+        return JSONResponse({"ok": False, "error": "bundle payload required"}, status_code=400)
+    bundle = payload.get("bundle", payload)
+    if not isinstance(bundle, dict):
+        return JSONResponse({"ok": False, "error": "bundle payload must be an object"}, status_code=400)
+    from drift.trinity.http_api import EVIDENCE_SIGNING_KEY_HINT, sign_evidence_bundle
+
+    signed_bundle = sign_evidence_bundle(bundle)
+    return JSONResponse({"ok": True, "signed_bundle": signed_bundle, "signing_hint": EVIDENCE_SIGNING_KEY_HINT})
+
+
+@app.post("/api/trinity/chat")
+async def api_trinity_chat(request: Request):
+    if not _anchor_hunt_authenticated(request):
+        return JSONResponse({"ok": False, "error": "login required"}, status_code=401)
+    payload = await request.json()
+    message = str(payload.get("message", "")).strip()
+    return JSONResponse({"ok": True, "reply": _local_trinity_reply(message), "mode": "local"})
 
 
 @app.get("/api/growth")
 async def api_growth():
-    return growth_profile(memory, state.turns)
+    return growth_profile(_get_memory(), state.turns)
 
 
 @app.post("/api/reset")
@@ -975,13 +1517,13 @@ async def api_reset():
     except Exception:
         pass
 
-    # 3. Re-instantiate core structures
-    brain = DriftBrain()
-    memory = DriftMemory()
+    # 3. Re-instantiate core structures lazily on next access
+    brain = None
+    memory = None
     history = ChatHistory()
     state = BotState(authorized_targets=set(DEFAULT_AUTHORIZED_TARGETS))
     goals_db = GoalsDB()
-    doc_store = DocumentStore()
+    doc_store = None
 
     # 4. Clean database tables
     try:
@@ -1029,12 +1571,13 @@ async def api_chat(request: Request):
     from core.causal_wiring import state_override_var
     state_override_var.set(payload.get("state"))
 
+    brain_worker = _get_brain()
     prompt, emotion, dissonance = build_chat_prompt(
         message,
         state,
-        memory,
+        _get_memory(),
         goals_db=goals_db,
-        doc_store=doc_store,
+        doc_store=_get_doc_store(),
         prefs=state.prefs,
     )
 
@@ -1045,7 +1588,7 @@ async def api_chat(request: Request):
     try:
         output = await asyncio.to_thread(
             _run_with_request_budget,
-            brain.agent_turn,
+            brain_worker.agent_turn,
             budget,
             prompt,
             tools_enabled=True,
@@ -1055,7 +1598,7 @@ async def api_chat(request: Request):
         try:
             await asyncio.to_thread(
                 _run_with_request_budget,
-                brain.evaluate_last,
+                brain_worker.evaluate_last,
                 budget,
                 prompt,
                 output
@@ -1066,7 +1609,7 @@ async def api_chat(request: Request):
             0.95, 0.45 + emotion["intensity"] * 0.3 + dissonance["score"] * 0.15
         )
         await asyncio.to_thread(
-            memory.save_interaction,
+            _get_memory().save_interaction,
             message,
             output,
             mode=state.mode,
@@ -1126,12 +1669,13 @@ async def api_chat_stream(request: Request):
     from core.causal_wiring import state_override_var
     state_override_var.set(payload.get("state"))
 
+    brain_worker = _get_brain()
     prompt, emotion, dissonance = build_chat_prompt(
         message,
         state,
-        memory,
+        _get_memory(),
         goals_db=goals_db,
-        doc_store=doc_store,
+        doc_store=_get_doc_store(),
         prefs=state.prefs,
     )
 
@@ -1144,7 +1688,7 @@ async def api_chat_stream(request: Request):
             # Run synchronous stream in a thread to avoid blocking the event loop
             chunks = await asyncio.to_thread(
                 _run_with_request_budget,
-                lambda: list(brain.agent_turn_stream(prompt, tools_enabled=True, raw_user_input=message, mode=state.mode)),
+                lambda: list(brain_worker.agent_turn_stream(prompt, tools_enabled=True, raw_user_input=message, mode=state.mode)),
                 budget
             )
             for chunk in chunks:
@@ -1156,7 +1700,7 @@ async def api_chat_stream(request: Request):
             try:
                 await asyncio.to_thread(
                     _run_with_request_budget,
-                    brain.evaluate_last,
+                    brain_worker.evaluate_last,
                     budget,
                     prompt,
                     output
@@ -1167,7 +1711,7 @@ async def api_chat_stream(request: Request):
                 0.95, 0.45 + emotion["intensity"] * 0.3 + dissonance["score"] * 0.15
             )
             await asyncio.to_thread(
-                memory.save_interaction,
+                _get_memory().save_interaction,
                 message,
                 output,
                 mode=state.mode,
@@ -1234,11 +1778,11 @@ async def api_command(request: Request):
         payload.get("command", ""),
         payload.get("args", ""),
         state,
-        brain,
-        memory,
+        _get_brain(),
+        _get_memory(),
         history,
         goals_db,
-        doc_store,
+        _get_doc_store(),
     )
     return {"reply": reply}
 
@@ -1286,23 +1830,7 @@ async def api_hive():
 
 @app.get("/api/health")
 async def api_health():
-    try:
-        from hive_mind.orchestrator import HiveOrchestrator
-
-        orch = HiveOrchestrator()
-        hive_status = orch.get_status()
-    except Exception:
-        hive_status = "offline"
-
-    return {
-        "ok": True,
-        "company": "PHI",
-        "model": "Drift",
-        "memory_count": memory.count(),
-        "turns": state.turns,
-        "mode": state.mode,
-        "hive": hive_status,
-    }
+    return _health_snapshot()
 
 
 @app.get("/api/identity")
@@ -1311,48 +1839,60 @@ async def api_identity(key_id: str = "v1", nonce: str = None):
     import hashlib
     import os
     from datetime import datetime, timezone
+    from drift.trinity.release import get_release_info
 
     # Key Rotation & Safe Environment Retrieval
     env_var_name = f"DRIFT_SHARED_KEY_{key_id.upper()}"
     secret_str = os.environ.get(env_var_name)
     is_prod = os.environ.get("DRIFT_ENV") == "production"
-    
+
     if not secret_str and not is_prod:
         # Fallback to general DRIFT_SHARED_KEY to support seamless migration/testing in dev
         secret_str = os.environ.get("DRIFT_SHARED_KEY")
-    
-    if not secret_str:
-        if is_prod:
-            raise RuntimeError(f"CRITICAL: Shared key '{env_var_name}' is missing in production!")
-        else:
-            raise RuntimeError(f"CRITICAL: Shared key for ID '{key_id}' ({env_var_name} or DRIFT_SHARED_KEY) is missing from environment!")
-        
-    secret = secret_str.encode()
+
+    release = get_release_info()
     ts = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-    
+
     # Body is empty for GET /api/identity
     body_hash = hashlib.sha256(b"").hexdigest()
-    
+
     # Canonical string format: METHOD + "\n" + PATH + "\n" + TIMESTAMP + "\n" + BODY_HASH + ("\n" + NONCE if NONCE else "")
     if nonce:
         message = f"GET\n/api/identity\n{ts}\n{body_hash}\n{nonce}".encode()
     else:
         message = f"GET\n/api/identity\n{ts}\n{body_hash}".encode()
-        
-    signature = hmac.new(secret, message, hashlib.sha256).hexdigest()
-    
+
     metadata = {
         "OriginModule": "brain",
         "Timestamp": ts,
         "KeyID": key_id,
         "BodyHash": body_hash,
-        "Signature": signature
+        "Signature": None,
+        "Mode": "public",
     }
     if nonce:
         metadata["Nonce"] = nonce
-        
+
+    if secret_str:
+        secret = secret_str.encode()
+        metadata["Signature"] = hmac.new(secret, message, hashlib.sha256).hexdigest()
+        metadata["Mode"] = "signed"
+    elif is_prod:
+        raise RuntimeError(f"CRITICAL: Shared key '{env_var_name}' is missing in production!")
+
     return {
-        "Metadata": metadata
+        "product": release.get("product", "ANCHOR"),
+        "engine": release.get("engine", "Trinity"),
+        "status": release.get("status", "release_candidate"),
+        "version": release.get("version"),
+        "build_id": release.get("build_id"),
+        "commit": release.get("commit"),
+        "branch": release.get("branch"),
+        "tests_passed": release.get("tests_passed"),
+        "warnings": release.get("warnings"),
+        "manifest_path": release.get("manifest_path"),
+        "release": release,
+        "Metadata": metadata,
     }
 
 
@@ -1473,6 +2013,11 @@ async def api_observer():
         },
         "dii": dii_data,
     }
+
+
+@app.get("/api/anchor/snapshot")
+async def api_anchor_snapshot(limit: int = 5):
+    return _anchor_snapshot(limit=limit)
 
 
 if __name__ == "__main__":

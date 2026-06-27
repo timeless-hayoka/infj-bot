@@ -1,0 +1,15 @@
+dmU_weight: 0.30
+reasoning_weight: 0.25
+imagination_weight: 0.15
+validation_weight: 0.20
+output_gate_weight: 0.05
+executive_control_weight: 0.05
+
+# dynamic tuning bounds
+min_weight: 0.05
+max_weight: 0.60
+
+# behavior tuning
+hallucination_budget: 0.10
+drift_penalty: 0.25
+confidence_threshold: 0.72

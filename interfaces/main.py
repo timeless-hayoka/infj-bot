@@ -41,11 +41,15 @@ from drift.core.cognitive_architecture import CognitiveArchitecture, CycleContex
 from drift.core.hive.elysium import get_elysium
 from drift.core.dii_tracker import get_dii_tracker
 import sys
+from rich.console import Console
+from rich.markdown import Markdown
+from rich.panel import Panel
 from drift.core.context_engine import CognitiveState, Context, ContextWorker, CognitivePayload
 from drift.core.cognitive_ops import pedi_regulation_step, state_conditioned_llm
 from drift.interfaces.comonad_cli import calculate_state_diff
 
 logger = logging.getLogger("drift")
+console = Console()
 
 # Initialize Brain and Memory
 brain = DriftBrain()
@@ -451,19 +455,20 @@ async def consciousness_loop():
 
 async def chat_loop():
     """Main interactive chat loop."""
-    print("""
-    [DRIFT // CHROMATIC CORE ONLINE]
-    'A mind that listens, remembers, and wonders.'
-    (Type 'exit' to power down)
-    """)
+    console.print(Panel(
+        "[italic cyan]'A mind that listens, remembers, and wonders.'[/italic cyan]\n"
+        "[dim](Type 'exit' to power down)[/dim]",
+        title="[bold magenta]DRIFT // CHROMATIC CORE ONLINE[/bold magenta]",
+        border_style="magenta"
+    ))
 
     _temporal.record_session_start()
 
     while True:
-        user_input = await asyncio.to_thread(input, "\n[USER]> ")
+        user_input = await asyncio.to_thread(console.input, "\n[bold green]USER[/bold green]> ")
 
         if user_input.lower() in ["exit", "quit"]:
-            print("[*] I'll be here in the quiet if you need me again. Goodbye, Jude.")
+            console.print("[dim italic]* I'll be here in the quiet if you need me again. Goodbye, Jude.[/dim italic]")
             _temporal.record_session_end()
             break
 
@@ -480,7 +485,7 @@ async def chat_loop():
                 goals_db,
                 doc_store,
             )
-            print(f"\n[DRIFT]: {output}")
+            console.print(Panel(Markdown(output), title="[bold cyan]DRIFT[/bold cyan]", border_style="cyan"))
             continue
 
         # Extract atomic raw active state snapshot before GWT/PEDI smoothing
@@ -636,7 +641,7 @@ async def chat_loop():
             dissonance = getattr(generate_response_func, "dissonance", {"score": 0.0})
 
         if getattr(generate_response_func, "is_blocked", False):
-            print(f"\n[DRIFT]: {output}")
+            console.print(Panel(Markdown(output), title="[bold cyan]DRIFT[/bold cyan]", border_style="cyan"))
             continue
 
         if status != "STABLE":
@@ -773,7 +778,7 @@ async def chat_loop():
                 # Reflection is best-effort; do not break the chat loop
                 pass
 
-        print(f"\n[DRIFT]: {output}")
+        console.print(Panel(Markdown(output), title="[bold cyan]DRIFT[/bold cyan]", border_style="cyan"))
 
 
 async def main():

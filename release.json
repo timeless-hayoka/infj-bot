@@ -2,9 +2,10 @@
   "product": "ANCHOR",
   "engine": "Trinity",
   "version": "0.10.0",
-  "build_date": "2026-06-22",
-  "tests_passed": 18,
-  "warnings": 1,
+  "build_date": "2026-06-23",
+  "tests_passed": 20,
+  "warnings": 0,
   "status": "release_candidate",
-  "build_id": "anchor-0.10.0-20260622"
+  "build_id": "anchor-0.10.0-20260623",
+  "release_note": "ANCHOR dashboard now shows loading and error states for optional panels instead of failing silently."
 }

@@ -5,7 +5,6 @@ DRIFT Cognitive Architecture | Immutable Episodic Memory Ledger (V2.2)
 
 import json
 import os
-import sys
 import hashlib
 import hmac
 from datetime import datetime
@@ -25,8 +24,8 @@ SIG_PATH = f"{VAULT_PATH}.sig"
 VAULT_SECRET = os.environ.get("DRIFT_VAULT_SECRET", "default_dev_secret_do_not_use_in_prod")
 
 def self_check_diagnostics():
-    if VAULT_SECRET == "default_dev_secret_do_not_use_in_prod":
-        print("[⚠️ WARNING] DRIFT_VAULT_SECRET is using insecure default.", file=sys.stderr)
+    if VAULT_SECRET == "default_dev_secret_do_not_use_in_prod" and os.environ.get("DRIFT_ENV") == "production":
+        raise RuntimeError("DRIFT_VAULT_SECRET must be set in production")
     vault_dir = os.path.dirname(VAULT_PATH)
     if vault_dir and not os.path.exists(vault_dir):
         os.makedirs(vault_dir, exist_ok=True)

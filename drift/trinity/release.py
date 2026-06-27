@@ -8,6 +8,7 @@ stable across commands.
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -33,8 +34,32 @@ from .caseflow import (
     resolve_case_root,
 )
 
-TRINITY_ARCHIVE_DIR = LOGS_DIR / "trinity_archives"
-TRINITY_ARCHIVE_LEDGER_PATH = LOGS_DIR / "trinity_archive_ledger.jsonl"
+
+def _anchor_data_root() -> Path | None:
+    raw = os.getenv("ANCHOR_DATA_ROOT", "").strip()
+    if not raw:
+        return None
+    path = Path(raw).expanduser()
+    try:
+        test_dir = path / "Anchor" / "archives"
+        test_dir.mkdir(parents=True, exist_ok=True)
+        return path
+    except Exception:
+        return None
+
+
+def _resolve_trinity_paths() -> tuple[Path, Path]:
+    root = _anchor_data_root()
+    if root is not None:
+        archive_dir = root / "Anchor" / "archives"
+        ledger_path = root / "Anchor" / "history" / "trinity_archive_ledger.jsonl"
+        archive_dir.mkdir(parents=True, exist_ok=True)
+        ledger_path.parent.mkdir(parents=True, exist_ok=True)
+        return archive_dir, ledger_path
+    return LOGS_DIR / "trinity_archives", LOGS_DIR / "trinity_archive_ledger.jsonl"
+
+
+TRINITY_ARCHIVE_DIR, TRINITY_ARCHIVE_LEDGER_PATH = _resolve_trinity_paths()
 RELEASE_MANIFEST_PATH = PROJECT_ROOT / "release.json"
 
 
@@ -46,13 +71,13 @@ def utc_stamp() -> str:
 def _read_pyproject_version() -> str:
     pyproject = PROJECT_ROOT / "pyproject.toml"
     if not pyproject.exists() or tomllib is None:
-        return "0.1.0"
+        return "0.10.0"
     try:
         data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
         project = data.get("project", {})
-        return str(project.get("version") or "0.1.0")
+        return str(project.get("version") or "0.10.0")
     except Exception:
-        return "0.1.0"
+        return "0.10.0"
 
 
 def _git_commit_short() -> str:
@@ -130,6 +155,7 @@ def get_release_info() -> dict[str, Any]:
         "build_id": str(manifest.get("build_id") or f"anchor-{version}-{build.replace('.', '')}"),
         "tests_passed": manifest.get("tests_passed"),
         "warnings": manifest.get("warnings"),
+        "release_note": str(manifest.get("release_note") or manifest.get("notes") or ""),
         "manifest_path": str(RELEASE_MANIFEST_PATH),
         "project_root": str(PROJECT_ROOT),
         "cases_dir": str(TRINITY_CASES_DIR),
@@ -149,6 +175,7 @@ def render_release_text(info: dict[str, Any]) -> str:
             f"Commit: {info.get('commit', 'unknown')}",
             f"Branch: {info.get('branch', 'unknown')}",
             f"Status: {info.get('status', 'unknown')}",
+            f"Release note: {info.get('release_note', 'none')}",
             f"Cases dir: {info.get('cases_dir', 'unknown')}",
             f"Ledger: {info.get('ledger_path', 'unknown')}",
             f"Archive dir: {info.get('archive_dir', 'unknown')}",

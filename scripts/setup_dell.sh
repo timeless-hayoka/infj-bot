@@ -2,10 +2,10 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-python3 -m venv venv
-source venv/bin/activate
+python3 -m venv .venv
+source .venv/bin/activate
 python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
+python -m pip install -e ".[dev]"
 
 test -f .env || { echo "Missing .env. Copy .env.example to .env and set API_KEY."; exit 1; }
 test -d chroma_db || { echo "Missing chroma_db memory directory."; exit 1; }

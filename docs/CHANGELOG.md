@@ -26,3 +26,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Torch meta tensor errors on CPU
 - Race conditions in embedding function
+- ANCHOR dashboard optional panels now show loading and error states instead of failing silently

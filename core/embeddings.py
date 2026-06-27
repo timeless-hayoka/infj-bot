@@ -31,7 +31,8 @@ class SemanticEmbeddingFunction:
                 import torch
                 
                 # Let sentence_transformers handle device management automatically
-                self._model = SentenceTransformer("all-MiniLM-L6-v2")
+                # NOTE: Explicitly setting device='cpu' and backend='torch' to avoid meta tensor exceptions on some environments
+                self._model = SentenceTransformer("all-MiniLM-L6-v2", backend="torch", device="cpu")
         return self._model
 
     @property
@@ -97,5 +98,15 @@ class LocalEmbeddingFunction:
         return [v / mag for v in vals]
 
 
+_global_embedding_function = None
+
 def get_default_embedding_function() -> SemanticEmbeddingFunction:
-    return SemanticEmbeddingFunction()
+    global _global_embedding_function
+    if _global_embedding_function is None:
+        _global_embedding_function = SemanticEmbeddingFunction()
+        # Force initialization on the main thread to prevent meta tensor issues in anyio workers
+        try:
+            _global_embedding_function._encoder()
+        except Exception:
+            pass
+    return _global_embedding_function

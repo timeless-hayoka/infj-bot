@@ -269,14 +269,16 @@ class HomeostaticRegulator:
     # ── Need regulation ────────────────────────────────────────────
 
     def update_need(
-        self, name: str, current_value: float, context: Optional[Dict] = None
+        self, name: str, current_value: float, context: Optional[Dict] = None, damping_factor: float = 0.1
     ):
-        """Update a need's current value and track trend."""
+        """Update a need's current value and track trend with organic damping."""
         if name not in self.needs:
             return
         need = self.needs[name]
         old = need.current
-        need.current = max(0.0, min(1.0, current_value))
+        # Damping: organically ease toward target instead of jumping instantly
+        damped_value = old + (current_value - old) * damping_factor
+        need.current = max(0.0, min(1.0, damped_value))
         need.trend = need.current - old
 
         # Track deficit duration
@@ -431,6 +433,12 @@ class HomeostaticRegulator:
             self.needs["energy"].current = max(
                 0.0, self.needs["energy"].current - energy_cost
             )
+
+    def coherence_check(self, model_confidence: float) -> float:
+        """Safeguard: Prevent confident hallucinations during low energy states."""
+        if "energy" in self.needs and model_confidence > 0.8 and self.needs["energy"].current < 0.20:
+            return model_confidence * 0.5
+        return model_confidence
 
     # ── Integration with other modules ─────────────────────────────
 

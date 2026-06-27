@@ -3,15 +3,33 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-package-dir = {"drift" = "."}
-packages = ["drift", "drift.interfaces", "drift.evals", "drift.core", "drift.core.plugins", "drift.core.hive", "drift.tools", "drift.automation", "drift.automation.mouse", "drift.hive_mind", "drift.hive_mind.protocol"]
+packages = ["drift", "drift.interfaces", "drift.evals", "drift.core", "drift.core.plugins", "drift.core.hive", "drift.tools", "drift.automation", "drift.automation.mouse", "drift.hive_mind", "drift.hive_mind.protocol", "drift.trinity", "drift.trinity.adapters", "drift.trinity.council", "drift.plugins"]
+
+[tool.setuptools.package-dir]
+drift = "drift"
+"drift.interfaces" = "interfaces"
+"drift.core" = "core"
+"drift.core.plugins" = "core/plugins"
+"drift.core.hive" = "core/hive"
+"drift.evals" = "evals"
+"drift.tools" = "tools"
+"drift.automation" = "automation"
+"drift.automation.mouse" = "automation/mouse"
+"drift.hive_mind" = "hive_mind"
+"drift.hive_mind.protocol" = "hive_mind/protocol"
+"drift.trinity" = "drift/trinity"
+"drift.trinity.adapters" = "drift/trinity/adapters"
+"drift.trinity.council" = "drift/trinity/council"
+"drift.plugins" = "drift/plugins"
+
+
 
 [project]
 name = "drift"
-version = "0.1.0"
+version = "0.10.0"
 description = "INFJ cognitive architecture bot — consciousness, emotion, intuition, shadow, and being"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.10"
 license = {text = "Apache-2.0"}
 authors = [
     {name = "Julien James", email = "hiimju9@gmail.com"}
@@ -41,7 +59,7 @@ dependencies = [
     "typer>=0.25",
     "mcp>=1.27",
     "playwright>=1.59",
-    "numpy>=2.4",
+    "numpy>=2.0",
     "pandas",
     "matplotlib",
     "sounddevice",
@@ -54,10 +72,13 @@ dependencies = [
     "markdown>=3.10",
     "psutil>=7.1",
     "tenacity>=9.1",
+    "prometheus-client>=0.21",
 ]
 
 [project.optional-dependencies]
 dev = [
+    "fastapi>=0.136",
+    "httpx>=0.28",
     "pytest>=9.0",
     "pytest-asyncio>=0.24",
 ]
@@ -69,6 +90,14 @@ voice = [
 
 [project.scripts]
 drift = "drift.interfaces.cli:main"
+trin = "drift.interfaces.cli:main"
+anchor = "drift.interfaces.cli:main"
 
 [tool.ruff.lint]
 ignore = ["E402", "E702", "E731", "F841", "F401", "F811", "E701", "F821", "E722", "E741"]
+
+[tool.pytest.ini_options]
+filterwarnings = [
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated:DeprecationWarning",
+    "ignore:legacy embedding function config:DeprecationWarning",
+]

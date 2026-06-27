@@ -7,7 +7,11 @@ import os
 import shutil
 import subprocess
 import webbrowser
+from urllib.error import URLError
+from urllib.parse import urlparse
+from urllib.request import urlopen
 from pathlib import Path
+import socket
 import sys
 import requests
 
@@ -157,8 +161,15 @@ def cmd_ask(args):
     return 0
 
 
-def cmd_web(_args):
-    return run_script("run_web.sh")
+def cmd_web(args):
+    env = {}
+    if getattr(args, "host", None):
+        env["ANCHOR_WEB_HOST"] = args.host
+    if getattr(args, "port", None):
+        env["ANCHOR_PORT"] = str(args.port)
+    if getattr(args, "public_url", None):
+        env["ANCHOR_PUBLIC_URL"] = args.public_url
+    return run_script("run_web.sh", env or None)
 
 
 def cmd_health(args):
@@ -731,7 +742,7 @@ def cmd_upgrade(args):
 
 
 def _trinity_completion_script(shell):
-    common = "chat tui ask web bridge health backup restore path doctor status setup dashboard version manifest release history archive export-report upgrade help about trinity bug meow completion"
+    common = "chat tui ask web install bridge health backup restore path doctor status setup dashboard version manifest release history archive export-report upgrade help about trinity bug meow completion"
     trinity = "analyze case report cases packet ledger demo"
     case = "list show report export"
     packet = "show export"
@@ -776,7 +787,7 @@ complete -F _trin_complete trin drift anchor
         return r'''#compdef trin drift anchor
 _trin_complete() {
   local -a commands
-  commands=(chat tui ask web bridge health backup restore path doctor status setup dashboard version manifest release history archive export-report upgrade help about trinity bug meow completion)
+  commands=(chat tui ask web install bridge health backup restore path doctor status setup dashboard version manifest release history archive export-report upgrade help about trinity bug meow completion)
   if (( CURRENT == 2 )); then
     _describe 'command' commands
     return
@@ -794,7 +805,7 @@ compdef _trin_complete trin drift
 '''
 
     if shell == "fish":
-        return r'''complete -c trin -c drift -c anchor -f -a "chat tui ask web bridge health backup restore path doctor status setup dashboard version manifest release history archive export-report upgrade help about trinity bug meow completion"
+        return r'''complete -c trin -c drift -c anchor -f -a "chat tui ask web install bridge health backup restore path doctor status setup dashboard version manifest release history archive export-report upgrade help about trinity bug meow completion"
 complete -c trin -c drift -n '__fish_seen_subcommand_from trinity' -f -a "analyze case report cases packet ledger demo"
 complete -c trin -c drift -n '__fish_seen_subcommand_from trinity; and __fish_seen_subcommand_from case' -f -a "list show report export"
 complete -c trin -c drift -n '__fish_seen_subcommand_from trinity; and __fish_seen_subcommand_from packet' -f -a "show export"
@@ -909,6 +920,73 @@ def cmd_status(args):
     return 0 if summary.get("healthy") else 1
 
 
+def _install_plan(target: str, public_url: str | None = None) -> dict:
+    repo_url = "https://github.com/timeless-hayoka/drift.git"
+    clone_cmd = f"git clone {repo_url}"
+    repo_dir = "cd drift"
+    bootstrap_cmd = "./scripts/bootstrap_anchor.sh"
+
+    if target in {"laptop", "local"}:
+        return {
+            "target": "laptop",
+            "title": "ANCHOR install plan for a laptop or desktop",
+            "summary": "Local install with a loopback dashboard and desktop launcher.",
+            "steps": [
+                clone_cmd,
+                repo_dir,
+                bootstrap_cmd,
+                "./scripts/install_anchor_service.sh local",
+                "anchor dashboard",
+            ],
+            "notes": [
+                "This installs the local user service, binds ANCHOR to 127.0.0.1:8765, and refreshes the desktop launcher.",
+                "Use the desktop icon or `anchor dashboard` after install.",
+            ],
+        }
+
+    if target in {"droplet", "server"}:
+        dashboard_url = public_url or "http://<droplet-ip>:8767/anchor"
+        return {
+            "target": "droplet",
+            "title": "ANCHOR install plan for a droplet or server",
+            "summary": "Remote install with an explicit public dashboard URL.",
+            "steps": [
+                clone_cmd,
+                repo_dir,
+                bootstrap_cmd,
+                "sudo loginctl enable-linger <user>",
+                f"./scripts/install_anchor_service.sh server --public-url {dashboard_url}",
+                f"systemctl --user status anchor-web@server.service",
+                f"Open {dashboard_url}",
+            ],
+            "notes": [
+                "This binds ANCHOR to 0.0.0.0:8767 and expects HTTPS or auth in front if the host is public.",
+                "Replace <user> with the account that will own the systemd user service.",
+            ],
+        }
+
+    raise ValueError(f"Unknown install target: {target}")
+
+
+def cmd_install(args):
+    plan = _install_plan(args.target, getattr(args, "public_url", None))
+    if getattr(args, "json", False):
+        print(json.dumps(plan, indent=2, ensure_ascii=False))
+        return 0
+
+    print("ANCHOR")
+    print(plan["title"])
+    print(plan["summary"])
+    print()
+    for idx, step in enumerate(plan["steps"], start=1):
+        print(f"{idx}. {step}")
+    if plan["notes"]:
+        print()
+        for note in plan["notes"]:
+            print(f"- {note}")
+    return 0
+
+
 def cmd_setup(args):
     results = [_write_completion_install("bash"), _write_completion_install("zsh")]
     logs_dir = Path.home() / ".drift_os/logs"
@@ -932,17 +1010,80 @@ def cmd_setup(args):
     return 0
 
 
+def _default_dashboard_url() -> str:
+    return (
+        os.getenv("ANCHOR_PUBLIC_URL")
+        or os.getenv("ANCHOR_DASHBOARD_URL")
+        or f"http://127.0.0.1:{os.getenv('ANCHOR_PORT', '8765')}/anchor"
+    )
+
+
+def _dashboard_is_live(dashboard_url: str) -> bool:
+    parsed = urlparse(dashboard_url)
+    host = parsed.hostname or "127.0.0.1"
+    port = parsed.port or (443 if parsed.scheme == "https" else 80)
+    try:
+        with socket.create_connection((host, port), timeout=0.5):
+            return True
+    except Exception:
+        pass
+    try:
+        with urlopen(dashboard_url, timeout=2):
+            return True
+    except URLError:
+        return False
+    except Exception:
+        return False
+
+
 def cmd_dashboard(args):
-    dashboard_url = getattr(args, "url", "http://127.0.0.1:8765")
+    dashboard_url = getattr(args, "url", _default_dashboard_url())
+    if _dashboard_is_live(dashboard_url):
+        if not getattr(args, "no_open", False):
+            has_gui = bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
+            opener = shutil.which("xdg-open") if has_gui else None
+            if opener:
+                try:
+                    subprocess.Popen([opener, dashboard_url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                except Exception:
+                    pass
+            else:
+                try:
+                    webbrowser.open(dashboard_url)
+                except Exception:
+                    pass
+        from drift.trinity.release import get_release_info
+
+        release = get_release_info()
+        print("\n".join(_anchor_public_header()))
+        print(f"ANCHOR dashboard already running at {dashboard_url}")
+        if release.get("release_note"):
+            print(f"Release note: {release['release_note']}")
+        print("Evidence Before Belief")
+        return 0
+
     script = PROJECT_ROOT / "scripts" / "run_web.sh"
     proc = subprocess.Popen([str(script)], cwd=str(PROJECT_ROOT))
     if not getattr(args, "no_open", False):
-        try:
-            webbrowser.open(dashboard_url)
-        except Exception:
-            pass
+        has_gui = bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
+        opener = shutil.which("xdg-open") if has_gui else None
+        if opener:
+            try:
+                subprocess.Popen([opener, dashboard_url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            except Exception:
+                pass
+        else:
+            try:
+                webbrowser.open(dashboard_url)
+            except Exception:
+                pass
+    from drift.trinity.release import get_release_info
+
+    release = get_release_info()
     print("\n".join(_anchor_public_header()))
     print(f"ANCHOR dashboard starting at {dashboard_url} (pid {proc.pid})")
+    if release.get("release_note"):
+        print(f"Release note: {release['release_note']}")
     print("Evidence Before Belief")
     return 0
 
@@ -1287,7 +1428,10 @@ def build_parser():
     ask.add_argument("prompt", nargs=argparse.REMAINDER)
     ask.set_defaults(func=cmd_ask)
 
-    web = sub.add_parser("web", help="Start the web UI on 127.0.0.1:8765.")
+    web = sub.add_parser("web", help="Start the web UI.")
+    web.add_argument("--host", help="Bind host for the web UI (default: 127.0.0.1).")
+    web.add_argument("--port", type=int, help="Bind port for the web UI (default: 8765).")
+    web.add_argument("--public-url", help="Public dashboard URL to advertise when running remotely.")
     web.set_defaults(func=cmd_web)
 
     status = sub.add_parser("status", help="Print a machine-readable ANCHOR/Trinity status summary.")
@@ -1297,6 +1441,23 @@ def build_parser():
         help="Emit JSON for automation.",
     )
     status.set_defaults(func=cmd_status)
+
+    install = sub.add_parser("install", help="Print the exact install steps for a laptop or droplet.")
+    install.add_argument(
+        "target",
+        choices=["laptop", "droplet"],
+        help="Choose the install path to print.",
+    )
+    install.add_argument(
+        "--public-url",
+        help="Public dashboard URL for droplet installs.",
+    )
+    install.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit JSON for automation.",
+    )
+    install.set_defaults(func=cmd_install)
 
     setup = sub.add_parser("setup", help="Bootstrap local ANCHOR/Trinity shell integration and directories.")
     setup.add_argument(
@@ -1309,7 +1470,7 @@ def build_parser():
     dashboard = sub.add_parser("dashboard", help="Launch the ANCHOR/Trinity dashboard in your browser.")
     dashboard.add_argument(
         "--url",
-        default="http://127.0.0.1:8765",
+        default=_default_dashboard_url(),
         help="Dashboard URL to open.",
     )
     dashboard.add_argument(

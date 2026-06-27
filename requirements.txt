@@ -50,10 +50,10 @@ mdurl==0.1.2
 MarkupSafe==3.0.3
 mmh3==5.2.1
 mpmath==1.3.0
-networkx==3.6.1
-numpy==2.4.4
+networkx>=3.4.2
+numpy>=2.0.0
 oauthlib==3.3.1
-onnxruntime==1.25.0
+onnxruntime>=1.23.0
 opentelemetry-api==1.41.1
 opentelemetry-exporter-otlp-proto-common==1.41.1
 opentelemetry-exporter-otlp-proto-grpc==1.41.1

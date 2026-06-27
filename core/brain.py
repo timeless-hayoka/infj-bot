@@ -115,10 +115,13 @@ def load_system_prompt() -> str:
     """Dynamically load the canonical DRIFT core prompt from root."""
     try:
         from pathlib import Path
+
+        from drift.core.context_optimizer import compress_prompt
+
         # Resolve path relative to this file: ../../DRIFT_CORE_PROMPT.txt
         root_dir = Path(__file__).resolve().parents[2]
         prompt_path = root_dir / "DRIFT_CORE_PROMPT.txt"
-        return prompt_path.read_text(encoding="utf-8")
+        return compress_prompt(prompt_path.read_text(encoding="utf-8"))
     except Exception as e:
         # Return formatted error for diagnostic self-check
         return f"ERROR: DRIFT_CORE_PROMPT.txt load failed: {e}. Fix: Ensure file exists in root."
@@ -951,6 +954,26 @@ class DriftBrain(_BrainGenerationMixin):
                         "DRIFT CRITIC — math corrections: %s", math_violations
                     )
 
+            # Forge V5 Gatekeeper Phase
+            try:
+                from drift.core.forge_gate import load_forge_validator
+
+                ForgeValidator = load_forge_validator()
+                validator = ForgeValidator(target_dir="/tmp")
+                forge_results = validator.validate_code_blocks(primary_text)
+                if forge_results.get("failed", 0) > 0:
+                    self.logger.warning("Forge V5 Validation Failed: %d blocks failed syntax checks.", forge_results["failed"])
+                    error_details = []
+                    for lang, data in forge_results.get("languages", {}).items():
+                        for err in data.get("errors", []):
+                            # Clean up tmpdir paths from the error message for the user
+                            clean_err = err["error"].replace("/tmp/", "")
+                            error_details.append(f"[{lang}] {clean_err}")
+                    if error_details:
+                        primary_text += "\n\n> [!WARNING] **Forge V5 Syntax Validation Error**\n> " + "\n> ".join(error_details)
+            except Exception as e:
+                self.logger.error("Forge V5 Integration failed: %s", e)
+
             if request_budget is not None:
                 request_budget.check()
             self.history.extend([f"User: {user_input}", f"Bot: {primary_text}"])
@@ -1294,8 +1317,8 @@ Rules:
             },
             "local": {
                 "ok": local_ok,
-                "host": self.local_bridge.host,
-                "model": self.local_bridge.model,
+                "host": getattr(self.local_bridge, "host", "unknown"),
+                "model": getattr(self.local_bridge, "model", "unknown"),
             },
             "fallback_enabled": self._use_local_fallback,
         }

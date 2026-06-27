@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 import os
+from pathlib import Path
 
 try:
     from dotenv import load_dotenv
@@ -65,6 +67,26 @@ from drift.config_adapter import PROJECT_ROOT_PATH
 
 load_dotenv(PROJECT_ROOT_PATH / ".env", override=False)
 load_dotenv(CONFIG_DIR / ".env", override=False)
+load_dotenv(Path.home() / ".drift_os" / "config" / "storage.env", override=False)
+
+
+def _hydrate_groq_from_local_settings() -> None:
+    """Use ~/.groq/local-settings.json when GROQ_API_KEY is not in .env."""
+    if os.getenv("GROQ_API_KEY"):
+        return
+    settings_path = Path.home() / ".groq" / "local-settings.json"
+    if not settings_path.is_file():
+        return
+    try:
+        data = json.loads(settings_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return
+    key = (data.get("groqApiKey") or data.get("GROQ_API_KEY") or "").strip()
+    if key:
+        os.environ.setdefault("GROQ_API_KEY", key)
+
+
+_hydrate_groq_from_local_settings()
 
 API_KEY = (
     os.getenv("API_KEY") or os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
@@ -72,11 +94,25 @@ API_KEY = (
 REFLECTION_INTERVAL = int(os.getenv("REFLECTION_INTERVAL", "10"))
 
 DRIFT_PRIMARY_MODEL = os.getenv(
-    "DRIFT_PRIMARY_MODEL", os.getenv("INFJ_PRIMARY_MODEL", "gemini-2.5-flash-thinking-exp")
+    "DRIFT_PRIMARY_MODEL", os.getenv("INFJ_PRIMARY_MODEL", "gemini-2.5-flash")
 )
 DRIFT_CRITIC_MODEL = os.getenv(
-    "DRIFT_CRITIC_MODEL", os.getenv("INFJ_CRITIC_MODEL", "gemini-2.5-flash-thinking-exp")
+    "DRIFT_CRITIC_MODEL", os.getenv("INFJ_CRITIC_MODEL", "gemini-2.5-flash")
 )
+
+# Cost Guardrail
+COST_GUARDRAIL_BLOCKED_MODELS = {
+    "gemini-1.5-pro",
+    "gemini-1.0-pro",
+    "gemini-pro",
+    "gpt-4",
+    "claude-3-opus",
+    "claude-3.5-sonnet",
+}
+for model in (DRIFT_PRIMARY_MODEL, DRIFT_CRITIC_MODEL):
+    for blocked in COST_GUARDRAIL_BLOCKED_MODELS:
+        if blocked in model.lower():
+            raise RuntimeError(f"COST GUARDRAIL: Blocked expensive model '{model}'. Revert to 'gemini-2.5-flash' or local.")
 
 _authorized_raw = os.getenv(
     "DRIFT_AUTHORIZED_TARGETS", os.getenv("INFJ_AUTHORIZED_TARGETS", "")
@@ -86,7 +122,7 @@ DEFAULT_AUTHORIZED_TARGETS = set(
 )
 
 DRIFT_LOCAL_MODEL = os.getenv(
-    "DRIFT_LOCAL_MODEL", os.getenv("INFJ_LOCAL_MODEL", "qwen3:4b")
+    "DRIFT_LOCAL_MODEL", os.getenv("INFJ_LOCAL_MODEL", "qwen2.5:1.5b")
 )
 DRIFT_USE_LOCAL_FALLBACK = os.getenv(
     "DRIFT_USE_LOCAL_FALLBACK",
@@ -96,7 +132,7 @@ OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
 
 # Prefer local models (when available) over cloud for latency-sensitive usage.
 DRIFT_PREFER_LOCAL = os.getenv(
-    "DRIFT_PREFER_LOCAL", os.getenv("INFJ_PREFER_LOCAL", "true")
+    "DRIFT_PREFER_LOCAL", os.getenv("INFJ_PREFER_LOCAL", "false")
 ).lower() in ("1", "true", "yes", "on")
 
 # Runtime tuning: smaller history reduces prompt size and latency.

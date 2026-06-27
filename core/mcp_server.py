@@ -7,12 +7,14 @@ import asyncio
 import os
 from typing import Any, Dict, List, Optional
 import logging
-from collections import deque
 
-from mcp.server.fastmcp import FastMCP
+try:
+    from mcp.server.fastmcp import FastMCP
+except Exception:
+    FastMCP = None  # type: ignore[assignment]
 
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from prometheus_client import Gauge, Counter, generate_latest, CONTENT_TYPE_LATEST
 import uvicorn
@@ -25,20 +27,63 @@ from drift.core.being import get_being
 from drift.core.websocket_manager import manager
 from drift.core.config import PROJECT_ROOT
 from drift.core.cognition import map_dissonance
-from drift.core.plugins.documents import DocumentStore, format_doc_results
-from drift.core.plugins.emotion import detect_emotion
-from drift.core.plugins.goals import GoalsDB
-from drift.core.memory import DriftMemory
-from drift.core.global_workspace import GlobalWorkspace
+try:
+    from drift.core.plugins.documents import DocumentStore, format_doc_results
+except Exception:
+    DocumentStore = None  # type: ignore[assignment]
+
+    def format_doc_results(*args, **kwargs):
+        return "Document search unavailable."
+try:
+    from drift.core.plugins.emotion import detect_emotion
+except Exception:
+    def detect_emotion(*args, **kwargs):
+        return {
+            "label": "unknown",
+            "confidence": 0.0,
+            "intensity": 0.0,
+            "valence": 0.0,
+            "arousal": 0.0,
+            "needs": [],
+            "detector": "unavailable",
+        }
+try:
+    from drift.core.plugins.goals import GoalsDB
+except Exception:
+    GoalsDB = None  # type: ignore[assignment]
+try:
+    from drift.core.memory import DriftMemory
+except Exception:
+    DriftMemory = None  # type: ignore[assignment]
+try:
+    from drift.core.global_workspace import GlobalWorkspace
+except Exception:
+    GlobalWorkspace = None  # type: ignore[assignment]
+from core.mcp_security import (
+    McpSecurityGuard,
+    SecurityPrincipal,
+)
 
 try:
     from hive_mind.orchestrator import HiveOrchestrator
 except Exception:
     HiveOrchestrator = None  # type: ignore[misc,assignment]
 
-mcp = FastMCP(
-    "infj_companion",
-    instructions="""
+class _NullMCP:
+    def tool(self):
+        def decorator(fn):
+            return fn
+
+        return decorator
+
+    async def run_stdio_async(self):
+        raise RuntimeError("FastMCP is unavailable in this environment")
+
+
+mcp = (
+    FastMCP(
+        "infj_companion",
+        instructions="""
 You are interfacing with the INFJ Companion Bot — a local AI companion with deep memory,
 emotional awareness, cognitive dissonance mapping, and document retrieval.
 
@@ -49,6 +94,9 @@ Use these tools when:
 - The user asks about documents they have ingested
 - The user needs help tracking goals or todos
 """,
+    )
+    if FastMCP is not None
+    else _NullMCP()
 )
 
 brain: Optional[DriftBrain] = None
@@ -147,6 +195,26 @@ def create_http_app(token: str | None = None) -> FastAPI:
 
     # token may be provided explicitly for tests; otherwise read from env
     token = token if token is not None else os.getenv("MCP_HTTP_TOKEN")
+    jwt_secret = os.getenv("MCP_JWT_SECRET") or os.getenv("TRINITY_JWT_SECRET")
+    jwks_url = os.getenv("MCP_JWKS_URL") or os.getenv("TRINITY_JWKS_URL")
+    rate_limit_per_min = int(os.getenv("MCP_RATE_LIMIT_PER_MIN", "60"))
+
+    # Shared auth / rate-limit / audit guard for the HTTP bridge
+    security = McpSecurityGuard(
+        expected_token=token,
+        jwt_secret=jwt_secret,
+        jwks_url=jwks_url,
+        audit_path=Path(PROJECT_ROOT) / "logs" / "mcp_audit.jsonl",
+        mirror_outcome_path=Path(PROJECT_ROOT) / "outcome_memory.json",
+        rate_limit_defaults={
+            "default": (rate_limit_per_min, 60),
+            "autonomy": (max(1, rate_limit_per_min // 4), 60),
+            "todo_add": (max(5, rate_limit_per_min // 2), 60),
+            "todo_complete": (max(5, rate_limit_per_min // 2), 60),
+            "ingest_document": (max(5, rate_limit_per_min // 2), 60),
+        },
+        open_mode=not bool(token or jwt_secret or jwks_url),
+    )
 
     # Mount static files
     static_dir = Path(PROJECT_ROOT) / "static"
@@ -169,7 +237,7 @@ def create_http_app(token: str | None = None) -> FastAPI:
         dii_gauge.set(getattr(being.state.dii, "value", 0.0))
         energy_gauge.set(getattr(being.state, "energy", 0.0))
         active_connections_gauge.set(len(manager.active_connections))
-        return generate_latest(), 200, {"Content-Type": CONTENT_TYPE_LATEST}
+        return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
     @app.websocket("/ws")
     async def websocket_endpoint(websocket: WebSocket):
@@ -218,8 +286,6 @@ def create_http_app(token: str | None = None) -> FastAPI:
         "scheduled_count": 0,
     }
 
-    rate_limit_per_min = int(os.getenv("MCP_RATE_LIMIT_PER_MIN", "60"))
-    rate_buckets: Dict[str, deque] = {}
 
     # configure logging
     logging.basicConfig(level=os.getenv("MCP_LOG_LEVEL", "INFO"))
@@ -296,57 +362,75 @@ def create_http_app(token: str | None = None) -> FastAPI:
     def health() -> Dict[str, str]:
         return {"status": "ok", "transport": "http"}
 
-    @app.get("/metrics")
+    @app.get("/status")
     def metrics_endpoint() -> Dict[str, Any]:
         return {
             "metrics": metrics,
             "rate_limit_per_min": rate_limit_per_min,
             "scheduled": len(scheduled),
+            "auth_mode": "open" if security.open_mode else "protected",
         }
 
-    def check_rate_limit(client_ip: str) -> None:
-        now = time.time()
-        window_start = now - 60
-        q = rate_buckets.get(client_ip)
-        if q is None:
-            q = deque()
-            rate_buckets[client_ip] = q
-        while q and q[0] < window_start:
-            q.popleft()
-        if len(q) >= rate_limit_per_min:
-            raise HTTPException(status_code=429, detail="Too many requests")
-        q.append(now)
 
     @app.post("/invoke/{tool_name}")
     async def invoke(tool_name: str, body: Dict[str, Any], request: Request):
-        # Rate limit by client IP
-        client_ip = request.client.host if request.client else "unknown"
-        check_rate_limit(client_ip)
         fn = TOOLS.get(tool_name)
         if fn is None:
             raise HTTPException(status_code=404, detail=f"Tool {tool_name} not found")
 
-        # Authentication: prefer Authorization header Bearer <token>
-        auth_header = request.headers.get("authorization")
+        client_ip = request.client.host if request.client else "unknown"
+        auth_header = request.headers.get("authorization") or ""
         auth_token = None
-        if auth_header and auth_header.lower().startswith("bearer "):
-            auth_token = auth_header.split(None, 1)[1]
-        # fallback to body._auth for tests/legacy
+        if auth_header.lower().startswith("bearer "):
+            auth_token = auth_header.split(None, 1)[1].strip()
         if not auth_token and isinstance(body, dict):
             auth_token = body.get("_auth")
 
-        if token:
-            if not auth_token:
-                raise HTTPException(status_code=401, detail="Missing auth token")
-            if auth_token != token:
-                raise HTTPException(status_code=403, detail="Invalid auth token")
+        try:
+            principal = security.authenticate(token=auth_token, source=f"http:{client_ip}")
+            security.enforce_scope(principal, security.required_scope_for(tool_name, body.get("kwargs") if isinstance(body, dict) else None))
+            decision = security.check_rate_limit(principal, tool_name)
+            if not decision.allowed:
+                security.audit(
+                    event="rate_limited",
+                    tool=tool_name,
+                    principal=principal,
+                    status="rate_limited",
+                    transport="http",
+                    details={
+                        "retry_after_seconds": round(decision.retry_after_seconds, 2),
+                        "limit": decision.limit,
+                        "window_seconds": decision.window_seconds,
+                    },
+                )
+                raise HTTPException(
+                    status_code=429,
+                    detail=(
+                        f"Rate limit exceeded for {tool_name}. "
+                        f"Retry in about {max(1, int(decision.retry_after_seconds))} seconds."
+                    ),
+                    headers={"Retry-After": str(max(1, int(decision.retry_after_seconds)))}
+                )
+        except PermissionError as exc:
+            security.audit(
+                event="auth_failed",
+                tool=tool_name,
+                principal=None,
+                status="auth_failed",
+                transport="http",
+                details={"error": str(exc)},
+            )
+            raise HTTPException(status_code=401, detail=str(exc))
 
         args: List[Any] = body.get("args") or []
         kwargs: Dict[str, Any] = body.get("kwargs") or {}
         try:
-            result = fn(*args, **kwargs)
+            with security.tool_span(tool=tool_name, principal=principal, transport="http"):
+                result = fn(*args, **kwargs)
             metrics["invoke_count"] += 1
             return {"result": result}
+        except HTTPException:
+            raise
         except Exception as exc:  # pragma: no cover - surface errors to caller
             raise HTTPException(status_code=500, detail=str(exc))
 
@@ -359,33 +443,37 @@ def create_http_app(token: str | None = None) -> FastAPI:
 
         Returns: {"results": [ {"tool": name, "result": ..., "error": ... }, ... ]}
         """
-        # Authentication header
-        auth_header = request.headers.get("authorization")
+        auth_header = request.headers.get("authorization") or ""
         auth_token = None
-        if auth_header and auth_header.lower().startswith("bearer "):
-            auth_token = auth_header.split(None, 1)[1]
+        if auth_header.lower().startswith("bearer "):
+            auth_token = auth_header.split(None, 1)[1].strip()
         if not auth_token and isinstance(body, dict):
             auth_token = body.get("_auth")
 
-        if token:
-            if not auth_token:
-                raise HTTPException(status_code=401, detail="Missing auth token")
-            if auth_token != token:
-                raise HTTPException(status_code=403, detail="Invalid auth token")
+        try:
+            principal = security.authenticate(token=auth_token, source="http:autonomy")
+        except PermissionError as exc:
+            security.audit(
+                event="auth_failed",
+                tool="autonomy",
+                principal=None,
+                status="auth_failed",
+                transport="http",
+                details={"error": str(exc)},
+            )
+            raise HTTPException(status_code=401, detail=str(exc))
 
         plan = body.get("plan") or []
         if not isinstance(plan, list):
             raise HTTPException(status_code=400, detail="Plan must be a list")
 
-        # Rate-limit / cooldown per token (or 'anon')
-        key = auth_token or "anon"
+        key = principal.identity
         now = time.time()
         last = last_run.get(key, 0)
         if now - last < min_interval:
             raise HTTPException(status_code=429, detail="Autonomy calls too frequent")
         last_run[key] = now
 
-        # Execute the entire plan under concurrency semaphore
         results = []
         async with semaphore:
             for step in plan:
@@ -400,11 +488,43 @@ def create_http_app(token: str | None = None) -> FastAPI:
                 args = step.get("args") or []
                 kwargs = step.get("kwargs") or {}
                 try:
-                    out = fn(*args, **kwargs)
+                    security.enforce_scope(principal, security.required_scope_for(tool_name, kwargs))
+                    decision = security.check_rate_limit(principal, tool_name)
+                    if not decision.allowed:
+                        security.audit(
+                            event="rate_limited",
+                            tool=tool_name,
+                            principal=principal,
+                            status="rate_limited",
+                            transport="http",
+                            details={
+                                "retry_after_seconds": round(decision.retry_after_seconds, 2),
+                                "limit": decision.limit,
+                                "window_seconds": decision.window_seconds,
+                            },
+                        )
+                        results.append({
+                            "tool": tool_name,
+                            "error": f"Rate limit exceeded. Retry in about {max(1, int(decision.retry_after_seconds))} seconds.",
+                        })
+                        continue
+                    with security.tool_span(tool=tool_name, principal=principal, transport="http"):
+                        out = fn(*args, **kwargs)
                     results.append({"tool": tool_name, "result": out})
+                except PermissionError as exc:
+                    security.audit(
+                        event="auth_failed",
+                        tool=tool_name,
+                        principal=principal,
+                        status="auth_failed",
+                        transport="http",
+                        details={"error": str(exc)},
+                    )
+                    results.append({"tool": tool_name, "error": str(exc)})
                 except Exception as exc:
                     results.append({"tool": tool_name, "error": str(exc)})
 
+        metrics["autonomy_count"] += 1
         return {"results": results}
 
     return app
@@ -452,6 +572,41 @@ def memory_search(query: str, n_results: int = 5) -> str:
 def document_search(query: str, n_results: int = 5) -> str:
     """Search ingested documents (PDFs, notes, code) for relevant passages."""
     results = get_doc_store().search(query, n_results=n_results)
+    if results:
+        return format_doc_results(results)
+    try:
+        from drift.core.anchor_context import search_vault_knowledge
+
+        vault_hits = search_vault_knowledge(query, n_results=n_results)
+        if vault_hits:
+            return format_doc_results(vault_hits)
+    except Exception:
+        pass
+    return "No matching documents found."
+
+
+@mcp.tool()
+def anchor_vault_status() -> str:
+    """Return where the ANCHOR vault and knowledge corpus are mounted on this machine."""
+    from drift.core.anchor_context import get_anchor_runtime, format_anchor_vault_prompt_block
+
+    runtime = get_anchor_runtime()
+    lines = [format_anchor_vault_prompt_block(), "", "Runtime JSON:", str(runtime)]
+    return "\n".join(lines)
+
+
+@mcp.tool()
+def vault_knowledge_search(query: str, n_results: int = 5) -> str:
+    """Search the ANCHOR vault knowledge corpus on disk (markdown, notes, code)."""
+    from drift.core.anchor_context import search_vault_knowledge
+
+    results = search_vault_knowledge(query, n_results=n_results)
+    if not results:
+        from drift.core.anchor_context import get_anchor_runtime
+
+        runtime = get_anchor_runtime()
+        root = runtime.get("knowledge_root") or "not configured"
+        return f"No vault matches for '{query}'. Knowledge root: {root}"
     return format_doc_results(results)
 
 

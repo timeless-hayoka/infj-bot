@@ -1,3 +1,5 @@
+PHI // DRIFT is the internal companion and reasoning layer. The flagship evidence-gate repo now lives in [ANCHOR](https://github.com/timeless-hayoka/ANCHOR).
+
 ---
 title: PHI // DRIFT
 emoji: 🧠
@@ -8,6 +10,34 @@ pinned: true
 license: other
 short_description: Homeostatic cognitive architecture for AI companions
 ---
+
+ANCHOR lives in its own repo now. This repository keeps the internal reasoning layer and companion architecture that support it.
+
+For the companion release-readiness checklist, see [docs/ANCHOR_RELEASE_CHECKLIST.md](docs/ANCHOR_RELEASE_CHECKLIST.md).
+For a one-command install plan, run `anchor install laptop` or `anchor install droplet --public-url http://<droplet-ip>:8767/anchor`.
+For a short install path, see [docs/ANCHOR_QUICKSTART.md](docs/ANCHOR_QUICKSTART.md).
+
+## Internal Companion Story
+
+This repository keeps the AI companion surface, state management, and guardrails that support the ANCHOR flagship. It turns tool signals into structured cases, requires proof before a finding is promoted, and preserves what was tested, what failed, and what remains unverified.
+
+That framing is intentional:
+
+- It keeps the product anchored to evidence, not vibes.
+- It makes failed attempts visible instead of hiding them.
+- It preserves the audit trail from signal to remediation.
+- It supports honest comparison across tools, runs, and benchmark versions.
+
+For public-facing storytelling, use these reusable assets:
+
+- [90-second demo script](docs/ANCHOR_90_SECOND_DEMO.md)
+- [Reusable case study template](docs/ANCHOR_CASE_STUDY_TEMPLATE.md)
+
+Recommended case-study shape:
+
+`Signal -> evidence -> failed attempts -> successful reproduction -> remediation`
+
+That structure works well for benchmark writeups, disclosure posts, conference demos, and researcher outreach because it shows the full path from detection to proof.
 
 # PHI // DRIFT — The Engine for Deep Engagement
 
@@ -138,38 +168,36 @@ The following components are known to be placeholders or local mocks in the curr
 
 ## Getting Started
 
-### 1. Clone
+### One-command install plan
+
+Run:
+
+```bash
+anchor install laptop
+```
+
+or for a droplet:
+
+```bash
+anchor install droplet --public-url http://<droplet-ip>:8767/anchor
+```
+
+### Fresh VM bootstrap
 
 ```bash
 git clone https://github.com/timeless-hayoka/drift.git
 cd drift
+./scripts/bootstrap_anchor.sh
 ```
 
-### 2. Install
-
-```bash
-python3.12 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-pip install -e .
-```
+That script creates `.venv`, installs the package in editable mode, runs `anchor setup`, checks `anchor doctor`, verifies `anchor status` and `anchor release`, runs the focused smoke tests, and proves the main web routes answer.
 
 > Torch (~2 GB) is required for local embeddings and the full server. On CPU-only machines:
 > ```bash
 > pip install torch --index-url https://download.pytorch.org/whl/cpu
 > ```
 
-### 3. Configure
-
-```bash
-cp .env.example .env
-# Add your keys:
-#   API_KEY=your_gemini_key        (primary LLM)
-#   GROQ_API_KEY=your_groq_key     (fallback)
-#   KIMI_API_KEY=your_kimi_key     (fallback)
-```
-
-### 4. Run
+### Optional manual run
 
 ```bash
 # CLI chat loop

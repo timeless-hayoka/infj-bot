@@ -11,11 +11,15 @@ class DiskGenCache:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.max_entries = max_entries
-        self._conn = sqlite3.connect(str(self.path), timeout=10)
-        self._conn.execute(
-            "CREATE TABLE IF NOT EXISTS cache (k TEXT PRIMARY KEY, v TEXT, ts INTEGER)"
-        )
-        self._conn.commit()
+        self._conn = sqlite3.connect(str(self.path), timeout=10, check_same_thread=False)
+        self._conn.execute("PRAGMA journal_mode=WAL;")
+        self._conn.execute("PRAGMA synchronous=NORMAL;")
+        self._conn.execute("PRAGMA temp_store=MEMORY;")
+        
+        with self._conn:
+            self._conn.execute(
+                "CREATE TABLE IF NOT EXISTS cache (k TEXT PRIMARY KEY, v TEXT, ts INTEGER)"
+            )
 
     def get(self, key: str) -> Optional[str]:
         cur = self._conn.execute("SELECT v FROM cache WHERE k = ?", (key,))
@@ -32,19 +36,22 @@ class DiskGenCache:
 
     def set(self, key: str, value: str) -> None:
         ts = int(time.time())
-        self._conn.execute("INSERT OR REPLACE INTO cache (k, v, ts) VALUES (?, ?, ?)", (key, value, ts))
-        self._conn.commit()
-        # enforce max entries
-        cur = self._conn.execute("SELECT COUNT(1) FROM cache")
-        count = cur.fetchone()[0]
-        if count > self.max_entries:
-            # delete oldest
-            to_delete = count - self.max_entries
-            self._conn.execute(
-                "DELETE FROM cache WHERE k IN (SELECT k FROM cache ORDER BY ts ASC LIMIT ?)",
-                (to_delete,)
-            )
-            self._conn.commit()
+        with self._conn:
+            self._conn.execute("INSERT OR REPLACE INTO cache (k, v, ts) VALUES (?, ?, ?)", (key, value, ts))
+
+        import random
+        # Enforce max entries probabilistically (5% chance) to save DB cycles
+        if random.random() < 0.05:
+            cur = self._conn.execute("SELECT COUNT(1) FROM cache")
+            count = cur.fetchone()[0]
+            if count > self.max_entries:
+                to_delete = count - self.max_entries
+                with self._conn:
+                    self._conn.execute(
+                        "DELETE FROM cache WHERE k IN (SELECT k FROM cache ORDER BY ts ASC LIMIT ?)",
+                        (to_delete,)
+                    )
+                    self._conn.execute("PRAGMA wal_checkpoint(TRUNCATE);")
 
     def close(self):
         try:

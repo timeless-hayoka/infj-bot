@@ -1,0 +1,98 @@
+{
+  "title": "INFJ MCP Observability",
+  "tags": [
+    "infj",
+    "mcp",
+    "observability"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "title": "Tool Calls by Status",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum by (tool, status) (rate(infj_mcp_tool_calls_total[5m]))",
+          "legendFormat": "{{tool}} / {{status}}"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "title": "Tool Duration P95",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, tool) (rate(infj_mcp_tool_duration_seconds_bucket[5m])))",
+          "legendFormat": "{{tool}}"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      }
+    },
+    {
+      "title": "Auth Failures and Rate Limits",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(rate(infj_mcp_auth_failures_total[5m]))",
+          "legendFormat": "auth failures"
+        },
+        {
+          "expr": "sum(rate(infj_mcp_rate_limit_hits_total[5m]))",
+          "legendFormat": "rate limit hits"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      }
+    },
+    {
+      "title": "Companion State",
+      "type": "gauge",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "drift_energy_level",
+          "legendFormat": "energy"
+        },
+        {
+          "expr": "drift_pedi_value",
+          "legendFormat": "pedi"
+        },
+        {
+          "expr": "drift_dii_value",
+          "legendFormat": "dii"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      }
+    }
+  ]
+}

@@ -3,7 +3,9 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 # Activate virtual environment if present
-if [[ -f venv/bin/activate ]]; then
+if [[ -f .venv/bin/activate ]]; then
+    source .venv/bin/activate
+elif [[ -f venv/bin/activate ]]; then
     source venv/bin/activate
 fi
 

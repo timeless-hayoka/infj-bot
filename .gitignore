@@ -24,6 +24,10 @@ __pycache__/
 chroma_db/
 history.jsonl
 tool_audit.jsonl
+logs/
+.benchmarks/
+ABLATION_RESULTS/
+windsurf*
 
 # Piper / voice weights (large; reinstall via piper or copy locally)
 voices/*.onnx
@@ -75,3 +79,6 @@ build/
 .vercel
 .env*
 node_modules/
+
+# Archived local cleanup artifacts
+archive/

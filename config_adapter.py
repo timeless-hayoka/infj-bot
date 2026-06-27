@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
 from pathlib import Path
 
 try:
@@ -22,6 +23,22 @@ except ImportError:
 logger = logging.getLogger("drift_os.config_adapter")
 
 PROJECT_ROOT_PATH = Path(__file__).resolve().parent
+
+
+def _bootstrap_local_venv_site_packages() -> None:
+    candidates = [
+        PROJECT_ROOT_PATH / ".venv" / "lib" / f"python{sys.version_info.major}.{sys.version_info.minor}" / "site-packages",
+        PROJECT_ROOT_PATH / "venv" / "lib" / f"python{sys.version_info.major}.{sys.version_info.minor}" / "site-packages",
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            candidate_str = str(candidate)
+            if candidate_str not in sys.path:
+                sys.path.insert(0, candidate_str)
+            break
+
+
+_bootstrap_local_venv_site_packages()
 
 
 class _ConfigAdapter:
@@ -50,6 +67,11 @@ class _ConfigAdapter:
         self.sqlite_dir.mkdir(parents=True, exist_ok=True)
         self.chroma_dir.mkdir(parents=True, exist_ok=True)
         self.logs_dir.mkdir(parents=True, exist_ok=True)
+
+        # Optional cold-tier paths from ~/.drift_os/config/storage.env
+        storage_env = self.config_dir / "storage.env"
+        if storage_env.is_file():
+            load_dotenv(storage_env, override=False)
 
     def get_db_path(self, db_name: str) -> str:
         """Returns the absolute path to a unified SQLite database."""
@@ -96,11 +118,60 @@ MEMORY_DIR = SQLITE_DIR
 CONFIG_DIR = Path(ConfigAdapter.config_dir)
 LOGS_DIR = Path(ConfigAdapter.logs_dir)
 
-CHROMA_DIR = Path(ConfigAdapter.get_chroma_dir())
-PERSIST_DIRECTORY = CHROMA_DIR
-COLD_STORAGE_DIR = Path(ConfigAdapter.chroma_dir / "cold_storage")
+
+def get_anchor_vault_root() -> Path | None:
+    """Resolve ANCHOR vault root from explicit env or ANCHOR_DATA_ROOT."""
+    explicit = os.getenv("ANCHOR_VAULT_ROOT", "").strip()
+    if explicit:
+        return Path(explicit).expanduser()
+    anchor_root = os.getenv("ANCHOR_DATA_ROOT", "").strip()
+    if anchor_root:
+        return Path(anchor_root).expanduser() / "AnchorVault"
+    return None
+
+
+def get_anchor_knowledge_dir() -> Path | None:
+    """Canonical markdown/file knowledge corpus under AnchorVault."""
+    vault_root = get_anchor_vault_root()
+    if vault_root is None:
+        return None
+    knowledge = vault_root / "knowledge"
+    return knowledge if knowledge.is_dir() else None
+
+
+def get_anchor_knowledge_chroma_dir() -> Path | None:
+    """Chroma persistence for vault-backed document RAG."""
+    knowledge = get_anchor_knowledge_dir()
+    if knowledge is None:
+        return None
+    return knowledge / ".chroma"
+
+
+_anchor_root = os.getenv("ANCHOR_DATA_ROOT", "").strip()
+_anchor_vault = get_anchor_vault_root()
+ANCHOR_VAULT_ROOT = _anchor_vault
+ANCHOR_KNOWLEDGE_DIR = get_anchor_knowledge_dir()
+
+if _anchor_root:
+    _cold = Path(_anchor_root).expanduser() / "Datasets" / "training"
+    COLD_STORAGE_DIR = _cold
+else:
+    COLD_STORAGE_DIR = Path(ConfigAdapter.chroma_dir / "cold_storage")
 RECON_DIR = Path(ConfigAdapter.chroma_dir / "recon")
-EVALS_DIR = Path(ConfigAdapter.chroma_dir / "evals")
+EVALS_DIR = Path(
+    Path(_anchor_root).expanduser() / "Anchor" / "benchmarks"
+    if _anchor_root
+    else ConfigAdapter.chroma_dir / "evals"
+)
+
+_vault_chroma = get_anchor_knowledge_chroma_dir()
+if _vault_chroma is not None:
+    _vault_chroma.mkdir(parents=True, exist_ok=True)
+    CHROMA_DIR = _vault_chroma
+    PERSIST_DIRECTORY = _vault_chroma
+else:
+    CHROMA_DIR = Path(ConfigAdapter.get_chroma_dir())
+    PERSIST_DIRECTORY = CHROMA_DIR
 
 # Databases
 BEING_DB = ConfigAdapter.get_db_path("being")

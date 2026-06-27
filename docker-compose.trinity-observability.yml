@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: infj-jaeger
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - "16686:16686"
+      - "4317:4317"
+      - "4318:4318"
+    networks:
+      - infj-obs
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: infj-prometheus
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-lifecycle
+    ports:
+      - "9090:9090"
+    networks:
+      - infj-obs
+    depends_on:
+      - jaeger
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: infj-grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=trinity
+      - GF_USERS_ALLOW_SIGN_UP=false
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./observability/grafana-datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
+      - ./observability/grafana_trinity_dashboard.json:/etc/grafana/provisioning/dashboards/trinity.json:ro
+    ports:
+      - "3000:3000"
+    networks:
+      - infj-obs
+    depends_on:
+      - prometheus
+      - jaeger
+
+volumes:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  infj-obs:
+    driver: bridge

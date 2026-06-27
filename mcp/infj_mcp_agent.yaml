@@ -1,5 +1,5 @@
 name: infj_companion
-version: 0.1.0
+version: 0.10.0
 description: "MCP agent exposing the INFJ Companion via stdio."
 entrypoint: /home/crexs/drift/scripts/run_mcp.sh
 transport: stdio

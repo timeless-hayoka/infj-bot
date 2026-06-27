@@ -35,6 +35,13 @@ from typing import Optional
 
 import numpy as np
 
+from drift.core.dmu_score_decomposition import (
+    DMUScoreDecomposition,
+    attach_ranks,
+    build_decomposition,
+    compute_pure_semantic_ranks,
+)
+
 logger = logging.getLogger("drift.dmu")
 
 # Decay constants per memory category (tune from being.db history)
@@ -203,7 +210,8 @@ class DMURetriever:
         top_k: int = 10,
         n_candidates: int = 50,    # fetch more candidates, re-rank with DMU
         current_cycle: int = 0,
-    ) -> list[dict]:
+        explain: bool = False,
+    ) -> list[dict] | tuple[list[dict], list[DMUScoreDecomposition]]:
         """
         DMU-weighted retrieval.
 
@@ -289,6 +297,29 @@ class DMURetriever:
         # 4. Sort by DMU score
         scored.sort(key=lambda x: x.dmu_score, reverse=True)
 
+        traces: list[DMUScoreDecomposition] | None = None
+        if explain:
+            traces = []
+            for sm in scored:
+                traces.append(
+                    build_decomposition(
+                        candidate_id=str(sm.memory.get("id", "")),
+                        cosine_similarity=sm.base_similarity,
+                        recency_score=sm.decay_component,
+                        salience=sm.salience,
+                        retention_decay=sm.decay_component,
+                        emotional_weight=0.0,
+                        state_match=0.0,
+                        trust_level=float(sm.memory.get("metadata", {}).get("source_reliability", 0.0)),
+                        conflict_penalty=0.0,
+                        final_dmu_score=sm.dmu_score,
+                        memory_metadata=sm.memory,
+                        notes=f"category={sm.category}; cycle={current_cycle}",
+                    )
+                )
+            traces = attach_ranks(traces)
+            traces = compute_pure_semantic_ranks(traces)
+
         # 5. Apply diversity floor
         filtered = apply_diversity_floor(scored, max_fraction=DMU_DIVERSITY_CAP, top_k=top_k)
 
@@ -302,4 +333,7 @@ class DMURetriever:
             f"| alert_dims={psc_alert_dims} | cycle={current_cycle}"
         )
 
-        return [sm.memory for sm in filtered]
+        selected = [sm.memory for sm in filtered]
+        if explain:
+            return selected, (traces or [])
+        return selected

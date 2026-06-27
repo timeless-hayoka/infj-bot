@@ -67,6 +67,20 @@ class ForgettingEngine:
             logger.info("[forgetting] Consolidated %d thoughts into durable knowledge.", len(stale_thoughts))
         else:
             logger.warning("[forgetting] No knowledge extracted. Retaining thoughts for next cycle.")
+            
+        # 4. Long-term DB maintenance
+        self.vacuum_dbs()
+
+    def vacuum_dbs(self):
+        """Run SQLite VACUUM to defragment and optimize databases for long-term operation."""
+        dbs = [ARCHIVE_DB, BEING_DB, NEXUS_DB]
+        for db in dbs:
+            try:
+                with sqlite3.connect(db) as conn:
+                    conn.execute("VACUUM")
+                logger.info("[forgetting] Vacuumed database %s.", db)
+            except Exception as e:
+                logger.error("[forgetting] Failed to vacuum %s: %s", db, e)
 
     def _fetch_stale_thoughts(self, hours: int) -> List[Dict]:
         cutoff = datetime.now() - timedelta(hours=hours)

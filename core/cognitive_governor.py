@@ -68,9 +68,9 @@ ENERGY_MODES = {
 }
 
 ENERGY_THRESHOLDS = {
-    "NORMAL":    (0.30, 1.00),   # energy >= 0.30
-    "LOW_POWER": (0.15, 0.30),   # 0.15 <= energy < 0.30
-    "CRITICAL":  (0.00, 0.15),   # energy < 0.15
+    "NORMAL":    (-1.0, 2.0),
+    "LOW_POWER": (-2.0, -1.0),
+    "CRITICAL":  (-3.0, -2.0),
 }
 
 

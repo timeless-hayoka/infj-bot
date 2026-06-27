@@ -26,10 +26,12 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from shutil import which
 
 DEFAULT_REMOTE_DIR = "/opt/drift/logs"
 DEFAULT_LOCAL_DIR = "./logs"
 DEFAULT_LOG_GLOB = "*.jsonl*"
+DEFAULT_SSH_HOST_ALIAS = "droplet"
 
 
 def _ssh_opts(key: str | None) -> list[str]:
@@ -37,6 +39,33 @@ def _ssh_opts(key: str | None) -> list[str]:
     if key:
         opts += ["-i", key]
     return opts
+
+
+def _ssh_config_has_host(alias: str) -> bool:
+    config = Path.home() / ".ssh" / "config"
+    if not config.exists():
+        return False
+    try:
+        for raw_line in config.read_text(encoding="utf-8").splitlines():
+            line = raw_line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if line.lower().startswith("host "):
+                hosts = line.split()[1:]
+                if alias in hosts:
+                    return True
+    except OSError:
+        return False
+    return False
+
+
+def _default_host() -> str | None:
+    return (
+        os.getenv("DROPLET_HOST")
+        or os.getenv("DROPLET_SSH_HOST")
+        or os.getenv("SSH_HOST")
+        or (DEFAULT_SSH_HOST_ALIAS if _ssh_config_has_host(DEFAULT_SSH_HOST_ALIAS) else None)
+    )
 
 
 def rsync_pull(host: str, user: str, remote_dir: str, local_dir: str, key: str | None) -> bool:
@@ -62,14 +91,18 @@ def scp_pull(host: str, user: str, remote_dir: str, local_dir: str, key: str | N
 def pull_once(host: str, user: str, remote_dir: str, local_dir: str, key: str | None, force_scp: bool) -> bool:
     if not force_scp:
         # Prefer rsync if available
-        if subprocess.run(["which", "rsync"], capture_output=True).returncode == 0:
+        if which("rsync"):
             return rsync_pull(host, user, remote_dir, local_dir, key)
     return scp_pull(host, user, remote_dir, local_dir, key)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Sync DRIFT JSONL logs from droplet")
-    parser.add_argument("--host", default=os.getenv("DROPLET_HOST"), help="Droplet IP or hostname")
+    parser.add_argument(
+        "--host",
+        default=_default_host(),
+        help="Droplet IP, hostname, or SSH host alias (defaults to DROPLET_HOST / droplet)",
+    )
     parser.add_argument("--user", default=os.getenv("DROPLET_USER", "root"), help="SSH user")
     parser.add_argument("--key", default=os.getenv("DROPLET_KEY"), help="SSH private key path")
     parser.add_argument("--remote", default=DEFAULT_REMOTE_DIR, help="Remote log directory")
@@ -79,7 +112,10 @@ def main() -> None:
     args = parser.parse_args()
 
     if not args.host:
-        print("Error: --host is required (or set DROPLET_HOST env var).", file=sys.stderr)
+        print(
+            "Error: --host is required (or set DROPLET_HOST, DROPLET_SSH_HOST, SSH_HOST, or define Host droplet in ~/.ssh/config).",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     if args.watch:

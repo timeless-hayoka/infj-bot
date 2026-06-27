@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 from drift.config_adapter import ConfigAdapter
-from drift.core.jsonl_logger import HardenedJsonlLogger
+from core.jsonl_logger import HardenedJsonlLogger
 
 logger = logging.getLogger("drift.audit")
 

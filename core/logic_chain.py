@@ -136,19 +136,39 @@ class LogicChain:
     def list_successful_approaches(self) -> List[ChainNode]:
         return self.list_tried_approaches({"success"})
 
-    def has_tried(self, approach_text: str) -> bool:
+    def has_tried(self, approach_text: str, decay_rate: float = 0.0001) -> bool:
         """Check if a semantically similar approach was already tried."""
         cleaned = approach_text.lower().strip()
+        import time
+        from datetime import datetime
+        import math
+        current_time = time.time()
+        
+        # Module-level regex cache (prevents recompiling in loop)
+        if not hasattr(self, "_word_pattern"):
+            import re
+            self._word_pattern = re.compile(r"\b\w{4,}\b")
+
         for node in self.nodes:
             existing = node.approach.lower().strip()
             # Simple overlap heuristic — shared significant words
-            existing_words = set(re.findall(r"\b\w{4,}\b", existing))
-            new_words = set(re.findall(r"\b\w{4,}\b", cleaned))
+            existing_words = set(self._word_pattern.findall(existing))
+            new_words = set(self._word_pattern.findall(cleaned))
             if existing_words and new_words:
-                overlap = len(existing_words & new_words) / max(
-                    len(existing_words), len(new_words)
-                )
-                if overlap > 0.6:
+                overlap_count = len(existing_words & new_words)
+                
+                # Parse timestamp and compute soft decay
+                try:
+                    dt = datetime.fromisoformat(node.timestamp)
+                    node_time = dt.timestamp()
+                except Exception:
+                    node_time = current_time
+                    
+                age_seconds = max(0, current_time - node_time)
+                decay_multiplier = math.exp(-decay_rate * age_seconds)
+                weighted_overlap = (overlap_count * decay_multiplier) / max(len(existing_words), len(new_words))
+                
+                if weighted_overlap > 0.6:
                     return True
             # Direct substring
             if cleaned in existing or existing in cleaned:

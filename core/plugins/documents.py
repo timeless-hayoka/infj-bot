@@ -7,7 +7,8 @@ from typing import List, Optional
 
 import chromadb
 
-from drift.core.config import PROJECT_ROOT, DATA_DIR
+from drift.core.config import PROJECT_ROOT, DATA_DIR, PERSIST_DIRECTORY
+from drift.config_adapter import get_anchor_knowledge_dir
 from drift.core.embeddings import (
     get_default_embedding_function,
     LocalEmbeddingFunction,
@@ -53,9 +54,16 @@ def _resolve_ingest_path(path: str) -> Path:
         target = PROJECT_ROOT / target
     target = target.resolve()
     allowed_roots = [PROJECT_ROOT.resolve(), Path.home().resolve()]
+    knowledge_root = get_anchor_knowledge_dir()
+    if knowledge_root is not None:
+        allowed_roots.append(knowledge_root.resolve())
     if not any(_is_relative_to(target, root) for root in allowed_roots):
         raise PermissionError(f"Path {path} is outside the allowed ingestion roots.")
     return target
+
+
+def _default_persist_directory() -> str:
+    return str(PERSIST_DIRECTORY)
 
 
 def _chunk_text(text: str, chunk_size: int = 800, overlap: int = 100) -> List[str]:
@@ -116,7 +124,7 @@ class DocumentStore:
         self, persist_directory=None, embedding_function=None, use_semantic=True
     ):
         if persist_directory is None:
-            persist_directory = str(DATA_DIR / "chroma_db")
+            persist_directory = _default_persist_directory()
         if embedding_function is None:
             if use_semantic:
                 embedding_function = get_default_embedding_function()
@@ -199,7 +207,14 @@ class DocumentStore:
                     "chunk_index": meta.get("chunk_index", 0),
                 }
             )
-        return out
+        if out:
+            return out
+        try:
+            from drift.core.anchor_context import search_vault_knowledge
+
+            return search_vault_knowledge(query, n_results=n_results)
+        except Exception:
+            return []
 
     def list_sources(self) -> List[str]:
         results = self.collection.get(include=["metadatas"])

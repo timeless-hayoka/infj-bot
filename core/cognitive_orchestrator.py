@@ -567,6 +567,15 @@ class CognitiveOrchestrator:
         budget.add("core", f"Tone / Communicative Guidance:\n{tone_instruction}", label="confidence_tone")
         budget.add("core", being.format_being_prompt(), label="being")
 
+        try:
+            from drift.core.anchor_context import format_anchor_vault_prompt_block
+
+            anchor_block = format_anchor_vault_prompt_block()
+            if anchor_block:
+                budget.add("core", anchor_block, label="anchor_vault")
+        except Exception:
+            pass
+
         # System prompt constraints injection
         causal_constraints = (
             f"[Causal Constraints]\n"
@@ -654,8 +663,78 @@ Use this to clarify inner conflict without pathologizing it.
                     "\nRelevant documents:\n" + "\n---\n".join(lines) + "\n",
                     label="docs",
                 )
+            else:
+                try:
+                    from drift.core.anchor_context import search_vault_knowledge
+
+                    vault_hits = search_vault_knowledge(message, n_results=3)
+                    if vault_hits:
+                        lines = [
+                            f"[{r['filename']} @ {r['source']}]\n{r['document'][:400]}"
+                            for r in vault_hits
+                        ]
+                        budget.add(
+                            "context",
+                            "\nRelevant ANCHOR vault knowledge:\n"
+                            + "\n---\n".join(lines)
+                            + "\n",
+                            label="vault_docs",
+                        )
+                except Exception:
+                    pass
         if tools_enabled:
             budget.add("context", build_tool_prompt(), label="tools")
+
+        # Unified crex cognitive-state block (homeostasis + workspace + memory summary)
+        try:
+            import sys
+            from pathlib import Path as _Path
+
+            _crex = _Path(__file__).resolve().parents[2] / "crex"
+            if _crex.is_dir() and str(_crex) not in sys.path:
+                sys.path.insert(0, str(_crex))
+            from drift_ft.prompt_hook import build_injection_from_parts
+
+            _homeo_snip = ""
+            try:
+                from drift.core.homeostasis import get_homeostasis
+
+                _homeo_snip = get_homeostasis().format_prompt_snippet()
+            except Exception:
+                pass
+            _mem_lines = [
+                ln.strip() for ln in (context or "").splitlines() if ln.strip()
+            ][:5]
+            _energy = 0.6
+            if isinstance(current_homeostasis, dict):
+                _energy = float(current_homeostasis.get("energy", 0.6))
+            if _energy <= 0.15:
+                _emode = "CRITICAL"
+                _mtok = 150
+            elif _energy <= 0.30:
+                _emode = "LOW_POWER"
+                _mtok = 400
+            elif _energy <= 0.50:
+                _emode = "MODERATE"
+                _mtok = 700
+            else:
+                _emode = "NORMAL"
+                _mtok = 1000
+            _unified = build_injection_from_parts(
+                mode=getattr(state, "mode", "companion"),
+                homeostasis_snippet=_homeo_snip,
+                workspace_snippet=workspace_snippet or "",
+                memory_lines=_mem_lines,
+                energy_mode=_emode,
+                max_tokens_hint=_mtok,
+                crisis_mode=bool(current_homeostasis.get("crisis")) if isinstance(current_homeostasis, dict) else False,
+                allostatic_load=float(current_homeostasis.get("stress", 0.0)) if isinstance(current_homeostasis, dict) else 0.0,
+                epistemic_confidence=float(epistemic_confidence),
+            )
+            if _unified:
+                budget.add("context", _unified, label="drift_cognitive_state")
+        except Exception:
+            logger.debug("crex drift_ft cognitive block skipped", exc_info=True)
 
         budget.set_footer(f"\nUser: {message}\n")
         budget.check_overlaps()

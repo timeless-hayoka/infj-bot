@@ -70,6 +70,22 @@
       margin-top: 4px;
     }
 
+    .release-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 10px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(242,204,96,0.12);
+      border: 1px solid rgba(242,204,96,0.22);
+      color: var(--gold);
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      width: fit-content;
+    }
+
     .actions {
       display: flex;
       flex-wrap: wrap;
@@ -297,6 +313,14 @@
       color: var(--text);
       font-size: 13px;
     }
+    .history-summary-grid,
+    .metrics-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+    .vault-grid,
+    .contrib-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
 
     .kv { display: flex; justify-content: space-between; gap: 12px; }
     .kv span:first-child { color: var(--muted); }
@@ -311,6 +335,59 @@
       font-size: 12px;
       line-height: 1.5;
     }
+
+    .panel-note {
+      margin-top: 10px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.03);
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+      letter-spacing: 0.01em;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-left-width: 4px;
+    }
+    .panel-note::before {
+      content: 'STATUS';
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      opacity: 0.8;
+      flex: 0 0 auto;
+    }
+    .panel-note.loading {
+      color: #b3c7d8;
+      border-color: rgba(170, 180, 190, 0.25);
+      border-left-color: rgba(170, 180, 190, 0.8);
+      background: linear-gradient(135deg, rgba(170,180,190,0.10), rgba(255,255,255,0.03));
+    }
+    .panel-note.loading::before { content: 'LOADING'; color: #d3dbe3; }
+    .panel-note.ready {
+      color: var(--green);
+      border-color: rgba(126, 231, 135, 0.26);
+      border-left-color: rgba(126, 231, 135, 0.92);
+      background: linear-gradient(135deg, rgba(126,231,135,0.10), rgba(255,255,255,0.03));
+    }
+    .panel-note.ready::before { content: 'READY'; color: #b8f3c0; }
+    .panel-note.optional {
+      color: #f2cc60;
+      border-color: rgba(242, 204, 96, 0.24);
+      border-left-color: rgba(242, 204, 96, 0.92);
+      background: linear-gradient(135deg, rgba(242,204,96,0.10), rgba(255,255,255,0.03));
+    }
+    .panel-note.optional::before { content: 'OPTIONAL'; color: #fae5a5; }
+    .panel-note.error {
+      color: var(--red);
+      border-color: rgba(255, 123, 114, 0.30);
+      border-left-color: rgba(255, 123, 114, 0.94);
+      background: linear-gradient(135deg, rgba(255,123,114,0.12), rgba(255,255,255,0.03));
+    }
+    .panel-note.error::before { content: 'ERROR'; color: #ffb8b2; }
 
     .bar { height: 8px; border-radius: 999px; background: rgba(255,255,255,0.05); overflow: hidden; margin-top: 10px; }
     .bar > div { height: 100%; width: 50%; background: linear-gradient(90deg, rgba(242,204,96,0.95), rgba(121,192,255,0.92)); }
@@ -385,6 +462,7 @@
         <h1>ANCHOR</h1>
         <div class="tagline">Evidence Before Belief</div>
         <div class="sub">Powered by Trinity</div>
+        <div class="release-badge">{{ANCHOR_RELEASE}}</div>
       </div>
       <div class="actions">
         <button class="btn primary" type="button" onclick="scrollToComposer()">New message</button>
@@ -448,18 +526,65 @@
           </div>
           <div class="bar"><div id="healthBar"></div></div>
           <div class="detail" id="releaseSummary">Manifest-backed release identity.</div>
+          <div class="panel-note loading" id="releaseStatus">Loading release metadata…</div>
         </div>
 
         <div class="block" id="history">
           <h3>History</h3>
-          <div class="rows">
+          <div class="rows history-summary-grid">
             <div class="kv"><span>Runs</span><strong id="historyCount">…</strong></div>
+            <div class="kv"><span>Accepted</span><strong id="historyAccepted">…</strong></div>
+            <div class="kv"><span>Rejected</span><strong id="historyRejected">…</strong></div>
+            <div class="kv"><span>Reproduced</span><strong id="historyReproduced">…</strong></div>
+          </div>
+          <div class="rows">
             <div class="kv"><span>Latest case</span><strong id="latestCase">…</strong></div>
             <div class="kv"><span>Latest status</span><strong id="latestCaseStatus">…</strong></div>
           </div>
+          <div class="panel-note loading" id="historyStatus">Loading Trinity case history…</div>
           <div class="record-list" id="historyList"></div>
           <div class="detail" id="historySummary">Recent case activity will appear here.</div>
           <div class="detail" id="historyDetail">Select a case to inspect its bundle summary.</div>
+        </div>
+
+        <div class="block" id="evidence">
+          <h3>Evidence Metrics</h3>
+          <div class="rows metrics-grid">
+            <div class="kv"><span>Claims generated</span><strong id="evidenceGenerated">…</strong></div>
+            <div class="kv"><span>Claims accepted</span><strong id="evidenceAccepted">…</strong></div>
+            <div class="kv"><span>Claims rejected</span><strong id="evidenceRejected">…</strong></div>
+            <div class="kv"><span>Reproduction rate</span><strong id="evidenceRate">…</strong></div>
+          </div>
+          <div class="panel-note loading" id="evidenceStatus">Loading evidence metrics…</div>
+          <div class="detail" id="evidenceSummary">Verified findings and benchmark signals will appear here.</div>
+        </div>
+
+        <div class="block" id="vault">
+          <h3>Vault Visibility</h3>
+          <div class="rows vault-grid">
+            <div class="kv"><span>News briefs</span><strong id="vaultNewsBriefs">…</strong></div>
+            <div class="kv"><span>Latest brief</span><strong id="vaultLatestBrief">…</strong></div>
+            <div class="kv"><span>Vault status</span><strong id="vaultFreshness">…</strong></div>
+            <div class="kv"><span>History records</span><strong id="vaultHistoryRecords">…</strong></div>
+            <div class="kv"><span>Bug classes</span><strong id="vaultBugClasses">…</strong></div>
+            <div class="kv"><span>Triage templates</span><strong id="vaultTriageTemplates">…</strong></div>
+            <div class="kv"><span>Decision trees</span><strong id="vaultDecisionTrees">…</strong></div>
+            <div class="kv"><span>News snapshots</span><strong id="vaultNewsSnapshots">…</strong></div>
+          </div>
+          <div class="panel-note loading" id="vaultStatus">Loading vault visibility…</div>
+          <div class="detail" id="vaultSummary">Read-only counts from the AnchorVault and history stores will appear here.</div>
+        </div>
+
+        <div class="block" id="contributions">
+          <h3>Contribution Tracking</h3>
+          <div class="rows contrib-grid">
+            <div class="kv"><span>Open PRs</span><strong id="contribOpenPrs">…</strong></div>
+            <div class="kv"><span>Merged PRs</span><strong id="contribMergedPrs">…</strong></div>
+            <div class="kv"><span>Issues filed</span><strong id="contribIssuesFiled">…</strong></div>
+            <div class="kv"><span>Source</span><strong id="contribSource">…</strong></div>
+          </div>
+          <div class="panel-note loading" id="contribStatus">Loading contribution tracking…</div>
+          <div class="detail" id="contribSummary">Live engineering contribution counts will appear here when available.</div>
         </div>
 
         <div class="block" id="archive">
@@ -473,6 +598,7 @@
             <div><span>Smoke</span><span>anchor archive create &lt;case_ref&gt;</span></div>
             <div><span>Export</span><span>anchor export-report &lt;case_ref&gt;</span></div>
           </div>
+          <div class="panel-note loading" id="archiveStatus">Loading archive paths…</div>
           <div class="detail">Archives are created from the terminal so the UI stays read-only and safe.</div>
         </div>
 
@@ -484,6 +610,7 @@
             <div class="kv"><span>Energy need</span><strong id="needEnergy">—</strong></div>
             <div class="kv"><span>Weather</span><strong id="weatherState">—</strong></div>
           </div>
+          <div class="panel-note loading" id="observerStatus">Loading observer state…</div>
         </div>
 
         <div class="block">
@@ -520,6 +647,14 @@ const releaseBranch = document.getElementById('releaseBranch');
 const releaseTests = document.getElementById('releaseTests');
 const releaseSummary = document.getElementById('releaseSummary');
 const historyCount = document.getElementById('historyCount');
+const historyAccepted = document.getElementById('historyAccepted');
+const historyRejected = document.getElementById('historyRejected');
+const historyReproduced = document.getElementById('historyReproduced');
+const evidenceGenerated = document.getElementById('evidenceGenerated');
+const evidenceAccepted = document.getElementById('evidenceAccepted');
+const evidenceRejected = document.getElementById('evidenceRejected');
+const evidenceRate = document.getElementById('evidenceRate');
+const evidenceSummary = document.getElementById('evidenceSummary');
 const latestCase = document.getElementById('latestCase');
 const latestCaseStatus = document.getElementById('latestCaseStatus');
 const historyList = document.getElementById('historyList');
@@ -531,6 +666,27 @@ const manifestPath = document.getElementById('manifestPath');
 const activeMode = document.getElementById('activeMode');
 const healthStatus = document.getElementById('healthStatus');
 const healthBar = document.getElementById('healthBar');
+const releaseStatus = document.getElementById('releaseStatus');
+const historyStatus = document.getElementById('historyStatus');
+const evidenceStatus = document.getElementById('evidenceStatus');
+const vaultNewsBriefs = document.getElementById('vaultNewsBriefs');
+const vaultLatestBrief = document.getElementById('vaultLatestBrief');
+const vaultFreshness = document.getElementById('vaultFreshness');
+const vaultNewsSnapshots = document.getElementById('vaultNewsSnapshots');
+const vaultHistoryRecords = document.getElementById('vaultHistoryRecords');
+const vaultBugClasses = document.getElementById('vaultBugClasses');
+const vaultTriageTemplates = document.getElementById('vaultTriageTemplates');
+const vaultDecisionTrees = document.getElementById('vaultDecisionTrees');
+const vaultStatus = document.getElementById('vaultStatus');
+const vaultSummary = document.getElementById('vaultSummary');
+const contribOpenPrs = document.getElementById('contribOpenPrs');
+const contribMergedPrs = document.getElementById('contribMergedPrs');
+const contribIssuesFiled = document.getElementById('contribIssuesFiled');
+const contribSource = document.getElementById('contribSource');
+const contribStatus = document.getElementById('contribStatus');
+const contribSummary = document.getElementById('contribSummary');
+const archiveStatus = document.getElementById('archiveStatus');
+const observerStatus = document.getElementById('observerStatus');
 const connectionState = document.getElementById('connectionState');
 
 function escapeHtml(s) {
@@ -593,16 +749,20 @@ async function updatePhi() {
 }
 
 async function updateHealth() {
+  setPanelNotice(releaseStatus, 'loading', 'Loading release metadata…');
   try {
     const [healthRes, identityRes, pathsRes] = await Promise.all([
       fetch('/api/health'),
       fetch('/api/identity'),
       fetch('/api/trinity/paths'),
     ]);
+    if (!healthRes.ok || !identityRes.ok || !pathsRes.ok) {
+      throw new Error(`health ${healthRes.status}, identity ${identityRes.status}, paths ${pathsRes.status}`);
+    }
     const data = await healthRes.json();
     const identity = await identityRes.json();
     const paths = await pathsRes.json();
-    const healthy = !!data.healthy;
+    const healthy = Boolean(data.healthy ?? data.ok);
     const release = data.release || identity || {};
     healthStatus.textContent = healthy ? 'PASS' : 'CHECK';
     healthStatus.style.color = healthy ? 'var(--green)' : 'var(--red)';
@@ -612,21 +772,24 @@ async function updateHealth() {
     releaseCommit.textContent = release.commit || '—';
     releaseBranch.textContent = release.branch || '—';
     releaseTests.textContent = release.tests_passed != null ? String(release.tests_passed) : '—';
+    const hiveState = String(data.hive || release.hive || 'unknown');
     releaseSummary.textContent = [
       `Status: ${release.status || 'unknown'}`,
+      `Hive: ${hiveState.toLowerCase() === 'offline' ? 'Offline Optional' : hiveState}`,
       `Cases dir: ${paths.cases_dir || data.cases_dir || 'unknown'}`,
       `Ledger: ${paths.ledger_path || data.ledger_path || 'unknown'}`,
     ].join(' · ');
     archiveDir.textContent = paths.archive_dir || release.archive_dir || '—';
     archiveLedger.textContent = paths.ledger_path || release.archive_ledger_path || '—';
     manifestPath.textContent = release.manifest_path || 'release.json';
-    if (data.latest_benchmark) {
-      historySummary.textContent = `Latest benchmark: recall ${Number(data.latest_benchmark.recall || 0).toFixed(2)} · precision ${Number(data.latest_benchmark.precision || 0).toFixed(2)} · reproduction ${Number(data.latest_benchmark.reproduction_success || 0).toFixed(2)}`;
-    }
+    const archiveReady = Boolean(paths.archive_dir || release.archive_dir || release.archive_ledger_path || paths.ledger_path);
+    setPanelNotice(archiveStatus, archiveReady ? 'ready' : 'optional', archiveReady ? 'Archive path data loaded from the live backend.' : 'Archive path data not available yet.');
+    setPanelNotice(releaseStatus, healthy ? 'ready' : (hiveState.toLowerCase() === 'offline' ? 'optional' : 'loading'), healthy ? 'Release identity loaded from live backend.' : (hiveState.toLowerCase() === 'offline' ? 'Hive: Offline Optional' : 'Release metadata loaded, but health needs attention.'));
   } catch (e) {
     healthStatus.textContent = 'OFFLINE';
     healthStatus.style.color = 'var(--red)';
     healthBar.style.width = '18%';
+    setPanelNotice(releaseStatus, 'error', `Release metadata unavailable: ${e.message || 'unknown error'}`);
   }
 }
 
@@ -635,22 +798,29 @@ function escapeAttr(value) {
 }
 
 async function loadHistory() {
+  setPanelNotice(historyStatus, 'loading', 'Loading Trinity case history…');
   try {
-    const res = await fetch('/api/trinity/cases?limit=5');
+    const res = await fetch('/api/trinity/history?limit=5');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    const cases = data.cases || [];
-    historyCount.textContent = String(data.count ?? cases.length ?? 0);
-    latestCase.textContent = cases[0]?.case_id || 'none';
-    latestCaseStatus.textContent = cases[0]?.status || '—';
+    const runs = data.runs || [];
+    historyCount.textContent = String(data.count ?? runs.length ?? 0);
+    historyAccepted.textContent = String(data.accepted_total ?? 0);
+    historyRejected.textContent = String(data.rejected_total ?? 0);
+    historyReproduced.textContent = String(data.reproduced_total ?? 0);
+    latestCase.textContent = runs[0]?.case_id || 'none';
+    latestCaseStatus.textContent = runs[0]?.status || '—';
     historyList.innerHTML = '';
 
-    if (!cases.length) {
-      historyList.innerHTML = '<div class="detail">No Trinity cases recorded yet.</div>';
+    if (!runs.length) {
+      historyList.innerHTML = '<div class="detail">No Trinity runs recorded yet.</div>';
+      historySummary.textContent = 'No Trinity runs recorded yet.';
       historyDetail.textContent = 'Run a demo or an analysis to populate the archive.';
+      setPanelNotice(historyStatus, 'optional', 'No Trinity runs yet. Run a scan or analysis to populate history.');
       return;
     }
 
-    cases.forEach((entry) => {
+    runs.forEach((entry) => {
       const row = document.createElement('button');
       row.type = 'button';
       row.className = 'record';
@@ -659,16 +829,27 @@ async function loadHistory() {
           <strong>${escapeHtml(entry.case_id || 'unknown')}</strong><br>
           <span class="meta">${escapeHtml(entry.scanner_format || 'unknown')} · ${escapeHtml(entry.status || 'unknown')}</span>
         </span>
-        <span class="meta">${escapeHtml(String(entry.finding_count ?? 0))} findings</span>
+        <span class="meta">A ${escapeHtml(String(entry.accepted_count ?? 0))} · R ${escapeHtml(String(entry.rejected_count ?? 0))}<br>${escapeHtml(String(entry.finding_count ?? 0))} findings</span>
       `;
       row.addEventListener('click', () => loadCaseSummary(entry.case_id));
       historyList.appendChild(row);
     });
 
-    if (cases[0]?.case_id) {
-      await loadCaseSummary(cases[0].case_id);
+    if (runs[0]?.case_id) {
+      await loadCaseSummary(runs[0].case_id);
     }
-  } catch (e) {}
+    historySummary.textContent = [
+      `Accepted: ${data.accepted_total ?? 0}`,
+      `Rejected: ${data.rejected_total ?? 0}`,
+      `Reproduced: ${data.reproduced_total ?? 0}`,
+    ].join(' · ');
+    setPanelNotice(historyStatus, 'ready', `Loaded ${runs.length} recent Trinity run${runs.length === 1 ? '' : 's'}.`);
+  } catch (e) {
+    historyList.innerHTML = '<div class="detail">History unavailable right now.</div>';
+    historySummary.textContent = 'History unavailable right now.';
+    historyDetail.textContent = 'The Trinity archive endpoint did not answer cleanly.';
+    setPanelNotice(historyStatus, 'error', `Run history unavailable: ${e.message || 'unknown error'}`);
+  }
 }
 
 async function loadCaseSummary(caseRef) {
@@ -691,8 +872,10 @@ async function loadCaseSummary(caseRef) {
 }
 
 async function updateObserver() {
+  setPanelNotice(observerStatus, 'loading', 'Loading observer state…');
   try {
     const res = await fetch('/api/observer');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     const dii = data.dii || {};
     document.getElementById('diiValue').textContent = Number(dii.dii_current || 0).toFixed(2);
@@ -709,8 +892,234 @@ async function updateObserver() {
     const radar = data.shadow?.radar || {};
     const radarSummary = Object.entries(radar).slice(0, 3).map(([k, v]) => `${k}:${Math.round((v || 0) * 100)}%`).join(' · ') || 'none';
     document.getElementById('obsRadar').textContent = radarSummary;
-  } catch (e) {}
+    setPanelNotice(observerStatus, 'ready', 'Observer data loaded from the live backend.');
+  } catch (e) {
+    document.getElementById('diiValue').textContent = '—';
+    document.getElementById('diiTrend').textContent = 'unavailable';
+    document.getElementById('needEnergy').textContent = '—';
+    document.getElementById('weatherState').textContent = '—';
+    document.getElementById('obsNeeds').textContent = 'unavailable';
+    document.getElementById('obsRadar').textContent = 'unavailable';
+    setPanelNotice(observerStatus, 'error', `Observer unavailable: ${e.message || 'unknown error'}`);
+  }
 }
+
+async function loadMetrics() {
+  setPanelNotice(evidenceStatus, 'loading', 'Loading evidence metrics…');
+  try {
+    const res = await fetch('/api/trinity/metrics');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    evidenceGenerated.textContent = String(data.claims_generated ?? 0);
+    evidenceAccepted.textContent = String(data.claims_accepted ?? 0);
+    evidenceRejected.textContent = String(data.claims_rejected ?? 0);
+    evidenceRate.textContent = Number(data.reproduction_rate || 0).toFixed(2);
+    const verified = data.verified_findings ?? 0;
+    const totalFindings = data.findings_total ?? 0;
+    const benchmark = data.latest_benchmark || {};
+    evidenceSummary.textContent = [
+      `Verified findings: ${verified}`,
+      `Total findings: ${totalFindings}`,
+      benchmark.reproduction_success != null ? `Latest benchmark reproduction: ${Number(benchmark.reproduction_success || 0).toFixed(2)}` : null,
+    ].filter(Boolean).join(' · ');
+    setPanelNotice(evidenceStatus, 'ready', `Loaded ${data.claims_generated ?? 0} generated claim${(data.claims_generated ?? 0) === 1 ? '' : 's'}.`);
+  } catch (e) {
+    evidenceGenerated.textContent = '—';
+    evidenceAccepted.textContent = '—';
+    evidenceRejected.textContent = '—';
+    evidenceRate.textContent = '—';
+    evidenceSummary.textContent = 'Evidence metrics are unavailable right now.';
+    setPanelNotice(evidenceStatus, 'error', `Evidence metrics unavailable: ${e.message || 'unknown error'}`);
+  }
+}
+
+async function loadVault() {
+  setPanelNotice(vaultStatus, 'loading', 'Loading vault visibility…');
+  try {
+    const res = await fetch('/api/trinity/vault');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    vaultNewsBriefs.textContent = String(data.news_briefs ?? 0);
+    vaultLatestBrief.textContent = data.last_daily_brief || 'none';
+    vaultFreshness.textContent = data.vault_status_label || 'No daily brief';
+    vaultNewsSnapshots.textContent = String(data.news_snapshots ?? 0);
+    vaultHistoryRecords.textContent = String(data.history_records ?? 0);
+    vaultBugClasses.textContent = String(data.bug_classes ?? 0);
+    vaultTriageTemplates.textContent = String(data.triage_templates ?? 0);
+    vaultDecisionTrees.textContent = String(data.decision_trees ?? 0);
+    vaultSummary.textContent = [
+      `Vault root: ${data.vault_root || '—'}`,
+      data.last_daily_brief ? `Latest brief: ${data.last_daily_brief}` : 'Latest brief: none',
+      data.vault_freshness_days == null ? 'Vault status: No daily brief' : `Vault status: ${data.vault_status_label || 'Fresh'}`,
+    ].join(' · ');
+    setPanelNotice(vaultStatus, data.status === 'ready' ? 'ready' : 'optional', data.status === 'ready' ? 'Vault visibility loaded.' : 'Vault store not mounted; this panel is read-only and safe.');
+  } catch (e) {
+    vaultNewsBriefs.textContent = '—';
+    vaultLatestBrief.textContent = '—';
+    vaultFreshness.textContent = '—';
+    vaultNewsSnapshots.textContent = '—';
+    vaultHistoryRecords.textContent = '—';
+    vaultBugClasses.textContent = '—';
+    vaultTriageTemplates.textContent = '—';
+    vaultDecisionTrees.textContent = '—';
+    vaultSummary.textContent = 'Vault visibility is unavailable right now.';
+    setPanelNotice(vaultStatus, 'error', `Vault visibility unavailable: ${e.message || 'unknown error'}`);
+  }
+}
+
+async function loadContributions() {
+  setPanelNotice(contribStatus, 'loading', 'Loading contribution tracking…');
+  try {
+    const res = await fetch('/api/trinity/contributions');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    contribOpenPrs.textContent = String(data.open_prs ?? 0);
+    contribMergedPrs.textContent = String(data.merged_prs ?? 0);
+    contribIssuesFiled.textContent = String(data.issues_filed ?? 0);
+    contribSource.textContent = data.source || 'unknown';
+    const repo = data.repo ? `Repo: ${data.repo}` : 'Repo: unknown';
+    const highlightText = data.highlights?.open_prs?.length ? `Top open PR: #${data.highlights.open_prs[0].number}` : 'No live PR highlights';
+    contribSummary.textContent = [repo, highlightText].join(' · ');
+    setPanelNotice(contribStatus, data.source === 'github_cli' ? 'ready' : 'optional', data.source === 'github_cli' ? 'Contribution tracking loaded from GitHub.' : 'GitHub data unavailable; showing local fallback counts.');
+  } catch (e) {
+    contribOpenPrs.textContent = '—';
+    contribMergedPrs.textContent = '—';
+    contribIssuesFiled.textContent = '—';
+    contribSource.textContent = 'unavailable';
+    contribSummary.textContent = 'Contribution tracking is unavailable right now.';
+    setPanelNotice(contribStatus, 'error', `Contribution tracking unavailable: ${e.message || 'unknown error'}`);
+  }
+}
+
+
+function applyAnchorSnapshot(snapshot) {
+  if (!snapshot) return;
+  const release = snapshot.identity || snapshot.release || {};
+  const health = snapshot.health || {};
+  const history = snapshot.history || {};
+  const metrics = snapshot.metrics || {};
+  const vault = snapshot.vault || {};
+  const contrib = snapshot.contributions || {};
+  const observer = snapshot.observer || {};
+  const phi = snapshot.phi || {};
+  const paths = snapshot.paths || {};
+  const healthy = Boolean(health.healthy ?? health.ok);
+  const hiveState = String(health.hive || release.hive || 'unknown');
+
+  if (phi.subjective) {
+    const mood = phi.subjective?.mood || 'neutral';
+    const energy = Math.round((phi.subjective?.energy || 0.5) * 100);
+    document.getElementById('phiMood').textContent = mood;
+    document.getElementById('phiMoodDetail').textContent = phi.subjective?.description || 'Stable';
+    document.getElementById('phiEnergy').textContent = energy + '%';
+    document.getElementById('phiEnergyDetail').textContent = phi.needs?.energy?.status || 'normal';
+    document.getElementById('phiTurns').textContent = health.turns || '—';
+    document.getElementById('phiTurnsDetail').textContent = health.mode || 'Recent turn count';
+    document.getElementById('phiMemory').textContent = health.memory_count || '—';
+    document.getElementById('phiMemoryDetail').textContent = phi.status || 'persistent';
+  }
+
+  healthStatus.textContent = healthy ? 'PASS' : 'CHECK';
+  healthStatus.style.color = healthy ? 'var(--green)' : 'var(--red)';
+  healthBar.style.width = healthy ? '100%' : '55%';
+  releaseLine.textContent = `${release.product || 'ANCHOR'} ${release.version || ''}`.trim();
+  releaseBuildId.textContent = release.build_id || '—';
+  releaseCommit.textContent = release.commit || '—';
+  releaseBranch.textContent = release.branch || '—';
+  releaseTests.textContent = release.tests_passed != null ? String(release.tests_passed) : '—';
+  releaseSummary.textContent = [
+    `Status: ${release.status || 'unknown'}`,
+    `Hive: ${hiveState.toLowerCase() === 'offline' ? 'Offline Optional' : hiveState}`,
+    `Cases dir: ${paths.cases_dir || release.cases_dir || 'unknown'}`,
+    `Ledger: ${paths.ledger_path || release.ledger_path || 'unknown'}`,
+  ].join(' · ');
+  archiveDir.textContent = paths.archive_dir || release.archive_dir || '—';
+  archiveLedger.textContent = paths.archive_ledger_path || release.archive_ledger_path || paths.ledger_path || '—';
+  manifestPath.textContent = release.manifest_path || 'release.json';
+  const archiveReady = Boolean(paths.archive_dir || release.archive_dir || release.archive_ledger_path || paths.ledger_path);
+  setPanelNotice(archiveStatus, archiveReady ? 'ready' : 'optional', archiveReady ? 'Archive path data loaded from the live backend.' : 'Archive path data not available yet.');
+  setPanelNotice(releaseStatus, healthy ? 'ready' : (hiveState.toLowerCase() === 'offline' ? 'optional' : 'loading'), healthy ? 'Release identity loaded from live backend.' : (hiveState.toLowerCase() === 'offline' ? 'Hive: Offline Optional' : 'Release metadata loaded, but health needs attention.'));
+
+  historyCount.textContent = String(history.count ?? history.runs?.length ?? 0);
+  historyAccepted.textContent = String(history.accepted_total ?? 0);
+  historyRejected.textContent = String(history.rejected_total ?? 0);
+  historyReproduced.textContent = String(history.reproduced_total ?? 0);
+  const latestRun = history.runs?.[0] || null;
+  latestCase.textContent = latestRun?.case_id || 'none';
+  latestCaseStatus.textContent = latestRun?.status || '—';
+  historySummary.textContent = history.runs?.length ? `Loaded ${history.runs.length} recent Trinity run${history.runs.length === 1 ? '' : 's'}.` : 'No Trinity runs recorded yet.';
+  historyDetail.textContent = latestRun ? `Latest case ${latestRun.case_id} is ${latestRun.status}.` : 'Run a demo or analysis to populate the archive.';
+  historyList.innerHTML = '';
+  if (history.runs?.length) {
+    history.runs.forEach((entry) => {
+      const row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'record';
+      row.innerHTML = `
+        <span>
+          <strong>${escapeHtml(entry.case_id || 'unknown')}</strong><br>
+          <span class="meta">${escapeHtml(entry.scanner_format || 'unknown')} · ${escapeHtml(entry.status || 'unknown')}</span>
+        </span>
+        <span class="meta">A ${escapeHtml(String(entry.accepted_count ?? 0))} · R ${escapeHtml(String(entry.rejected_count ?? 0))}<br>${escapeHtml(String(entry.finding_count ?? 0))} findings</span>
+      `;
+      row.addEventListener('click', () => loadCaseSummary(entry.case_id));
+      historyList.appendChild(row);
+    });
+    setPanelNotice(historyStatus, 'ready', `Loaded ${history.runs.length} recent Trinity run${history.runs.length === 1 ? '' : 's'}.`);
+  } else {
+    historyList.innerHTML = '<div class="detail">No Trinity runs recorded yet.</div>';
+    setPanelNotice(historyStatus, 'optional', 'No Trinity runs yet. Run a scan or analysis to populate history.');
+  }
+
+  evidenceGenerated.textContent = String(metrics.claims_generated ?? 0);
+  evidenceAccepted.textContent = String(metrics.claims_accepted ?? 0);
+  evidenceRejected.textContent = String(metrics.claims_rejected ?? 0);
+  evidenceRate.textContent = Number(metrics.reproduction_rate || 0).toFixed(2);
+  evidenceSummary.textContent = [
+    `Verified findings: ${metrics.verified_findings ?? 0}`,
+    `Total findings: ${metrics.findings_total ?? 0}`,
+    metrics.latest_benchmark?.reproduction_success != null ? `Latest benchmark reproduction: ${Number(metrics.latest_benchmark.reproduction_success || 0).toFixed(2)}` : null,
+  ].filter(Boolean).join(' · ');
+  setPanelNotice(evidenceStatus, 'ready', `Loaded ${metrics.claims_generated ?? 0} generated claim${(metrics.claims_generated ?? 0) === 1 ? '' : 's'}.`);
+
+  vaultNewsBriefs.textContent = String(vault.news_briefs ?? 0);
+  vaultLatestBrief.textContent = vault.last_daily_brief || 'none';
+  vaultFreshness.textContent = vault.vault_status_label || 'No daily brief';
+  vaultNewsSnapshots.textContent = String(vault.news_snapshots ?? 0);
+  vaultHistoryRecords.textContent = String(vault.history_records ?? 0);
+  vaultBugClasses.textContent = String(vault.bug_classes ?? 0);
+  vaultTriageTemplates.textContent = String(vault.triage_templates ?? 0);
+  vaultDecisionTrees.textContent = String(vault.decision_trees ?? 0);
+  vaultSummary.textContent = [
+    `Vault root: ${vault.vault_root || '—'}`,
+    vault.last_daily_brief ? `Latest brief: ${vault.last_daily_brief}` : 'Latest brief: none',
+    vault.vault_freshness_days == null ? 'Vault status: No daily brief' : `Vault status: ${vault.vault_status_label || 'Fresh'}`,
+  ].join(' · ');
+  setPanelNotice(vaultStatus, vault.status === 'ready' ? 'ready' : 'optional', vault.status === 'ready' ? 'Vault visibility loaded.' : 'Vault store not mounted; this panel is read-only and safe.');
+
+  contribOpenPrs.textContent = String(contrib.open_prs ?? 0);
+  contribMergedPrs.textContent = String(contrib.merged_prs ?? 0);
+  contribIssuesFiled.textContent = String(contrib.issues_filed ?? 0);
+  contribSource.textContent = contrib.source || 'unknown';
+  const repo = contrib.repo ? `Repo: ${contrib.repo}` : 'Repo: unknown';
+  const highlightText = contrib.highlights?.open_prs?.length ? `Top open PR: #${contrib.highlights.open_prs[0].number}` : 'No live PR highlights';
+  contribSummary.textContent = [repo, highlightText].join(' · ');
+  setPanelNotice(contribStatus, contrib.source === 'github_cli' ? 'ready' : 'optional', contrib.source === 'github_cli' ? 'Contribution tracking loaded from GitHub.' : 'GitHub data unavailable; showing local fallback counts.');
+
+  document.getElementById('diiValue').textContent = Number(observer.dii?.dii_current || 0).toFixed(2);
+  document.getElementById('diiTrend').textContent = observer.dii?.trend || 'flat';
+  document.getElementById('needEnergy').textContent = observer.homeostasis?.needs?.energy?.current != null
+    ? Math.round(observer.homeostasis.needs.energy.current * 100) + '%'
+    : '—';
+  document.getElementById('weatherState').textContent = observer.homeostasis?.weather || '—';
+  const needsSummary = Object.entries(observer.homeostasis?.needs || {}).slice(0, 3).map(([k, v]) => `${k}:${Math.round((v.current || 0) * 100)}%`).join(' · ') || 'none';
+  document.getElementById('obsNeeds').textContent = needsSummary;
+  const radarSummary = Object.entries(observer.shadow?.radar || {}).slice(0, 3).map(([k, v]) => `${k}:${Math.round((v || 0) * 100)}%`).join(' · ') || 'none';
+  document.getElementById('obsRadar').textContent = radarSummary;
+  setPanelNotice(observerStatus, 'ready', 'Observer data loaded from the live backend.');
+
+}
+
 
 async function sendMessage(text) {
   addMessage('user', text);
@@ -766,7 +1175,7 @@ async function sendMessage(text) {
 
   reply.classList.remove('typing');
   connectionState.textContent = 'Ready';
-  await Promise.all([updatePhi(), updateHealth(), updateObserver()]);
+  await refreshAll();
 }
 
 document.getElementById('form').addEventListener('submit', async (e) => {
@@ -805,7 +1214,17 @@ async function loadIdentity() {
 }
 
 async function refreshAll() {
-  await Promise.all([updatePhi(), updateHealth(), loadHistory(), updateObserver()]);
+  setPanelNotice(releaseStatus, 'loading', 'Loading combined cockpit snapshot…');
+  try {
+    const res = await fetch('/api/anchor/snapshot?limit=5');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    applyAnchorSnapshot(await res.json());
+  } catch (e) {
+    setPanelNotice(releaseStatus, 'error', `Combined snapshot unavailable: ${e.message || 'unknown error'}`);
+    healthStatus.textContent = 'OFFLINE';
+    healthStatus.style.color = 'var(--red)';
+    healthBar.style.width = '18%';
+  }
 }
 
 window.addEventListener('load', async () => {
@@ -813,10 +1232,7 @@ window.addEventListener('load', async () => {
   addMessage('bot', 'ANCHOR is ready. Ask for a status summary, a reflection, or the next useful action.', true);
 });
 
-setInterval(updatePhi, 10000);
-setInterval(updateObserver, 5000);
-setInterval(updateHealth, 15000);
-setInterval(loadHistory, 20000);
+setInterval(refreshAll, 30000);
 </script>
 </body>
 </html>

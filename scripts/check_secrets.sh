@@ -20,17 +20,17 @@ PATTERNS=(
     'sk-ant-[a-zA-Z0-9]{48,}'
     'sk-proj-[a-zA-Z0-9_-]{40,}'
     'sk-live-[a-zA-Z0-9]{40,}'
-    '8f13df41-d7d6-491f-aedf-785fffcaad51'
+    '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
     'sk-[a-zA-Z0-9]{48,}'
     'AIza[0-9A-Za-z_-]{35,}'
     'Bearer [a-zA-Z0-9_\-]{40,}'
     'AKIA[0-9A-Z]{16}'
-    'BEGIN OPENSSH PRIVATE KEY'
-    'BEGIN RSA PRIVATE KEY'
+    'BEGIN '"OPENSSH PRIVATE KEY"
+    'BEGIN '"RSA PRIVATE KEY"
 )
 
 for pattern in "${PATTERNS[@]}"; do
-    MATCHES=$(grep -rnHP "$pattern" --include="*.py" --include="*.md" --include="*.yaml" --include="*.yml" --include="*.sh" --include="*.json" --include="*.txt" . 2>/dev/null | grep -v ".git/" | grep -v "venv/" | grep -v "__pycache__/" || true)
+    MATCHES=$(grep -rnHP "$pattern" --include="*.py" --include="*.md" --include="*.yaml" --include="*.yml" --include="*.sh" --include="*.json" --include="*.txt" . 2>/dev/null | grep -v ".git/" | grep -v "venv/" | grep -v "node_modules/" | grep -v "__pycache__/" | grep -v "scripts/check_secrets.sh" || true)
     if [ -n "$MATCHES" ]; then
         echo -e "${YELLOW}⚠️  Pattern match:${NC}"
         echo "$MATCHES" | head -n 10

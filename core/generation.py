@@ -897,8 +897,13 @@ class _BrainGenerationMixin:
             problems.append(
                 "no usable provider — set an API key or enable local fallback")
         if problems:
-            raise RuntimeError(
-                "DRIFT provider config invalid:\n  - " + "\n  - ".join(problems))
+            if not usable:
+                raise RuntimeError(
+                    "DRIFT provider config invalid:\n  - " + "\n  - ".join(problems))
+            log.warning(
+                "DRIFT provider config has optional gaps but a usable backend is available:\n  - %s",
+                "\n  - ".join(problems),
+            )
 
     # ---- provider adapters that need self ---------------------------------#
     def _hf_generate(self, system: str, prompt: str, timeout: Optional[float] = None, history=None, **kwargs) -> str:

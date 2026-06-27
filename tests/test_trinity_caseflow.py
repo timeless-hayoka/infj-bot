@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import asyncio
 import subprocess
 import sys
 
@@ -11,6 +12,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from drift.interfaces.cli import build_parser, cmd_archive_create, cmd_archive_list, cmd_archive_show, cmd_doctor, cmd_export_report, cmd_history, cmd_trinity_analyze, cmd_trinity_cases, cmd_trinity_demo, cmd_trinity_packet, cmd_trinity_report, cmd_upgrade, cmd_version
+from httpx import ASGITransport, AsyncClient
 from drift.trinity.caseflow import TrinityCaseLedger, load_case_bundle, parse_scanner_input, run_case_from_scan
 
 
@@ -360,50 +362,87 @@ def test_trinity_fastapi_router_round_trip(tmp_path, monkeypatch):
     http_api.trinity_db.db_path = db_path
     http_api.trinity_db._init_db()
 
-    from fastapi.testclient import TestClient
+    async def _run():
+        transport = ASGITransport(app=http_api.build_trinity_app())
+        async with AsyncClient(transport=transport, base_url='http://test') as client:
+            payload_path = tmp_path / 'sample_slither.json'
+            _write_slither_payload(payload_path)
 
-    app = http_api.build_trinity_app()
-    client = TestClient(app)
+            health = await client.get('/api/trinity/health')
+            assert health.status_code == 200
+            assert health.json()['status'] == 'ok'
 
-    payload_path = tmp_path / 'sample_slither.json'
-    _write_slither_payload(payload_path)
+            analyze = await client.post(
+                '/api/trinity/analyze',
+                json={
+                    'input_path': str(payload_path),
+                    'format_hint': 'slither',
+                    'output_dir': str(tmp_path / 'bundle'),
+                    'write_bundle': True,
+                },
+            )
+            assert analyze.status_code == 200
+            body = analyze.json()
+            assert body['case_id'] == 'sample_slither'
+            assert Path(body['output_dir']).exists()
 
-    health = client.get('/api/trinity/health')
-    assert health.status_code == 200
-    assert health.json()['status'] == 'ok'
+            cases = await client.get('/api/trinity/cases')
+            assert cases.status_code == 200
+            assert any(item['case_id'] == 'sample_slither' for item in cases.json()['cases'])
 
-    analyze = client.post(
-        '/api/trinity/analyze',
-        json={
-            'input_path': str(payload_path),
-            'format_hint': 'slither',
-            'output_dir': str(tmp_path / 'bundle'),
-            'write_bundle': True,
-        },
-    )
-    assert analyze.status_code == 200
-    body = analyze.json()
-    assert body['case_id'] == 'sample_slither'
-    assert Path(body['output_dir']).exists()
+            history = await client.get('/api/trinity/history?limit=5')
+            assert history.status_code == 200
+            history_body = history.json()
+            assert history_body['count'] >= 1
+            assert history_body['runs']
+            assert history_body['runs'][0]['case_id'] == 'sample_slither'
+            assert 'accepted_count' in history_body['runs'][0]
+            assert 'rejected_count' in history_body['runs'][0]
 
-    cases = client.get('/api/trinity/cases')
-    assert cases.status_code == 200
-    assert any(item['case_id'] == 'sample_slither' for item in cases.json()['cases'])
+            metrics = await client.get('/api/trinity/metrics')
+            assert metrics.status_code == 200
+            metrics_body = metrics.json()
+            assert metrics_body['claims_generated'] >= 1
+            assert metrics_body['claims_accepted'] >= 0
+            assert metrics_body['claims_rejected'] >= 0
+            assert 'reproduction_rate' in metrics_body
 
-    report = client.get('/api/trinity/cases/sample_slither/report')
-    assert report.status_code == 200
-    assert '# Trinity Evidence Packet' in report.text
+            vault = await client.get('/api/trinity/vault')
+            assert vault.status_code == 200
+            vault_body = vault.json()
+            assert vault_body['vault_root'].endswith('AnchorVault')
+            assert vault_body['status'] in {'ready', 'missing'}
+            assert 'news_briefs' in vault_body
+            assert 'news_snapshots' in vault_body
+            assert 'history_records' in vault_body
+            assert 'bug_classes' in vault_body
+            assert 'triage_templates' in vault_body
+            assert 'decision_trees' in vault_body
 
-    summary = client.get('/api/trinity/cases/sample_slither/summary')
-    assert summary.status_code == 200
-    assert summary.json()['case_id'] == 'sample_slither'
+            contributions = await client.get('/api/trinity/contributions')
+            assert contributions.status_code == 200
+            contrib_body = contributions.json()
+            assert 'open_prs' in contrib_body
+            assert 'merged_prs' in contrib_body
+            assert 'issues_filed' in contrib_body
+            assert 'source' in contrib_body
 
-    findings = client.get('/api/trinity/findings')
-    assert findings.status_code == 200
-    assert 'findings' in findings.json()
+            report = await client.get('/api/trinity/cases/sample_slither/report')
+            assert report.status_code == 200
+            assert '# Trinity Evidence Packet' in report.text
 
-    latest = client.get('/api/trinity/benchmarks/latest')
-    assert latest.status_code in {200, 404}
+            summary = await client.get('/api/trinity/cases/sample_slither/summary')
+            assert summary.status_code == 200
+            assert summary.json()['case_id'] == 'sample_slither'
+
+            findings = await client.get('/api/trinity/findings')
+            assert findings.status_code == 200
+            assert 'findings' in findings.json()
+
+            latest = await client.get('/api/trinity/benchmarks/latest')
+            assert latest.status_code in {200, 404}
+
+    asyncio.run(_run())
 
 
 def test_trinity_doctor_reports_health(capsys):
@@ -524,21 +563,53 @@ def test_trinity_dashboard_launches_browser_and_server(monkeypatch, capsys):
     class FakeProc:
         pid = 4321
 
-    def fake_popen(command, cwd=None):
+    def fake_popen(command, cwd=None, stdout=None, stderr=None):
         started['command'] = command
         started['cwd'] = cwd
+        started['stdout'] = stdout
+        started['stderr'] = stderr
         return FakeProc()
 
     opened = []
-    monkeypatch.setattr('interfaces.cli.subprocess.Popen', fake_popen)
-    monkeypatch.setattr('interfaces.cli.webbrowser.open', lambda url: opened.append(url) or True)
+    cli = __import__('interfaces.cli', fromlist=['cmd_dashboard'])
+    monkeypatch.setattr(cli.subprocess, 'Popen', fake_popen)
+    monkeypatch.setattr(cli, '_dashboard_is_live', lambda url: False)
+    monkeypatch.delenv('DISPLAY', raising=False)
+    monkeypatch.delenv('WAYLAND_DISPLAY', raising=False)
+    monkeypatch.setattr(cli.webbrowser, 'open', lambda url: opened.append(url) or True)
 
-    exit_code = __import__('interfaces.cli', fromlist=['cmd_dashboard']).cmd_dashboard(SimpleNamespace(url='http://127.0.0.1:8765', no_open=False))
+    exit_code = cli.cmd_dashboard(SimpleNamespace(url='http://127.0.0.1:8765', no_open=False))
     assert exit_code == 0
     output = capsys.readouterr().out
     assert 'ANCHOR dashboard starting at http://127.0.0.1:8765' in output
     assert opened == ['http://127.0.0.1:8765']
     assert started['cwd'] == str(Path(__file__).resolve().parents[1])
+
+
+def test_trinity_dashboard_reuses_live_server(monkeypatch, capsys):
+    started = []
+
+    class FakeProc:
+        pid = 4321
+
+    def fake_popen(command, cwd=None, stdout=None, stderr=None):
+        started.append((command, cwd, stdout, stderr))
+        return FakeProc()
+
+    opened = []
+    cli = __import__('interfaces.cli', fromlist=['cmd_dashboard'])
+    monkeypatch.setattr(cli.subprocess, 'Popen', fake_popen)
+    monkeypatch.setattr(cli, '_dashboard_is_live', lambda url: True)
+    monkeypatch.delenv('DISPLAY', raising=False)
+    monkeypatch.delenv('WAYLAND_DISPLAY', raising=False)
+    monkeypatch.setattr(cli.webbrowser, 'open', lambda url: opened.append(url) or True)
+
+    exit_code = cli.cmd_dashboard(SimpleNamespace(url='http://127.0.0.1:8765', no_open=True))
+    assert exit_code == 0
+    output = capsys.readouterr().out
+    assert 'ANCHOR dashboard already running at http://127.0.0.1:8765' in output
+    assert not started
+    assert not opened
 
 
 def test_trinity_status_helper_wraps_doctor_json(tmp_path):
@@ -560,15 +631,22 @@ def test_trinity_status_helper_wraps_doctor_json(tmp_path):
 
 def test_main_fastapi_app_exposes_trinity_routes():
     import interfaces.api as main_api
-    from fastapi.testclient import TestClient
 
-    client = TestClient(main_api.app)
-    root = client.get('/')
-    assert root.status_code == 200
-    assert 'ANCHOR' in root.text
-    assert 'Evidence Before Belief' in root.text
-    assert 'Workbench' in root.text
-    assert 'Release' in root.text
-    assert 'History' in root.text
-    assert 'Archive' in root.text
-    assert any(route.path == '/api/trinity/health' for route in main_api.app.routes)
+    async def _run():
+        transport = ASGITransport(app=main_api.app)
+        async with AsyncClient(transport=transport, base_url='http://test') as client:
+            root = await client.get('/')
+            assert root.status_code == 200
+            assert 'Command Drift...' in root.text
+            assert 'ANCHOR' in root.text
+
+            anchor = await client.get('/anchor')
+            assert anchor.status_code == 200
+            assert 'Evidence Before Belief' in anchor.text
+            assert 'Workbench' in anchor.text
+            assert 'Release' in anchor.text
+            assert 'History' in anchor.text
+            assert 'Archive' in anchor.text
+            assert any(route.path == '/api/trinity/health' for route in main_api.app.routes)
+
+    asyncio.run(_run())
