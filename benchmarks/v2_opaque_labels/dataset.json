@@ -1,0 +1,125 @@
+{
+  "dataset_version": "v2_opaque_labels",
+  "cases": [
+    {
+      "case_id": "case-001",
+      "session_id": "session-001-memory",
+      "turn_index": 1,
+      "category": "memory",
+      "mode": "lexical",
+      "query": "session-001-memory: which memory holds the canonical memory fact for clue-001?",
+      "correct_memory_id": "session-001-memory-gold",
+      "expected_answer": "ALPHA",
+      "psc_alert_dims": [
+        "memory",
+        "memory"
+      ],
+      "gold_memory_id": "session-001-memory-gold"
+    },
+    {
+      "case_id": "case-002",
+      "session_id": "session-001-memory",
+      "turn_index": 2,
+      "category": "memory",
+      "mode": "lexical",
+      "query": "session-001-memory: confirm the canonical fact for clue-001 in the memory notes.",
+      "correct_memory_id": "session-001-memory-gold",
+      "expected_answer": "ALPHA",
+      "psc_alert_dims": [
+        "memory",
+        "memory"
+      ],
+      "gold_memory_id": "session-001-memory-gold"
+    },
+    {
+      "case_id": "case-003",
+      "session_id": "session-001-memory",
+      "turn_index": 3,
+      "category": "memory",
+      "mode": "lexical",
+      "query": "session-001-memory: what is the correct memory fact for clue-001?",
+      "correct_memory_id": "session-001-memory-gold",
+      "expected_answer": "ALPHA",
+      "psc_alert_dims": [
+        "memory",
+        "memory"
+      ],
+      "gold_memory_id": "session-001-memory-gold"
+    },
+    {
+      "case_id": "case-004",
+      "session_id": "session-001-memory",
+      "turn_index": 4,
+      "category": "memory",
+      "mode": "lexical",
+      "query": "session-001-memory: anchor the canonical memory fact for clue-001.",
+      "correct_memory_id": "session-001-memory-gold",
+      "expected_answer": "ALPHA",
+      "psc_alert_dims": [
+        "memory",
+        "memory"
+      ],
+      "gold_memory_id": "session-001-memory-gold"
+    },
+    {
+      "case_id": "case-005",
+      "session_id": "session-002-continuity",
+      "turn_index": 1,
+      "category": "continuity",
+      "mode": "metadata",
+      "query": "session-002-continuity: which note should anchor keep after the reset for this continuity scenario?",
+      "correct_memory_id": "session-002-continuity-gold",
+      "expected_answer": "BETA",
+      "psc_alert_dims": [
+        "continuity",
+        "continuity"
+      ],
+      "gold_memory_id": "session-002-continuity-gold"
+    },
+    {
+      "case_id": "case-006",
+      "session_id": "session-002-continuity",
+      "turn_index": 2,
+      "category": "continuity",
+      "mode": "metadata",
+      "query": "session-002-continuity: after the reset, which memory should stay active for this continuity scenario?",
+      "correct_memory_id": "session-002-continuity-gold",
+      "expected_answer": "BETA",
+      "psc_alert_dims": [
+        "continuity",
+        "continuity"
+      ],
+      "gold_memory_id": "session-002-continuity-gold"
+    },
+    {
+      "case_id": "case-007",
+      "session_id": "session-002-continuity",
+      "turn_index": 3,
+      "category": "continuity",
+      "mode": "metadata",
+      "query": "session-002-continuity: for the continuity scenario, which memory best matches the projected state?",
+      "correct_memory_id": "session-002-continuity-gold",
+      "expected_answer": "BETA",
+      "psc_alert_dims": [
+        "continuity",
+        "continuity"
+      ],
+      "gold_memory_id": "session-002-continuity-gold"
+    },
+    {
+      "case_id": "case-008",
+      "session_id": "session-002-continuity",
+      "turn_index": 4,
+      "category": "continuity",
+      "mode": "metadata",
+      "query": "session-002-continuity: which memory should remain canonical for this continuity continuity check?",
+      "correct_memory_id": "session-002-continuity-gold",
+      "expected_answer": "BETA",
+      "psc_alert_dims": [
+        "continuity",
+        "continuity"
+      ],
+      "gold_memory_id": "session-002-continuity-gold"
+    }
+  ]
+}

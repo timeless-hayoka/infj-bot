@@ -355,7 +355,7 @@ class DriftMemory:
             query_embeddings = self.embedding_function([query])
             if not query_embeddings:
                 return self.retrieve_context(query, n_results=n_results)
-            query_embedding = query_embeddings[0]
+            query_embedding = list(query_embeddings[0])
 
             retriever = DMURetriever(
                 chroma_collection=self.unified_manager.collection,

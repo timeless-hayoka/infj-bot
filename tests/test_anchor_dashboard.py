@@ -23,6 +23,8 @@ def test_anchor_dashboard_renders_connected_panels() -> None:
         'Release',
         'History',
         'Evidence Metrics',
+        'Benchmark Trends',
+        'Hunt Strategy',
         'Vault Visibility',
         'Contribution Tracking',
         'Observer',
@@ -49,7 +51,7 @@ def test_anchor_snapshot_endpoint_exposes_combined_cockpit_payload() -> None:
 
     assert response.status_code == 200
     data = response.json()
-    for key in ('identity', 'health', 'phi', 'paths', 'history', 'metrics', 'vault', 'contributions', 'observer'):
+    for key in ('identity', 'health', 'phi', 'paths', 'history', 'metrics', 'vault', 'contributions', 'observer', 'benchmark_trends', 'benchmark_strategy'):
         assert key in data
     assert data['identity']['product'] == 'ANCHOR'
     assert 'cases_dir' in data['paths']

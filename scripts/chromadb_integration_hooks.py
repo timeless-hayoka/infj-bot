@@ -79,34 +79,11 @@ class ChromaMemoryStore:
         )
 
 
-_memory_store: Optional[ChromaMemoryStore] = None
+def get_memory_store() -> ChromaMemoryStore:
+    """Return a process-local singleton Chroma store configured via env vars."""
+    from memory_store_config import get_chroma_store
 
-
-def get_memory_store(
-    *,
-    persist_directory: str = DEFAULT_CHROMA_PERSIST_DIR,
-    collection_name: str = DEFAULT_COLLECTION_NAME,
-    embedding_model_name: str = DEFAULT_EMBEDDING_MODEL,
-) -> ChromaMemoryStore:
-    """Return a process-local singleton Chroma store."""
-    global _memory_store
-    if _memory_store is None:
-        try:
-            from memory_store_config import get_config
-        except Exception:
-            _memory_store = ChromaMemoryStore(
-                persist_directory=persist_directory,
-                collection_name=collection_name,
-                embedding_model_name=embedding_model_name,
-            )
-        else:
-            cfg = get_config()
-            _memory_store = ChromaMemoryStore(
-                persist_directory=cfg.persist_directory,
-                collection_name=cfg.collection_name,
-                embedding_model_name=cfg.embedding_model,
-            )
-    return _memory_store
+    return get_chroma_store()
 
 
 def load_dataset(dataset_path: str | Path) -> List[Dict[str, Any]]:
@@ -141,10 +118,18 @@ def get_query_embedding(query: str) -> List[float]:
 def get_candidates_for_case(
     case: Dict[str, Any],
     *,
-    n_results: int = 50,
+    n_results: int | None = None,
     apply_metadata_filter: bool = True,
 ) -> List[Dict[str, Any]]:
     """Retrieve Chroma-backed candidate memories for a labeled benchmark case."""
+    try:
+        from memory_store_config import get_config
+    except Exception:
+        limit = n_results if n_results is not None else 50
+    else:
+        cfg = get_config()
+        limit = n_results if n_results is not None else cfg.default_n_results
+
     store = get_memory_store()
     where_filter: Optional[Dict[str, Any]] = None
     if apply_metadata_filter:
@@ -154,7 +139,7 @@ def get_candidates_for_case(
 
     chroma_results = store.query(
         query_text=case["query"],
-        n_results=n_results,
+        n_results=limit,
         where=where_filter,
         include=["documents", "metadatas", "embeddings", "distances"],
     )

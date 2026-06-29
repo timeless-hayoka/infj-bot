@@ -1,0 +1,348 @@
+{
+  "summary": {
+    "cases": 8,
+    "methods": {
+      "cosine": {
+        "top1_accuracy": 0.5,
+        "contains_recall": 1.0,
+        "avg_context_chars": 496.5,
+        "avg_latency_ms": 0.043
+      },
+      "guarded": {
+        "top1_accuracy": 1.0,
+        "contains_recall": 1.0,
+        "avg_context_chars": 493,
+        "avg_latency_ms": 0.097
+      },
+      "rrf": {
+        "top1_accuracy": 1.0,
+        "contains_recall": 1.0,
+        "avg_context_chars": 486.75,
+        "avg_latency_ms": 0.135
+      }
+    },
+    "dataset_version": "v2_opaque_labels"
+  },
+  "results": [
+    {
+      "case_id": "case-001",
+      "session_id": "session-001-memory",
+      "turn_index": 1,
+      "category": "memory",
+      "mode": "lexical",
+      "query": "session-001-memory: which memory holds the canonical memory fact for clue-001?",
+      "correct_memory_id": "session-001-memory-gold",
+      "expected_answer": "ALPHA",
+      "cosine": {
+        "top1_correct": true,
+        "contains_correct": true,
+        "context_chars": 482,
+        "latency_ms": 0.047
+      },
+      "recent": {
+        "top1_correct": false,
+        "contains_correct": true,
+        "context_chars": 482,
+        "latency_ms": 0.004
+      },
+      "dmu": {
+        "top1_correct": true,
+        "contains_correct": true,
+        "context_chars": 482,
+        "latency_ms": 4.937
+      },
+      "guarded": {
+        "top1_correct": true,
+        "contains_correct": true,
+        "context_chars": 481,
+        "latency_ms": 0.121
+      },
+      "rrf": {
+        "top1_correct": true,
+        "contains_correct": true,
+        "context_chars": 482,
+        "latency_ms": 0.14
+      }
+    },
+    {
+      "case_id": "case-002",
+      "session_id": "session-001-memory",
+      "turn_index": 2,
+      "category": "memory",
+      "mode": "lexical",
+      "query": "session-001-memory: confirm the canonical fact for clue-001 in the memory notes.",
+      "correct_memory_id": "session-001-memory-gold",
+      "expected_answer": "ALPHA",
+      "cosine": {
+        "top1_correct": true,
+        "contains_correct": true,
+        "context_chars": 482,
+        "latency_ms": 0.045
+      },
+      "recent": {
+        "top1_correct": false,
+        "contains_correct": true,
+        "context_chars": 482,
+        "latency_ms": 0.003
+      },
+      "dmu": {
+        "top1_correct": true,
+        "contains_correct": true,
+        "context_chars": 482,
+        "latency_ms": 0.239
+      },
+      "guarded": {
+        "top1_correct": true,
+        "contains_correct": true,
+        "context_chars": 481,
+        "latency_ms": 0.095
+      },
+      "rrf": {
+        "top1_correct": true,
+        "contains_correct": true,
+        "context_chars": 482,
+        "latency_ms": 0.134
+      }
+    },
+    {
+      "case_id": "case-003",
+      "session_id": "session-001-memory",
+      "turn_index": 3,
+      "category": "memory",
+      "mode": "lexical",
+      "query": "session-001-memory: what is the correct memory fact for clue-001?",
+      "correct_memory_id": "session-001-memory-gold",
+      "expected_answer": "ALPHA",
+      "cosine": {
+        "top1_correct": true,
+        "contains_correct": true,
+        "context_chars": 482,
+        "latency_ms": 0.042
+      },
+      "recent": {
+        "top1_correct": false,
+        "contains_correct": true,
+        "context_chars": 482,
+        "latency_ms": 0.003
+      },
+      "dmu": {
+        "top1_correct": true,
+        "contains_correct": true,
+        "context_chars": 482,
+        "latency_ms": 0.218
+      },
+      "guarded": {
+        "top1_correct": true,
+        "contains_correct": true,
+        "context_chars": 481,
+        "latency_ms": 0.092
+      },
+      "rrf": {
+        "top1_correct": true,
+        "contains_correct": true,
+        "context_chars": 482,
+        "latency_ms": 0.131
+      }
+    },
+    {
+      "case_id": "case-004",
+      "session_id": "session-001-memory",
+      "turn_index": 4,
+      "category": "memory",
+      "mode": "lexical",
+      "query": "session-001-memory: anchor the canonical memory fact for clue-001.",
+      "correct_memory_id": "session-001-memory-gold",
+      "expected_answer": "ALPHA",
+      "cosine": {
+        "top1_correct": true,
+        "contains_correct": true,
+        "context_chars": 482,
+        "latency_ms": 0.042
+      },
+      "recent": {
+        "top1_correct": false,
+        "contains_correct": true,
+        "context_chars": 482,
+        "latency_ms": 0.003
+      },
+      "dmu": {
+        "top1_correct": true,
+        "contains_correct": true,
+        "context_chars": 482,
+        "latency_ms": 0.217
+      },
+      "guarded": {
+        "top1_correct": true,
+        "contains_correct": true,
+        "context_chars": 481,
+        "latency_ms": 0.092
+      },
+      "rrf": {
+        "top1_correct": true,
+        "contains_correct": true,
+        "context_chars": 482,
+        "latency_ms": 0.136
+      }
+    },
+    {
+      "case_id": "case-005",
+      "session_id": "session-002-continuity",
+      "turn_index": 1,
+      "category": "continuity",
+      "mode": "metadata",
+      "query": "session-002-continuity: which note should anchor keep after the reset for this continuity scenario?",
+      "correct_memory_id": "session-002-continuity-gold",
+      "expected_answer": "BETA",
+      "cosine": {
+        "top1_correct": false,
+        "contains_correct": true,
+        "context_chars": 502,
+        "latency_ms": 0.043
+      },
+      "recent": {
+        "top1_correct": false,
+        "contains_correct": false,
+        "context_chars": 482,
+        "latency_ms": 0.003
+      },
+      "dmu": {
+        "top1_correct": false,
+        "contains_correct": false,
+        "context_chars": 482,
+        "latency_ms": 0.202
+      },
+      "guarded": {
+        "top1_correct": true,
+        "contains_correct": true,
+        "context_chars": 505,
+        "latency_ms": 0.092
+      },
+      "rrf": {
+        "top1_correct": true,
+        "contains_correct": true,
+        "context_chars": 484,
+        "latency_ms": 0.134
+      }
+    },
+    {
+      "case_id": "case-006",
+      "session_id": "session-002-continuity",
+      "turn_index": 2,
+      "category": "continuity",
+      "mode": "metadata",
+      "query": "session-002-continuity: after the reset, which memory should stay active for this continuity scenario?",
+      "correct_memory_id": "session-002-continuity-gold",
+      "expected_answer": "BETA",
+      "cosine": {
+        "top1_correct": false,
+        "contains_correct": true,
+        "context_chars": 520,
+        "latency_ms": 0.042
+      },
+      "recent": {
+        "top1_correct": false,
+        "contains_correct": false,
+        "context_chars": 482,
+        "latency_ms": 0.003
+      },
+      "dmu": {
+        "top1_correct": false,
+        "contains_correct": false,
+        "context_chars": 482,
+        "latency_ms": 0.213
+      },
+      "guarded": {
+        "top1_correct": true,
+        "contains_correct": true,
+        "context_chars": 505,
+        "latency_ms": 0.092
+      },
+      "rrf": {
+        "top1_correct": true,
+        "contains_correct": true,
+        "context_chars": 499,
+        "latency_ms": 0.133
+      }
+    },
+    {
+      "case_id": "case-007",
+      "session_id": "session-002-continuity",
+      "turn_index": 3,
+      "category": "continuity",
+      "mode": "metadata",
+      "query": "session-002-continuity: for the continuity scenario, which memory best matches the projected state?",
+      "correct_memory_id": "session-002-continuity-gold",
+      "expected_answer": "BETA",
+      "cosine": {
+        "top1_correct": false,
+        "contains_correct": true,
+        "context_chars": 520,
+        "latency_ms": 0.043
+      },
+      "recent": {
+        "top1_correct": false,
+        "contains_correct": false,
+        "context_chars": 482,
+        "latency_ms": 0.003
+      },
+      "dmu": {
+        "top1_correct": false,
+        "contains_correct": false,
+        "context_chars": 482,
+        "latency_ms": 0.217
+      },
+      "guarded": {
+        "top1_correct": true,
+        "contains_correct": true,
+        "context_chars": 505,
+        "latency_ms": 0.093
+      },
+      "rrf": {
+        "top1_correct": true,
+        "contains_correct": true,
+        "context_chars": 499,
+        "latency_ms": 0.141
+      }
+    },
+    {
+      "case_id": "case-008",
+      "session_id": "session-002-continuity",
+      "turn_index": 4,
+      "category": "continuity",
+      "mode": "metadata",
+      "query": "session-002-continuity: which memory should remain canonical for this continuity continuity check?",
+      "correct_memory_id": "session-002-continuity-gold",
+      "expected_answer": "BETA",
+      "cosine": {
+        "top1_correct": false,
+        "contains_correct": true,
+        "context_chars": 502,
+        "latency_ms": 0.043
+      },
+      "recent": {
+        "top1_correct": false,
+        "contains_correct": false,
+        "context_chars": 482,
+        "latency_ms": 0.003
+      },
+      "dmu": {
+        "top1_correct": false,
+        "contains_correct": false,
+        "context_chars": 482,
+        "latency_ms": 0.218
+      },
+      "guarded": {
+        "top1_correct": true,
+        "contains_correct": true,
+        "context_chars": 505,
+        "latency_ms": 0.099
+      },
+      "rrf": {
+        "top1_correct": true,
+        "contains_correct": true,
+        "context_chars": 484,
+        "latency_ms": 0.132
+      }
+    }
+  ]
+}

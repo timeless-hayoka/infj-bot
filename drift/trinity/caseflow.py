@@ -17,6 +17,7 @@ from typing import Any, Optional
 from drift.config_adapter import LOGS_DIR
 
 from .adapters.slither import build_slither_findings, is_slither_payload
+from .adapters.sarif import build_sarif_findings, is_sarif_payload
 from .council.council_runner import CouncilRunner
 from .council.evidence_board import EvidenceBoard
 
@@ -86,6 +87,7 @@ def parse_scanner_input(path: str | Path, format_hint: str = 'auto') -> dict[str
     payload = _load_jsonish(source_path)
     scan_format = format_hint.lower() if format_hint else 'auto'
     findings: list[dict[str, Any]] = []
+    sarif_pipeline_stats = None
 
     def add_finding(
         *,
@@ -172,10 +174,19 @@ def parse_scanner_input(path: str | Path, format_hint: str = 'auto') -> dict[str
 
     if isinstance(payload, dict):
         looks_like_slither = is_slither_payload(payload)
+        looks_like_sarif = is_sarif_payload(payload)
         looks_like_foundry = bool(payload.get('failures') or payload.get('test_results') or payload.get('tests'))
         looks_like_generic_findings = isinstance(payload.get('findings'), list)
 
-        if scan_format == 'slither' or (scan_format == 'auto' and looks_like_slither):
+        sarif_pipeline_stats = None
+        if scan_format == 'sarif' or (scan_format == 'auto' and looks_like_sarif):
+            from .anchor_pipeline_bridge import preprocess_sarif_payload
+
+            filtered, pipeline_stats = preprocess_sarif_payload(payload, source_path)
+            findings.extend(filtered)
+            scan_format = 'sarif'
+            sarif_pipeline_stats = pipeline_stats.to_dict()
+        elif scan_format == 'slither' or (scan_format == 'auto' and looks_like_slither):
             findings.extend(build_slither_findings(payload, source_path))
             scan_format = 'slither'
         elif scan_format == 'foundry' or (scan_format == 'auto' and looks_like_foundry):
@@ -278,6 +289,7 @@ def parse_scanner_input(path: str | Path, format_hint: str = 'auto') -> dict[str
         'finding_count': len(findings),
         'case_id': source_path.stem,
         'created_at': utc_stamp(),
+        'pipeline_stats': sarif_pipeline_stats,
     }
 
 

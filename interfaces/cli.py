@@ -28,7 +28,35 @@ def run_script(script_name, extra_env=None):
     return subprocess.call([str(script)], cwd=str(PROJECT_ROOT), env=env)
 
 
+def _ensure_interactive_chat() -> bool:
+    """Return True if this process can read interactive input; else spawn a TTY or exit."""
+    if sys.stdin.isatty() and sys.stdout.isatty():
+        return True
+    if os.getenv("DRIFT_CHAT_NO_SPAWN") == "1":
+        print(
+            "DRIFT chat requires an interactive terminal (stdin is not a TTY).\n"
+            f"Run: cd {PROJECT_ROOT} && ./scripts/drift chat",
+            file=sys.stderr,
+        )
+        return False
+    opener = PROJECT_ROOT / "scripts" / "open_drift_chat.sh"
+    if opener.is_file():
+        return subprocess.call([str(opener)]) == 0
+    print(
+        "DRIFT chat requires an interactive terminal.\n"
+        f"Run: cd {PROJECT_ROOT} && ./scripts/drift chat",
+        file=sys.stderr,
+    )
+    return False
+
+
 def cmd_chat(_args):
+    if not _ensure_interactive_chat():
+        return 1
+    if not sys.stdin.isatty():
+        # Spawned a graphical terminal; this non-TTY parent should exit cleanly.
+        return 0
+
     from drift.interfaces.main import main
 
     try:
@@ -1388,6 +1416,17 @@ def cmd_trinity_demo(args):
     return 0
 
 
+def cmd_memory_consolidate(args):
+    from core.memory_scheduler import run_memory_consolidation_sync
+
+    stats = run_memory_consolidation_sync(force=getattr(args, "force", False))
+    if getattr(args, "json", False):
+        print(json.dumps(stats, indent=2))
+    else:
+        print(f"Memory consolidation: {stats}")
+    return 0
+
+
 def build_parser():
     parser = argparse.ArgumentParser(
         prog=CLI_PROG,
@@ -1525,6 +1564,20 @@ def build_parser():
         help="Show suggested fixes for any failing checks.",
     )
     doctor.set_defaults(func=cmd_doctor)
+
+    memory = sub.add_parser("memory", help="Unified memory spine maintenance.")
+    memory_sub = memory.add_subparsers(dest="memory_command")
+    memory_consolidate = memory_sub.add_parser(
+        "consolidate",
+        help="Merge duplicates and prune low-salience episodic memories.",
+    )
+    memory_consolidate.add_argument(
+        "--force",
+        action="store_true",
+        help="Run even if the scheduled interval has not elapsed.",
+    )
+    memory_consolidate.add_argument("--json", action="store_true")
+    memory_consolidate.set_defaults(func=cmd_memory_consolidate)
 
     version = sub.add_parser("version", help="Print the ANCHOR release version and build metadata.")
     version.add_argument(

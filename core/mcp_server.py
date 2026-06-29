@@ -93,6 +93,8 @@ Use these tools when:
 - The user references past conversations or knowledge
 - The user asks about documents they have ingested
 - The user needs help tracking goals or todos
+- The user asks about ANCHOR architecture, SARIF, evidence models, or Trinity workflows
+  (use anchor_knowledge_* tools for structured repo docs; vault_knowledge_search for vault files)
 """,
     )
     if FastMCP is not None
@@ -263,11 +265,19 @@ def create_http_app(token: str | None = None) -> FastAPI:
         "dissonance_map": dissonance_map,
         "memory_search": memory_search,
         "document_search": document_search,
+        "anchor_vault_status": anchor_vault_status,
+        "vault_knowledge_search": vault_knowledge_search,
+        "anchor_knowledge_list": anchor_knowledge_list,
+        "anchor_knowledge_search": anchor_knowledge_search,
+        "anchor_knowledge_get": anchor_knowledge_get,
+        "anchor_knowledge_refs": anchor_knowledge_refs,
         "todo_list": todo_list,
         "todo_add": todo_add,
         "todo_complete": todo_complete,
         "companion_think": companion_think,
         "ingest_document": ingest_document,
+        "hive_status": hive_status,
+        "workspace_snapshot": workspace_snapshot,
     }
 
     # Concurrency and cooldown controls
@@ -608,6 +618,68 @@ def vault_knowledge_search(query: str, n_results: int = 5) -> str:
         root = runtime.get("knowledge_root") or "not configured"
         return f"No vault matches for '{query}'. Knowledge root: {root}"
     return format_doc_results(results)
+
+
+@mcp.tool()
+def anchor_knowledge_list() -> str:
+    """List structured ANCHOR reference topics from the repo `knowledge/` corpus."""
+    from drift.core.anchor_context import format_anchor_repo_knowledge_status, list_anchor_repo_knowledge
+
+    topics = list_anchor_repo_knowledge()
+    if not topics:
+        return format_anchor_repo_knowledge_status()
+    lines = ["ANCHOR knowledge topics", ""]
+    for topic in topics:
+        tags = ", ".join(topic.get("tags") or [])
+        subs = ", ".join(topic.get("subsystems") or [])
+        lines.append(f"- {topic['slug']}: {topic['title']}")
+        lines.append(f"  subsystems: {subs or '—'} | tags: {tags or '—'}")
+    return "\n".join(lines)
+
+
+@mcp.tool()
+def anchor_knowledge_search(query: str, limit: int = 5) -> str:
+    """Search structured ANCHOR repo docs (SARIF, evidence models, architecture — not vault mirror)."""
+    from drift.core.anchor_context import format_anchor_repo_knowledge_status, search_anchor_repo_knowledge
+
+    hits = search_anchor_repo_knowledge(query, limit=limit)
+    if not hits:
+        status = format_anchor_repo_knowledge_status()
+        return f"No knowledge matches for '{query}'.\n{status}"
+    lines = [f"ANCHOR knowledge search: {query}", ""]
+    for hit in hits:
+        lines.append(f"- [{hit['slug']}] {hit['title']} (score={hit['score']})")
+        lines.append(f"  {hit['excerpt']}")
+    return "\n".join(lines)
+
+
+@mcp.tool()
+def anchor_knowledge_get(slug: str) -> str:
+    """Retrieve one ANCHOR knowledge topic by slug (e.g. sarif, evidence_models, zero_trust)."""
+    from drift.core.anchor_context import format_anchor_repo_knowledge_status, get_anchor_repo_knowledge_topic
+
+    payload = get_anchor_repo_knowledge_topic(slug)
+    if payload is None:
+        return f"Unknown or missing knowledge topic: {slug}\n{format_anchor_repo_knowledge_status()}"
+    topic = payload["topic"]
+    return f"# {topic['title']} ({topic['slug']})\n\n{payload['content']}"
+
+
+@mcp.tool()
+def anchor_knowledge_refs(subsystem: str) -> str:
+    """List ANCHOR knowledge topics linked to a subsystem (e.g. sarif, pipeline, ledger)."""
+    from drift.core.anchor_context import format_anchor_repo_knowledge_status, refs_anchor_repo_knowledge
+
+    topics = refs_anchor_repo_knowledge(subsystem)
+    if not topics:
+        return (
+            f"No knowledge topics for subsystem: {subsystem}\n"
+            f"{format_anchor_repo_knowledge_status()}"
+        )
+    lines = [f"ANCHOR knowledge refs for subsystem: {subsystem}", ""]
+    for topic in topics:
+        lines.append(f"- {topic['slug']}: {topic['title']}")
+    return "\n".join(lines)
 
 
 @mcp.tool()

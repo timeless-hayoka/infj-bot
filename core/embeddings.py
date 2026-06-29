@@ -9,12 +9,22 @@ from typing import Any, List
 import threading
 
 import numpy as np
-import torch
 import os
 
 # Force CPU device via environment variable
 os.environ["TORCH_DEVICE"] = "cpu"
 from chromadb.api.types import Documents, Embeddings
+
+
+def _as_document_batch(input: str | list[str] | None) -> List[str]:
+    """Normalize Chroma embed_query input to a list of document strings."""
+    if input is None:
+        raise TypeError("embed_query requires a text input")
+    if isinstance(input, str):
+        return [input]
+    if not input:
+        raise TypeError("embed_query requires a non-empty text input")
+    return list(input)
 
 
 class SemanticEmbeddingFunction:
@@ -28,11 +38,11 @@ class SemanticEmbeddingFunction:
         with self._lock:
             if self._model is None:
                 from sentence_transformers import SentenceTransformer
-                import torch
-                
-                # Let sentence_transformers handle device management automatically
+
                 # NOTE: Explicitly setting device='cpu' and backend='torch' to avoid meta tensor exceptions on some environments
-                self._model = SentenceTransformer("all-MiniLM-L6-v2", backend="torch", device="cpu")
+                self._model = SentenceTransformer(
+                    "all-MiniLM-L6-v2", backend="torch", device="cpu"
+                )
         return self._model
 
     @property
@@ -42,24 +52,28 @@ class SemanticEmbeddingFunction:
     def name(self) -> str:
         return "semantic_minilm"
 
-    def embed_query(self, input: str | None = None) -> np.ndarray:
-        """Single-string embedding. Parameter name matches Chroma's protocol."""
-        if input is None:
-            raise TypeError("embed_query requires a text input")
+    def embed_one(self, text: str) -> List[float]:
+        """Single-vector helper for non-Chroma callers."""
         enc = self._encoder()
-        v = enc.encode(input, convert_to_numpy=True)
-        return np.asarray(v, dtype=np.float64)
+        v = enc.encode(text, convert_to_numpy=True)
+        arr = np.asarray(v, dtype=np.float64)
+        if arr.ndim > 1:
+            arr = arr[0]
+        return arr.tolist()
 
-    def embed_documents(self, texts: List[str]) -> List[np.ndarray]:
+    def embed_query(self, input: str | list[str] | None = None) -> Embeddings:
+        """Chroma query path — returns one embedding per input string."""
+        return self.embed_documents(_as_document_batch(input))
+
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
         if not texts:
             return []
         enc = self._encoder()
         batch = enc.encode(texts, convert_to_numpy=True)
-        return [np.asarray(row, dtype=np.float64) for row in batch]
+        return [np.asarray(row, dtype=np.float64).tolist() for row in batch]
 
     def __call__(self, input: Documents) -> Embeddings:
-        raw = self.embed_documents(list(input))
-        return [e.tolist() for e in raw]
+        return self.embed_documents(list(input))
 
     def get_config(self) -> dict[str, Any]:
         return {"kind": "semantic_minilm", "dim": self.dim}
@@ -78,16 +92,17 @@ class LocalEmbeddingFunction:
     def name() -> str:
         return "local_hash_embedding"
 
-    def embed_query(self, input: str | None = None) -> List[float]:
-        if input is None:
-            raise TypeError("embed_query requires a text input")
-        return self._vec(input)
+    def embed_one(self, text: str) -> List[float]:
+        return self._vec(text)
+
+    def embed_query(self, input: str | list[str] | None = None) -> Embeddings:
+        return self.embed_documents(_as_document_batch(input))
 
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
         return [self._vec(t) for t in texts]
 
     def __call__(self, input: Documents) -> Embeddings:
-        return self.embed_documents(list(input))  # type: ignore[return-value]
+        return self.embed_documents(list(input))
 
     def _vec(self, text: str) -> List[float]:
         h = hashlib.sha256(text.encode("utf-8")).digest()
@@ -100,13 +115,23 @@ class LocalEmbeddingFunction:
 
 _global_embedding_function = None
 
-def get_default_embedding_function() -> SemanticEmbeddingFunction:
+
+def get_default_embedding_function():
+    """Return the configured embedding backend (semantic MiniLM or lightweight hash)."""
     global _global_embedding_function
-    if _global_embedding_function is None:
-        _global_embedding_function = SemanticEmbeddingFunction()
-        # Force initialization on the main thread to prevent meta tensor issues in anyio workers
-        try:
-            _global_embedding_function._encoder()
-        except Exception:
-            pass
+    if _global_embedding_function is not None:
+        return _global_embedding_function
+
+    from drift.core.config import DRIFT_USE_LOCAL_EMBEDDINGS
+
+    if DRIFT_USE_LOCAL_EMBEDDINGS:
+        _global_embedding_function = LocalEmbeddingFunction()
+        return _global_embedding_function
+
+    _global_embedding_function = SemanticEmbeddingFunction()
+    # Force initialization on the main thread to prevent meta tensor issues in anyio workers
+    try:
+        _global_embedding_function._encoder()
+    except Exception:
+        pass
     return _global_embedding_function

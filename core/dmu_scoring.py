@@ -185,8 +185,8 @@ def _normalized_contextual_sim(memory, current_state: dict) -> float:
     from drift.core.embeddings import LocalEmbeddingFunction
 
     emb = LocalEmbeddingFunction()
-    mem_vec = emb.embed_query(getattr(memory, "content", str(memory)))
-    state_vec = emb.embed_query(str(current_state))
+    mem_vec = emb.embed_one(getattr(memory, "content", str(memory)))
+    state_vec = emb.embed_one(str(current_state))
     # Cosine similarity
     dot = sum(a * b for a, b in zip(mem_vec, state_vec))
     mag_a = sum(a * a for a in mem_vec) ** 0.5

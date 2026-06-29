@@ -142,8 +142,8 @@ def _health_snapshot() -> dict[str, object]:
         "company": "PHI",
         "model": "Drift",
         "memory_count": memory_count,
-        "turns": state.turns,
-        "mode": state.mode,
+        "turns": getattr(state, "turns", 0),
+        "mode": getattr(state, "mode", "unknown"),
         "hive": hive_status,
     }
 
@@ -252,10 +252,25 @@ def _anchor_snapshot(limit: int = 5) -> dict[str, object]:
         "dii": dii_data,
     }
 
+    analytics = {}
+    try:
+        from core.anchor_analytics import build_benchmark_analytics
+
+        analytics = build_benchmark_analytics(limit=max(10, limit), top_n=5)
+    except Exception:
+        analytics = {
+            "status": "unavailable",
+            "benchmark_trends": None,
+            "benchmark_strategy": None,
+        }
+
     return {
         "ok": True,
         "timestamp": time.time(),
         "release": release,
+        "benchmark_trends": analytics.get("benchmark_trends"),
+        "benchmark_strategy": analytics.get("benchmark_strategy"),
+        "benchmark_analytics_status": analytics.get("status"),
         "identity": {
             "product": release.get("product", "ANCHOR"),
             "engine": release.get("engine", "Trinity"),

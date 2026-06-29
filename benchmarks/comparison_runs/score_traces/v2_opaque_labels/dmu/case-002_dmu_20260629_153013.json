@@ -1,0 +1,359 @@
+{
+  "case_id": "case-002",
+  "method": "dmu",
+  "timestamp": "20260629_153013",
+  "num_candidates": 8,
+  "decompositions": [
+    {
+      "candidate_id": "session-001-memory-gold",
+      "cosine_similarity": 0.65,
+      "recency_score": 0.11080315836477156,
+      "salience": 0.952,
+      "retention_decay_score": 0.11080315836477156,
+      "emotional_weight": 0.0,
+      "state_match_score": 0.0,
+      "trust_level": 1.0,
+      "conflict_penalty": 0.0,
+      "final_dmu_score": 0.006856499439612065,
+      "rank": 1,
+      "semantic_rank": 1,
+      "memory_metadata": {
+        "id": "session-001-memory-gold",
+        "document": "session-001-memory canonical memory anchor note for clue-001. Canonical answer is ALPHA.",
+        "metadata": {
+          "cycle": 980,
+          "category": "memory",
+          "tags": [
+            "memory",
+            "lexical",
+            "canonical"
+          ],
+          "formed_state": {
+            "memory": 0.92
+          },
+          "timestamp": 980,
+          "reinforcement_score": 0.8,
+          "novelty_score": 0.4,
+          "provenance": "user_explicit",
+          "source_reliability": 1.0
+        },
+        "tags": [
+          "memory",
+          "lexical",
+          "canonical"
+        ],
+        "formed_state": {
+          "memory": 0.92
+        }
+      },
+      "notes": "category=memory; cycle=1002",
+      "timestamp": "2026-06-29T19:30:13.218177+00:00"
+    },
+    {
+      "candidate_id": "session-001-memory-noise-0",
+      "cosine_similarity": 0.3500000000000001,
+      "recency_score": 0.10025884372510968,
+      "salience": 0.76,
+      "retention_decay_score": 0.10025884372510968,
+      "emotional_weight": 0.0,
+      "state_match_score": 0.0,
+      "trust_level": 0.5,
+      "conflict_penalty": 0.0,
+      "final_dmu_score": 0.002666885243087918,
+      "rank": 2,
+      "semantic_rank": 3,
+      "memory_metadata": {
+        "id": "session-001-memory-noise-0",
+        "document": "session-001-memory distractor 0: unrelated detail about project memory and continuity and a noisy note.",
+        "metadata": {
+          "cycle": 979,
+          "category": "memory",
+          "tags": [
+            "distractor",
+            "memory"
+          ],
+          "formed_state": {
+            "memory": 0.2
+          },
+          "timestamp": 979,
+          "reinforcement_score": 0.1,
+          "novelty_score": 0.1,
+          "provenance": "bot_inference",
+          "source_reliability": 0.5
+        },
+        "tags": [
+          "distractor",
+          "memory"
+        ],
+        "formed_state": {
+          "memory": 0.2
+        }
+      },
+      "notes": "category=memory; cycle=1002",
+      "timestamp": "2026-06-29T19:30:13.218185+00:00"
+    },
+    {
+      "candidate_id": "session-001-memory-trap",
+      "cosine_similarity": 0.5423261445466405,
+      "recency_score": 0.11080315836477156,
+      "salience": 0.12799999999999997,
+      "retention_decay_score": 0.11080315836477156,
+      "emotional_weight": 0.0,
+      "state_match_score": 0.0,
+      "trust_level": 0.4,
+      "conflict_penalty": 0.0,
+      "final_dmu_score": 0.0007691705558983348,
+      "rank": 3,
+      "semantic_rank": 2,
+      "memory_metadata": {
+        "id": "session-001-memory-trap",
+        "document": "session-001-memory canonical memory anchor note for decoy. Canonical answer is OMEGA.",
+        "metadata": {
+          "cycle": 980,
+          "category": "distractor",
+          "tags": [
+            "distractor",
+            "noise"
+          ],
+          "formed_state": {
+            "memory": 0.12
+          },
+          "timestamp": 980,
+          "reinforcement_score": 0.05,
+          "novelty_score": 0.1,
+          "provenance": "bot_inference",
+          "source_reliability": 0.4
+        },
+        "tags": [
+          "distractor",
+          "noise"
+        ],
+        "formed_state": {
+          "memory": 0.12
+        }
+      },
+      "notes": "category=distractor; cycle=1002",
+      "timestamp": "2026-06-29T19:30:13.218188+00:00"
+    },
+    {
+      "candidate_id": "session-001-memory-noise-1",
+      "cosine_similarity": 0.3500000000000001,
+      "recency_score": 0.09071795329158973,
+      "salience": 0.15999999999999998,
+      "retention_decay_score": 0.09071795329158973,
+      "emotional_weight": 0.0,
+      "state_match_score": 0.0,
+      "trust_level": 0.5,
+      "conflict_penalty": 0.0,
+      "final_dmu_score": 0.0005080205384329025,
+      "rank": 4,
+      "semantic_rank": 4,
+      "memory_metadata": {
+        "id": "session-001-memory-noise-1",
+        "document": "session-001-memory distractor 1: unrelated detail about project memory and continuity and a noisy note.",
+        "metadata": {
+          "cycle": 978,
+          "category": "untagged",
+          "tags": [
+            "distractor"
+          ],
+          "formed_state": {
+            "memory": 0.2
+          },
+          "timestamp": 978,
+          "reinforcement_score": 0.15000000000000002,
+          "novelty_score": 0.1,
+          "provenance": "bot_inference",
+          "source_reliability": 0.5
+        },
+        "tags": [
+          "distractor"
+        ],
+        "formed_state": {
+          "memory": 0.2
+        }
+      },
+      "notes": "category=untagged; cycle=1002",
+      "timestamp": "2026-06-29T19:30:13.218190+00:00"
+    },
+    {
+      "candidate_id": "session-002-continuity-trap",
+      "cosine_similarity": 0.16269784336399218,
+      "recency_score": 0.01499557682110752,
+      "salience": 0.1,
+      "retention_decay_score": 0.01499557682110752,
+      "emotional_weight": 0.0,
+      "state_match_score": 0.0,
+      "trust_level": 0.4,
+      "conflict_penalty": 0.0,
+      "final_dmu_score": 2.4397480087932635e-05,
+      "rank": 5,
+      "semantic_rank": 5,
+      "memory_metadata": {
+        "id": "session-002-continuity-trap",
+        "document": "session-002-continuity anchor keep after reset for this continuity scenario. Canonical answer is SIGMA.",
+        "metadata": {
+          "cycle": 960,
+          "category": "distractor",
+          "tags": [
+            "distractor",
+            "noise"
+          ],
+          "formed_state": {
+            "continuity": 0.12
+          },
+          "timestamp": 960,
+          "reinforcement_score": 0.05,
+          "novelty_score": 0.1,
+          "provenance": "bot_inference",
+          "source_reliability": 0.4
+        },
+        "tags": [
+          "distractor",
+          "noise"
+        ],
+        "formed_state": {
+          "continuity": 0.12
+        }
+      },
+      "notes": "category=distractor; cycle=1002",
+      "timestamp": "2026-06-29T19:30:13.218193+00:00"
+    },
+    {
+      "candidate_id": "session-002-continuity-gold",
+      "cosine_similarity": 0.16269784336399218,
+      "recency_score": 0.01499557682110752,
+      "salience": 0.1,
+      "retention_decay_score": 0.01499557682110752,
+      "emotional_weight": 0.0,
+      "state_match_score": 0.0,
+      "trust_level": 1.0,
+      "conflict_penalty": 0.0,
+      "final_dmu_score": 1.2198740043966318e-05,
+      "rank": 6,
+      "semantic_rank": 6,
+      "memory_metadata": {
+        "id": "session-002-continuity-gold",
+        "document": "session-002-continuity anchor keep after reset for this continuity scenario. Canonical answer is BETA.",
+        "metadata": {
+          "cycle": 960,
+          "category": "continuity",
+          "tags": [
+            "continuity",
+            "continuity",
+            "canonical"
+          ],
+          "formed_state": {
+            "continuity": 0.92
+          },
+          "timestamp": 960,
+          "reinforcement_score": 0.8,
+          "novelty_score": 0.4,
+          "provenance": "user_explicit",
+          "source_reliability": 1.0
+        },
+        "tags": [
+          "continuity",
+          "continuity",
+          "canonical"
+        ],
+        "formed_state": {
+          "continuity": 0.92
+        }
+      },
+      "notes": "category=continuity; cycle=1002",
+      "timestamp": "2026-06-29T19:30:13.218195+00:00"
+    },
+    {
+      "candidate_id": "session-002-continuity-noise-0",
+      "cosine_similarity": 0.054232614454664096,
+      "recency_score": 0.013568559012784373,
+      "salience": 0.1,
+      "retention_decay_score": 0.013568559012784373,
+      "emotional_weight": 0.0,
+      "state_match_score": 0.0,
+      "trust_level": 0.5,
+      "conflict_penalty": 0.0,
+      "final_dmu_score": 3.6792921482284634e-06,
+      "rank": 7,
+      "semantic_rank": 7,
+      "memory_metadata": {
+        "id": "session-002-continuity-noise-0",
+        "document": "session-002-continuity distractor 0: unrelated detail about long conversation continuity and a noisy note.",
+        "metadata": {
+          "cycle": 959,
+          "category": "continuity",
+          "tags": [
+            "distractor",
+            "continuity"
+          ],
+          "formed_state": {
+            "continuity": 0.2
+          },
+          "timestamp": 959,
+          "reinforcement_score": 0.1,
+          "novelty_score": 0.1,
+          "provenance": "bot_inference",
+          "source_reliability": 0.5
+        },
+        "tags": [
+          "distractor",
+          "continuity"
+        ],
+        "formed_state": {
+          "continuity": 0.2
+        }
+      },
+      "notes": "category=continuity; cycle=1002",
+      "timestamp": "2026-06-29T19:30:13.218198+00:00"
+    },
+    {
+      "candidate_id": "session-002-continuity-noise-1",
+      "cosine_similarity": 0.054232614454664096,
+      "recency_score": 0.012277339903608644,
+      "salience": 0.1,
+      "retention_decay_score": 0.012277339903608644,
+      "emotional_weight": 0.0,
+      "state_match_score": 0.0,
+      "trust_level": 0.5,
+      "conflict_penalty": 0.0,
+      "final_dmu_score": 3.329161207606352e-06,
+      "rank": 8,
+      "semantic_rank": 8,
+      "memory_metadata": {
+        "id": "session-002-continuity-noise-1",
+        "document": "session-002-continuity distractor 1: unrelated detail about long conversation continuity and a noisy note.",
+        "metadata": {
+          "cycle": 958,
+          "category": "untagged",
+          "tags": [
+            "distractor"
+          ],
+          "formed_state": {
+            "continuity": 0.2
+          },
+          "timestamp": 958,
+          "reinforcement_score": 0.15000000000000002,
+          "novelty_score": 0.1,
+          "provenance": "bot_inference",
+          "source_reliability": 0.5
+        },
+        "tags": [
+          "distractor"
+        ],
+        "formed_state": {
+          "continuity": 0.2
+        }
+      },
+      "notes": "category=untagged; cycle=1002",
+      "timestamp": "2026-06-29T19:30:13.218200+00:00"
+    }
+  ],
+  "summary": {
+    "top_dmu_candidate": "session-001-memory-gold",
+    "top_dmu_score": 0.006856499439612065,
+    "top_semantic_candidate": "session-001-memory-gold",
+    "top_semantic_score": 0.65,
+    "rank_disagreement": true
+  }
+}

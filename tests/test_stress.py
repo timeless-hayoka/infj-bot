@@ -17,6 +17,8 @@ import string
 
 import pytest
 
+pytestmark = pytest.mark.stress
+
 from drift.core.being import Being
 from drift.core.cognitive_architecture import CycleContext
 from drift.core.cognitive_orchestrator import CognitiveOrchestrator
@@ -453,9 +455,9 @@ class TestDeterminism:
     def test_same_input_same_embedding(self):
         emb_fn = SemanticEmbeddingFunction()
         text = "The quick brown fox"
-        e1 = emb_fn.embed_query(text)
-        e2 = emb_fn.embed_query(text)
-        assert pytest.approx(e1.tolist()) == e2.tolist()
+        e1 = emb_fn.embed_one(text)
+        e2 = emb_fn.embed_one(text)
+        assert e1 == e2
 
     def test_memory_roundtrip_idempotent(self, tmp_path):
         memory = DriftMemory(persist_directory=str(tmp_path))

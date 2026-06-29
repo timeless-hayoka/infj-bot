@@ -12,6 +12,8 @@ import tempfile
 import pytest
 from pathlib import Path
 
+pytestmark = pytest.mark.env
+
 from drift.core.shadow import Shadow
 import drift.core.shadow as shadow_module
 from drift.core.plugins.self_eval import SelfEvaluator
@@ -68,6 +70,8 @@ def test_env():
         os.unlink(self_eval_db)
 
 def test_ambiguous_truth_stress(test_env):
+    if os.environ.get("DRIFT_RUN_ENV_TESTS") != "1":
+        pytest.skip("Set DRIFT_RUN_ENV_TESTS=1 to run LLM-backed ambiguous-truth stress test")
     shadow, evaluator, brain, memory, state = test_env
     
     # Verify baseline state

@@ -1,0 +1,35 @@
+{
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Semgrep",
+          "rules": [
+            {
+              "id": "python.lang.security.audit.eval",
+              "properties": {
+                "cwe": "CWE-94"
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "python.lang.security.audit.eval",
+          "level": "warning",
+          "message": { "text": "Potential code injection via eval()" },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": { "uri": "app/views.py" },
+                "region": { "startLine": 42, "startColumn": 4 }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

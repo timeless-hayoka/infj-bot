@@ -17,6 +17,7 @@ import argparse
 import csv
 import json
 import math
+import os
 import statistics
 import sys
 import time
@@ -35,9 +36,10 @@ from drift.core.dmu import DMURetriever, compute_contextual_salience
 from drift.core.dmu_score_decomposition import serialize_traces
 
 try:
-    from memory_store_config import get_config
+    from memory_store_config import get_config, get_chroma_store
 except Exception:  # pragma: no cover - optional convenience import
     get_config = None
+    get_chroma_store = None
 
 from dmu_retrieval_benchmark import (
     BenchmarkCase,
@@ -49,6 +51,27 @@ from dmu_retrieval_benchmark import (
     candidate_from_row,
     cosine_similarity,
 )
+
+METHOD_ALIASES = {
+    "guarded_dmu": "guarded",
+    "guarded_weighted": "guarded",
+}
+ALL_METHODS = ("cosine", "recent", "dmu", "guarded", "rrf")
+
+
+def _parse_methods(raw: str | None) -> tuple[str, ...]:
+    if not raw or not raw.strip():
+        return ALL_METHODS
+    methods: list[str] = []
+    for token in raw.split(","):
+        name = METHOD_ALIASES.get(token.strip().lower(), token.strip().lower())
+        if not name:
+            continue
+        if name not in ALL_METHODS:
+            raise ValueError(f"Unknown method {token!r}. Choose from: {', '.join(ALL_METHODS)}")
+        if name not in methods:
+            methods.append(name)
+    return tuple(methods) if methods else ALL_METHODS
 
 
 def _case_value(case: Any, key: str, default: Any = None) -> Any:
@@ -377,7 +400,12 @@ def _summarize(results: Sequence[Dict[str, Any]], methods: Sequence[str], datase
     return summary
 
 
-def _write_outputs(results: Sequence[Dict[str, Any]], summary: Dict[str, Any], output_dir: Path) -> Tuple[Path, Path]:
+def _write_outputs(
+    results: Sequence[Dict[str, Any]],
+    summary: Dict[str, Any],
+    output_dir: Path,
+    methods: Sequence[str] = ALL_METHODS,
+) -> Tuple[Path, Path]:
     output_dir.mkdir(parents=True, exist_ok=True)
     stamp = time.strftime("%Y%m%d_%H%M%S")
     json_path = output_dir / f"standalone_dmu_comparison_results_{stamp}.json"
@@ -398,7 +426,9 @@ def _write_outputs(results: Sequence[Dict[str, Any]], summary: Dict[str, Any], o
             "latency_ms",
         ])
         for row in results:
-            for method in ("cosine", "recent", "dmu", "guarded", "rrf"):
+            for method in methods:
+                if method not in row:
+                    continue
                 writer.writerow([
                     row["case_id"],
                     row["session_id"],
@@ -432,7 +462,13 @@ def _print_summary(summary: Dict[str, Any]) -> None:
     print("=" * 80)
 
 
-def run_synthetic(cases: int, dataset_version: str, top_k: int, output_dir: Path) -> int:
+def run_synthetic(
+    cases: int,
+    dataset_version: str,
+    top_k: int,
+    output_dir: Path,
+    methods: Sequence[str] = ALL_METHODS,
+) -> int:
     synthetic_cases, memories = build_dataset(cases, dataset_version=dataset_version)
     trace_root = output_dir / "score_traces" / dataset_version
     run_stamp = time.strftime("%Y%m%d_%H%M%S")
@@ -460,13 +496,23 @@ def run_synthetic(cases: int, dataset_version: str, top_k: int, output_dir: Path
             )
         )
 
-    summary = _summarize(results, ("cosine", "recent", "dmu", "guarded", "rrf"), dataset_version)
-    json_path, csv_path = _write_outputs(results, summary, output_dir)
+    summary = _summarize(results, methods, dataset_version)
+    json_path, csv_path = _write_outputs(results, summary, output_dir, methods=methods)
     _print_summary(summary)
     print(f"Wrote {json_path}")
     print(f"Wrote {csv_path}")
     print(f"Wrote trace bundles under {trace_root}")
     return 0
+
+
+def _apply_chroma_env(persist_dir: str, collection_name: str, embedding_model: str) -> None:
+    os.environ["DRIFT_CHROMA_PERSIST_DIR"] = persist_dir
+    os.environ["DRIFT_MEMORY_COLLECTION"] = collection_name
+    os.environ["DRIFT_EMBEDDING_MODEL"] = embedding_model
+    if get_chroma_store is not None:
+        from memory_store_config import reset_chroma_store
+
+        reset_chroma_store()
 
 
 def run_chroma(
@@ -475,18 +521,14 @@ def run_chroma(
     top_k: int,
     candidate_limit: int,
     output_dir: Path,
-    chroma_persist_dir: str,
-    chroma_collection_name: str,
-    chroma_embedding_model: str,
     apply_metadata_filter: bool,
+    methods: Sequence[str] = ALL_METHODS,
 ) -> int:
-    ChromaMemoryStore, _, _, load_chroma_dataset = _load_chroma_hooks()
+    _, get_candidates_for_case, get_query_embedding, load_chroma_dataset = _load_chroma_hooks()
     cases = load_chroma_dataset(dataset_path)
-    store = ChromaMemoryStore(
-        persist_directory=chroma_persist_dir,
-        collection_name=chroma_collection_name,
-        embedding_model_name=chroma_embedding_model,
-    )
+    if get_chroma_store is None:
+        raise SystemExit("Chroma backend requires memory_store_config and chromadb_integration_hooks.")
+    store = get_chroma_store()
     retriever = DMURetriever(store.collection, psc_engine=None, max_retrieval_count=10)
     guarded_ranker = get_ranker("guarded", guardrail_threshold=0.08, semantic_weight=0.70)
     rrf_ranker = get_ranker("rrf")
@@ -630,8 +672,8 @@ def run_chroma(
             }
         )
 
-    summary = _summarize(results, ("cosine", "recent", "dmu", "guarded", "rrf"), "chroma")
-    json_path, csv_path = _write_outputs(results, summary, output_dir)
+    summary = _summarize(results, methods, "chroma")
+    json_path, csv_path = _write_outputs(results, summary, output_dir, methods=methods)
     _print_summary(summary)
     print(f"Wrote {json_path}")
     print(f"Wrote {csv_path}")
@@ -645,32 +687,58 @@ def main() -> int:
     parser.add_argument("--cases", type=int, default=100)
     parser.add_argument("--dataset-version", choices=("v1_label_leakage", "v2_opaque_labels"), default="v2_opaque_labels")
     parser.add_argument("--dataset", type=Path, default=None)
-    parser.add_argument("--top-k", type=int, default=3)
-    parser.add_argument("--candidate-limit", type=int, default=50)
-    parser.add_argument("--output-dir", type=Path, default=ROOT / ".benchmarks" / "standalone_dmu")
+    parser.add_argument("--top-k", "--k", dest="top_k", type=int, default=3)
+    parser.add_argument("--candidate-limit", type=int, default=None)
+    parser.add_argument(
+        "--methods",
+        default="",
+        help="Comma-separated rankers to score (default: all). Aliases: guarded_dmu -> guarded",
+    )
+    parser.add_argument("--output-dir", type=Path, default=ROOT / "benchmarks" / "comparison_runs")
     default_cfg = get_config() if get_config is not None else None
-    parser.add_argument("--chroma-persist-dir", default=(default_cfg.persist_directory if default_cfg else "./chroma_db"))
-    parser.add_argument("--chroma-collection-name", default=(default_cfg.collection_name if default_cfg else "drift_memory"))
-    parser.add_argument("--chroma-embedding-model", default=(default_cfg.embedding_model if default_cfg else "all-MiniLM-L6-v2"))
+    parser.add_argument(
+        "--chroma-persist-dir",
+        default=(default_cfg.persist_directory if default_cfg else "./chroma_db"),
+    )
+    parser.add_argument(
+        "--chroma-collection-name",
+        default=(default_cfg.collection_name if default_cfg else "drift_memory"),
+    )
+    parser.add_argument(
+        "--chroma-embedding-model",
+        default=(default_cfg.embedding_model if default_cfg else "all-MiniLM-L6-v2"),
+    )
     parser.add_argument("--no-metadata-filter", action="store_true")
 
     args = parser.parse_args()
+    try:
+        methods = _parse_methods(args.methods)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
+
+    candidate_limit = args.candidate_limit
+    if candidate_limit is None:
+        candidate_limit = default_cfg.default_n_results if default_cfg else 50
 
     if args.backend == "synthetic":
-        return run_synthetic(args.cases, args.dataset_version, args.top_k, args.output_dir)
+        return run_synthetic(args.cases, args.dataset_version, args.top_k, args.output_dir, methods=methods)
 
     if args.dataset is None:
         raise SystemExit("--dataset is required when --backend chroma is selected.")
 
+    _apply_chroma_env(
+        args.chroma_persist_dir,
+        args.chroma_collection_name,
+        args.chroma_embedding_model,
+    )
+
     return run_chroma(
         args.dataset,
         top_k=args.top_k,
-        candidate_limit=args.candidate_limit,
+        candidate_limit=candidate_limit,
         output_dir=args.output_dir,
-        chroma_persist_dir=args.chroma_persist_dir,
-        chroma_collection_name=args.chroma_collection_name,
-        chroma_embedding_model=args.chroma_embedding_model,
         apply_metadata_filter=not args.no_metadata_filter,
+        methods=methods,
     )
 
 

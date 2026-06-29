@@ -93,26 +93,58 @@ API_KEY = (
 )
 REFLECTION_INTERVAL = int(os.getenv("REFLECTION_INTERVAL", "10"))
 
-DRIFT_PRIMARY_MODEL = os.getenv(
-    "DRIFT_PRIMARY_MODEL", os.getenv("INFJ_PRIMARY_MODEL", "gemini-2.5-flash")
+# OpenAI (primary cloud provider when enabled)
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+DRIFT_OPENAI_MODEL = os.getenv("DRIFT_OPENAI_MODEL", "gpt-4o-mini")
+DRIFT_OPENAI_BASE_URL = os.getenv("DRIFT_OPENAI_BASE_URL", "https://api.openai.com/v1")
+DRIFT_USE_OPENAI = os.getenv("DRIFT_USE_OPENAI", "true").lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
 )
-DRIFT_CRITIC_MODEL = os.getenv(
-    "DRIFT_CRITIC_MODEL", os.getenv("INFJ_CRITIC_MODEL", "gemini-2.5-flash")
+DRIFT_USE_GEMINI = os.getenv("DRIFT_USE_GEMINI", "false").lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
 )
 
-# Cost Guardrail
+DRIFT_PRIMARY_MODEL = os.getenv(
+    "DRIFT_PRIMARY_MODEL",
+    os.getenv("INFJ_PRIMARY_MODEL", DRIFT_OPENAI_MODEL if DRIFT_USE_OPENAI else "gemini-2.5-flash"),
+)
+DRIFT_CRITIC_MODEL = os.getenv(
+    "DRIFT_CRITIC_MODEL",
+    os.getenv("INFJ_CRITIC_MODEL", DRIFT_OPENAI_MODEL if DRIFT_USE_OPENAI else "gemini-2.5-flash"),
+)
+
+# Cost Guardrail — block known expensive tiers (exact / prefix match, not substring)
 COST_GUARDRAIL_BLOCKED_MODELS = {
     "gemini-1.5-pro",
     "gemini-1.0-pro",
     "gemini-pro",
-    "gpt-4",
+    "gpt-4",           # legacy GPT-4, not gpt-4o-mini
     "claude-3-opus",
     "claude-3.5-sonnet",
 }
-for model in (DRIFT_PRIMARY_MODEL, DRIFT_CRITIC_MODEL):
+
+
+def _model_is_cost_blocked(model: str) -> bool:
+    m = (model or "").lower().strip()
     for blocked in COST_GUARDRAIL_BLOCKED_MODELS:
-        if blocked in model.lower():
-            raise RuntimeError(f"COST GUARDRAIL: Blocked expensive model '{model}'. Revert to 'gemini-2.5-flash' or local.")
+        b = blocked.lower()
+        if m == b or m.startswith(b + "-"):
+            return True
+    return False
+
+
+for model in (DRIFT_PRIMARY_MODEL, DRIFT_CRITIC_MODEL):
+    if _model_is_cost_blocked(model):
+            raise RuntimeError(
+                f"COST GUARDRAIL: Blocked expensive model '{model}'. "
+                f"Use '{DRIFT_OPENAI_MODEL}' or a local Ollama model."
+            )
 
 _authorized_raw = os.getenv(
     "DRIFT_AUTHORIZED_TARGETS", os.getenv("INFJ_AUTHORIZED_TARGETS", "")
@@ -128,6 +160,20 @@ DRIFT_USE_LOCAL_FALLBACK = os.getenv(
     "DRIFT_USE_LOCAL_FALLBACK",
     os.getenv("INFJ_USE_LOCAL_FALLBACK", "true"),
 ).lower() in ("1", "true", "yes", "on")
+# GLEN loads a HF model on CPU (~2 min cold start). Default off when using cloud OpenAI.
+DRIFT_USE_GLEN = os.getenv("DRIFT_USE_GLEN", "false").lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
+# Legacy alias: when true AND prefer-local, use GLEN instead of Ollama for local path.
+DRIFT_FAST_MODE = os.getenv("DRIFT_FAST_MODE", "false").lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
 OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
 
 # Prefer local models (when available) over cloud for latency-sensitive usage.

@@ -47,6 +47,11 @@ from drift.core.config import (
     DRIFT_KIMI_MODEL,
     KIMI_BASE_URL,
     DRIFT_USE_HF,
+    DRIFT_USE_GEMINI,
+    OPENAI_API_KEY,
+    DRIFT_OPENAI_MODEL,
+    DRIFT_OPENAI_BASE_URL,
+    DRIFT_USE_OPENAI,
 )
 
 log = logging.getLogger("drift.generation")
@@ -129,7 +134,11 @@ def _classify_http(resp: requests.Response) -> ProviderError:
             retry_after = float(ra)  # seconds form; date form is rare for LLM APIs
         except ValueError:
             retry_after = None
-    if status == 429:
+    body = (resp.text or "")[:300]
+    body_lower = body.lower()
+    if status == 429 and "insufficient_quota" in body_lower:
+        kind = "quota"
+    elif status == 429:
         kind = "rate_limit"
     elif status in (401, 403):
         kind = "auth"
@@ -137,7 +146,6 @@ def _classify_http(resp: requests.Response) -> ProviderError:
         kind = "client"
     else:
         kind = "transient"
-    body = (resp.text or "")[:300]
     return ProviderError(
         f"HTTP {status}: {body}", kind=kind, status=status, retry_after=retry_after
     )
@@ -363,6 +371,7 @@ class RateGovernor:
 
         self._pstate: dict[str, ProviderState] = {p.name: ProviderState() for p in providers}
         self._pstate_lock = threading.Lock()
+        self._cloud_quota_exhausted = False
 
     # ---- cooldown / health bookkeeping ----------------------------------- #
     def _mark_success(self, name: str) -> None:
@@ -527,6 +536,17 @@ class RateGovernor:
                     log.error("%s auth failure, benched %.0fs: %s", p.name, AUTH_COOLDOWN, e)
                     return None
 
+                if e.kind == "quota":
+                    # Billing exhausted — retrying and loading local GLEN wastes minutes.
+                    self._cloud_quota_exhausted = True
+                    self._set_cooldown(p.name, AUTH_COOLDOWN)
+                    log.error(
+                        "%s quota exhausted (add API billing at platform.openai.com): %s",
+                        p.name,
+                        e,
+                    )
+                    return None
+
                 if e.kind == "client":
                     # malformed request — retrying won't help, and other providers
                     # will likely choke on the same payload, but let the chain decide
@@ -563,10 +583,23 @@ class RateGovernor:
     def _run_chain(self, key: str, system: str, prompt: str, budget: Optional[RequestBudget] = None, **kwargs) -> str:
         errors = []
         for p in self.providers:
+            if self._cloud_quota_exhausted and p.name == "local":
+                errors.append(
+                    "local: skipped (OpenAI API quota exhausted — ChatGPT Pro does not "
+                    "include API billing; add a payment method at platform.openai.com)"
+                )
+                continue
             out = self._call_provider(p, system, prompt, errors=errors, budget=budget, **kwargs)
             if out:
                 self.cache_set(key, out)   # ONE cache path, every provider
                 return out
+        if self._cloud_quota_exhausted:
+            raise RuntimeError(
+                "OpenAI API quota exhausted. ChatGPT Pro / Codex login is separate from "
+                "the Developer API — add billing and credits at "
+                "https://platform.openai.com/settings/organization/billing then retry. "
+                "Detail: " + " | ".join(errors)
+            )
         err_msg = (
             "All providers failed, cooled down, or unavailable. Detail: "
             + " | ".join(errors)
@@ -821,6 +854,29 @@ class _BrainGenerationMixin:
 
         providers.extend([
             Provider(
+                name="openai",
+                enabled=lambda: bool(DRIFT_USE_OPENAI and OPENAI_API_KEY),
+                generate=lambda s, p, timeout=None, **kwargs: openai_generate(
+                    base_url=DRIFT_OPENAI_BASE_URL,
+                    api_key=OPENAI_API_KEY,
+                    model=getattr(self, "_active_model_name", None) or DRIFT_OPENAI_MODEL,
+                    system=s,
+                    prompt=p,
+                    timeout=timeout if timeout is not None else 60.0,
+                    **kwargs,
+                ),
+                stream=lambda s, p, timeout=None, **kwargs: openai_stream(
+                    base_url=DRIFT_OPENAI_BASE_URL,
+                    api_key=OPENAI_API_KEY,
+                    model=getattr(self, "_active_model_name", None) or DRIFT_OPENAI_MODEL,
+                    system=s,
+                    prompt=p,
+                    timeout=timeout if timeout is not None else 90.0,
+                    **kwargs,
+                ),
+                limiter=TokenBucket(capacity=40, refill_per_sec=40 / 60),
+            ),
+            Provider(
                 name="groq",
                 enabled=lambda: bool(DRIFT_USE_GROQ and GROQ_API_KEY),
                 generate=lambda s, p, timeout=None, **kwargs: openai_generate(
@@ -854,7 +910,7 @@ class _BrainGenerationMixin:
             ),
             Provider(
                 name="gemini",
-                enabled=lambda: bool(API_KEY),
+                enabled=lambda: bool(DRIFT_USE_GEMINI and API_KEY),
                 generate=lambda s, p, timeout=None, **kwargs: self._gemini_generate(s, p, **kwargs),
                 stream=lambda s, p, timeout=None, **kwargs: self._gemini_stream(s, p, **kwargs),
                 limiter=TokenBucket(capacity=12, refill_per_sec=12 / 60),
@@ -881,16 +937,19 @@ class _BrainGenerationMixin:
         problems: list[str] = []
         if DRIFT_USE_GROQ and not GROQ_API_KEY:
             problems.append("DRIFT_USE_GROQ set but GROQ_API_KEY missing")
+        if DRIFT_USE_OPENAI and not OPENAI_API_KEY:
+            problems.append("DRIFT_USE_OPENAI set but OPENAI_API_KEY missing")
         if DRIFT_USE_KIMI and not KIMI_API_KEY:
             problems.append("DRIFT_USE_KIMI set but KIMI_API_KEY missing")
         if (DRIFT_USE_KIMI and KIMI_API_KEY
                 and not str(KIMI_BASE_URL or "").startswith("http")):
             problems.append(f"KIMI_BASE_URL invalid (need http[s]://...): {KIMI_BASE_URL!r}")
         usable = (
-            (DRIFT_USE_GROQ and GROQ_API_KEY)
+            (DRIFT_USE_OPENAI and OPENAI_API_KEY)
+            or (DRIFT_USE_GROQ and GROQ_API_KEY)
             or (DRIFT_USE_KIMI and KIMI_API_KEY)
             or (DRIFT_USE_HF and self.hf_bridge.is_available())
-            or bool(API_KEY)
+            or (DRIFT_USE_GEMINI and API_KEY)
             or (self._use_local_fallback and self.local_bridge.is_available())
         )
         if not usable:

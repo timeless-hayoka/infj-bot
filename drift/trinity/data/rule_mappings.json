@@ -1,0 +1,43 @@
+{
+  "version": "1.0",
+  "mappings": {
+    "semgrep:python.lang.security.audit.dangerous-system-call": {
+      "cwe": "CWE-78",
+      "category": "Command Injection",
+      "tags": ["injection", "subprocess"]
+    },
+    "semgrep:python.lang.security.audit.eval": {
+      "cwe": "CWE-94",
+      "category": "Code Injection",
+      "tags": ["eval", "injection"]
+    },
+    "codeql:py/sql-injection": {
+      "cwe": "CWE-89",
+      "category": "SQL Injection",
+      "tags": ["sql", "injection"]
+    },
+    "codeql:py/command-line-injection": {
+      "cwe": "CWE-78",
+      "category": "Command Injection",
+      "tags": ["command", "injection"]
+    }
+  },
+  "rule_id_fallbacks": {
+    "python.lang.security.audit.dangerous-system-call": {
+      "cwe": "CWE-78",
+      "category": "Command Injection"
+    },
+    "python.lang.security.audit.eval": {
+      "cwe": "CWE-94",
+      "category": "Code Injection"
+    },
+    "py/sql-injection": {
+      "cwe": "CWE-89",
+      "category": "SQL Injection"
+    },
+    "py/command-line-injection": {
+      "cwe": "CWE-78",
+      "category": "Command Injection"
+    }
+  }
+}

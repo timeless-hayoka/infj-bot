@@ -1,46 +1,60 @@
 # ANCHOR Release Checklist
 
-Status: release-candidate, not fully finished.
+Status: **Phase 1 in progress** — see `docs/PRODUCT_FOCUS.md` for the five-phase roadmap.
 
-## Must Pass Before Full Release
+## Phase 1 test gate (CI / pre-release)
 
-- Fresh install works on a clean machine.
-- `bootstrap_anchor.sh` completes without manual repair.
-- The desktop launcher opens the correct ANCHOR UI.
-- Remote mode can bind to `0.0.0.0` with `ANCHOR_WEB_HOST` and advertise a real `ANCHOR_PUBLIC_URL`.
-- The dashboard loads the core panels:
-  - System health
-  - Release identity
-  - Evidence metrics
-  - Knowledge vault
-  - Contribution tracking
-- Optional panels degrade cleanly with clear `READY / OPTIONAL / ERROR / LOADING` states.
-- `GET /api/trinity/vault` returns sane counts and freshness metadata.
-- `GET /api/trinity/contributions` returns safe values or an explicit fallback source.
-- Trinity smoke tests pass.
-- Release banner and changelog entry are present.
-- Required changesets exist for package-affecting changes.
-- Startup warnings do not block normal use.
+```bash
+pip install -e ".[dev]"
+pytest -q -m "not stress and not env"    # default release gate (~5 min)
+pytest -q -m stress          # optional load/chaos suite
+pytest -q -m env             # live API / external services (DRIFT_RUN_ENV_TESTS=1)
+./scripts/bootstrap_anchor.sh
+./scripts/anchor_release_smoke.sh
+```
 
-## Current Assessment
 
-- Release-candidate: yes
-- Fully finished: no
-- Main remaining work: packaging, fresh-install validation, and release hygiene
-## Service Profiles
+- [ ] Pipeline wired: ingest → normalize → dedupe → signal filter → case → proof → ledger → dashboard
+- [ ] `drift/trinity/anchor_pipeline_bridge.py` resolves sibling `ANCHOR/` and applies signal filter on SARIF
+- [ ] Hunt script in-repo: `hunts/trinity_hunt.py`
+- [ ] Launcher: `./scripts/drift` → `python -m drift.interfaces.cli` (not legacy `cli.py`)
+- [ ] Core Trinity + ANCHOR tests green (`tests/test_trinity_*`, `tests/test_anchor_*`, `tests/test_roadmap_phases.py`)
+- [ ] Fresh install works on a clean machine (`scripts/bootstrap_anchor.sh`)
+- [ ] Dashboard loads core panels with graceful optional-panel degradation
+- [ ] `GET /api/trinity/vault` and contributions endpoints return sane metadata
+
+## Phase 2 — Unified memory spine
+
+- [ ] `core/memory_schema.py` — single `MemoryRecord` contract
+- [ ] `core/memory_consolidator.py` — salience tags, consolidate, prune
+- [ ] Chroma + SQLite are backends only (no parallel ad-hoc memory writes)
+
+## Phase 3 — Reasoning loop
+
+- [ ] `drift/trinity/reasoning_cycle.py` — goals, decomposition, uncertainty
+- [ ] Claims exported to council evidence board schema
+
+## Phase 4 — Self-heal (optional module)
+
+- [ ] `core/self_heal_guard.py` — two-key approval, deny lists, proof gate
+- [ ] Disabled unless `DRIFT_SELF_HEAL_ENABLED=1`
+
+## Phase 5 — Companion (optional module)
+
+- [ ] `core/companion_plugin.py` gates hive/shadow/homeostasis
+- [ ] Disabled unless `DRIFT_COMPANION_ENABLED=1`
+
+## Service profiles
 
 - Local mode: `systemctl --user enable --now anchor-web@local.service`
 - Server mode: `systemctl --user enable --now anchor-web@server.service`
-- Switch cleanly by stopping the current instance, enabling the target instance, and updating `~/.config/anchor/anchor-web-*.env` as needed.
 
+## Suggested release gate
 
-## Suggested Release Gate
-
-Do not call the project fully released until a fresh install can:
+Do not call Phase 1 **released** until a fresh install can:
 
 1. Install cleanly.
-2. Launch ANCHOR.
-3. Load the dashboard.
-4. Show healthy core panels.
+2. Launch ANCHOR via `./scripts/drift` or desktop launcher.
+3. Load the dashboard with healthy core panels.
+4. Run a Trinity smoke case through ledger.
 5. Survive optional-panel failures without breaking startup.
-

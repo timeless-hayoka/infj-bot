@@ -3,15 +3,16 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["drift", "drift.interfaces", "drift.evals", "drift.core", "drift.core.plugins", "drift.core.hive", "drift.tools", "drift.automation", "drift.automation.mouse", "drift.hive_mind", "drift.hive_mind.protocol", "drift.trinity", "drift.trinity.adapters", "drift.trinity.council", "drift.plugins"]
+packages = ["drift", "drift.interfaces", "drift.evals", "drift.metrics", "drift.core", "drift.core.plugins", "drift.core.hive", "drift.tools", "drift.automation", "drift.automation.mouse", "drift.hive_mind", "drift.hive_mind.protocol", "drift.trinity", "drift.trinity.adapters", "drift.trinity.council", "drift.trinity.sarif_pipeline", "drift.plugins"]
 
 [tool.setuptools.package-dir]
 drift = "drift"
 "drift.interfaces" = "interfaces"
+"drift.evals" = "evals"
+"drift.metrics" = "metrics"
 "drift.core" = "core"
 "drift.core.plugins" = "core/plugins"
 "drift.core.hive" = "core/hive"
-"drift.evals" = "evals"
 "drift.tools" = "tools"
 "drift.automation" = "automation"
 "drift.automation.mouse" = "automation/mouse"
@@ -20,6 +21,7 @@ drift = "drift"
 "drift.trinity" = "drift/trinity"
 "drift.trinity.adapters" = "drift/trinity/adapters"
 "drift.trinity.council" = "drift/trinity/council"
+"drift.trinity.sarif_pipeline" = "drift/trinity/sarif_pipeline"
 "drift.plugins" = "drift/plugins"
 
 
@@ -86,6 +88,12 @@ voice = [
     "piper-tts>=1.4",
     "sounddevice",
     "soundfile",
+]
+sarif-semantic = [
+    "umap-learn>=0.5",
+    "hdbscan>=0.8",
+    "plotly>=6.0",
+    "scikit-learn>=1.6",
 ]
 
 [project.scripts]

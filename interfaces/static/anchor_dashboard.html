@@ -391,6 +391,10 @@
 
     .bar { height: 8px; border-radius: 999px; background: rgba(255,255,255,0.05); overflow: hidden; margin-top: 10px; }
     .bar > div { height: 100%; width: 50%; background: linear-gradient(90deg, rgba(242,204,96,0.95), rgba(121,192,255,0.92)); }
+    .stability-row { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 4px 0; font-size: 0.92rem; }
+    .stability-row .label { flex: 1; min-width: 0; }
+    .stability-row .bar-text { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.02em; color: var(--muted); white-space: nowrap; }
+    .strategy-detail { margin-top: 8px; line-height: 1.45; }
 
     .list,
     .record-list {
@@ -559,6 +563,33 @@
           <div class="detail" id="evidenceSummary">Verified findings and benchmark signals will appear here.</div>
         </div>
 
+        <div class="block" id="benchmark-trends">
+          <h3>Benchmark Trends</h3>
+          <div class="rows metrics-grid">
+            <div class="kv"><span>Avg reproduction</span><strong id="trendsAvgRate">…</strong></div>
+            <div class="kv"><span>Trend</span><strong id="trendsDirection">…</strong></div>
+            <div class="kv"><span>Top improved</span><strong id="trendsTopImproved">…</strong></div>
+            <div class="kv"><span>Most unstable</span><strong id="trendsMostUnstable">…</strong></div>
+          </div>
+          <div class="panel-note loading" id="trendsStatus">Loading benchmark trends…</div>
+          <div class="detail" id="trendsSummary">Canonical trend output from snapshot (no client-side math).</div>
+          <div id="trendsStabilityList"></div>
+        </div>
+
+        <div class="block" id="benchmark-strategy">
+          <h3>Hunt Strategy</h3>
+          <div class="rows">
+            <div class="kv"><span>Next hunt</span><strong id="strategyNextHunt">…</strong></div>
+            <div class="kv"><span>Confidence</span><strong id="strategyConfidence">…</strong></div>
+            <div class="kv"><span>Effort</span><strong id="strategyEffort">…</strong></div>
+            <div class="kv"><span>ROI</span><strong id="strategyRoi">…</strong></div>
+          </div>
+          <div class="panel-note loading" id="strategyStatus">Loading hunt strategy…</div>
+          <div class="detail strategy-detail" id="strategyReason">Reason and expected gain render from snapshot fields only.</div>
+          <div class="detail" id="strategyExpectedGain"></div>
+          <div id="strategyRecommendations"></div>
+        </div>
+
         <div class="block" id="vault">
           <h3>Vault Visibility</h3>
           <div class="rows vault-grid">
@@ -669,6 +700,21 @@ const healthBar = document.getElementById('healthBar');
 const releaseStatus = document.getElementById('releaseStatus');
 const historyStatus = document.getElementById('historyStatus');
 const evidenceStatus = document.getElementById('evidenceStatus');
+const trendsAvgRate = document.getElementById('trendsAvgRate');
+const trendsDirection = document.getElementById('trendsDirection');
+const trendsTopImproved = document.getElementById('trendsTopImproved');
+const trendsMostUnstable = document.getElementById('trendsMostUnstable');
+const trendsSummary = document.getElementById('trendsSummary');
+const trendsStatus = document.getElementById('trendsStatus');
+const trendsStabilityList = document.getElementById('trendsStabilityList');
+const strategyNextHunt = document.getElementById('strategyNextHunt');
+const strategyConfidence = document.getElementById('strategyConfidence');
+const strategyEffort = document.getElementById('strategyEffort');
+const strategyRoi = document.getElementById('strategyRoi');
+const strategyReason = document.getElementById('strategyReason');
+const strategyExpectedGain = document.getElementById('strategyExpectedGain');
+const strategyStatus = document.getElementById('strategyStatus');
+const strategyRecommendations = document.getElementById('strategyRecommendations');
 const vaultNewsBriefs = document.getElementById('vaultNewsBriefs');
 const vaultLatestBrief = document.getElementById('vaultLatestBrief');
 const vaultFreshness = document.getElementById('vaultFreshness');
@@ -992,6 +1038,81 @@ async function loadContributions() {
 }
 
 
+function renderBenchmarkTrendsPanel(trends) {
+  if (!trends || !trends.published_count) {
+    trendsAvgRate.textContent = '—';
+    trendsDirection.textContent = '—';
+    trendsTopImproved.textContent = '—';
+    trendsMostUnstable.textContent = '—';
+    trendsSummary.textContent = 'No published benchmark history in snapshot yet.';
+    trendsStabilityList.innerHTML = '';
+    setPanelNotice(trendsStatus, 'optional', 'Trends unavailable until published runs exist in the manifest.');
+    return;
+  }
+
+  trendsAvgRate.textContent = trends.average_reproduction_rate_display || 'n/a';
+  trendsDirection.textContent = trends.trend_delta_display || trends.trend_direction || '—';
+  trendsTopImproved.textContent = trends.top_improved_challenge?.label || '—';
+  trendsMostUnstable.textContent = trends.most_unstable_challenge?.label || '—';
+  trendsSummary.textContent = [
+    `Published runs analyzed: ${trends.published_count}`,
+    trends.stability?.benchmark?.stable_pct_display ? `Stable: ${trends.stability.benchmark.stable_pct_display}` : null,
+    trends.stability?.benchmark?.investigate_pct_display ? `Investigate: ${trends.stability.benchmark.investigate_pct_display}` : null,
+  ].filter(Boolean).join(' · ');
+
+  const bars = trends.stability?.challenges || [];
+  trendsStabilityList.innerHTML = '';
+  if (bars.length) {
+    const heading = document.createElement('div');
+    heading.className = 'detail';
+    heading.textContent = 'Challenge stability (from snapshot bars):';
+    trendsStabilityList.appendChild(heading);
+    bars.slice(0, 8).forEach((row) => {
+      const line = document.createElement('div');
+      line.className = 'stability-row';
+      const filled = '█'.repeat(row.bar_filled ?? 0);
+      const empty = '░'.repeat(row.bar_empty ?? 0);
+      line.innerHTML = `<span class="label">${escapeHtml(row.label || row.challenge || '—')}</span><span class="bar-text">${filled}${empty}</span>`;
+      trendsStabilityList.appendChild(line);
+    });
+  }
+  setPanelNotice(trendsStatus, 'ready', 'Benchmark trends loaded from snapshot (canonical engine).');
+}
+
+function renderBenchmarkStrategyPanel(strategy) {
+  const next = strategy?.next_hunt;
+  if (!next) {
+    strategyNextHunt.textContent = '—';
+    strategyConfidence.textContent = '—';
+    strategyEffort.textContent = '—';
+    strategyRoi.textContent = '—';
+    strategyReason.textContent = 'No open hunt recommendation in snapshot.';
+    strategyExpectedGain.textContent = '';
+    strategyRecommendations.innerHTML = '';
+    setPanelNotice(strategyStatus, 'optional', 'Strategy idle — all tracked challenges passing or insufficient history.');
+    return;
+  }
+
+  strategyNextHunt.textContent = next.label || next.challenge || '—';
+  strategyConfidence.textContent = next.confidence ? String(next.confidence).toUpperCase() : '—';
+  strategyEffort.textContent = next.effort ? String(next.effort).toUpperCase() : '—';
+  strategyRoi.textContent = next.roi_stars || String(next.roi ?? '—');
+  strategyReason.textContent = next.reason || '—';
+  strategyExpectedGain.textContent = next.expected_gain ? `Expected gain: ${next.expected_gain}` : '';
+
+  strategyRecommendations.innerHTML = '';
+  const rows = (strategy.recommendations || []).slice(0, 5);
+  if (rows.length) {
+    rows.forEach((row) => {
+      const item = document.createElement('div');
+      item.className = 'detail';
+      item.textContent = `${row.label || row.challenge}: ${row.reason || row.status || '—'}`;
+      strategyRecommendations.appendChild(item);
+    });
+  }
+  setPanelNotice(strategyStatus, 'ready', 'Hunt strategy loaded from snapshot (consumes trends).');
+}
+
 function applyAnchorSnapshot(snapshot) {
   if (!snapshot) return;
   const release = snapshot.identity || snapshot.release || {};
@@ -1081,6 +1202,9 @@ function applyAnchorSnapshot(snapshot) {
     metrics.latest_benchmark?.reproduction_success != null ? `Latest benchmark reproduction: ${Number(metrics.latest_benchmark.reproduction_success || 0).toFixed(2)}` : null,
   ].filter(Boolean).join(' · ');
   setPanelNotice(evidenceStatus, 'ready', `Loaded ${metrics.claims_generated ?? 0} generated claim${(metrics.claims_generated ?? 0) === 1 ? '' : 's'}.`);
+
+  renderBenchmarkTrendsPanel(snapshot.benchmark_trends || null);
+  renderBenchmarkStrategyPanel(snapshot.benchmark_strategy || null);
 
   vaultNewsBriefs.textContent = String(vault.news_briefs ?? 0);
   vaultLatestBrief.textContent = vault.last_daily_brief || 'none';

@@ -189,6 +189,12 @@ class Dreamer:
             pass
         dream = self.dream(recent)
         try:
+            from core.memory_scheduler import run_memory_consolidation_sync
+
+            run_memory_consolidation_sync()
+        except Exception:
+            pass
+        try:
             from drift.core.global_workspace import get_workspace
 
             ws = get_workspace()

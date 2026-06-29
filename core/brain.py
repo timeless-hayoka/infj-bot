@@ -44,6 +44,8 @@ from drift.core.config import (
     DRIFT_PRIMARY_MODEL,
     DRIFT_CRITIC_MODEL,
     DRIFT_USE_LOCAL_FALLBACK,
+    DRIFT_USE_GLEN,
+    DRIFT_FAST_MODE,
     GROQ_API_KEY,
     DRIFT_GROQ_MODEL,
     DRIFT_USE_GROQ,
@@ -54,6 +56,10 @@ from drift.core.config import (
     DRIFT_PREFER_LOCAL,
     DRIFT_HISTORY_SIZE,
     DRIFT_GEN_CACHE_SIZE,
+    OPENAI_API_KEY,
+    DRIFT_OPENAI_MODEL,
+    DRIFT_USE_OPENAI,
+    DRIFT_USE_GEMINI,
 )
 import collections
 from drift.core.gen_cache import DiskGenCache
@@ -81,9 +87,9 @@ try:
 except Exception:
     CHILL_WORD_LIST = ""
 
-if not API_KEY and not GROQ_API_KEY and not KIMI_API_KEY:
+if not API_KEY and not OPENAI_API_KEY and not GROQ_API_KEY and not KIMI_API_KEY:
     print(
-        "Warning: No API keys found (Gemini, Groq, or Kimi). Set them in a .env file. "
+        "Warning: No API keys found (OpenAI, Groq, or Kimi). Set them in a .env file. "
         "Bot functionality will be limited to local models.",
         file=sys.stderr
     )
@@ -172,8 +178,10 @@ class DriftBrain(_BrainGenerationMixin):
             except Exception:
                 self._disk_cache = None
         import os
-        FAST_MODE = os.environ.get("DRIFT_FAST_MODE", "true").lower() == "true"
-        if FAST_MODE:
+        use_glen = DRIFT_USE_GLEN or (
+            DRIFT_FAST_MODE and self._prefer_local and self._use_local_fallback
+        )
+        if use_glen:
             from drift.core.glen_bridge import GLENBridge
             self.local_bridge = GLENBridge()
         else:
@@ -208,7 +216,14 @@ class DriftBrain(_BrainGenerationMixin):
             self.critic_model = None
             self.chat = None
 
-        elif new_genai is not None and API_KEY:
+        elif DRIFT_USE_OPENAI and OPENAI_API_KEY:
+            self.sdk = "openai"
+            self.client = None
+            self.primary_model = None
+            self.critic_model = None
+            self.chat = None
+
+        elif new_genai is not None and API_KEY and DRIFT_USE_GEMINI:
             self.sdk = "google.genai"
             self.client = new_genai.Client(
                 api_key=API_KEY,
@@ -219,7 +234,7 @@ class DriftBrain(_BrainGenerationMixin):
 
         # Use legacy generative SDK if available. Allow usage of the local mock
         # even when an API key is not provided (useful for offline testing).
-        elif legacy_genai is not None and (
+        elif legacy_genai is not None and DRIFT_USE_GEMINI and (
             API_KEY or getattr(legacy_genai, "IS_LOCAL_MOCK", False)
         ):
             self.sdk = "google.generativeai"
@@ -359,11 +374,16 @@ class DriftBrain(_BrainGenerationMixin):
             or "quota" in reason.lower()
         ):
             return (
-                "⚠️  Gemini quota exceeded (429). The API key has hit its rate limit.\n\n"
-                "I'm falling back to the local Ollama model, but it's slower on CPU. "
-                "If responses feel sluggish, that's why.\n\n"
-                "Fix: wait a few minutes, or check your Gemini quota at "
-                "https://aistudio.google.com/app/apikey"
+                "⚠️  OpenAI quota or rate limit hit.\n\n"
+                "I'm falling back to the local Ollama model if it's available.\n\n"
+                "Fix: wait a few minutes or check billing/limits at "
+                "https://platform.openai.com/account/limits"
+            )
+        if "gemini" in reason.lower() or "google" in reason.lower():
+            return (
+                "⚠️  Gemini is disabled in this install. Set DRIFT_USE_OPENAI=true "
+                "and OPENAI_API_KEY in .env.\n\n"
+                f"[error: {type(exc).__name__}: {reason}]"
             )
         if "KIMI" in reason.upper() or "moonshot" in reason.lower():
             return (
@@ -375,7 +395,7 @@ class DriftBrain(_BrainGenerationMixin):
             local_hint = "[Local model is online but also failed this request.]\n\n"
         return (
             f"{local_hint}"
-            "I hit a model/API problem before I could think with Gemini, but I can still keep the thread steady.\n\n"
+            "I hit a model/API problem before I could finish, but I can still keep the thread steady.\n\n"
             "What I can do locally: separate the situation into facts, interpretations, feelings, values, "
             "and one small next action. Try `/dissonance <situation>` if this is an inner-conflict loop, "
             "or ask again once the model connection settles.\n\n"
@@ -853,7 +873,11 @@ class DriftBrain(_BrainGenerationMixin):
         if not tools_enabled:
             return self.think(user_input, raw_user_input=raw_user_input, mode=mode)
 
-        provider = "ollama" if "ollama" in self.primary_model_name.lower() or "qwen" in self.primary_model_name.lower() else "gemini"
+        provider = (
+            "ollama"
+            if "ollama" in self.primary_model_name.lower() or "qwen" in self.primary_model_name.lower()
+            else "openai"
+        )
         _sampler = CPUSampler(
             inference_pid=_get_ollama_pid() if provider == "ollama" else None
         ).start()
@@ -1105,7 +1129,11 @@ class DriftBrain(_BrainGenerationMixin):
         sys_instruction = self.get_system_instruction(user_input)
         request_budget = self._current_request_budget()
 
-        provider = "ollama" if "ollama" in self.primary_model_name.lower() or "qwen" in self.primary_model_name.lower() else "gemini"
+        provider = (
+            "ollama"
+            if "ollama" in self.primary_model_name.lower() or "qwen" in self.primary_model_name.lower()
+            else "openai"
+        )
         _sampler = CPUSampler(
             inference_pid=_get_ollama_pid() if provider == "ollama" else None
         ).start()
@@ -1299,9 +1327,15 @@ Rules:
         return scores
 
     def health_check(self) -> dict:
-        gemini_ok = API_KEY is not None and API_KEY != ""
+        openai_ok = DRIFT_USE_OPENAI and bool(OPENAI_API_KEY)
+        gemini_ok = DRIFT_USE_GEMINI and API_KEY is not None and API_KEY != ""
         local_ok = self.local_bridge.is_available()
         return {
+            "openai": {
+                "ok": openai_ok,
+                "model": DRIFT_OPENAI_MODEL,
+                "sdk": self.sdk,
+            },
             "gemini": {
                 "ok": gemini_ok,
                 "sdk": self.sdk,

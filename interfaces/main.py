@@ -453,6 +453,18 @@ async def consciousness_loop():
             logger.exception("proactive insight failed")
 
 
+async def _read_user_line(prompt: str) -> str | None:
+    """Read a line from the user; None if stdin closed (non-interactive shell)."""
+
+    def _read() -> str | None:
+        try:
+            return console.input(prompt)
+        except EOFError:
+            return None
+
+    return await asyncio.to_thread(_read)
+
+
 async def chat_loop():
     """Main interactive chat loop."""
     console.print(Panel(
@@ -465,7 +477,14 @@ async def chat_loop():
     _temporal.record_session_start()
 
     while True:
-        user_input = await asyncio.to_thread(console.input, "\n[bold green]USER[/bold green]> ")
+        user_input = await _read_user_line("\n[bold green]USER[/bold green]> ")
+        if user_input is None:
+            console.print(
+                "[yellow]Input closed (no TTY). Open a terminal and run: "
+                "./scripts/drift chat[/yellow]"
+            )
+            _temporal.record_session_end()
+            break
 
         if user_input.lower() in ["exit", "quit"]:
             console.print("[dim italic]* I'll be here in the quiet if you need me again. Goodbye, Jude.[/dim italic]")

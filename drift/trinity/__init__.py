@@ -1,6 +1,6 @@
 """Trinity system helpers."""
 
-from .adapters import build_slither_findings, is_slither_payload
+from .adapters import build_sarif_findings, build_slither_findings, is_sarif_payload, is_slither_payload
 from .database import TrinityDatabase, db
 from .caseflow import (
     TRINITY_CASES_DIR,
@@ -31,7 +31,9 @@ except ModuleNotFoundError as exc:  # pragma: no cover - optional web dependency
         raise RuntimeError("FastAPI is not installed; Trinity HTTP API is unavailable.")
 
 __all__ = [
+    'build_sarif_findings',
     'build_slither_findings',
+    'is_sarif_payload',
     'is_slither_payload',
     'TRINITY_CASES_DIR',
     'TRINITY_LEDGER_PATH',

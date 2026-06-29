@@ -13,3 +13,14 @@ if _venv_site.is_dir():
     site_str = str(_venv_site)
     if site_str not in sys.path:
         sys.path.insert(0, site_str)
+
+# Register drift.evals / drift.metrics when running pytest without reinstall quirks.
+import types
+
+for _sub, _folder in (("evals", "evals"), ("metrics", "metrics")):
+    _full = f"drift.{_sub}"
+    _path = ROOT / _folder
+    if _path.is_dir() and _full not in sys.modules:
+        _mod = types.ModuleType(_full)
+        _mod.__path__ = [str(_path)]  # type: ignore[attr-defined]
+        sys.modules[_full] = _mod
