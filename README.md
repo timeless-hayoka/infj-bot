@@ -19,6 +19,17 @@ For the companion release-readiness checklist, see [docs/ANCHOR_RELEASE_CHECKLIS
 For a one-command install plan, run `anchor install laptop` or `anchor install droplet --public-url http://<droplet-ip>:8767/anchor`.
 For a short install path, see [docs/ANCHOR_QUICKSTART.md](docs/ANCHOR_QUICKSTART.md).
 
+## ANCHOR sibling setup
+
+Clone [ANCHOR](https://github.com/timeless-hayoka/ANCHOR) beside this repo so knowledge tools resolve automatically:
+
+```bash
+git clone https://github.com/timeless-hayoka/ANCHOR.git ../ANCHOR
+export ANCHOR_ROOT="$(cd ../ANCHOR && pwd)"
+```
+
+Drift MCP tools (`anchor_knowledge_*`) and Trinity pipeline bridges read from `ANCHOR/knowledge/`. Run the MCP server with `./scripts/run_mcp.sh` or use `.cursor/mcp.json` after adjusting paths for your machine.
+
 ## Internal Companion Story
 
 This repository keeps the AI companion surface, state management, and guardrails that support the ANCHOR flagship. It turns tool signals into structured cases, requires proof before a finding is promoted, and preserves what was tested, what failed, and what remains unverified.
