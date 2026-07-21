@@ -69,18 +69,17 @@ def test_env():
         os.unlink(self_eval_db)
 
 
+def _has_real_api_key() -> bool:
+    for k in ("GEMINI_API_KEY", "API_KEY", "GOOGLE_API_KEY", "GROQ_API_KEY", "KIMI_API_KEY"):
+        v = os.getenv(k)
+        if v and not v.startswith("ci-placeholder"):
+            return True
+    return False
+
+
 @pytest.mark.skipif(
-    not any(
-        os.getenv(k)
-        for k in (
-            "GEMINI_API_KEY",
-            "API_KEY",
-            "GOOGLE_API_KEY",
-            "GROQ_API_KEY",
-            "KIMI_API_KEY",
-        )
-    ),
-    reason="No LLM API key configured — skipping integration test",
+    not _has_real_api_key(),
+    reason="No valid LLM API key configured — skipping integration test",
 )
 def test_ambiguous_truth_stress(test_env):
     shadow, evaluator, brain, memory, state = test_env
