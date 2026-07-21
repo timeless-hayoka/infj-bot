@@ -9,14 +9,22 @@ from typing import Any, List
 import threading
 
 import numpy as np
-import torch
 import os
 
-# Force CPU device for all subsequent torch operations in this process
-os.environ["TORCH_DEVICE"] = "cpu"
-torch.set_default_device("cpu")
+try:
+    import torch
+    os.environ["TORCH_DEVICE"] = "cpu"
+    torch.set_default_device("cpu")
+    _TORCH_AVAILABLE = True
+except ImportError:
+    torch = None  # type: ignore[assignment]
+    _TORCH_AVAILABLE = False
 
-from chromadb.api.types import Documents, Embeddings
+try:
+    from chromadb.api.types import Documents, Embeddings
+except ImportError:
+    Documents = List  # type: ignore[misc,assignment]
+    Embeddings = List  # type: ignore[misc,assignment]
 
 
 class SemanticEmbeddingFunction:
@@ -51,11 +59,16 @@ class SemanticEmbeddingFunction:
     def name(self) -> str:
         return "semantic_minilm"
 
-    def embed_query(self, input: str | None = None) -> np.ndarray:
+    def embed_query(self, input=None):
         """Single-string embedding. Parameter name matches Chroma's protocol."""
         if input is None:
             raise TypeError("embed_query requires a text input")
         enc = self._encoder()
+        if isinstance(input, list):
+            if not input:
+                raise TypeError("embed_query requires a non-empty text input")
+            batch = enc.encode(input, convert_to_numpy=True)
+            return [np.asarray(v, dtype=np.float64) for v in batch]
         v = enc.encode(input, convert_to_numpy=True)
         return np.asarray(v, dtype=np.float64)
 
@@ -87,9 +100,13 @@ class LocalEmbeddingFunction:
     def name() -> str:
         return "local_hash_embedding"
 
-    def embed_query(self, input: str | None = None) -> List[float]:
+    def embed_query(self, input=None):
         if input is None:
             raise TypeError("embed_query requires a text input")
+        if isinstance(input, list):
+            if not input:
+                raise TypeError("embed_query requires a non-empty text input")
+            return [self._vec(t) for t in input]
         return self._vec(input)
 
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
@@ -107,5 +124,9 @@ class LocalEmbeddingFunction:
         return [v / mag for v in vals]
 
 
-def get_default_embedding_function() -> SemanticEmbeddingFunction:
-    return SemanticEmbeddingFunction()
+def get_default_embedding_function():
+    try:
+        import sentence_transformers  # noqa: F401
+        return SemanticEmbeddingFunction()
+    except ImportError:
+        return LocalEmbeddingFunction()

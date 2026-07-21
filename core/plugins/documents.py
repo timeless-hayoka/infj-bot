@@ -5,7 +5,12 @@ import uuid
 from pathlib import Path
 from typing import List, Optional
 
-import chromadb
+try:
+    import chromadb
+    _CHROMADB_AVAILABLE = True
+except ImportError:
+    chromadb = None  # type: ignore[assignment]
+    _CHROMADB_AVAILABLE = False
 
 from drift.core.config import PROJECT_ROOT, DATA_DIR
 from drift.core.embeddings import (

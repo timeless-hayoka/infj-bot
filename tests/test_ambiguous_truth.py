@@ -67,6 +67,10 @@ def test_env():
     if self_eval_db.exists():
         os.unlink(self_eval_db)
 
+@pytest.mark.skipif(
+    not any(os.getenv(k) for k in ("GEMINI_API_KEY", "API_KEY", "GOOGLE_API_KEY", "GROQ_API_KEY", "KIMI_API_KEY")),
+    reason="No LLM API key configured — skipping integration test"
+)
 def test_ambiguous_truth_stress(test_env):
     shadow, evaluator, brain, memory, state = test_env
     

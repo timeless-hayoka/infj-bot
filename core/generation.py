@@ -875,14 +875,16 @@ class _BrainGenerationMixin:
         """Fail fast on misconfig. Runs ONCE at boot (NOT per request — base_url
         and keys are static, so per-call validation would just burn cycles and
         still can't catch a revoked-but-present key)."""
-        problems: list[str] = []
+        import logging as _logging
+        _log = _logging.getLogger("drift.generation")
         if DRIFT_USE_GROQ and not GROQ_API_KEY:
-            problems.append("DRIFT_USE_GROQ set but GROQ_API_KEY missing")
+            _log.warning("DRIFT_USE_GROQ is enabled but GROQ_API_KEY is not set; Groq will be skipped")
         if DRIFT_USE_KIMI and not KIMI_API_KEY:
-            problems.append("DRIFT_USE_KIMI set but KIMI_API_KEY missing")
+            _log.warning("DRIFT_USE_KIMI is enabled but KIMI_API_KEY is not set; Kimi will be skipped")
         if (DRIFT_USE_KIMI and KIMI_API_KEY
                 and not str(KIMI_BASE_URL or "").startswith("http")):
-            problems.append(f"KIMI_BASE_URL invalid (need http[s]://...): {KIMI_BASE_URL!r}")
+            raise RuntimeError(
+                f"DRIFT provider config invalid: KIMI_BASE_URL invalid (need http[s]://...): {KIMI_BASE_URL!r}")
         usable = (
             (DRIFT_USE_GROQ and GROQ_API_KEY)
             or (DRIFT_USE_KIMI and KIMI_API_KEY)
@@ -891,11 +893,11 @@ class _BrainGenerationMixin:
             or (self._use_local_fallback and self.local_bridge.is_available())
         )
         if not usable:
-            problems.append(
-                "no usable provider — set an API key or enable local fallback")
-        if problems:
-            raise RuntimeError(
-                "DRIFT provider config invalid:\n  - " + "\n  - ".join(problems))
+            _log.warning(
+                "DRIFT: no usable provider configured — "
+                "set an API key (GEMINI_API_KEY, GROQ_API_KEY, etc.) or ensure Ollama is running. "
+                "Generation calls will fail until a provider is available."
+            )
 
     # ---- provider adapters that need self ---------------------------------#
     def _hf_generate(self, system: str, prompt: str, timeout: Optional[float] = None, history=None, **kwargs) -> str:

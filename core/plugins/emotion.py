@@ -169,7 +169,7 @@ def _detect_lexicon(text: str) -> Dict:
         else "neutral"
     )
     intensity = min(1.0, 0.25 + score * 0.18 + text.count("!") * 0.05)
-    confidence = 0.2 if score == 0 else min(0.95, 0.35 + score * 0.12)
+    confidence = 0.35 if score == 0 else min(0.95, 0.35 + score * 0.12)
     valence, arousal, needs = EMOTION_DIMENSIONS[label]
     return {
         "label": label,

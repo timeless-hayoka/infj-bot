@@ -1,6 +1,6 @@
 STAGES = [
     {
-        "name": "Dormant Core",
+        "name": "Spark",
         "avatar": "egg",
         "size": 0.55,
         "min_points": 0,
