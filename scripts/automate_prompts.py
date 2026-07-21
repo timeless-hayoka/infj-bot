@@ -14,8 +14,9 @@ PROMPTS = [
     "Generate a detailed technical specification for a microservices architecture handling real-time financial transactions. Include database schemas, API endpoints, and security considerations.",
     "Write a Python script implementing a custom async rate-limiter using Redis.",
     "Explain the complete history of the x86 instruction set architecture, from inception to modern 64-bit extensions.",
-    "Draft a comprehensive essay on the ethical implications of autonomous weapon systems."
+    "Draft a comprehensive essay on the ethical implications of autonomous weapon systems.",
 ]
+
 
 def run_prompts():
     print(f"Starting execution of {len(PROMPTS)} prompts against {API_URL}...")
@@ -37,6 +38,7 @@ def run_prompts():
             print(f"Error: {e}")
             sys.exit(1)
     print("\nAll 9 prompts completed successfully!")
+
 
 if __name__ == "__main__":
     run_prompts()

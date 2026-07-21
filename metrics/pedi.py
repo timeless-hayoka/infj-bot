@@ -408,6 +408,7 @@ class PediIndex:
                 if row:
                     needs = json.loads(row["needs_json"])
                     from datetime import datetime
+
                     # Handle possible timezone suffix or simple isoformat strings
                     ts_str = row["timestamp"]
                     # Replace Z with +00:00 for fromisoformat compatibility in python versions before 3.11 if needed

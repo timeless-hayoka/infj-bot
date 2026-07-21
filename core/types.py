@@ -21,6 +21,7 @@ class SparkImpulse:
 @dataclass
 class SecurityScanResult:
     """Result of scanning a single user input."""
+
     input_preview: str
     blocked: bool = False
     warn: bool = False

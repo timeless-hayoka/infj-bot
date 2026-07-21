@@ -58,28 +58,36 @@ doc_store: Optional[DocumentStore] = None
 
 
 # === Prometheus Metrics ===
-pedi_gauge = Gauge('drift_pedi_value', 'Persistent Entity Drift Index')
-dii_gauge = Gauge('drift_dii_value', 'Dynamic Integration Index')
-energy_gauge = Gauge('drift_energy_level', 'Current energy level')
-social_risk_gauge = Gauge('drift_social_risk', 'Current social engineering risk')
-shadow_influence_gauge = Gauge('drift_shadow_influence', 'Current shadow influence')
-active_connections_gauge = Gauge('drift_active_ws_connections', 'Active WebSocket connections')
-sparks_delivered_counter = Counter('drift_sparks_delivered_total', 'Total sparks delivered')
-security_blocks_counter = Counter('drift_security_blocks_total', 'Total security blocks')
-high_risk_events_counter = Counter('drift_high_risk_events_total', 'Total high social risk events')
+pedi_gauge = Gauge("drift_pedi_value", "Persistent Entity Drift Index")
+dii_gauge = Gauge("drift_dii_value", "Dynamic Integration Index")
+energy_gauge = Gauge("drift_energy_level", "Current energy level")
+social_risk_gauge = Gauge("drift_social_risk", "Current social engineering risk")
+shadow_influence_gauge = Gauge("drift_shadow_influence", "Current shadow influence")
+active_connections_gauge = Gauge(
+    "drift_active_ws_connections", "Active WebSocket connections"
+)
+sparks_delivered_counter = Counter(
+    "drift_sparks_delivered_total", "Total sparks delivered"
+)
+security_blocks_counter = Counter(
+    "drift_security_blocks_total", "Total security blocks"
+)
+high_risk_events_counter = Counter(
+    "drift_high_risk_events_total", "Total high social risk events"
+)
 
 
 async def broadcast_security_event(event_data: dict):
     """Broadcast security event to dashboard and update metrics."""
     event_data["type"] = "security"
     await manager.broadcast(event_data)
-    
+
     # Update counters
     if event_data.get("action") == "block":
         security_blocks_counter.inc()
     if event_data.get("social_risk", 0) > 0.5:
         high_risk_events_counter.inc()
-    
+
     # Update gauges
     social_risk_gauge.set(event_data.get("social_risk", 0))
     shadow_influence_gauge.set(event_data.get("shadow_influence", 0))
@@ -98,11 +106,11 @@ async def server_heartbeat():
                 "ts": datetime.now().isoformat(),
                 "count": heartbeat_count,
                 "status": "alive",
-                "pedi_value": getattr(being.state.pedi, 'value', 0.0),
-                "pedi_stability": getattr(being.state.pedi, 'stability', 0.0),
-                "dii_value": getattr(being.state.dii, 'value', 0.0),
-                "energy": getattr(being.state, 'energy', 0.0),
-                "message": "Server heartbeat — connection healthy"
+                "pedi_value": getattr(being.state.pedi, "value", 0.0),
+                "pedi_stability": getattr(being.state.pedi, "stability", 0.0),
+                "dii_value": getattr(being.state.dii, "value", 0.0),
+                "energy": getattr(being.state, "energy", 0.0),
+                "message": "Server heartbeat — connection healthy",
             }
             await manager.broadcast(heartbeat_msg)
         except Exception:

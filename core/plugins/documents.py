@@ -7,6 +7,7 @@ from typing import List, Optional
 
 try:
     import chromadb
+
     _CHROMADB_AVAILABLE = True
 except ImportError:
     chromadb = None  # type: ignore[assignment]

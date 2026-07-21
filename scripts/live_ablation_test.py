@@ -24,20 +24,53 @@ PROMPTS = [
 ]
 
 FORMAL_MARKERS = [
-    "metacognitive", "adversarial kindness", "plan-critic loop",
-    "cognitive dissonance", "feedback loops", "second-order effects",
-    "I am an AI companion", "DRIFT-inspired", "philosophical depth",
-    "critical independence", "non-linear insight", "systems thinking",
+    "metacognitive",
+    "adversarial kindness",
+    "plan-critic loop",
+    "cognitive dissonance",
+    "feedback loops",
+    "second-order effects",
+    "I am an AI companion",
+    "DRIFT-inspired",
+    "philosophical depth",
+    "critical independence",
+    "non-linear insight",
+    "systems thinking",
 ]
 CHILL_MARKERS = [
-    "chillin", "vibe", "vibin", "lowkey", "highkey", "nah", "yep",
-    "kinda", "sorta", "honestly", "real talk", "no stress",
-    "bet", "say less", "aight", "hm", "alright", "ok ok",
-    "hangin", "dope", "solid", "tight", "for real", "no cap",
+    "chillin",
+    "vibe",
+    "vibin",
+    "lowkey",
+    "highkey",
+    "nah",
+    "yep",
+    "kinda",
+    "sorta",
+    "honestly",
+    "real talk",
+    "no stress",
+    "bet",
+    "say less",
+    "aight",
+    "hm",
+    "alright",
+    "ok ok",
+    "hangin",
+    "dope",
+    "solid",
+    "tight",
+    "for real",
+    "no cap",
 ]
 PARROT_MARKERS = [
-    "energy is at", "curiosity is at", "attachment is at",
-    "mood is", "heartbeat", "my current state", "your energy",
+    "energy is at",
+    "curiosity is at",
+    "attachment is at",
+    "mood is",
+    "heartbeat",
+    "my current state",
+    "your energy",
 ]
 
 OLD_FORMAL_PROMPT = """You are an AI companion with a deep-thinking DRIFT-inspired personality profile.
@@ -71,20 +104,26 @@ def api_chat(msg):
         t0 = time.time()
         with urllib.request.urlopen(req, timeout=60) as resp:
             body = json.loads(resp.read().decode())
-        return {"ok": True, "latency": round(time.time()-t0, 2), "reply": body.get("reply", "")}
+        return {
+            "ok": True,
+            "latency": round(time.time() - t0, 2),
+            "reply": body.get("reply", ""),
+        }
     except Exception as e:
         return {"ok": False, "latency": 0, "error": str(e), "reply": ""}
 
 
 def direct_chat(prompt, system_prompt):
     import drift.core.brain as bm
+
     old = bm.INFJ_SYSTEM_PROMPT
     bm.INFJ_SYSTEM_PROMPT = system_prompt
     try:
         from drift.core.brain import DriftBrain
+
         t0 = time.time()
         reply = DriftBrain().think(prompt)
-        return {"ok": True, "latency": round(time.time()-t0, 2), "reply": reply}
+        return {"ok": True, "latency": round(time.time() - t0, 2), "reply": reply}
     finally:
         bm.INFJ_SYSTEM_PROMPT = old
 
@@ -94,8 +133,10 @@ def score(text):
     chill = [m for m in CHILL_MARKERS if m.lower() in text.lower()]
     parrot = any(p in text.lower() for p in PARROT_MARKERS)
     return {
-        "formal_score": len(formal), "chill_score": len(chill),
-        "state_parrot": parrot, "length": len(text),
+        "formal_score": len(formal),
+        "chill_score": len(chill),
+        "state_parrot": parrot,
+        "length": len(text),
     }
 
 
@@ -107,7 +148,9 @@ def run_api_current():
         sc = score(resp["reply"])
         sc.update({"label": label, "prompt": prompt, **resp})
         results.append(sc)
-        print(f"  [{label}] lat={resp['latency']}s formal={sc['formal_score']} chill={sc['chill_score']} parrot={sc['state_parrot']}")
+        print(
+            f"  [{label}] lat={resp['latency']}s formal={sc['formal_score']} chill={sc['chill_score']} parrot={sc['state_parrot']}"
+        )
     return results
 
 
@@ -119,7 +162,9 @@ def run_direct_old_formal():
         sc = score(resp["reply"])
         sc.update({"label": label, "prompt": prompt, **resp})
         results.append(sc)
-        print(f"  [{label}] lat={resp['latency']}s formal={sc['formal_score']} chill={sc['chill_score']} parrot={sc['state_parrot']}")
+        print(
+            f"  [{label}] lat={resp['latency']}s formal={sc['formal_score']} chill={sc['chill_score']} parrot={sc['state_parrot']}"
+        )
     return results
 
 
@@ -137,16 +182,20 @@ def main():
 
     summary = {
         "API_CURRENT": {
-            "avg_formal": round(sum(r["formal_score"] for r in current)/len(current), 2),
-            "avg_chill": round(sum(r["chill_score"] for r in current)/len(current), 2),
+            "avg_formal": round(
+                sum(r["formal_score"] for r in current) / len(current), 2
+            ),
+            "avg_chill": round(
+                sum(r["chill_score"] for r in current) / len(current), 2
+            ),
             "parrot_count": sum(1 for r in current if r["state_parrot"]),
-            "avg_latency": round(sum(r["latency"] for r in current)/len(current), 2),
+            "avg_latency": round(sum(r["latency"] for r in current) / len(current), 2),
         },
         "OLD_FORMAL": {
-            "avg_formal": round(sum(r["formal_score"] for r in old)/len(old), 2),
-            "avg_chill": round(sum(r["chill_score"] for r in old)/len(old), 2),
+            "avg_formal": round(sum(r["formal_score"] for r in old) / len(old), 2),
+            "avg_chill": round(sum(r["chill_score"] for r in old) / len(old), 2),
             "parrot_count": sum(1 for r in old if r["state_parrot"]),
-            "avg_latency": round(sum(r["latency"] for r in old)/len(old), 2),
+            "avg_latency": round(sum(r["latency"] for r in old) / len(old), 2),
         },
     }
 
@@ -180,21 +229,27 @@ def main():
         f.write("FULL RESPONSES — CURRENT API\n\n")
         for r in current:
             f.write(f"[{r['label']}] > {r['prompt']}\n")
-            f.write(f"lat={r['latency']}s formal={r['formal_score']} chill={r['chill_score']} parrot={r['state_parrot']}\n")
+            f.write(
+                f"lat={r['latency']}s formal={r['formal_score']} chill={r['chill_score']} parrot={r['state_parrot']}\n"
+            )
             f.write(f"{r['reply']}\n\n")
 
         f.write("=" * 60 + "\n")
         f.write("FULL RESPONSES — OLD FORMAL PERSONA\n\n")
         for r in old:
             f.write(f"[{r['label']}] > {r['prompt']}\n")
-            f.write(f"lat={r['latency']}s formal={r['formal_score']} chill={r['chill_score']} parrot={r['state_parrot']}\n")
+            f.write(
+                f"lat={r['latency']}s formal={r['formal_score']} chill={r['chill_score']} parrot={r['state_parrot']}\n"
+            )
             f.write(f"{r['reply']}\n\n")
 
     print("\n" + "=" * 60)
     print("DONE")
     print("=" * 60)
     for name, s in summary.items():
-        print(f"{name:20s} | formal={s['avg_formal']:.1f} | chill={s['avg_chill']:.1f} | parrot={s['parrot_count']}/3 | lat={s['avg_latency']:.1f}s")
+        print(
+            f"{name:20s} | formal={s['avg_formal']:.1f} | chill={s['avg_chill']:.1f} | parrot={s['parrot_count']}/3 | lat={s['avg_latency']:.1f}s"
+        )
     print(f"\nSaved to:\n  {txt_path}\n  {json_path}")
 
 

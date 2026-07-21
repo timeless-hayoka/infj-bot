@@ -44,7 +44,9 @@ from typing import Any, Dict, List
 import contextvars
 from drift.core.safe_math import compute, looks_like_math, MathError
 
-active_grounded_math_var: contextvars.ContextVar[List[GroundedResult]] = contextvars.ContextVar("active_grounded_math", default=[])
+active_grounded_math_var: contextvars.ContextVar[List[GroundedResult]] = (
+    contextvars.ContextVar("active_grounded_math", default=[])
+)
 
 
 # --------------------------------------------------------------------------- #
@@ -88,11 +90,13 @@ def extract_math_candidates(text: str) -> List[str]:
 # Grounded result type
 # --------------------------------------------------------------------------- #
 
+
 class GroundedResult:
     """One verified math result for this turn."""
+
     def __init__(self, expression: str, result: Dict[str, Any]):
         self.expression = expression
-        self.result = result              # the full dict from compute()
+        self.result = result  # the full dict from compute()
         self.ok = result["ok"]
 
     @property
@@ -118,6 +122,7 @@ class GroundedResult:
 # --------------------------------------------------------------------------- #
 # 1. PROMPT BUILDER HOOK
 # --------------------------------------------------------------------------- #
+
 
 def compute_grounded_results(user_input: str) -> List[GroundedResult]:
     """Compute verified results for all math found in user_input.
@@ -169,7 +174,9 @@ def build_grounding_block(grounded: List[GroundedResult]) -> str:
     return "\n".join(lines)
 
 
-def inject_grounded_math(user_input: str, existing_prompt: str) -> tuple[str, List[GroundedResult]]:
+def inject_grounded_math(
+    user_input: str, existing_prompt: str
+) -> tuple[str, List[GroundedResult]]:
     """One-call convenience: compute, format, and prepend to the existing prompt.
 
     ADAPT: Replace `existing_prompt` with whatever your prompt_builder constructs.
@@ -290,8 +297,7 @@ def _run_integration_check() -> None:
     print("safe_math_integration smoke-check")
     # Hook 1: prompt injection
     prompt, grounded = inject_grounded_math(
-        "What is 1/3 + 1/3 + 1/3?",
-        "SYSTEM PROMPT PLACEHOLDER"
+        "What is 1/3 + 1/3 + 1/3?", "SYSTEM PROMPT PLACEHOLDER"
     )
     assert "[MATH ENGINE" in prompt, "injection failed"
     assert any(g.ok for g in grounded), "no grounded result"

@@ -5,7 +5,12 @@ from pathlib import Path
 repo_dir = Path("/home/crexs/drift")
 
 for p in repo_dir.rglob("*"):
-    if p.is_file() and ".git" not in p.parts and ".venv" not in p.parts and "node_modules" not in p.parts:
+    if (
+        p.is_file()
+        and ".git" not in p.parts
+        and ".venv" not in p.parts
+        and "node_modules" not in p.parts
+    ):
         try:
             content = p.read_text("utf-8")
             if "drift" in content or "drift" in content:

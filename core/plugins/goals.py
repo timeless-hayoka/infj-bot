@@ -72,6 +72,7 @@ class Goal:
 class GoalsDB:
     def __init__(self, db_path: Optional[str | Path] = None):
         from pathlib import Path
+
         if db_path is None:
             self.db_path = str(DB_PATH)
         else:
@@ -216,4 +217,3 @@ if __name__ == "__main__":
     gid = db.add_goal("Build the DRIFT agent layer", priority=2, tags="dev")
     print(f"Added goal {gid}")
     print(db.active_summary())
-

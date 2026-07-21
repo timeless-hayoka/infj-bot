@@ -9,8 +9,10 @@ from typing import Dict, Any, Optional
 import numpy as np
 from dataclasses import dataclass
 import sqlite3
+
 try:
     import chromadb
+
     _CHROMADB_AVAILABLE = True
 except ImportError:
     chromadb = None  # type: ignore[assignment]

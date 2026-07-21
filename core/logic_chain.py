@@ -384,12 +384,14 @@ class ChainNavigator:
         active = []
         for scope_cache in self._active_chains.values():
             for c in scope_cache.values():
-                active.append({
-                    "chain_id": c.chain_id,
-                    "query": c.query[:60],
-                    "steps": len(c.nodes),
-                    "status": c.status,
-                })
+                active.append(
+                    {
+                        "chain_id": c.chain_id,
+                        "query": c.query[:60],
+                        "steps": len(c.nodes),
+                        "status": c.status,
+                    }
+                )
         return active
 
     def get_chain(

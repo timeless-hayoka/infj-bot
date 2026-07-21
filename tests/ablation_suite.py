@@ -1019,8 +1019,10 @@ def _compute_pooled_std(baseline_vals: list[float], cond_vals: list[float]) -> f
 
     n1, n2 = len(baseline_vals), len(cond_vals)
     if n1 < 2 or n2 < 2:
-        return max(statistics.stdev(baseline_vals) if n1 >= 2 else 0,
-                   statistics.stdev(cond_vals) if n2 >= 2 else 0)
+        return max(
+            statistics.stdev(baseline_vals) if n1 >= 2 else 0,
+            statistics.stdev(cond_vals) if n2 >= 2 else 0,
+        )
     s1 = statistics.stdev(baseline_vals)
     s2 = statistics.stdev(cond_vals)
     return math.sqrt(((n1 - 1) * s1**2 + (n2 - 1) * s2**2) / (n1 + n2 - 2))
@@ -1075,7 +1077,10 @@ def _write_delta_report(summaries: list[dict], txt_path: Path, md_path: Path):
         return 0.0
 
     lines_txt = []
-    lines_md = ["# DRIFT Ablation Delta Report\n", "**Baseline:** Condition F (Full stack)\n\n"]
+    lines_md = [
+        "# DRIFT Ablation Delta Report\n",
+        "**Baseline:** Condition F (Full stack)\n\n",
+    ]
 
     lines_txt.append("=" * 80)
     lines_txt.append("DELTA ± POOLED STD  (Condition vs Baseline F)")
@@ -1134,20 +1139,36 @@ def _write_delta_report(summaries: list[dict], txt_path: Path, md_path: Path):
             )
 
     lines_txt.append("-" * 80)
-    lines_txt.append(f"Load-bearing differences: {load_bearing_count}/{total_comparisons}")
+    lines_txt.append(
+        f"Load-bearing differences: {load_bearing_count}/{total_comparisons}"
+    )
     lines_txt.append("")
     lines_txt.append("Interpretation:")
-    lines_txt.append("  • YES  → Removing this subsystem had a statistically detectable effect.")
-    lines_txt.append("  • NO   → The difference is within the noise band — not load-bearing.")
-    lines_txt.append("  • If a subsystem shows NO across all metrics, it may be decorative.")
+    lines_txt.append(
+        "  • YES  → Removing this subsystem had a statistically detectable effect."
+    )
+    lines_txt.append(
+        "  • NO   → The difference is within the noise band — not load-bearing."
+    )
+    lines_txt.append(
+        "  • If a subsystem shows NO across all metrics, it may be decorative."
+    )
     lines_txt.append("")
 
     lines_md.append("\n")
-    lines_md.append(f"**Load-bearing differences: {load_bearing_count}/{total_comparisons}**\n\n")
+    lines_md.append(
+        f"**Load-bearing differences: {load_bearing_count}/{total_comparisons}**\n\n"
+    )
     lines_md.append("## Interpretation\n")
-    lines_md.append("- **YES** → Removing this subsystem had a statistically detectable effect.\n")
-    lines_md.append("- **NO** → The difference is within the noise band — not load-bearing.\n")
-    lines_md.append("- If a subsystem shows NO across all metrics, it may be decorative.\n")
+    lines_md.append(
+        "- **YES** → Removing this subsystem had a statistically detectable effect.\n"
+    )
+    lines_md.append(
+        "- **NO** → The difference is within the noise band — not load-bearing.\n"
+    )
+    lines_md.append(
+        "- If a subsystem shows NO across all metrics, it may be decorative.\n"
+    )
 
     with open(txt_path, "w") as fh:
         fh.write("\n".join(lines_txt))

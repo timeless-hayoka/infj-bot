@@ -39,7 +39,9 @@ def _ssh_opts(key: str | None) -> list[str]:
     return opts
 
 
-def rsync_pull(host: str, user: str, remote_dir: str, local_dir: str, key: str | None) -> bool:
+def rsync_pull(
+    host: str, user: str, remote_dir: str, local_dir: str, key: str | None
+) -> bool:
     src = f"{user}@{host}:{remote_dir}/{DEFAULT_LOG_GLOB}"
     dst = Path(local_dir)
     dst.mkdir(parents=True, exist_ok=True)
@@ -49,7 +51,9 @@ def rsync_pull(host: str, user: str, remote_dir: str, local_dir: str, key: str |
     return result.returncode == 0
 
 
-def scp_pull(host: str, user: str, remote_dir: str, local_dir: str, key: str | None) -> bool:
+def scp_pull(
+    host: str, user: str, remote_dir: str, local_dir: str, key: str | None
+) -> bool:
     src = f"{user}@{host}:{remote_dir}/{DEFAULT_LOG_GLOB}"
     dst = Path(local_dir)
     dst.mkdir(parents=True, exist_ok=True)
@@ -59,7 +63,14 @@ def scp_pull(host: str, user: str, remote_dir: str, local_dir: str, key: str | N
     return result.returncode == 0
 
 
-def pull_once(host: str, user: str, remote_dir: str, local_dir: str, key: str | None, force_scp: bool) -> bool:
+def pull_once(
+    host: str,
+    user: str,
+    remote_dir: str,
+    local_dir: str,
+    key: str | None,
+    force_scp: bool,
+) -> bool:
     if not force_scp:
         # Prefer rsync if available
         if subprocess.run(["which", "rsync"], capture_output=True).returncode == 0:
@@ -69,28 +80,46 @@ def pull_once(host: str, user: str, remote_dir: str, local_dir: str, key: str | 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Sync DRIFT JSONL logs from droplet")
-    parser.add_argument("--host", default=os.getenv("DROPLET_HOST"), help="Droplet IP or hostname")
-    parser.add_argument("--user", default=os.getenv("DROPLET_USER", "root"), help="SSH user")
-    parser.add_argument("--key", default=os.getenv("DROPLET_KEY"), help="SSH private key path")
-    parser.add_argument("--remote", default=DEFAULT_REMOTE_DIR, help="Remote log directory")
-    parser.add_argument("--local", default=DEFAULT_LOCAL_DIR, help="Local download directory")
-    parser.add_argument("--watch", type=int, metavar="SECONDS", help="Poll interval (watch mode)")
+    parser.add_argument(
+        "--host", default=os.getenv("DROPLET_HOST"), help="Droplet IP or hostname"
+    )
+    parser.add_argument(
+        "--user", default=os.getenv("DROPLET_USER", "root"), help="SSH user"
+    )
+    parser.add_argument(
+        "--key", default=os.getenv("DROPLET_KEY"), help="SSH private key path"
+    )
+    parser.add_argument(
+        "--remote", default=DEFAULT_REMOTE_DIR, help="Remote log directory"
+    )
+    parser.add_argument(
+        "--local", default=DEFAULT_LOCAL_DIR, help="Local download directory"
+    )
+    parser.add_argument(
+        "--watch", type=int, metavar="SECONDS", help="Poll interval (watch mode)"
+    )
     parser.add_argument("--scp", action="store_true", help="Force scp instead of rsync")
     args = parser.parse_args()
 
     if not args.host:
-        print("Error: --host is required (or set DROPLET_HOST env var).", file=sys.stderr)
+        print(
+            "Error: --host is required (or set DROPLET_HOST env var).", file=sys.stderr
+        )
         sys.exit(1)
 
     if args.watch:
         print(f"Watch mode: pulling every {args.watch}s. Ctrl-C to stop.")
         while True:
-            ok = pull_once(args.host, args.user, args.remote, args.local, args.key, args.scp)
+            ok = pull_once(
+                args.host, args.user, args.remote, args.local, args.key, args.scp
+            )
             if not ok:
                 print("Pull failed, retrying...", file=sys.stderr)
             time.sleep(args.watch)
     else:
-        ok = pull_once(args.host, args.user, args.remote, args.local, args.key, args.scp)
+        ok = pull_once(
+            args.host, args.user, args.remote, args.local, args.key, args.scp
+        )
         sys.exit(0 if ok else 1)
 
 

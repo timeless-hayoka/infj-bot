@@ -13,6 +13,7 @@ import os
 
 try:
     import torch
+
     os.environ["TORCH_DEVICE"] = "cpu"
     torch.set_default_device("cpu")
     _TORCH_AVAILABLE = True
@@ -39,7 +40,7 @@ class SemanticEmbeddingFunction:
             if self._model is None:
                 from sentence_transformers import SentenceTransformer
                 import torch
-                
+
                 # Ensure we are on CPU before loading
                 torch.set_default_device("cpu")
                 try:
@@ -47,7 +48,9 @@ class SemanticEmbeddingFunction:
                 except Exception as e:
                     if "meta tensor" in str(e):
                         # Attempt recovery if somehow still on meta
-                        self._model = SentenceTransformer("all-MiniLM-L6-v2", device="cpu", trust_remote_code=True)
+                        self._model = SentenceTransformer(
+                            "all-MiniLM-L6-v2", device="cpu", trust_remote_code=True
+                        )
                     else:
                         raise e
         return self._model
@@ -127,6 +130,7 @@ class LocalEmbeddingFunction:
 def get_default_embedding_function():
     try:
         import sentence_transformers  # noqa: F401
+
         return SemanticEmbeddingFunction()
     except ImportError:
         return LocalEmbeddingFunction()

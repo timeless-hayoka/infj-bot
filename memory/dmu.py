@@ -112,7 +112,6 @@ class MemoryCandidate:
     source_reliability: float = 1.0
 
 
-
 class DynamicMemoryUnit:
     """Ranks memories by psychological salience using time-decay + emotion."""
 
@@ -140,11 +139,15 @@ class DynamicMemoryUnit:
                 )
             """)
             try:
-                conn.execute("ALTER TABLE dmu_rankings ADD COLUMN source_reliability REAL DEFAULT 1.0")
+                conn.execute(
+                    "ALTER TABLE dmu_rankings ADD COLUMN source_reliability REAL DEFAULT 1.0"
+                )
             except sqlite3.OperationalError:
                 pass
             try:
-                conn.execute("ALTER TABLE dmu_rankings ADD COLUMN provenance TEXT DEFAULT 'user_explicit'")
+                conn.execute(
+                    "ALTER TABLE dmu_rankings ADD COLUMN provenance TEXT DEFAULT 'user_explicit'"
+                )
             except sqlite3.OperationalError:
                 pass
             conn.commit()
@@ -197,7 +200,10 @@ class DynamicMemoryUnit:
         return 1.0 if age_seconds < RECENCY_WINDOW_SECONDS else 0.0
 
     def compute_mps(
-        self, candidate: MemoryCandidate, now: Optional[datetime] = None, query: str = ""
+        self,
+        candidate: MemoryCandidate,
+        now: Optional[datetime] = None,
+        query: str = "",
     ) -> float:
         """
         Compute the Composite Memory Persistence Score (MPS) for a candidate.
@@ -234,6 +240,7 @@ class DynamicMemoryUnit:
         if query:
             try:
                 import re
+
                 query_words = set(re.findall(r"\b\w{3,}\b", query.lower()))
                 content_words = set(re.findall(r"\b\w{3,}\b", candidate.text.lower()))
                 overlap = query_words.intersection(content_words)
@@ -415,10 +422,12 @@ def format_ranked_entries(ranked: List[Tuple[MemoryCandidate, float]]) -> str:
     """Convert DMU-ranked entries into the string format expected by the prompt builder."""
     # Chronological Prompt Sorting: sort selected memories chronologically ascending (oldest first)
     chronological = sorted(ranked, key=lambda x: x[0].created_at)
-    
+
     lines = []
     for cand, mps in chronological:
-        lines.append(f"[{cand.source}] [provenance: {cand.provenance}] (salience: {mps:.2f})\n{cand.text}")
+        lines.append(
+            f"[{cand.source}] [provenance: {cand.provenance}] (salience: {mps:.2f})\n{cand.text}"
+        )
     return "\n---\n".join(lines)
 
 

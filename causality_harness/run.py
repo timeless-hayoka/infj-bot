@@ -14,6 +14,7 @@ RESET_URL = "http://localhost:8765/api/reset"
 with open("prompts.json", "r") as f:
     prompts = json.load(f)
 
+
 # Helper to reset server state
 def reset_server():
     try:
@@ -23,6 +24,7 @@ def reset_server():
     except Exception as e:
         print(f"Failed to reset server state: {e}")
         return False
+
 
 # =====================================================================
 # 1. RUN ISOLATED RESULTS (clean brain for every prompt-repetition)
@@ -39,11 +41,12 @@ for cname, condition in CONDITIONS.items():
         for i in range(3):  # repeated runs
             # Reset server before starting each repetition run to keep it completely isolated
             reset_server()
-            state = build_state(condition, [0.1]*7, 0.01, {
-                "needs": 0.5,
-                "crisis": 0.2,
-                "regulation": 0.3
-            })
+            state = build_state(
+                condition,
+                [0.1] * 7,
+                0.01,
+                {"needs": 0.5, "crisis": 0.2, "regulation": 0.3},
+            )
             try:
                 out = call_drift(API_URL, p["prompt"], state)
                 outputs.append(out)
@@ -56,13 +59,13 @@ for cname, condition in CONDITIONS.items():
         for a, b in itertools.combinations(outputs, 2):
             sims.append(cosine(a, b))
 
-        avg_sim = sum(sims)/len(sims) if sims else 1.0
+        avg_sim = sum(sims) / len(sims) if sims else 1.0
 
         result = {
             "condition": cname,
             "prompt_type": p["type"],
             "avg_similarity": avg_sim,
-            "structural": [structural_metrics(o) for o in outputs]
+            "structural": [structural_metrics(o) for o in outputs],
         }
         isolated_results.append(result)
 
@@ -80,11 +83,9 @@ for cname, condition in CONDITIONS.items():
     for p in prompts:
         print(f"  Prompt type: {p['type']}")
 
-        state = build_state(condition, [0.1]*7, 0.01, {
-            "needs": 0.5,
-            "crisis": 0.2,
-            "regulation": 0.3
-        })
+        state = build_state(
+            condition, [0.1] * 7, 0.01, {"needs": 0.5, "crisis": 0.2, "regulation": 0.3}
+        )
 
         outputs = []
         for i in range(3):  # repeated runs (state accumulates over these turns)
@@ -100,13 +101,13 @@ for cname, condition in CONDITIONS.items():
         for a, b in itertools.combinations(outputs, 2):
             sims.append(cosine(a, b))
 
-        avg_sim = sum(sims)/len(sims) if sims else 1.0
+        avg_sim = sum(sims) / len(sims) if sims else 1.0
 
         result = {
             "condition": cname,
             "prompt_type": p["type"],
             "avg_similarity": avg_sim,
-            "structural": [structural_metrics(o) for o in outputs]
+            "structural": [structural_metrics(o) for o in outputs],
         }
         continuity_results.append(result)
 
@@ -116,4 +117,6 @@ with open("results/raw_isolated.json", "w") as f:
 with open("results/raw_continuity.json", "w") as f:
     json.dump(continuity_results, f, indent=2)
 
-print("\nCausality Harness Run Complete. Raw data dumped to results/raw_isolated.json and results/raw_continuity.json")
+print(
+    "\nCausality Harness Run Complete. Raw data dumped to results/raw_isolated.json and results/raw_continuity.json"
+)

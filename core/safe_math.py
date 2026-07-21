@@ -47,12 +47,12 @@ from fractions import Fraction
 # --------------------------------------------------------------------------- #
 # Caps (tune for your droplet; these bound CPU and memory, not correctness)
 # --------------------------------------------------------------------------- #
-MAX_EXPR_LEN = 512            # reject pathologically long inputs outright
-MAX_SYMBOLIC_LEN = 256        # symbolic path is more expensive; tighter cap
-MAX_POW_EXPONENT = 1_000      # blocks 9**9**9-style towers
-MAX_RESULT_BITS = 60_000      # ~18k digits; bounds memory of any single result
-MAX_AST_DEPTH = 60            # bounds nesting / recursion
-SYMBOLIC_TIMEOUT_S = 2.0      # wall-clock budget for sympy work (see honest caveat)
+MAX_EXPR_LEN = 512  # reject pathologically long inputs outright
+MAX_SYMBOLIC_LEN = 256  # symbolic path is more expensive; tighter cap
+MAX_POW_EXPONENT = 1_000  # blocks 9**9**9-style towers
+MAX_RESULT_BITS = 60_000  # ~18k digits; bounds memory of any single result
+MAX_AST_DEPTH = 60  # bounds nesting / recursion
+SYMBOLIC_TIMEOUT_S = 2.0  # wall-clock budget for sympy work (see honest caveat)
 
 _ALLOWED_BINOPS = (ast.Add, ast.Sub, ast.Mult, ast.Div, ast.FloorDiv, ast.Mod, ast.Pow)
 _ALLOWED_UNARY = (ast.UAdd, ast.USub)
@@ -61,8 +61,18 @@ _ALLOWED_UNARY = (ast.UAdd, ast.USub)
 # factorial, integrate, summation, product, series, solveset-over-reals, etc.,
 # because those are the open-ended CPU-hang vectors. Keep this list minimal.
 _ALLOWED_FUNCS = {
-    "sqrt", "sin", "cos", "tan", "asin", "acos", "atan",
-    "log", "ln", "exp", "Abs", "abs",
+    "sqrt",
+    "sin",
+    "cos",
+    "tan",
+    "asin",
+    "acos",
+    "atan",
+    "log",
+    "ln",
+    "exp",
+    "Abs",
+    "abs",
 }
 _ALLOWED_CONST_NAMES = {"pi", "e", "E"}
 _VAR_RE = re.compile(r"[a-zA-Z][a-zA-Z0-9]{0,9}")  # variable names: short, alnum
@@ -77,8 +87,10 @@ class MathError(Exception):
 # LAYER 1 — pure arithmetic, exact rationals, no sympy
 # --------------------------------------------------------------------------- #
 def _guard_size(v: Fraction) -> Fraction:
-    if (abs(v.numerator).bit_length() > MAX_RESULT_BITS
-            or abs(v.denominator).bit_length() > MAX_RESULT_BITS):
+    if (
+        abs(v.numerator).bit_length() > MAX_RESULT_BITS
+        or abs(v.denominator).bit_length() > MAX_RESULT_BITS
+    ):
         raise MathError("result too large")
     return v
 
@@ -89,12 +101,13 @@ def _safe_pow(base: Fraction, exp: Fraction) -> Fraction:
         e = exp.numerator
         if abs(e) > MAX_POW_EXPONENT:
             raise MathError("exponent too large")
-        base_bits = max(abs(base.numerator).bit_length(),
-                        abs(base.denominator).bit_length(), 1)
+        base_bits = max(
+            abs(base.numerator).bit_length(), abs(base.denominator).bit_length(), 1
+        )
         if abs(e) * base_bits > MAX_RESULT_BITS:
             raise MathError("result too large")
         if e >= 0:
-            return _guard_size(base ** e)
+            return _guard_size(base**e)
         if base == 0:
             raise MathError("division by zero")
         return _guard_size(Fraction(1) / (base ** (-e)))
@@ -105,7 +118,7 @@ def _safe_pow(base: Fraction, exp: Fraction) -> Fraction:
         raise MathError("undefined or out of range")
     if not math.isfinite(val):
         raise MathError("undefined or out of range")
-    return Fraction(val).limit_denominator(10 ** 12)
+    return Fraction(val).limit_denominator(10**12)
 
 
 def _const_to_fraction(value) -> Fraction:
@@ -276,24 +289,38 @@ def _with_timeout(fn, *args):
 
 def _symbolic_namespace():
     import sympy
+
     return {
-        "sqrt": sympy.sqrt, "sin": sympy.sin, "cos": sympy.cos, "tan": sympy.tan,
-        "asin": sympy.asin, "acos": sympy.acos, "atan": sympy.atan,
-        "log": sympy.log, "ln": sympy.log, "exp": sympy.exp,
-        "Abs": sympy.Abs, "abs": sympy.Abs,
-        "pi": sympy.pi, "e": sympy.E, "E": sympy.E,
+        "sqrt": sympy.sqrt,
+        "sin": sympy.sin,
+        "cos": sympy.cos,
+        "tan": sympy.tan,
+        "asin": sympy.asin,
+        "acos": sympy.acos,
+        "atan": sympy.atan,
+        "log": sympy.log,
+        "ln": sympy.log,
+        "exp": sympy.exp,
+        "Abs": sympy.Abs,
+        "abs": sympy.Abs,
+        "pi": sympy.pi,
+        "e": sympy.E,
+        "E": sympy.E,
     }
 
 
 def _parse_sym(text: str):
     import sympy
     from sympy.parsing.sympy_parser import (
-        parse_expr, standard_transformations,
-        implicit_multiplication_application, convert_xor,
+        parse_expr,
+        standard_transformations,
+        implicit_multiplication_application,
+        convert_xor,
     )
+
     transformations = standard_transformations + (
         implicit_multiplication_application,  # "2x" -> "2*x"
-        convert_xor,                          # "^"  -> "**"
+        convert_xor,  # "^"  -> "**"
     )
     ns = _symbolic_namespace()
     # global_dict supplies ONLY sympy's expression-construction primitives plus our
@@ -301,20 +328,29 @@ def _parse_sym(text: str):
     # parse_expr auto-injects the real Python builtins. Security still rests on the
     # Layer-1 AST allowlist that ran before we ever reach this point.
     gdict = {
-        "Integer": sympy.Integer, "Float": sympy.Float, "Rational": sympy.Rational,
-        "Symbol": sympy.Symbol, "Mul": sympy.Mul, "Add": sympy.Add, "Pow": sympy.Pow,
+        "Integer": sympy.Integer,
+        "Float": sympy.Float,
+        "Rational": sympy.Rational,
+        "Symbol": sympy.Symbol,
+        "Mul": sympy.Mul,
+        "Add": sympy.Add,
+        "Pow": sympy.Pow,
         "__builtins__": {},
     }
     gdict.update(ns)
     return parse_expr(
-        text, local_dict=ns, global_dict=gdict,
-        transformations=transformations, evaluate=True,
+        text,
+        local_dict=ns,
+        global_dict=gdict,
+        transformations=transformations,
+        evaluate=True,
     )
 
 
 def safe_symbolic(expr: str, *, solve_for: str | None = None) -> dict:
     """Simplify an expression or solve an equation (single '=' splits into Eq)."""
     import sympy
+
     _prevalidate_symbolic(expr)
 
     if "=" in expr:
@@ -333,8 +369,11 @@ def safe_symbolic(expr: str, *, solve_for: str | None = None) -> dict:
             else:
                 raise MathError("ambiguous: specify which variable to solve for")
             sols = sympy.solve(eq, target, dict=False)
-            return {"type": "solve", "variable": str(target),
-                    "solutions": [str(s) for s in sols]}
+            return {
+                "type": "solve",
+                "variable": str(target),
+                "solutions": [str(s) for s in sols],
+            }
 
         return _with_timeout(_solve)
 
@@ -351,8 +390,11 @@ def safe_symbolic(expr: str, *, solve_for: str | None = None) -> dict:
 # --------------------------------------------------------------------------- #
 # Public surface: dispatcher + formatting (this is what brain/prompt_builder call)
 # --------------------------------------------------------------------------- #
-_MATH_HINT = re.compile(r"\d\s*[-+*/^]\s*\d|=|\b(solve|simplify|evaluate|compute)\b"
-                        r"|\bsqrt\b|\d%|\bpercent\b", re.IGNORECASE)
+_MATH_HINT = re.compile(
+    r"\d\s*[-+*/^]\s*\d|=|\b(solve|simplify|evaluate|compute)\b"
+    r"|\bsqrt\b|\d%|\bpercent\b",
+    re.IGNORECASE,
+)
 
 
 def looks_like_math(text: str) -> bool:
@@ -383,13 +425,21 @@ def compute(text: str) -> dict:
     # Try exact arithmetic first (fast, no sympy).
     try:
         frac = safe_arithmetic(text)
-        return {"ok": True, "kind": "arithmetic",
-                "result": format_fraction(frac), "input": text}
+        return {
+            "ok": True,
+            "kind": "arithmetic",
+            "result": format_fraction(frac),
+            "input": text,
+        }
     except MathError:
         pass
     # Fall back to symbolic (slower, guarded).
     try:
-        return {"ok": True, "kind": "symbolic",
-                "result": safe_symbolic(text), "input": text}
+        return {
+            "ok": True,
+            "kind": "symbolic",
+            "result": safe_symbolic(text),
+            "input": text,
+        }
     except MathError as e:
         return {"ok": False, "reason": str(e), "input": text}

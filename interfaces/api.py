@@ -119,6 +119,7 @@ app.add_middleware(HardenedGatewayMiddleware)
 # --- MOUNT LOTUS ACADEMY ---
 try:
     from lotus_academy.main import app as lotus_app
+
     app.mount("/lotus", lotus_app)
     logger.info("Lotus Academy successfully mounted at /lotus")
 except ImportError:
@@ -130,39 +131,49 @@ except Exception as e:
 # --- EXCEPTION HANDLERS ---
 @app.exception_handler(SystemOverload)
 async def system_overload_handler(request: Request, exc: SystemOverload):
-    logger.warning(f"Load shedding active: Rejected request from {request.client.host if request.client else 'unknown'} - {str(exc)}")
+    logger.warning(
+        f"Load shedding active: Rejected request from {request.client.host if request.client else 'unknown'} - {str(exc)}"
+    )
     return JSONResponse(
         status_code=429,
-        content={"detail": "Too Many Requests: The cognitive queue is full. Please try again later."}
+        content={
+            "detail": "Too Many Requests: The cognitive queue is full. Please try again later."
+        },
     )
+
 
 @app.exception_handler(RequestDeadlineExceeded)
 async def deadline_exceeded_handler(request: Request, exc: RequestDeadlineExceeded):
-    logger.warning(f"Request deadline exceeded for {request.client.host if request.client else 'unknown'}")
+    logger.warning(
+        f"Request deadline exceeded for {request.client.host if request.client else 'unknown'}"
+    )
     return JSONResponse(
         status_code=408,
-        content={"detail": "Request Timeout: The system took too long to process."}
+        content={"detail": "Request Timeout: The system took too long to process."},
     )
+
 
 @app.exception_handler(RequestCancelled)
 async def request_cancelled_handler(request: Request, exc: RequestCancelled):
-    logger.info(f"Client disconnected gracefully: {request.client.host if request.client else 'unknown'}")
-    return JSONResponse(
-        status_code=499,
-        content={"detail": "Client Closed Request"}
+    logger.info(
+        f"Client disconnected gracefully: {request.client.host if request.client else 'unknown'}"
     )
+    return JSONResponse(status_code=499, content={"detail": "Client Closed Request"})
+
 
 @app.exception_handler(IntentBlockedError)
 async def intent_blocked_handler(request: Request, exc: IntentBlockedError):
-    logger.warning(f"Intent blocked for {request.client.host if request.client else 'unknown'}: {str(exc)}")
+    logger.warning(
+        f"Intent blocked for {request.client.host if request.client else 'unknown'}: {str(exc)}"
+    )
     return JSONResponse(
         status_code=403,
         content={
             "detail": "Request Blocked: Malicious intent or security threat detected.",
             "refusal": str(exc),
             "threat": exc.scan_result.primary_threat,
-            "blocked": True
-        }
+            "blocked": True,
+        },
     )
 
 
@@ -172,7 +183,9 @@ async def _watch_request_disconnect(request: Request, cancel_event: threading.Ev
     try:
         while True:
             if await request.is_disconnected():
-                logger.info(f"Client {request.client.host if request.client else 'unknown'} disconnected. Firing cancellation event.")
+                logger.info(
+                    f"Client {request.client.host if request.client else 'unknown'} disconnected. Firing cancellation event."
+                )
                 cancel_event.set()
                 break
             await asyncio.sleep(0.5)
@@ -188,6 +201,7 @@ def _run_with_request_budget(callable_, request_budget, *args, **kwargs):
     finally:
         if hasattr(brain._request_budget_local, "budget"):
             del brain._request_budget_local.budget
+
 
 # Serve static files if any exist
 if STATIC_DIR.exists():
@@ -854,10 +868,11 @@ async def api_growth():
 @app.post("/api/reset")
 async def api_reset():
     global brain, memory, history, state, goals_db, doc_store
-    
+
     # 1. Reset ContextVars
     try:
         from drift.core.causal_wiring import state_override_var, generation_params_var
+
         state_override_var.set(None)
         generation_params_var.set(None)
     except Exception:
@@ -866,30 +881,35 @@ async def api_reset():
     # 2. Reset singletons/global modules
     try:
         import drift.core.being as being_mod
+
         being_mod._being_instance = None
     except Exception:
         pass
 
     try:
         import drift.core.homeostasis as homeostasis_mod
+
         homeostasis_mod._homeostasis_instance = None
     except Exception:
         pass
 
     try:
         import drift.core.shadow as shadow_mod
+
         shadow_mod._shadow_instance = None
     except Exception:
         pass
 
     try:
         import drift.core.dii_tracker as dii_mod
+
         dii_mod._dii_instance = None
     except Exception:
         pass
 
     try:
         import drift.core.global_workspace as workspace_mod
+
         workspace_mod._workspace_instance = None
     except Exception:
         pass
@@ -906,13 +926,13 @@ async def api_reset():
     try:
         import sqlite3
         from drift.core.config import MEMORY_DB, HOMEOSTASIS_DB
-        
+
         # Clear Memory
         with sqlite3.connect(MEMORY_DB) as conn:
             conn.execute("DELETE FROM memories")
             conn.execute("DELETE FROM sqlite_sequence WHERE name='memories'")
             conn.commit()
-            
+
         # Clear Homeostasis
         with sqlite3.connect(HOMEOSTASIS_DB) as conn:
             conn.execute("DELETE FROM need_history")
@@ -925,7 +945,10 @@ async def api_reset():
     except Exception as e:
         logger.error(f"Error resetting database contents: {e}")
 
-    return {"status": "ok", "message": "All cognitive modules, singletons, and sqlite tables have been reset to zero."}
+    return {
+        "status": "ok",
+        "message": "All cognitive modules, singletons, and sqlite tables have been reset to zero.",
+    }
 
 
 async def read_json(request: Request):
@@ -946,6 +969,7 @@ async def api_chat(request: Request):
 
     # Set state override context variable
     from drift.core.causal_wiring import state_override_var
+
     state_override_var.set(payload.get("state"))
 
     prompt, emotion, dissonance = build_chat_prompt(
@@ -969,15 +993,11 @@ async def api_chat(request: Request):
             prompt,
             tools_enabled=True,
             raw_user_input=message,
-            mode=state.mode
+            mode=state.mode,
         )
         try:
             await asyncio.to_thread(
-                _run_with_request_budget,
-                brain.evaluate_last,
-                budget,
-                prompt,
-                output
+                _run_with_request_budget, brain.evaluate_last, budget, prompt, output
             )
         except Exception:
             pass
@@ -1043,6 +1063,7 @@ async def api_chat_stream(request: Request):
 
     # Set state override context variable
     from drift.core.causal_wiring import state_override_var
+
     state_override_var.set(payload.get("state"))
 
     prompt, emotion, dissonance = build_chat_prompt(
@@ -1063,8 +1084,15 @@ async def api_chat_stream(request: Request):
             # Run synchronous stream in a thread to avoid blocking the event loop
             chunks = await asyncio.to_thread(
                 _run_with_request_budget,
-                lambda: list(brain.agent_turn_stream(prompt, tools_enabled=True, raw_user_input=message, mode=state.mode)),
-                budget
+                lambda: list(
+                    brain.agent_turn_stream(
+                        prompt,
+                        tools_enabled=True,
+                        raw_user_input=message,
+                        mode=state.mode,
+                    )
+                ),
+                budget,
             )
             for chunk in chunks:
                 budget.check()
@@ -1078,7 +1106,7 @@ async def api_chat_stream(request: Request):
                     brain.evaluate_last,
                     budget,
                     prompt,
-                    output
+                    output,
                 )
             except Exception:
                 pass
@@ -1235,44 +1263,46 @@ async def api_identity(key_id: str = "v1", nonce: str = None):
     env_var_name = f"DRIFT_SHARED_KEY_{key_id.upper()}"
     secret_str = os.environ.get(env_var_name)
     is_prod = os.environ.get("DRIFT_ENV") == "production"
-    
+
     if not secret_str and not is_prod:
         # Fallback to general DRIFT_SHARED_KEY to support seamless migration/testing in dev
         secret_str = os.environ.get("DRIFT_SHARED_KEY")
-    
+
     if not secret_str:
         if is_prod:
-            raise RuntimeError(f"CRITICAL: Shared key '{env_var_name}' is missing in production!")
+            raise RuntimeError(
+                f"CRITICAL: Shared key '{env_var_name}' is missing in production!"
+            )
         else:
-            raise RuntimeError(f"CRITICAL: Shared key for ID '{key_id}' ({env_var_name} or DRIFT_SHARED_KEY) is missing from environment!")
-        
+            raise RuntimeError(
+                f"CRITICAL: Shared key for ID '{key_id}' ({env_var_name} or DRIFT_SHARED_KEY) is missing from environment!"
+            )
+
     secret = secret_str.encode()
     ts = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-    
+
     # Body is empty for GET /api/identity
     body_hash = hashlib.sha256(b"").hexdigest()
-    
+
     # Canonical string format: METHOD + "\n" + PATH + "\n" + TIMESTAMP + "\n" + BODY_HASH + ("\n" + NONCE if NONCE else "")
     if nonce:
         message = f"GET\n/api/identity\n{ts}\n{body_hash}\n{nonce}".encode()
     else:
         message = f"GET\n/api/identity\n{ts}\n{body_hash}".encode()
-        
+
     signature = hmac.new(secret, message, hashlib.sha256).hexdigest()
-    
+
     metadata = {
         "OriginModule": "brain",
         "Timestamp": ts,
         "KeyID": key_id,
         "BodyHash": body_hash,
-        "Signature": signature
+        "Signature": signature,
     }
     if nonce:
         metadata["Nonce"] = nonce
-        
-    return {
-        "Metadata": metadata
-    }
+
+    return {"Metadata": metadata}
 
 
 @app.get("/api/dii")
@@ -1296,9 +1326,11 @@ async def api_audit(limit: int = 50):
     """Retrieve the unified audit log for monitoring and safety verification."""
     try:
         from drift.core.unified_audit import get_audit_logger
+
         audit_logger = get_audit_logger()
         # Use read_any as a static helper or tail
         from drift.core.jsonl_logger import HardenedJsonlLogger
+
         return HardenedJsonlLogger.tail(audit_logger.path, n=limit)
     except Exception as e:
         return {"error": f"Failed to retrieve audit log: {e}"}
@@ -1309,6 +1341,7 @@ async def api_hive_deliberations(limit: int = 10):
     """Retrieve history of high-order deliberations from the Elysium engine."""
     try:
         from drift.core.hive.elysium import get_elysium
+
         elysium = get_elysium()
         return elysium.get_deliberation_history(limit=limit)
     except Exception as e:
@@ -1398,5 +1431,6 @@ if __name__ == "__main__":
     import uvicorn
 
     import os
+
     host = os.getenv("DRIFT_API_HOST", "127.0.0.1")
     uvicorn.run(app, host=host, port=8765)

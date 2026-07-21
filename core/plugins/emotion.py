@@ -99,17 +99,19 @@ def _detect_transformer(text: str) -> Dict:
     clf = _load_classifier()
     if clf is False:
         return {}
-    
+
     try:
         # Use a more conservative truncation (1000 characters) to safely fit within 512 tokens.
         # Most tokens are 3-4 characters; 1000 chars is typically ~250-350 tokens.
         text_truncated = text[-1000:] if len(text) > 1000 else text
         res = clf(text_truncated)
         if not res or not isinstance(res[0], list):
-             return {}
+            return {}
         raw = res[0]  # list of dicts
     except Exception as exc:
-        print(f"[emotion] Transformer inference failed ({exc}), using lexicon fallback.")
+        print(
+            f"[emotion] Transformer inference failed ({exc}), using lexicon fallback."
+        )
         return {}
 
     # Sort by score descending

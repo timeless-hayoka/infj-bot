@@ -43,6 +43,7 @@ from typing import Any, Dict, Iterable, List, Optional
 
 try:
     import fcntl  # Linux/macOS
+
     _HAVE_FCNTL = True
 except ImportError:  # pragma: no cover - Windows dev only
     _HAVE_FCNTL = False
@@ -82,7 +83,7 @@ def _read_pid_cpu_ms(pid: int) -> Optional[float]:
             data = f.read()
         # The comm field (field 2) may contain spaces/parens; split after the ')'.
         rparen = data.rfind(")")
-        fields = data[rparen + 2:].split()
+        fields = data[rparen + 2 :].split()
         # After comm, fields are 0-indexed; utime=11, stime=12 in that slice.
         utime, stime = int(fields[11]), int(fields[12])
         return (utime + stime) * 1000.0 / _CLK_TCK
@@ -114,14 +115,20 @@ class CPUSampler:
 
     def start(self) -> "CPUSampler":
         self._wall0 = time.monotonic()
-        self._tcpu0 = time.thread_time() if hasattr(time, "thread_time") else time.process_time()
-        self._infer0 = _read_pid_cpu_ms(self.inference_pid) if self.inference_pid else None
+        self._tcpu0 = (
+            time.thread_time() if hasattr(time, "thread_time") else time.process_time()
+        )
+        self._infer0 = (
+            _read_pid_cpu_ms(self.inference_pid) if self.inference_pid else None
+        )
         self._steal0 = _read_total_and_steal()
         return self
 
     def stop(self) -> Dict[str, Any]:
         wall_ms = (time.monotonic() - self._wall0) * 1000.0
-        tcpu_now = time.thread_time() if hasattr(time, "thread_time") else time.process_time()
+        tcpu_now = (
+            time.thread_time() if hasattr(time, "thread_time") else time.process_time()
+        )
         py_cpu_ms = (tcpu_now - self._tcpu0) * 1000.0
 
         infer_cpu_ms = None
@@ -158,9 +165,9 @@ class StateTrajectoryLogger:
     def __init__(
         self,
         log_path: str = "logs/state_trace.jsonl",
-        max_bytes: int = 50_000_000,   # rotate at ~50MB; protects small volumes
+        max_bytes: int = 50_000_000,  # rotate at ~50MB; protects small volumes
         backup_count: int = 5,
-        fsync: bool = False,           # True = durable but slow; False = flush only
+        fsync: bool = False,  # True = durable but slow; False = flush only
     ):
         self.log_path = Path(log_path)
         self.log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -180,14 +187,18 @@ class StateTrajectoryLogger:
                 return
         except OSError:
             return
-        oldest = self.log_path.with_suffix(self.log_path.suffix + f".{self.backup_count}")
+        oldest = self.log_path.with_suffix(
+            self.log_path.suffix + f".{self.backup_count}"
+        )
         try:
             if oldest.exists():
                 oldest.unlink()
             for i in range(self.backup_count - 1, 0, -1):
                 src = self.log_path.with_suffix(self.log_path.suffix + f".{i}")
                 if src.exists():
-                    src.rename(self.log_path.with_suffix(self.log_path.suffix + f".{i + 1}"))
+                    src.rename(
+                        self.log_path.with_suffix(self.log_path.suffix + f".{i + 1}")
+                    )
             self.log_path.rename(self.log_path.with_suffix(self.log_path.suffix + ".1"))
         except OSError:
             pass  # never let logging take down the bot
@@ -240,7 +251,9 @@ class StateTrajectoryLogger:
         try:
             fcntl.flock(lock_fd, fcntl.LOCK_EX)
             self._rotate_if_needed()
-            fd = os.open(str(self.log_path), os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o644)
+            fd = os.open(
+                str(self.log_path), os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o644
+            )
             try:
                 os.write(fd, line.encode("utf-8"))
                 if self.fsync:
@@ -271,8 +284,9 @@ def _ordered_files(log_path: str) -> List[Path]:
 _MAX_BACKUPS = 20  # generous ceiling for the reader; logger uses its own backup_count
 
 
-def read_trace(log_path: str = "logs/state_trace.jsonl",
-               include_rotated: bool = True) -> Iterable[Dict[str, Any]]:
+def read_trace(
+    log_path: str = "logs/state_trace.jsonl", include_rotated: bool = True
+) -> Iterable[Dict[str, Any]]:
     """Yield entries, skipping any line that isn't valid JSON (torn/partial writes).
 
     NEVER use pandas.read_json(lines=True) directly on these files — one bad line
@@ -305,6 +319,7 @@ def load_dataframe(log_path: str = "logs/state_trace.jsonl"):
     rows = list(read_trace(log_path))
     try:
         import pandas as pd
+
         return pd.json_normalize(rows)
     except ImportError:
         return rows
@@ -313,7 +328,7 @@ def load_dataframe(log_path: str = "logs/state_trace.jsonl"):
 # --------------------------------------------------------------------------- #
 # Integration sketch (NOT executed) — where this plugs into agent_turn
 # --------------------------------------------------------------------------- #
-_INTEGRATION_EXAMPLE = '''
+_INTEGRATION_EXAMPLE = """
 from core.trajectory import StateTrajectoryLogger, CPUSampler
 
 logger = StateTrajectoryLogger(log_path="logs/state_trace.jsonl")  # module-level, once
@@ -346,4 +361,4 @@ logger.log_turn(
 # homeostasis — NOT timing["wall_ms"]. On Gemini turns infer_cpu_ms is None (remote),
 # so energy should reflect a network call, not local exertion. Using wall_ms would let
 # a noisy neighbor or a slow network hop masquerade as cognitive fatigue.
-'''
+"""

@@ -1,12 +1,13 @@
 from typing import TypeVar, Generic, Callable, Any
 from pydantic import BaseModel, Field
 
-A = TypeVar('A')
-B = TypeVar('B')
+A = TypeVar("A")
+B = TypeVar("B")
 
 
 class CognitiveState(BaseModel):
     """The continuous variables tracked by PEDI."""
+
     coherence: float = Field(default=0.8, ge=0.0, le=1.0)
     resonance: float = Field(default=0.5, ge=0.0, le=1.0)
     tension: float = Field(default=0.3, ge=0.0, le=1.0)
@@ -21,6 +22,7 @@ class CognitivePayload(BaseModel):
     when the pipeline grows to support tool calls, embeddings, and
     multi-step reasoning.
     """
+
     user_input: str = ""
     internal_log: str = ""
     response: str = ""
@@ -37,6 +39,7 @@ class CognitivePayload(BaseModel):
 
 class Context(BaseModel, Generic[A]):
     """The immutable container holding both the state and the current computation value."""
+
     state: CognitiveState
     history: list[CognitiveState] = Field(default_factory=list)
     value: A
@@ -62,7 +65,9 @@ class ContextWorker(Generic[A]):
         """The full chain of previous states (read-only via copy)."""
         return list(self._ctx.history)
 
-    def extend(self, operation: Callable[["ContextWorker[A]"], B]) -> "ContextWorker[B]":
+    def extend(
+        self, operation: Callable[["ContextWorker[A]"], B]
+    ) -> "ContextWorker[B]":
         """
         Takes a context-dependent operation, applies it, and returns a NEW
         ContextWorker with the updated history and newly computed value.

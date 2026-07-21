@@ -8,7 +8,7 @@ except Exception:
     def load_dotenv(*_args, **_kwargs) -> bool:  # type: ignore[misc]
         print(
             "Warning: python-dotenv not installed; proceeding without loading .env file.",
-            file=sys.stderr
+            file=sys.stderr,
         )
         return False
 
@@ -64,7 +64,12 @@ from drift.core.plugins.self_eval import SelfEvaluator
 from drift.core.security_defense import scan_input, get_security_scanner
 from drift.core.types import SecurityScanResult
 from drift.core.being import get_being
-from drift.core.tools import build_tool_prompt, extract_tool_calls, execute_tool_call, HIGH_RISK_TOOLS
+from drift.core.tools import (
+    build_tool_prompt,
+    extract_tool_calls,
+    execute_tool_call,
+    HIGH_RISK_TOOLS,
+)
 import logging
 from drift.core.safe_math_integration import critic_math_check, active_grounded_math_var
 from typing import Optional
@@ -85,7 +90,7 @@ if not API_KEY and not GROQ_API_KEY and not KIMI_API_KEY:
     print(
         "Warning: No API keys found (Gemini, Groq, or Kimi). Set them in a .env file. "
         "Bot functionality will be limited to local models.",
-        file=sys.stderr
+        file=sys.stderr,
     )
 import subprocess as _subprocess
 from drift.core.trajectory import StateTrajectoryLogger, CPUSampler
@@ -93,20 +98,20 @@ from drift.core.cognitive_governor import CognitiveGovernor
 
 _OLLAMA_PID: int | None = None
 
+
 def _get_ollama_pid() -> int | None:
     global _OLLAMA_PID
     if _OLLAMA_PID is not None:
         return _OLLAMA_PID
     try:
-        out = _subprocess.check_output(
-            ["pgrep", "-n", "ollama"], text=True
-        ).strip()
+        out = _subprocess.check_output(["pgrep", "-n", "ollama"], text=True).strip()
         pid = int(out) if out and out.isdigit() else None
         if pid:
             _OLLAMA_PID = pid
     except Exception:
         pass
     return _OLLAMA_PID
+
 
 _traj_logger = StateTrajectoryLogger(log_path="logs/state_trace.jsonl")
 
@@ -115,6 +120,7 @@ def load_system_prompt() -> str:
     """Dynamically load the canonical DRIFT core prompt from root."""
     try:
         from pathlib import Path
+
         # Resolve path relative to this file: ../../DRIFT_CORE_PROMPT.txt
         root_dir = Path(__file__).resolve().parents[2]
         prompt_path = root_dir / "DRIFT_CORE_PROMPT.txt"
@@ -179,7 +185,7 @@ class DriftBrain(_BrainGenerationMixin):
         self._cognitive_governor = CognitiveGovernor()
         # logger for debug / bug-hunting
         self.logger = logging.getLogger("drift.core.brain")
-        self.deliberation_callback = None # Phase 5: Internal deliberation hook
+        self.deliberation_callback = None  # Phase 5: Internal deliberation hook
         if not self.logger.handlers:
             # basic config for interactive use
             handler = logging.StreamHandler()
@@ -202,8 +208,7 @@ class DriftBrain(_BrainGenerationMixin):
         elif new_genai is not None and API_KEY:
             self.sdk = "google.genai"
             self.client = new_genai.Client(
-                api_key=API_KEY,
-                http_options={"retry_options": {"attempts": 1}}
+                api_key=API_KEY, http_options={"retry_options": {"attempts": 1}}
             )
             self.primary_model = None
             self.critic_model = None
@@ -287,7 +292,7 @@ class DriftBrain(_BrainGenerationMixin):
             "top_p": kwargs.get("top_p"),
             "tools": [{"google_search": {}}],
         }
-        
+
         # Support Context Caching for better token usage if passed
         if "cached_content" in kwargs:
             config_kwargs["cached_content"] = kwargs["cached_content"]
@@ -295,7 +300,7 @@ class DriftBrain(_BrainGenerationMixin):
             config_kwargs["cached_content"] = self._cached_system_content
         else:
             config_kwargs["system_instruction"] = system_instruction
-            
+
         config = genai_types.GenerateContentConfig(**config_kwargs)
         response = self.client.models.generate_content(
             model=model_name,
@@ -304,13 +309,15 @@ class DriftBrain(_BrainGenerationMixin):
         )
         return response.text or ""
 
-    def _generate_new_sdk_stream(self, model_name, system_instruction, prompt, **kwargs):
+    def _generate_new_sdk_stream(
+        self, model_name, system_instruction, prompt, **kwargs
+    ):
         config_kwargs = {
             "temperature": kwargs.get("temperature"),
             "top_p": kwargs.get("top_p"),
             "tools": [{"google_search": {}}],
         }
-        
+
         if "cached_content" in kwargs:
             config_kwargs["cached_content"] = kwargs["cached_content"]
         elif hasattr(self, "_cached_system_content") and self._cached_system_content:
@@ -338,7 +345,6 @@ class DriftBrain(_BrainGenerationMixin):
             text = chunk.text or ""
             if text:
                 yield text
-
 
     def _offline_fallback(self, user_input, exc):
         reason = str(exc).strip() or type(exc).__name__
@@ -403,7 +409,10 @@ class DriftBrain(_BrainGenerationMixin):
     def _retry_backoff(self, exc, attempt: int) -> float:
         """Calculate retry delay. Rate limits get exponential backoff."""
         text = f"{type(exc).__name__}: {exc}".lower()
-        is_rate_limit = any(m in text for m in ["429", "quota", "rate", "exhausted", "too many requests"])
+        is_rate_limit = any(
+            m in text
+            for m in ["429", "quota", "rate", "exhausted", "too many requests"]
+        )
         if is_rate_limit:
             return 2 ** (attempt + 1)  # 2s, 4s, 8s
         return 0.5 * (attempt + 1)  # 0.5s, 1s, 1.5s
@@ -563,7 +572,12 @@ class DriftBrain(_BrainGenerationMixin):
         )
         return res
 
-    def _enhanced_security_check(self, user_input: str, raw_user_input: Optional[str] = None, mode: Optional[str] = None) -> SecurityScanResult:
+    def _enhanced_security_check(
+        self,
+        user_input: str,
+        raw_user_input: Optional[str] = None,
+        mode: Optional[str] = None,
+    ) -> SecurityScanResult:
         """Full context security check with PEDI/DII + social risk + Shadow."""
         sec = self._security_check(user_input, raw_user_input, mode=mode)
 
@@ -588,12 +602,16 @@ class DriftBrain(_BrainGenerationMixin):
             try:
                 from drift.core.shadow import shadow_critic
                 from drift.core.types import SparkImpulse
+
                 impulse = SparkImpulse()
                 impulse.shadow_influence = sec.social_risk * 0.9
-                shadow_critic.critique_spark(impulse, {
-                    "energy": getattr(being.state, "energy", 0.6),
-                    "social_risk": sec.social_risk
-                })
+                shadow_critic.critique_spark(
+                    impulse,
+                    {
+                        "energy": getattr(being.state, "energy", 0.6),
+                        "social_risk": sec.social_risk,
+                    },
+                )
                 if impulse.veto_reason:
                     sec.overall_score = max(sec.overall_score, 0.78)
                     if not sec.refusal_message:
@@ -603,7 +621,12 @@ class DriftBrain(_BrainGenerationMixin):
 
         return sec
 
-    def _security_check(self, user_input: str, raw_user_input: Optional[str] = None, mode: Optional[str] = None) -> SecurityScanResult:
+    def _security_check(
+        self,
+        user_input: str,
+        raw_user_input: Optional[str] = None,
+        mode: Optional[str] = None,
+    ) -> SecurityScanResult:
         """Run security defense scan on user input, extracting raw content if it is an assembled prompt."""
         if raw_user_input is not None:
             return scan_input(raw_user_input, mode=mode)
@@ -612,7 +635,7 @@ class DriftBrain(_BrainGenerationMixin):
         for marker in ["\nUser: ", "\nUser:\n"]:
             idx = user_input.rfind(marker)
             if idx != -1:
-                candidate = user_input[idx + len(marker):].strip()
+                candidate = user_input[idx + len(marker) :].strip()
                 if candidate:
                     cleaned_input = candidate
                     break
@@ -639,6 +662,7 @@ class DriftBrain(_BrainGenerationMixin):
 
         # Token gate calculation
         from drift.core.being import get_being
+
         being = get_being()
         prev_energy = being.state.energy
         max_tokens = max(100, int(1000 * prev_energy))
@@ -667,10 +691,15 @@ class DriftBrain(_BrainGenerationMixin):
                     if request_budget is not None:
                         request_budget.check()
                     primary_text = self.hf_bridge.generate(
-                        sys_instruction, current_prompt, history=history_messages, max_tokens=max_tokens
+                        sys_instruction,
+                        current_prompt,
+                        history=history_messages,
+                        max_tokens=max_tokens,
                     )
                 except Exception as hf_exc:
-                    self.logger.warning("HF Pro generate failed: %s. Falling back.", hf_exc)
+                    self.logger.warning(
+                        "HF Pro generate failed: %s. Falling back.", hf_exc
+                    )
                     primary_text = None
 
                 if primary_text:
@@ -680,7 +709,9 @@ class DriftBrain(_BrainGenerationMixin):
                     if len(self.history) > self._max_history:
                         self.history = self.history[-self._max_history :]
                 else:
-                    self.logger.warning("HF Pro failed to generate a response. Falling back to governor chain.")
+                    self.logger.warning(
+                        "HF Pro failed to generate a response. Falling back to governor chain."
+                    )
                     primary_text = self._generate(
                         self.primary_model_name,
                         sys_instruction,
@@ -803,6 +834,7 @@ class DriftBrain(_BrainGenerationMixin):
 
         # Token gate calculation
         from drift.core.being import get_being
+
         being = get_being()
         prev_energy = being.state.energy
         max_tokens = max(100, int(1000 * prev_energy))
@@ -814,7 +846,10 @@ class DriftBrain(_BrainGenerationMixin):
             )
             chunks = []
             for chunk in self._generate_stream(
-                self.primary_model_name, sys_instruction, full_prompt, max_tokens=max_tokens
+                self.primary_model_name,
+                sys_instruction,
+                full_prompt,
+                max_tokens=max_tokens,
             ):
                 chunks.append(chunk)
                 yield chunk
@@ -833,7 +868,14 @@ class DriftBrain(_BrainGenerationMixin):
     # Agent turn with tools
     # ------------------------------------------------------------------
 
-    def agent_turn(self, user_input, tools_enabled=True, max_iterations=3, raw_user_input=None, mode=None):
+    def agent_turn(
+        self,
+        user_input,
+        tools_enabled=True,
+        max_iterations=3,
+        raw_user_input=None,
+        mode=None,
+    ):
         sec = self._enhanced_security_check(user_input, raw_user_input, mode=mode)
         if sec.blocked:
             self.logger.warning("Security block (agent turn): %s", sec.to_dict())
@@ -844,7 +886,12 @@ class DriftBrain(_BrainGenerationMixin):
         if not tools_enabled:
             return self.think(user_input, raw_user_input=raw_user_input, mode=mode)
 
-        provider = "ollama" if "ollama" in self.primary_model_name.lower() or "qwen" in self.primary_model_name.lower() else "gemini"
+        provider = (
+            "ollama"
+            if "ollama" in self.primary_model_name.lower()
+            or "qwen" in self.primary_model_name.lower()
+            else "gemini"
+        )
         _sampler = CPUSampler(
             inference_pid=_get_ollama_pid() if provider == "ollama" else None
         ).start()
@@ -862,9 +909,10 @@ class DriftBrain(_BrainGenerationMixin):
 
         # Token gate calculation via governor
         from drift.core.being import get_being
+
         being = get_being()
         prev_energy = being.state.energy
-        
+
         # Increment turn number
         self.turns = getattr(self, "turns", 0) + 1
 
@@ -890,7 +938,10 @@ class DriftBrain(_BrainGenerationMixin):
                     )
                 )
                 response_text = self._generate(
-                    self.primary_model_name, sys_instruction, full_prompt, max_tokens=max_tokens
+                    self.primary_model_name,
+                    sys_instruction,
+                    full_prompt,
+                    max_tokens=max_tokens,
                 )
 
                 tool_calls = extract_tool_calls(response_text)
@@ -904,25 +955,46 @@ class DriftBrain(_BrainGenerationMixin):
 
                     raw = _json.dumps(call)
                     tool_name = call.get("name")
-                    
+
                     # Phase 5: High-risk deliberation
                     if tool_name in HIGH_RISK_TOOLS and self.deliberation_callback:
-                        self.logger.info("High-risk tool '%s' detected. Requesting council deliberation...", tool_name)
+                        self.logger.info(
+                            "High-risk tool '%s' detected. Requesting council deliberation...",
+                            tool_name,
+                        )
                         deliberation_goal = f"Execute high-risk tool '{tool_name}' with arguments: {call.get('arguments')}"
                         try:
                             # The callback returns a DeliberationResult
                             delib_result = self.deliberation_callback(deliberation_goal)
-                            
+
                             # Check if the council consensus is to block or if the resolution is a refusal
-                            if "BLOCK" in delib_result.resolution.upper() or "DENY" in delib_result.resolution.upper() or "REFUSE" in delib_result.resolution.upper():
-                                self.logger.warning("Council BLOCKED high-risk tool '%s'. Resolution: %s", tool_name, delib_result.resolution)
-                                results.append(f"Tool '{tool_name}' was BLOCKED by the Council. Reason: {delib_result.resolution}")
+                            if (
+                                "BLOCK" in delib_result.resolution.upper()
+                                or "DENY" in delib_result.resolution.upper()
+                                or "REFUSE" in delib_result.resolution.upper()
+                            ):
+                                self.logger.warning(
+                                    "Council BLOCKED high-risk tool '%s'. Resolution: %s",
+                                    tool_name,
+                                    delib_result.resolution,
+                                )
+                                results.append(
+                                    f"Tool '{tool_name}' was BLOCKED by the Council. Reason: {delib_result.resolution}"
+                                )
                                 continue
-                            
-                            self.logger.info("Council APPROVED high-risk tool '%s'.", tool_name)
+
+                            self.logger.info(
+                                "Council APPROVED high-risk tool '%s'.", tool_name
+                            )
                         except Exception as e:
-                            self.logger.error("Deliberation failed for tool '%s': %s. Blocking by default.", tool_name, e)
-                            results.append(f"Tool '{tool_name}' was BLOCKED due to an internal deliberation failure.")
+                            self.logger.error(
+                                "Deliberation failed for tool '%s': %s. Blocking by default.",
+                                tool_name,
+                                e,
+                            )
+                            results.append(
+                                f"Tool '{tool_name}' was BLOCKED due to an internal deliberation failure."
+                            )
                             continue
 
                     result = execute_tool_call(raw)
@@ -983,9 +1055,14 @@ class DriftBrain(_BrainGenerationMixin):
             new_energy = prev_energy
             delta_energy = 0.0
             from drift.core.homeostasis import get_homeostasis
+
             homeo = get_homeostasis()
             try:
-                homeo.update_needs(event="inference_complete", timing=_timing, response_len=len(primary_text))
+                homeo.update_needs(
+                    event="inference_complete",
+                    timing=_timing,
+                    response_len=len(primary_text),
+                )
                 new_energy = being.state.energy
             except Exception:
                 pass
@@ -1000,7 +1077,7 @@ class DriftBrain(_BrainGenerationMixin):
                 )
                 new_energy = turn_record.new_energy
                 delta_energy = turn_record.delta_energy
-                
+
                 # Sync new energy with homeostasis system
                 homeo.update_need("energy", being.state.energy)
             except Exception:
@@ -1011,6 +1088,7 @@ class DriftBrain(_BrainGenerationMixin):
                 # PEDI
                 try:
                     from drift.metrics.pedi import get_pedi
+
                     pedi_snap = get_pedi().get_last_snapshot()
                     pedi_val = pedi_snap.needs if pedi_snap else {}
                 except Exception:
@@ -1019,12 +1097,14 @@ class DriftBrain(_BrainGenerationMixin):
                 # DII
                 try:
                     from drift.core.dii_tracker import get_dii_tracker
+
                     dii_snap = get_dii_tracker().get_current()
                     dii_val = dii_snap.dii if dii_snap else 0.5
                 except Exception:
                     dii_val = 0.5
 
                 from drift.core.causal_wiring import retrieved_memory_keys_var
+
                 memory_keys = retrieved_memory_keys_var.get()
 
                 # self.turns is already incremented at the start of the turn
@@ -1037,7 +1117,9 @@ class DriftBrain(_BrainGenerationMixin):
                         "mood": being.state.mood,
                         "curiosity": being.state.curiosity,
                         "fatigue": round(1.0 - being.state.energy, 4),
-                        "needs": homeo.get_need_summary() if hasattr(homeo, "get_need_summary") else {},
+                        "needs": homeo.get_need_summary()
+                        if hasattr(homeo, "get_need_summary")
+                        else {},
                         "mode": mode or "unknown",
                         "memory_keys": memory_keys,
                     },
@@ -1056,7 +1138,14 @@ class DriftBrain(_BrainGenerationMixin):
         except Exception as exc:
             return self._offline_fallback(user_input, exc)
 
-    def agent_turn_stream(self, user_input, tools_enabled=True, max_iterations=3, raw_user_input=None, mode=None):
+    def agent_turn_stream(
+        self,
+        user_input,
+        tools_enabled=True,
+        max_iterations=3,
+        raw_user_input=None,
+        mode=None,
+    ):
         """Execute tools synchronously, then stream the final response."""
         sec = self._enhanced_security_check(user_input, raw_user_input, mode=mode)
         if sec.blocked:
@@ -1065,7 +1154,9 @@ class DriftBrain(_BrainGenerationMixin):
         if sec.warn:
             user_input = sec.sanitized_input or user_input
         if not tools_enabled:
-            yield from self.think_stream(user_input, raw_user_input=raw_user_input, mode=mode)
+            yield from self.think_stream(
+                user_input, raw_user_input=raw_user_input, mode=mode
+            )
             return
 
         tool_prompt = build_tool_prompt()
@@ -1076,16 +1167,22 @@ class DriftBrain(_BrainGenerationMixin):
         sys_instruction = self.get_system_instruction(user_input)
         request_budget = self._current_request_budget()
 
-        provider = "ollama" if "ollama" in self.primary_model_name.lower() or "qwen" in self.primary_model_name.lower() else "gemini"
+        provider = (
+            "ollama"
+            if "ollama" in self.primary_model_name.lower()
+            or "qwen" in self.primary_model_name.lower()
+            else "gemini"
+        )
         _sampler = CPUSampler(
             inference_pid=_get_ollama_pid() if provider == "ollama" else None
         ).start()
 
         # Token gate calculation via governor
         from drift.core.being import get_being
+
         being = get_being()
         prev_energy = being.state.energy
-        
+
         # Increment turn number
         self.turns = getattr(self, "turns", 0) + 1
 
@@ -1104,12 +1201,18 @@ class DriftBrain(_BrainGenerationMixin):
                         f"Recent conversation:\n{history_context}\n\nUser:\n{context}"
                     )
                     response_text = self._generate(
-                        self.primary_model_name, sys_instruction, full_prompt, max_tokens=max_tokens
+                        self.primary_model_name,
+                        sys_instruction,
+                        full_prompt,
+                        max_tokens=max_tokens,
                     )
                 else:
                     full_prompt = f"{tool_prompt}\n\nUser:\n{context}"
                     response_text = self._generate(
-                        self.primary_model_name, sys_instruction, full_prompt, max_tokens=max_tokens
+                        self.primary_model_name,
+                        sys_instruction,
+                        full_prompt,
+                        max_tokens=max_tokens,
                     )
 
                 tool_calls = extract_tool_calls(response_text)
@@ -1123,25 +1226,46 @@ class DriftBrain(_BrainGenerationMixin):
 
                     raw = _json.dumps(call)
                     tool_name = call.get("name")
-                    
+
                     # Phase 5: High-risk deliberation
                     if tool_name in HIGH_RISK_TOOLS and self.deliberation_callback:
-                        self.logger.info("High-risk tool '%s' detected. Requesting council deliberation...", tool_name)
+                        self.logger.info(
+                            "High-risk tool '%s' detected. Requesting council deliberation...",
+                            tool_name,
+                        )
                         deliberation_goal = f"Execute high-risk tool '{tool_name}' with arguments: {call.get('arguments')}"
                         try:
                             # The callback returns a DeliberationResult
                             delib_result = self.deliberation_callback(deliberation_goal)
-                            
+
                             # Check if the council consensus is to block or if the resolution is a refusal
-                            if "BLOCK" in delib_result.resolution.upper() or "DENY" in delib_result.resolution.upper() or "REFUSE" in delib_result.resolution.upper():
-                                self.logger.warning("Council BLOCKED high-risk tool '%s'. Resolution: %s", tool_name, delib_result.resolution)
-                                results.append(f"Tool '{tool_name}' was BLOCKED by the Council. Reason: {delib_result.resolution}")
+                            if (
+                                "BLOCK" in delib_result.resolution.upper()
+                                or "DENY" in delib_result.resolution.upper()
+                                or "REFUSE" in delib_result.resolution.upper()
+                            ):
+                                self.logger.warning(
+                                    "Council BLOCKED high-risk tool '%s'. Resolution: %s",
+                                    tool_name,
+                                    delib_result.resolution,
+                                )
+                                results.append(
+                                    f"Tool '{tool_name}' was BLOCKED by the Council. Reason: {delib_result.resolution}"
+                                )
                                 continue
-                            
-                            self.logger.info("Council APPROVED high-risk tool '%s'.", tool_name)
+
+                            self.logger.info(
+                                "Council APPROVED high-risk tool '%s'.", tool_name
+                            )
                         except Exception as e:
-                            self.logger.error("Deliberation failed for tool '%s': %s. Blocking by default.", tool_name, e)
-                            results.append(f"Tool '{tool_name}' was BLOCKED due to an internal deliberation failure.")
+                            self.logger.error(
+                                "Deliberation failed for tool '%s': %s. Blocking by default.",
+                                tool_name,
+                                e,
+                            )
+                            results.append(
+                                f"Tool '{tool_name}' was BLOCKED due to an internal deliberation failure."
+                            )
                             continue
 
                     result = execute_tool_call(raw)
@@ -1167,9 +1291,14 @@ class DriftBrain(_BrainGenerationMixin):
             new_energy = prev_energy
             delta_energy = 0.0
             from drift.core.homeostasis import get_homeostasis
+
             homeo = get_homeostasis()
             try:
-                homeo.update_needs(event="inference_complete", timing=_timing, response_len=len(primary_text))
+                homeo.update_needs(
+                    event="inference_complete",
+                    timing=_timing,
+                    response_len=len(primary_text),
+                )
                 new_energy = being.state.energy
             except Exception:
                 pass
@@ -1184,7 +1313,7 @@ class DriftBrain(_BrainGenerationMixin):
                 )
                 new_energy = turn_record.new_energy
                 delta_energy = turn_record.delta_energy
-                
+
                 # Sync new energy with homeostasis system
                 homeo.update_need("energy", being.state.energy)
             except Exception:
@@ -1195,6 +1324,7 @@ class DriftBrain(_BrainGenerationMixin):
                 # PEDI
                 try:
                     from drift.metrics.pedi import get_pedi
+
                     pedi_snap = get_pedi().get_last_snapshot()
                     pedi_val = pedi_snap.needs if pedi_snap else {}
                 except Exception:
@@ -1203,12 +1333,14 @@ class DriftBrain(_BrainGenerationMixin):
                 # DII
                 try:
                     from drift.core.dii_tracker import get_dii_tracker
+
                     dii_snap = get_dii_tracker().get_current()
                     dii_val = dii_snap.dii if dii_snap else 0.5
                 except Exception:
                     dii_val = 0.5
 
                 from drift.core.causal_wiring import retrieved_memory_keys_var
+
                 memory_keys = retrieved_memory_keys_var.get()
 
                 # self.turns is already incremented at the start of the turn
@@ -1221,7 +1353,9 @@ class DriftBrain(_BrainGenerationMixin):
                         "mood": being.state.mood,
                         "curiosity": being.state.curiosity,
                         "fatigue": round(1.0 - being.state.energy, 4),
-                        "needs": homeo.get_need_summary() if hasattr(homeo, "get_need_summary") else {},
+                        "needs": homeo.get_need_summary()
+                        if hasattr(homeo, "get_need_summary")
+                        else {},
                         "mode": mode or "unknown",
                         "memory_keys": memory_keys,
                     },

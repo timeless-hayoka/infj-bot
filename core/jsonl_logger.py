@@ -249,5 +249,6 @@ class HardenedJsonlLogger:
 #  Convenience: module-level singletons for the existing logs              #
 # ---------------------------------------------------------------------- #
 
+
 def _logger_for(path: Path) -> HardenedJsonlLogger:
     return HardenedJsonlLogger(path)

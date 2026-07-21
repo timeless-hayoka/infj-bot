@@ -9,7 +9,9 @@ import requests
 
 
 def run_plan(host: str, port: int, token: Optional[str], plan: Dict[str, Any]):
-    protocol = "https" if not host.startswith("127.") and host != "localhost" else "http"
+    protocol = (
+        "https" if not host.startswith("127.") and host != "localhost" else "http"
+    )
     url = f"{protocol}://{host}:{port}/autonomy"
     payload = {"plan": plan}
     headers = {}

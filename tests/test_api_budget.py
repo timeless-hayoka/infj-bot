@@ -18,15 +18,17 @@ def _server_reachable() -> bool:
 
 
 requires_server = pytest.mark.skipif(
-    not _server_reachable(),
-    reason="DRIFT API server not running on port 8765"
+    not _server_reachable(), reason="DRIFT API server not running on port 8765"
 )
 
 
 @requires_server
 def test_normal_chat():
     print("Testing standard chat endpoint (/api/chat)...")
-    resp = requests.post(f"{API_URL}/api/chat", json={"message": "Hello, Drift. Perform a quick verification cycle."})
+    resp = requests.post(
+        f"{API_URL}/api/chat",
+        json={"message": "Hello, Drift. Perform a quick verification cycle."},
+    )
     print(f"Status code: {resp.status_code}")
     print(f"Response: {resp.json()}")
     assert resp.status_code == 200
@@ -37,12 +39,16 @@ def test_normal_chat():
 @requires_server
 def test_streaming_chat():
     print("Testing streaming chat endpoint (/api/chat/stream)...")
-    resp = requests.post(f"{API_URL}/api/chat/stream", json={"message": "Tell me a short 1-sentence joke."}, stream=True)
+    resp = requests.post(
+        f"{API_URL}/api/chat/stream",
+        json={"message": "Tell me a short 1-sentence joke."},
+        stream=True,
+    )
     print(f"Status code: {resp.status_code}")
     assert resp.status_code == 200
     for line in resp.iter_lines():
         if line:
-            decoded = line.decode('utf-8')
+            decoded = line.decode("utf-8")
             print(f"Stream line: {decoded}")
             if "[DONE]" in decoded:
                 break
@@ -64,7 +70,7 @@ async def test_client_disconnect_stream():
         "Connection: close\r\n\r\n"
         f"{payload}"
     )
-    writer.write(req.encode('utf-8'))
+    writer.write(req.encode("utf-8"))
     await writer.drain()
 
     while True:
@@ -79,7 +85,9 @@ async def test_client_disconnect_stream():
     print("Closing client connection to simulate disconnect...")
     writer.close()
     await writer.wait_closed()
-    print("Connection closed. Waiting a moment to let the server process the disconnect.")
+    print(
+        "Connection closed. Waiting a moment to let the server process the disconnect."
+    )
     await asyncio.sleep(2)
     print("Client disconnect test run completed.\n")
 

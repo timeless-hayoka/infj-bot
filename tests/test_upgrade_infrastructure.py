@@ -275,6 +275,7 @@ class TestDMUScoring:
             assert 0.0 <= comps[key] <= 1.0, f"{key} out of range: {comps[key]}"
         # Final MPS should be weighted sum using actual weights from dmu_scoring.py
         from drift.core.dmu_scoring import MPS_WEIGHTS
+
         expected = (
             MPS_WEIGHTS["decay"] * comps["decay"]
             + MPS_WEIGHTS["reinf"] * comps["reinf"]

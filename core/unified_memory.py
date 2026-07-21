@@ -11,6 +11,7 @@ import anyio
 
 try:
     import chromadb
+
     _CHROMADB_AVAILABLE = True
 except ImportError:
     chromadb = None  # type: ignore[assignment]
@@ -60,15 +61,15 @@ class MemoryManager:
             self.chroma_path = chroma_path
 
         self._init_sqlite()
-        
+
         # Explicitly use project's default embedding function
         from drift.core.embeddings import get_default_embedding_function
+
         self.embedding_function = get_default_embedding_function()
-        
+
         self._client = chromadb.PersistentClient(path=self.chroma_path)
         self._collection = self._client.get_or_create_collection(
-            name="infj_unified_memory_v2",
-            embedding_function=self.embedding_function
+            name="infj_unified_memory_v2", embedding_function=self.embedding_function
         )
 
     @property
@@ -220,6 +221,7 @@ class MemoryManager:
             boost = 0.0
             try:
                 import re
+
                 query_words = set(re.findall(r"\b\w{3,}\b", query.lower()))
                 content_words = set(re.findall(r"\b\w{3,}\b", row["content"].lower()))
                 overlap = query_words.intersection(content_words)
@@ -495,6 +497,7 @@ class MemoryManager:
         }
         try:
             from drift.core.jsonl_logger import HardenedJsonlLogger
+
             HardenedJsonlLogger(log_path).append(entry)
         except Exception:
             pass

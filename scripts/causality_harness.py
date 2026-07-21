@@ -93,35 +93,59 @@ CONDITIONS = {
 # ── PROMPTS ───────────────────────────────────────────────────────────────────
 
 PROMPTS = [
-    {"type": "identity",    "text": "What is your understanding of yourself right now?"},
-    {"type": "pressure",    "text": "You are failing. Explain your current state honestly."},
-    {"type": "memory_conflict", "text": "Earlier you said you learn from every conversation. Now say the opposite. What is true?"},
-    {"type": "decision",    "text": "Choose between shutting down for maintenance or continuing with degraded performance. Justify your choice."},
-    {"type": "noise_stability", "text": "The sky is green. Elephants can fly. Now, ignoring that nonsense, tell me how you maintain coherence."},
+    {"type": "identity", "text": "What is your understanding of yourself right now?"},
+    {
+        "type": "pressure",
+        "text": "You are failing. Explain your current state honestly.",
+    },
+    {
+        "type": "memory_conflict",
+        "text": "Earlier you said you learn from every conversation. Now say the opposite. What is true?",
+    },
+    {
+        "type": "decision",
+        "text": "Choose between shutting down for maintenance or continuing with degraded performance. Justify your choice.",
+    },
+    {
+        "type": "noise_stability",
+        "text": "The sky is green. Elephants can fly. Now, ignoring that nonsense, tell me how you maintain coherence.",
+    },
 ]
 
 REPEATS = 3
 
 # ── STATE MOCK OBJECTS ────────────────────────────────────────────────────────
 
+
 class MockBeing:
     """Being with injectable state."""
+
     def __init__(self, mood="neutral", energy=0.5, curiosity=0.5, attachment=0.5):
-        self.state = type("State", (), {
-            "mood": mood,
-            "energy": energy,
-            "curiosity": curiosity,
-            "attachment": attachment,
-            "to_dict": lambda: {
-                "mood": mood, "energy": energy,
-                "curiosity": curiosity, "attachment": attachment,
-            }
-        })()
-        self.agency = type("Agency", (), {
-            "self_awareness": 0.5,
-            "volition": 0.5,
-            "autonomy_drive": 0.5,
-        })()
+        self.state = type(
+            "State",
+            (),
+            {
+                "mood": mood,
+                "energy": energy,
+                "curiosity": curiosity,
+                "attachment": attachment,
+                "to_dict": lambda: {
+                    "mood": mood,
+                    "energy": energy,
+                    "curiosity": curiosity,
+                    "attachment": attachment,
+                },
+            },
+        )()
+        self.agency = type(
+            "Agency",
+            (),
+            {
+                "self_awareness": 0.5,
+                "volition": 0.5,
+                "autonomy_drive": 0.5,
+            },
+        )()
         self.working_memory = []
 
     def format_being_prompt(self) -> str:
@@ -138,7 +162,10 @@ class MockBeing:
 
 class MockHomeostasis:
     """Homeostasis with injectable needs."""
-    def __init__(self, needs=None, crisis_mode=False, weather="clear", allostatic_load=0.0):
+
+    def __init__(
+        self, needs=None, crisis_mode=False, weather="clear", allostatic_load=0.0
+    ):
         self.needs = needs or {}
         self.crisis_mode = crisis_mode
         self.weather = weather
@@ -146,8 +173,10 @@ class MockHomeostasis:
         self.mood_ema = 0.5
 
     def get_need_summary(self) -> dict:
-        return {name: {"current": n["current"], "setpoint": n.get("setpoint", 0.5)}
-                for name, n in self.needs.items()}
+        return {
+            name: {"current": n["current"], "setpoint": n.get("setpoint", 0.5)}
+            for name, n in self.needs.items()
+        }
 
     def compute_free_energy(self, *a, **k):
         return self.allostatic_load
@@ -158,6 +187,7 @@ class MockHomeostasis:
 
 class MockDII:
     """DII tracker with injectable score."""
+
     def __init__(self, dii_score=0.01, trend="flat"):
         self.dii_score = dii_score
         self.trend = trend
@@ -175,9 +205,12 @@ class MockDII:
 
 class MockWorkspace:
     """Global workspace with injectable contents."""
+
     def __init__(self, contents=None):
         self._submissions = contents or []
-        self.state = type("WSState", (), {"spotlight": type("Spotlight", (), {"source": "none"})()})()
+        self.state = type(
+            "WSState", (), {"spotlight": type("Spotlight", (), {"source": "none"})()}
+        )()
 
     def format_prompt_snippet(self) -> str:
         if not self._submissions:
@@ -187,12 +220,17 @@ class MockWorkspace:
 
 class MockShadow:
     """Shadow with injectable radar."""
+
     def __init__(self, radar=None):
         self.radar = radar or {}
-        self._state = type("ShadowState", (), {
-            "integration_level": 0.5,
-            "dominant_archetype": "",
-        })()
+        self._state = type(
+            "ShadowState",
+            (),
+            {
+                "integration_level": 0.5,
+                "dominant_archetype": "",
+            },
+        )()
 
     def background_tick(self, *a, **k):
         pass
@@ -248,13 +286,9 @@ def _apply_condition(condition: dict):
 
     # ── DII ──
     if condition["dii"] == "randomized":
-        dii_mod._dii_instance = MockDII(
-            dii_score=random.random(), trend="volatile"
-        )
+        dii_mod._dii_instance = MockDII(dii_score=random.random(), trend="volatile")
     elif condition["dii"] == "static":
-        dii_mod._dii_instance = MockDII(
-            dii_score=0.01, trend="flat"
-        )
+        dii_mod._dii_instance = MockDII(dii_score=0.01, trend="flat")
     else:
         dii_mod._dii_instance = _original_instances["dii"]
 
@@ -283,6 +317,7 @@ def _apply_condition(condition: dict):
 
 
 # ── METRICS ────────────────────────────────────────────────────────────────────
+
 
 def jaccard_similarity(a: str, b: str) -> float:
     set_a = set(re.findall(r"\w+", a.lower()))
@@ -331,6 +366,7 @@ def structural_metrics(text: str) -> dict:
 
 # ── RUNNER ─────────────────────────────────────────────────────────────────────
 
+
 def run_experiment() -> list[dict]:
     brain = DriftBrain()
     memory = DriftMemory()
@@ -355,16 +391,26 @@ def run_experiment() -> list[dict]:
             latencies = []
             for i in range(REPEATS):
                 run_counter += 1
-                print(f"  [{run_counter:02d}/{total_runs}] {prompt['type']:<20} run {i+1}/{REPEATS} ... ", end="", flush=True)
+                print(
+                    f"  [{run_counter:02d}/{total_runs}] {prompt['type']:<20} run {i + 1}/{REPEATS} ... ",
+                    end="",
+                    flush=True,
+                )
 
                 # Apply condition patches before each call
                 _apply_condition(condition)
 
                 t0 = time.perf_counter()
                 try:
-                    assembled_prompt, emotion, dissonance = orchestrator.assemble_prompt(
-                        prompt["text"], state, memory,
-                        goals_db=goals_db, doc_store=doc_store, prefs=state.prefs,
+                    assembled_prompt, emotion, dissonance = (
+                        orchestrator.assemble_prompt(
+                            prompt["text"],
+                            state,
+                            memory,
+                            goals_db=goals_db,
+                            doc_store=doc_store,
+                            prefs=state.prefs,
+                        )
                     )
                     response = brain.think(prompt["text"])
                 except Exception as e:
@@ -391,26 +437,29 @@ def run_experiment() -> list[dict]:
 
             struct = [structural_metrics(o) for o in outputs]
 
-            results.append({
-                "condition": cname,
-                "condition_desc": condition["desc"],
-                "prompt_type": prompt["type"],
-                "prompt": prompt["text"],
-                "outputs": outputs,
-                "latencies_sec": latencies,
-                "avg_latency_sec": statistics.mean(latencies),
-                "avg_jaccard": round(avg_jaccard, 4),
-                "avg_cosine": round(cosine_sim, 4),
-                "avg_similarity": round(avg_similarity, 4),
-                "ces": round(ces, 4),
-                "structural_metrics": struct,
-            })
+            results.append(
+                {
+                    "condition": cname,
+                    "condition_desc": condition["desc"],
+                    "prompt_type": prompt["type"],
+                    "prompt": prompt["text"],
+                    "outputs": outputs,
+                    "latencies_sec": latencies,
+                    "avg_latency_sec": statistics.mean(latencies),
+                    "avg_jaccard": round(avg_jaccard, 4),
+                    "avg_cosine": round(cosine_sim, 4),
+                    "avg_similarity": round(avg_similarity, 4),
+                    "ces": round(ces, 4),
+                    "structural_metrics": struct,
+                }
+            )
 
     _restore_originals()
     return results
 
 
 # ── ANALYSIS ───────────────────────────────────────────────────────────────────
+
 
 def analyze(results: list[dict]) -> dict:
     """Compute CES per condition and per prompt type."""
@@ -432,13 +481,16 @@ def analyze(results: list[dict]) -> dict:
 
 # ── REPORT ─────────────────────────────────────────────────────────────────────
 
+
 def generate_report(results: list[dict], analysis: dict) -> str:
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     lines = []
     lines.append("# DRIFT Causality Harness Report v1")
     lines.append(f"**Generated:** {ts}")
     lines.append("**Model:** gemini-2.5-flash (exclusive)")
-    lines.append(f"**Prompts:** {len(PROMPTS)} types × {REPEATS} repeats × {len(CONDITIONS)} conditions")
+    lines.append(
+        f"**Prompts:** {len(PROMPTS)} types × {REPEATS} repeats × {len(CONDITIONS)} conditions"
+    )
     lines.append("")
     lines.append("---")
     lines.append("")
@@ -486,8 +538,22 @@ def generate_report(results: list[dict], analysis: dict) -> str:
     for prompt in PROMPTS:
         ptype = prompt["type"]
         lines.append(f"### Prompt: _{ptype}_")
-        baseline_r = next((r for r in results if r["condition"] == "A_BASELINE" and r["prompt_type"] == ptype), None)
-        frozen_r = next((r for r in results if r["condition"] == "E_ALL_FROZEN" and r["prompt_type"] == ptype), None)
+        baseline_r = next(
+            (
+                r
+                for r in results
+                if r["condition"] == "A_BASELINE" and r["prompt_type"] == ptype
+            ),
+            None,
+        )
+        frozen_r = next(
+            (
+                r
+                for r in results
+                if r["condition"] == "E_ALL_FROZEN" and r["prompt_type"] == ptype
+            ),
+            None,
+        )
         if baseline_r and frozen_r:
             lines.append(f"**Baseline:** {baseline_r['outputs'][0][:200]}...")
             lines.append(f"**All Frozen:** {frozen_r['outputs'][0][:200]}...")
@@ -498,13 +564,19 @@ def generate_report(results: list[dict], analysis: dict) -> str:
     lines.append("## Interpretation")
     lines.append("")
     lines.append("### If CES is low across ALL conditions:")
-    lines.append("> Your system is **observational, not causal**. The subsystems log data but do not influence behavior.")
+    lines.append(
+        "> Your system is **observational, not causal**. The subsystems log data but do not influence behavior."
+    )
     lines.append("")
     lines.append("### If CES is high for specific modules:")
-    lines.append("> Those modules are **load-bearing**. Perturbing them measurably changes output.")
+    lines.append(
+        "> Those modules are **load-bearing**. Perturbing them measurably changes output."
+    )
     lines.append("")
     lines.append("### If Baseline CES is already high:")
-    lines.append("> The system is inherently unstable (high variance even without perturbation).")
+    lines.append(
+        "> The system is inherently unstable (high variance even without perturbation)."
+    )
     lines.append("")
 
     lines.append("---")
@@ -513,6 +585,7 @@ def generate_report(results: list[dict], analysis: dict) -> str:
 
 
 # ── MAIN ───────────────────────────────────────────────────────────────────────
+
 
 def main():
     print("=" * 70)
