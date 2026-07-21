@@ -70,7 +70,13 @@ def test_env():
 
 
 def _has_real_api_key() -> bool:
-    for k in ("GEMINI_API_KEY", "API_KEY", "GOOGLE_API_KEY", "GROQ_API_KEY", "KIMI_API_KEY"):
+    for k in (
+        "GEMINI_API_KEY",
+        "API_KEY",
+        "GOOGLE_API_KEY",
+        "GROQ_API_KEY",
+        "KIMI_API_KEY",
+    ):
         v = os.getenv(k)
         if v and not v.startswith("ci-placeholder"):
             return True
