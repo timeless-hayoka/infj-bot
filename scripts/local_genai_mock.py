@@ -23,7 +23,9 @@ class GenerativeModel:
         self.system_instruction = system_instruction
 
     def generate_content(self, prompt):
-        return SimpleResponse(f"[MOCK {self.model_name}] Generated from prompt: {str(prompt)[:500]}")
+        return SimpleResponse(
+            f"[MOCK {self.model_name}] Generated from prompt: {str(prompt)[:500]}"
+        )
 
     def start_chat(self, history=None):
         return Chat(self, history)

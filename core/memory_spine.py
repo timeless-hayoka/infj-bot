@@ -9,7 +9,14 @@ from typing import Dict, Any, Optional
 import numpy as np
 from dataclasses import dataclass
 import sqlite3
-import chromadb
+
+try:
+    import chromadb
+
+    _CHROMADB_AVAILABLE = True
+except ImportError:
+    chromadb = None  # type: ignore[assignment]
+    _CHROMADB_AVAILABLE = False
 
 from drift.core.unified_memory import Event
 

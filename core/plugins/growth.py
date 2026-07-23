@@ -1,6 +1,6 @@
 STAGES = [
     {
-        "name": "Dormant Core",
+        "name": "Spark",
         "avatar": "egg",
         "size": 0.55,
         "min_points": 0,
@@ -53,18 +53,25 @@ def _count_type(memory, record_type):
 
 def growth_profile(memory, turns=0):
     from drift.core.being import get_being
+
     being = get_being()
-    
+
     interactions = _count_type(memory, "interaction")
     concepts = _count_type(memory, "learned_knowledge")
     reflections = _count_type(memory, "reflection")
     total_memories = memory.count()
-    
+
     import math
+
     # Professional Saturation Formula for "Good Work" standards
     # weights: message=0.5, concept=4.0, reflection=8.0, interaction_turn=1.5
-    raw_depth = (interactions * 0.5) + (concepts * 4.0) + (reflections * 8.0) + (int(turns) * 1.5)
-    
+    raw_depth = (
+        (interactions * 0.5)
+        + (concepts * 4.0)
+        + (reflections * 8.0)
+        + (int(turns) * 1.5)
+    )
+
     # Saturation curve (tanh) ensures points range from 0 to 1000
     points = int(1000 * math.tanh(raw_depth / 600))
 

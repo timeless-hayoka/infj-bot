@@ -25,11 +25,12 @@ logger = logging.getLogger("drift.memory_maintenance")
 
 ARCHIVE_DB = DATA_DIR / "archive.db"
 
+
 class ForgettingEngine:
     """Enforces the forgetting curve on the PHI organism."""
 
     def __init__(self, brain=None):
-        self.brain = brain or OllamaBridge() # Use local if possible
+        self.brain = brain or OllamaBridge()  # Use local if possible
         self._init_dbs()
 
     def _init_dbs(self):
@@ -49,8 +50,10 @@ class ForgettingEngine:
 
     async def consolidate(self, cutoff_hours: int = 48):
         """Perform a consolidation cycle."""
-        logger.info("[forgetting] Starting consolidation cycle (cutoff: %dh)", cutoff_hours)
-        
+        logger.info(
+            "[forgetting] Starting consolidation cycle (cutoff: %dh)", cutoff_hours
+        )
+
         # 1. Fetch stale thoughts from being.db
         stale_thoughts = self._fetch_stale_thoughts(cutoff_hours)
         if not stale_thoughts:
@@ -59,32 +62,36 @@ class ForgettingEngine:
 
         # 2. Extract durable knowledge via Brain (LLM)
         knowledge = await self._extract_knowledge(stale_thoughts)
-        
+
         # 3. Commit to Nexus and Cold Storage
         if knowledge:
             self._commit_knowledge(knowledge)
             self._archive_and_purge(stale_thoughts)
-            logger.info("[forgetting] Consolidated %d thoughts into durable knowledge.", len(stale_thoughts))
+            logger.info(
+                "[forgetting] Consolidated %d thoughts into durable knowledge.",
+                len(stale_thoughts),
+            )
         else:
-            logger.warning("[forgetting] No knowledge extracted. Retaining thoughts for next cycle.")
+            logger.warning(
+                "[forgetting] No knowledge extracted. Retaining thoughts for next cycle."
+            )
 
     def _fetch_stale_thoughts(self, hours: int) -> List[Dict]:
         cutoff = datetime.now() - timedelta(hours=hours)
         with sqlite3.connect(BEING_DB) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
-                "SELECT * FROM thoughts WHERE timestamp < ?",
-                (cutoff.isoformat(),)
+                "SELECT * FROM thoughts WHERE timestamp < ?", (cutoff.isoformat(),)
             ).fetchall()
         return [dict(r) for r in rows]
 
     async def _extract_knowledge(self, thoughts: List[Dict]) -> List[Dict]:
         if not thoughts:
             return []
-        
+
         # Format for LLM
         text = "\n".join([f"[{t['timestamp']}] {t['content']}" for t in thoughts])
-        
+
         prompt = f"""
 You are the PHI Memory Consolidator. Analyze these raw thoughts and extract 
 enduring patterns, preferences, or rules about Jude (the user) or yourself.
@@ -101,6 +108,7 @@ THOUGHTS:
             response = self.brain.think(prompt, mode="engineer")
             import json
             import re
+
             # Extract JSON
             match = re.search(r"\[.*\]", response, re.DOTALL)
             if match:
@@ -116,7 +124,7 @@ THOUGHTS:
                 try:
                     conn.execute(
                         "INSERT INTO durable_knowledge (category, content, confidence, last_reinforced, created_at) VALUES (?, ?, ?, ?, ?)",
-                        (item['category'], item['fact'], item['confidence'], now, now)
+                        (item["category"], item["fact"], item["confidence"], now, now),
                     )
                 except sqlite3.OperationalError:
                     # Table might not exist yet if using a fresh nexus.db
@@ -132,15 +140,20 @@ THOUGHTS:
             for t in thoughts:
                 conn.execute(
                     "INSERT INTO archived_memories (original_id, timestamp, content, metadata, archived_at) VALUES (?, ?, ?, ?, ?)",
-                    (str(t.get('id')), t.get('timestamp'), t.get('content'), t.get('metadata', ''), now)
+                    (
+                        str(t.get("id")),
+                        t.get("timestamp"),
+                        t.get("content"),
+                        t.get("metadata", ""),
+                        now,
+                    ),
                 )
             conn.commit()
-        
+
         # Delete from being.db
-        ids = [t['id'] for t in thoughts]
+        ids = [t["id"] for t in thoughts]
         with sqlite3.connect(BEING_DB) as conn:
             conn.execute(
-                f"DELETE FROM thoughts WHERE id IN ({','.join('?'*len(ids))})",
-                ids
+                f"DELETE FROM thoughts WHERE id IN ({','.join('?' * len(ids))})", ids
             )
             conn.commit()

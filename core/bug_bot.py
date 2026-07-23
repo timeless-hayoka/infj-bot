@@ -191,7 +191,12 @@ class BugBot:
                         vuln_type = f"Nuclei: {item.get('template-id', 'unknown')}"
                         dedup_key = (asset, vuln_type)
                         # DB-level dedup check — no arbitrary limit
-                        duplicate = dedup_key in seen_this_run or self.findings.exists_by_asset_and_vuln_type(asset, vuln_type)
+                        duplicate = (
+                            dedup_key in seen_this_run
+                            or self.findings.exists_by_asset_and_vuln_type(
+                                asset, vuln_type
+                            )
+                        )
                         if duplicate:
                             skipped += 1
                             continue
@@ -209,7 +214,8 @@ class BugBot:
                     [
                         d
                         for d in data
-                        if d.get("info", {}).get("severity", "").lower() in ("critical", "high")
+                        if d.get("info", {}).get("severity", "").lower()
+                        in ("critical", "high")
                     ]
                 )
                 skip_note = f", {skipped} skipped (dedup)" if skipped else ""
@@ -492,5 +498,6 @@ class BugBot:
 
     def _log(self, msg: str):
         from drift.core.jsonl_logger import HardenedJsonlLogger
+
         line = f"[{datetime.now().isoformat(timespec='seconds')}] {msg}"
         HardenedJsonlLogger(BUGBOT_LOG).write_raw(line)

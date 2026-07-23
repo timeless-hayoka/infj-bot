@@ -41,7 +41,12 @@ from drift.core.cognitive_architecture import CognitiveArchitecture, CycleContex
 from drift.core.hive.elysium import get_elysium
 from drift.core.dii_tracker import get_dii_tracker
 import sys
-from drift.core.context_engine import CognitiveState, Context, ContextWorker, CognitivePayload
+from drift.core.context_engine import (
+    CognitiveState,
+    Context,
+    ContextWorker,
+    CognitivePayload,
+)
 from drift.core.cognitive_ops import pedi_regulation_step, state_conditioned_llm
 from drift.interfaces.comonad_cli import calculate_state_diff
 
@@ -51,6 +56,7 @@ logger = logging.getLogger("drift")
 brain = DriftBrain()
 memory = DriftMemory()
 history = ChatHistory()
+
 
 # Phase 5: Wire deliberation bridge
 def deliberation_bridge(goal: str):
@@ -69,7 +75,7 @@ def deliberation_bridge(goal: str):
     try:
         try:
             loop = asyncio.get_running_loop()
-            # If we're here, we're in an async context. 
+            # If we're here, we're in an async context.
             # We can't block the loop, so we MUST run in a separate thread.
             with ThreadPoolExecutor() as executor:
                 future = executor.submit(run_in_new_loop)
@@ -77,10 +83,18 @@ def deliberation_bridge(goal: str):
         except RuntimeError:
             # No loop running, we can just use asyncio.run
             return asyncio.run(_orchestrator.deliberate(goal))
-            
+
     except Exception as e:
         logger.error("Deliberation bridge failed: %s", e)
-        return DeliberationResult(goal=goal, resolution=f"BLOCK: deliberation engine error ({e})", council_votes={}, winning_role="none", moral_weight=0.0, narrative_weight=0.0)
+        return DeliberationResult(
+            goal=goal,
+            resolution=f"BLOCK: deliberation engine error ({e})",
+            council_votes={},
+            winning_role="none",
+            moral_weight=0.0,
+            narrative_weight=0.0,
+        )
+
 
 brain.deliberation_callback = deliberation_bridge
 get_being().deliberation_callback = deliberation_bridge
@@ -163,6 +177,7 @@ _orchestrator.brain = brain
 
 # Phase 6: Unified Audit
 from drift.core.unified_audit import wire_orchestrator_audit
+
 wire_orchestrator_audit(_orchestrator)
 
 # Global Workspace — the bot's conscious mind
@@ -488,7 +503,7 @@ async def chat_loop():
             "coherence": 0.8,
             "resonance": 0.8,
             "tension": 0.2,
-            "shadow_depth": 0.2
+            "shadow_depth": 0.2,
         }
         try:
             physics_state = _physics.get_state()
@@ -504,7 +519,9 @@ async def chat_loop():
 
         try:
             elysium_status = _elysium.council_status()
-            raw_active_state["coherence"] = elysium_status.get("nexus", {}).get("coherence_score", 0.8)
+            raw_active_state["coherence"] = elysium_status.get("nexus", {}).get(
+                "coherence_score", 0.8
+            )
         except Exception:
             pass
 
@@ -535,19 +552,22 @@ async def chat_loop():
                 )
             except Exception as exc:
                 from drift.core.cognitive_orchestrator import IntentBlockedError
+
                 if isinstance(exc, IntentBlockedError):
                     generate_response_func.is_blocked = True
                     return str(exc)
                 raise exc
 
             # Generate LLM response
-            output = brain.agent_turn(prompt, tools_enabled=True, raw_user_input=u_input, mode=state.mode)
-            
+            output = brain.agent_turn(
+                prompt, tools_enabled=True, raw_user_input=u_input, mode=state.mode
+            )
+
             # Save prompt/emotion/dissonance to closure scope
             generate_response_func.prompt = prompt
             generate_response_func.emotion = emotion
             generate_response_func.dissonance = dissonance
-            
+
             return output
 
         if "--comonadic" in sys.argv:
@@ -556,7 +576,7 @@ async def chat_loop():
                 coherence=raw_active_state.get("coherence", 0.8),
                 resonance=raw_active_state.get("resonance", 0.8),
                 tension=raw_active_state.get("tension", 0.2),
-                shadow_depth=raw_active_state.get("shadow_depth", 0.2)
+                shadow_depth=raw_active_state.get("shadow_depth", 0.2),
             )
             payload = CognitivePayload(user_input=user_input)
             ctx = Context[CognitivePayload](state=cogn_state, value=payload)
@@ -590,6 +610,7 @@ async def chat_loop():
                 )
             except Exception as exc:
                 from drift.core.cognitive_orchestrator import IntentBlockedError
+
                 if isinstance(exc, IntentBlockedError):
                     print(f"\n[INFJ COMPANION]: {exc}")
                     continue
@@ -597,7 +618,9 @@ async def chat_loop():
             prompt = f"[System Direction: {worker.current().response}]\n{prompt}"
 
             # Generate LLM response
-            output = brain.agent_turn(prompt, tools_enabled=True, raw_user_input=user_input, mode=state.mode)
+            output = brain.agent_turn(
+                prompt, tools_enabled=True, raw_user_input=user_input, mode=state.mode
+            )
 
             # Log drift and vault deposit
             initial_state = worker.history[0]
@@ -614,7 +637,7 @@ async def chat_loop():
                     user_q=user_input,
                     sys_q=output,
                     current_state=final_state.model_dump(),
-                    quarantined=(final_state.shadow_depth > 0.75)
+                    quarantined=(final_state.shadow_depth > 0.75),
                 )
             except Exception:
                 pass
@@ -627,12 +650,16 @@ async def chat_loop():
                 _workspace.execute_cli_cycle,
                 raw_active_state,
                 user_input,
-                generate_response_func
+                generate_response_func,
             )
 
             # Retrieve prompt, emotion, and dissonance from the call
             prompt = getattr(generate_response_func, "prompt", "")
-            emotion = getattr(generate_response_func, "emotion", {"label": "neutral", "intensity": 0.5})
+            emotion = getattr(
+                generate_response_func,
+                "emotion",
+                {"label": "neutral", "intensity": 0.5},
+            )
             dissonance = getattr(generate_response_func, "dissonance", {"score": 0.0})
 
         if getattr(generate_response_func, "is_blocked", False):

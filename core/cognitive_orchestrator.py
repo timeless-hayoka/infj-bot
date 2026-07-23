@@ -156,6 +156,7 @@ class TurnLog:
 
 class IntentBlockedError(Exception):
     """Raised when the Shadow Intent Enforcement blocks a request."""
+
     def __init__(self, scan_result):
         self.scan_result = scan_result
         super().__init__(scan_result.refusal_message)
@@ -329,9 +330,12 @@ class CognitiveOrchestrator:
         # ── Shadow Intent Enforcement ──
         try:
             from drift.core.shadow import get_shadow
+
             shadow = get_shadow()
             if hasattr(shadow, "evaluate_intent"):
-                scan_result = shadow.evaluate_intent(message, mode=getattr(state, "mode", None))
+                scan_result = shadow.evaluate_intent(
+                    message, mode=getattr(state, "mode", None)
+                )
                 if scan_result.blocked:
                     # Raise intent block to be handled by the interface layer (api.py, cli.py)
                     raise IntentBlockedError(scan_result)
@@ -381,7 +385,7 @@ class CognitiveOrchestrator:
             if "corrupted_block" in context:
                 conflict_detected = True
                 epistemic_confidence = min(epistemic_confidence, 0.2)
-            
+
             # Incorporate salience score into epistemic confidence
             saliences = re.findall(r"salience:\s*([0-9.]+)", context)
             if saliences:
@@ -471,7 +475,11 @@ class CognitiveOrchestrator:
                 else:
                     current_pedi_state = pedi_vec
             else:
-                current_pedi_state = {"coherence": 0.5, "resonance": 0.5, "tension": 0.1}
+                current_pedi_state = {
+                    "coherence": 0.5,
+                    "resonance": 0.5,
+                    "tension": 0.1,
+                }
 
             # 2. DII from override
             current_dii_state = state_override.get("DII_SCORE", 0.5)
@@ -483,7 +491,7 @@ class CognitiveOrchestrator:
                 stress_val = override_homeo.get("stress")
                 if stress_val is None:
                     stress_val = crisis_val
-                
+
                 energy_val = override_homeo.get("energy")
                 if energy_val is None:
                     needs_val = override_homeo.get("needs")
@@ -493,7 +501,7 @@ class CognitiveOrchestrator:
                         energy_val = needs_val
                     else:
                         energy_val = 0.5
-                
+
                 fatigue_val = override_homeo.get("fatigue")
                 if fatigue_val is None:
                     fatigue_val = 1.0 - energy_val
@@ -505,23 +513,34 @@ class CognitiveOrchestrator:
                     "fatigue": fatigue_val,
                 }
             else:
-                current_homeostasis = {"crisis": 0.0, "stress": 0.5, "energy": 0.5, "fatigue": 0.5}
+                current_homeostasis = {
+                    "crisis": 0.0,
+                    "stress": 0.5,
+                    "energy": 0.5,
+                    "fatigue": 0.5,
+                }
         else:
             # Live states from modules
             # PEDI
             try:
                 from drift.metrics.pedi import get_pedi
+
                 pedi_snap = get_pedi().get_last_snapshot()
                 if pedi_snap:
                     current_pedi_state = pedi_snap.needs
             except Exception:
                 pass
             if not current_pedi_state:
-                current_pedi_state = {"coherence": 0.85, "resonance": 0.82, "tension": 0.12}
+                current_pedi_state = {
+                    "coherence": 0.85,
+                    "resonance": 0.82,
+                    "tension": 0.12,
+                }
 
             # DII
             try:
                 from drift.core.dii_tracker import get_dii_tracker
+
                 dii_snap = get_dii_tracker().get_current()
                 if dii_snap:
                     current_dii_state = dii_snap.dii
@@ -533,8 +552,13 @@ class CognitiveOrchestrator:
             # Homeostasis
             try:
                 from drift.core.homeostasis import get_homeostasis
+
                 homeo_inst = get_homeostasis()
-                energy_val = homeo_inst.needs.get("energy").current if homeo_inst.needs.get("energy") else 0.5
+                energy_val = (
+                    homeo_inst.needs.get("energy").current
+                    if homeo_inst.needs.get("energy")
+                    else 0.5
+                )
                 current_homeostasis = {
                     "crisis": 1.0 if homeo_inst.crisis_mode else 0.0,
                     "stress": homeo_inst.allostatic_load,
@@ -542,7 +566,12 @@ class CognitiveOrchestrator:
                     "fatigue": 1.0 - energy_val,
                 }
             except Exception:
-                current_homeostasis = {"crisis": 0.0, "stress": 0.5, "energy": 0.5, "fatigue": 0.5}
+                current_homeostasis = {
+                    "crisis": 0.0,
+                    "stress": 0.5,
+                    "energy": 0.5,
+                    "fatigue": 0.5,
+                }
 
         # Calculate Control Vectors
         pedi_w = pedi_to_weights(current_pedi_state)
@@ -557,7 +586,11 @@ class CognitiveOrchestrator:
             f"Current mode: {state.mode}\n{mode_scope_rail(state.mode)}",
             label="mode",
         )
-        budget.add("core", f"Tone / Communicative Guidance:\n{tone_instruction}", label="confidence_tone")
+        budget.add(
+            "core",
+            f"Tone / Communicative Guidance:\n{tone_instruction}",
+            label="confidence_tone",
+        )
         budget.add("core", being.format_being_prompt(), label="being")
 
         # System prompt constraints injection
@@ -631,7 +664,11 @@ Use this to clarify inner conflict without pathologizing it.
         if homeo.get("memory_access", True):
             budget.add("context", memory_context_block(context), label="memory")
         else:
-            budget.add("context", "[Memory access restricted due to high cognitive fatigue]", label="memory")
+            budget.add(
+                "context",
+                "[Memory access restricted due to high cognitive fatigue]",
+                label="memory",
+            )
         if goals_db is not None:
             summary = goals_db.active_summary()
             if summary and summary != "No active goals.":
@@ -727,15 +764,17 @@ Use this to clarify inner conflict without pathologizing it.
         Used for high-risk actions, planning, and multi-node consensus.
         """
         from drift.core.hive.elysium import get_elysium
-        
-        logger.info("[orchestrator] Initiating first-class deliberation for goal: %s", goal)
-        
+
+        logger.info(
+            "[orchestrator] Initiating first-class deliberation for goal: %s", goal
+        )
+
         # We pass self.memory and self.brain to Elysium so it uses the canonical spine
         elysium = get_elysium(memory=self.memory, brain=self.brain)
-        
+
         # This triggers the full [Ignite -> Propose -> Critique -> Integrate -> Resolve] loop
         result = await elysium.decide(goal)
-        
+
         return result
 
     def get_system_report(self) -> str:
@@ -794,16 +833,16 @@ Use this to clarify inner conflict without pathologizing it.
         from drift.core.being import get_being
 
         being = get_being()
-        
+
         embodiment_plugin = self.arch.get_plugin("embodiment")
         embodiment = embodiment_plugin.instance if embodiment_plugin else None
-        
+
         iit_plugin = self.arch.get_plugin("phi_proxy")
         iit = iit_plugin.instance if iit_plugin else None
-        
+
         homeostasis_plugin = self.arch.get_plugin("homeostasis")
         homeostasis = homeostasis_plugin.instance if homeostasis_plugin else None
-        
+
         shadow_plugin = self.arch.get_plugin("shadow")
         shadow = shadow_plugin.instance if shadow_plugin else None
 

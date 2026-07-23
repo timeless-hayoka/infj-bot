@@ -6,7 +6,10 @@ continue to work without modification.
 """
 
 from drift.core.cognitive_orchestrator import CognitiveOrchestrator
-from drift.core.safe_math_integration import inject_grounded_math, active_grounded_math_var
+from drift.core.safe_math_integration import (
+    inject_grounded_math,
+    active_grounded_math_var,
+)
 
 _orchestrator = CognitiveOrchestrator()
 
@@ -37,8 +40,6 @@ def build_chat_prompt(
     # DRIFT V2 — math grounding hook
     # Detects math in user_input, computes verified results, prepends
     # a [MATH ENGINE] block to the assembled prompt.
-    prompt, grounded_math = inject_grounded_math(
-        message, prompt
-    )
+    prompt, grounded_math = inject_grounded_math(message, prompt)
     active_grounded_math_var.set(grounded_math)
     return prompt, emotion, dissonance

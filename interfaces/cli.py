@@ -65,43 +65,59 @@ def cmd_ask(args):
     brain = DriftBrain()
     memory = DriftMemory()
     history = ChatHistory()
-    
+
     # Phase 5: Wire deliberation bridge
     from drift.core.cognitive_orchestrator import CognitiveOrchestrator
+
     _orchestrator = CognitiveOrchestrator()
     _orchestrator.memory = memory
     _orchestrator.brain = brain
 
     # Phase 6: Unified Audit
     from drift.core.unified_audit import wire_orchestrator_audit
+
     wire_orchestrator_audit(_orchestrator)
 
     def deliberation_bridge(goal: str):
         """Synchronous bridge for CLI deliberation, avoiding deadlocks."""
         import asyncio
         from drift.core.hive.elysium import DeliberationResult
+
         try:
             try:
                 asyncio.get_running_loop()
                 # Run in separate thread if loop exists
                 from concurrent.futures import ThreadPoolExecutor
+
                 with ThreadPoolExecutor() as executor:
+
                     def _run():
                         new_loop = asyncio.new_event_loop()
                         try:
-                            return new_loop.run_until_complete(_orchestrator.deliberate(goal))
+                            return new_loop.run_until_complete(
+                                _orchestrator.deliberate(goal)
+                            )
                         finally:
                             new_loop.close()
+
                     return executor.submit(_run).result()
             except RuntimeError:
                 return asyncio.run(_orchestrator.deliberate(goal))
         except Exception as e:
-            return DeliberationResult(goal=goal, resolution=f"BLOCK: deliberation failure ({e})", council_votes={}, winning_role="none", moral_weight=0.0, narrative_weight=0.0)
+            return DeliberationResult(
+                goal=goal,
+                resolution=f"BLOCK: deliberation failure ({e})",
+                council_votes={},
+                winning_role="none",
+                moral_weight=0.0,
+                narrative_weight=0.0,
+            )
 
     brain.deliberation_callback = deliberation_bridge
     from drift.core.being import get_being
+
     get_being().deliberation_callback = deliberation_bridge
-    
+
     goals_db = GoalsDB()
     doc_store = DocumentStore()
     try:
@@ -117,6 +133,7 @@ def cmd_ask(args):
     except Exception as exc:
         # Catch Shadow Intent Enforcement blocks
         from drift.core.cognitive_orchestrator import IntentBlockedError
+
         if isinstance(exc, IntentBlockedError):
             print(f"\n[SECURITY BLOCK]: {exc}")
             return 1
@@ -124,7 +141,9 @@ def cmd_ask(args):
         return 1
 
     try:
-        output = brain.agent_turn(built_prompt, tools_enabled=not args.no_tools, raw_user_input=prompt)
+        output = brain.agent_turn(
+            built_prompt, tools_enabled=not args.no_tools, raw_user_input=prompt
+        )
         try:
             brain.evaluate_last(built_prompt, output)
         except Exception:
@@ -189,7 +208,7 @@ def cmd_bridge(args):
     """Interface with the SSH bridge proxy."""
     url = "http://127.0.0.1:8000/run"
     subcmd = args.subcmd
-    
+
     if subcmd == "run":
         cmd_text = " ".join(args.cmd_args)
         if not cmd_text:
@@ -310,7 +329,9 @@ def build_parser():
 
     bridge_parser = sub.add_parser("bridge", help="Interface with the SSH bridge.")
     bridge_parser.add_argument("subcmd", choices=["run", "shell"], help="run | shell")
-    bridge_parser.add_argument("cmd_args", nargs=argparse.REMAINDER, help="Command to run (for 'run' subcmd)")
+    bridge_parser.add_argument(
+        "cmd_args", nargs=argparse.REMAINDER, help="Command to run (for 'run' subcmd)"
+    )
     bridge_parser.set_defaults(func=cmd_bridge)
 
     health = sub.add_parser("health", help="Run the local health check.")

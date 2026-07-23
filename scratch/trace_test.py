@@ -26,22 +26,20 @@ raw_active_state = {
     "coherence": 0.8,
     "resonance": 0.8,
     "tension": 0.2,
-    "shadow_depth": 0.2
+    "shadow_depth": 0.2,
 }
 user_input = "Tell me about your current state of structural coherence."
 
+
 def generate_response_func(u_input, _regulated_state):
     print("[TRACE] Inside generate_response_func. Assembling prompt...")
-    prompt, emotion, dissonance = orchestrator.assemble_prompt(
-        u_input,
-        state,
-        memory
-    )
+    prompt, emotion, dissonance = orchestrator.assemble_prompt(u_input, state, memory)
     print(f"[TRACE] Prompt assembled. Assembled prompt length: {len(prompt)}")
     print("[TRACE] Calling brain.agent_turn...")
     output = brain.agent_turn(prompt, tools_enabled=True)
     print(f"[TRACE] brain.agent_turn returned output of length: {len(output)}")
     return output
+
 
 async def main():
     print("[TRACE] Calling execute_cli_cycle...")
@@ -49,10 +47,11 @@ async def main():
         workspace.execute_cli_cycle,
         raw_active_state,
         user_input,
-        generate_response_func
+        generate_response_func,
     )
     print("[TRACE] execute_cli_cycle completed successfully!")
     print(f"[TRACE] Output: {output}")
+
 
 if __name__ == "__main__":
     asyncio.run(main())

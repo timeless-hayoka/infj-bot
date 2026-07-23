@@ -12,18 +12,29 @@ PYTHON_BIN = str(PROJECT_ROOT / ".venv" / "bin" / "python3")
 EVAL_PYTHON_BIN = "/home/crexs/LongMemEval/longmemeval-lite-venv/bin/python3"
 LONG_MEM_DIR = "/home/crexs/LongMemEval"
 
+
 def main():
     print("[1] Booting up uvicorn API server on port 8765...")
     # Inherit GEMINI_API_KEY, etc.
     env = os.environ.copy()
-    
+
     api_proc = subprocess.Popen(
-        [PYTHON_BIN, "-m", "uvicorn", "interfaces.api:app", "--host", "127.0.0.1", "--port", "8765", "--no-access-log"],
+        [
+            PYTHON_BIN,
+            "-m",
+            "uvicorn",
+            "interfaces.api:app",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            "8765",
+            "--no-access-log",
+        ],
         cwd=str(PROJECT_ROOT),
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
-        env=env
+        env=env,
     )
 
     print("[2] Waiting for API server to bind to port 8765...")
@@ -37,7 +48,7 @@ def main():
             cwd=str(LONG_MEM_DIR),
             env=env,
             capture_output=True,
-            text=True
+            text=True,
         )
         print("Adversarial eval stdout:")
         print(result.stdout)
@@ -46,21 +57,21 @@ def main():
             print(result.stderr)
             api_proc.terminate()
             sys.exit(1)
-            
+
         print("[4] Grading responses using gemini-2.5-flash...")
         # run evaluate_qa.py
         grade_result = subprocess.run(
             [
-                EVAL_PYTHON_BIN, 
-                "src/evaluation/evaluate_qa.py", 
-                "gemini-2.5-flash", 
-                "drift_longmemeval_adversarial_50.jsonl", 
-                "data/longmemeval_adversarial_50.json"
+                EVAL_PYTHON_BIN,
+                "src/evaluation/evaluate_qa.py",
+                "gemini-2.5-flash",
+                "drift_longmemeval_adversarial_50.jsonl",
+                "data/longmemeval_adversarial_50.json",
             ],
             cwd=str(LONG_MEM_DIR),
             env=env,
             capture_output=True,
-            text=True
+            text=True,
         )
         print("Grading stdout:")
         print(grade_result.stdout)
@@ -77,7 +88,7 @@ def main():
             cwd=str(LONG_MEM_DIR),
             env=env,
             capture_output=True,
-            text=True
+            text=True,
         )
         print("Analysis stdout:")
         print(analysis_result.stdout)
@@ -86,7 +97,7 @@ def main():
             print(analysis_result.stderr)
             api_proc.terminate()
             sys.exit(1)
-            
+
     except Exception as e:
         print(f"Error running pipeline: {e}")
     finally:
@@ -96,8 +107,9 @@ def main():
             api_proc.wait(timeout=5)
         except subprocess.TimeoutExpired:
             api_proc.kill()
-            
+
     print("[7] Memory evaluation pipeline complete!")
+
 
 if __name__ == "__main__":
     main()

@@ -120,10 +120,14 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Offline JSONL analyzer")
     parser.add_argument("paths", nargs="+", type=Path, help="JSONL file(s)")
     parser.add_argument("--tail", type=int, metavar="N", help="Show last N records")
-    parser.add_argument("--since", type=str, metavar="DATE", help="ISO date/time filter")
+    parser.add_argument(
+        "--since", type=str, metavar="DATE", help="ISO date/time filter"
+    )
     parser.add_argument("--summary", action="store_true", help="Print aggregate stats")
     parser.add_argument("--field", type=str, metavar="KEY", help="Field to histogram")
-    parser.add_argument("--hist", action="store_true", help="Show histogram for --field")
+    parser.add_argument(
+        "--hist", action="store_true", help="Show histogram for --field"
+    )
     args = parser.parse_args()
 
     if args.tail:

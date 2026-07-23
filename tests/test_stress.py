@@ -451,6 +451,9 @@ class TestDeterminism:
     """Ensure same inputs produce same outputs where expected."""
 
     def test_same_input_same_embedding(self):
+        pytest.importorskip(
+            "sentence_transformers", reason="sentence_transformers not installed"
+        )
         emb_fn = SemanticEmbeddingFunction()
         text = "The quick brown fox"
         e1 = emb_fn.embed_query(text)

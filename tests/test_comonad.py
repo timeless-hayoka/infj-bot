@@ -20,7 +20,9 @@ from drift.core.cognitive_snapshot import (
 
 class TestComonadicWorkspaceBridge(unittest.TestCase):
     def test_cognitive_state_validation_bounds(self):
-        state = CognitiveState(coherence=0.8, resonance=0.5, tension=0.3, shadow_depth=0.2)
+        state = CognitiveState(
+            coherence=0.8, resonance=0.5, tension=0.3, shadow_depth=0.2
+        )
         self.assertEqual(state.coherence, 0.8)
 
         with self.assertRaises(ValidationError):
@@ -55,25 +57,33 @@ class TestComonadicWorkspaceBridge(unittest.TestCase):
         # Strict Logical Deduction Mode
         s1 = CognitiveState(coherence=0.8, resonance=0.5, tension=0.2, shadow_depth=0.2)
         p1 = CognitivePayload(user_input="input")
-        w1 = ContextWorker[CognitivePayload](Context[CognitivePayload](state=s1, value=p1))
+        w1 = ContextWorker[CognitivePayload](
+            Context[CognitivePayload](state=s1, value=p1)
+        )
         self.assertIn("Strict Logical Deduction", state_conditioned_llm(w1).response)
 
         # Exploratory Intuitive Leap Mode
         s2 = CognitiveState(coherence=0.5, resonance=0.6, tension=0.7, shadow_depth=0.2)
         p2 = CognitivePayload(user_input="input")
-        w2 = ContextWorker[CognitivePayload](Context[CognitivePayload](state=s2, value=p2))
+        w2 = ContextWorker[CognitivePayload](
+            Context[CognitivePayload](state=s2, value=p2)
+        )
         self.assertIn("Exploratory Intuitive Leap", state_conditioned_llm(w2).response)
 
         # Shadow-Driven Projection Mode
         s3 = CognitiveState(coherence=0.5, resonance=0.3, tension=0.4, shadow_depth=0.8)
         p3 = CognitivePayload(user_input="input")
-        w3 = ContextWorker[CognitivePayload](Context[CognitivePayload](state=s3, value=p3))
+        w3 = ContextWorker[CognitivePayload](
+            Context[CognitivePayload](state=s3, value=p3)
+        )
         self.assertIn("Shadow-Driven Projection", state_conditioned_llm(w3).response)
 
         # Standard Empathic Mode
         s4 = CognitiveState(coherence=0.4, resonance=0.2, tension=0.3, shadow_depth=0.2)
         p4 = CognitivePayload(user_input="input")
-        w4 = ContextWorker[CognitivePayload](Context[CognitivePayload](state=s4, value=p4))
+        w4 = ContextWorker[CognitivePayload](
+            Context[CognitivePayload](state=s4, value=p4)
+        )
         self.assertIn("Standard Empathic", state_conditioned_llm(w4).response)
 
     def test_state_drift_diff(self):
@@ -101,7 +111,9 @@ class TestStructuredPayload(unittest.TestCase):
 
     def test_each_step_writes_own_field(self):
         """PEDI writes internal_log; gate writes response. Neither clobbers the other."""
-        state = CognitiveState(coherence=0.8, resonance=0.5, tension=0.8, shadow_depth=0.2)
+        state = CognitiveState(
+            coherence=0.8, resonance=0.5, tension=0.8, shadow_depth=0.2
+        )
         payload = CognitivePayload(user_input="test")
         worker = ContextWorker[CognitivePayload](
             Context[CognitivePayload](state=state, value=payload)
@@ -119,7 +131,9 @@ class TestStructuredPayload(unittest.TestCase):
 class TestHistoryAccessor(unittest.TestCase):
     def test_history_is_public_and_safe(self):
         """.history returns a copy; mutating it does not damage the worker."""
-        state = CognitiveState(coherence=0.8, resonance=0.5, tension=0.8, shadow_depth=0.2)
+        state = CognitiveState(
+            coherence=0.8, resonance=0.5, tension=0.8, shadow_depth=0.2
+        )
         payload = CognitivePayload(user_input="x")
         worker = ContextWorker[CognitivePayload](
             Context[CognitivePayload](state=state, value=payload)
@@ -137,7 +151,9 @@ class TestHistoryAccessor(unittest.TestCase):
         """The pipeline must access history through the public property."""
         # This is a design-enforcement test: if anyone reintroduces ._ctx.history
         # in production code, grep will catch it in review.
-        state = CognitiveState(coherence=0.8, resonance=0.5, tension=0.8, shadow_depth=0.2)
+        state = CognitiveState(
+            coherence=0.8, resonance=0.5, tension=0.8, shadow_depth=0.2
+        )
         payload = CognitivePayload(user_input="x")
         worker = ContextWorker[CognitivePayload](
             Context[CognitivePayload](state=state, value=payload)
@@ -151,7 +167,9 @@ class TestHistoryAccessor(unittest.TestCase):
 
 class TestForking(unittest.TestCase):
     def test_fork_runs_parallel_paths(self):
-        state = CognitiveState(coherence=0.8, resonance=0.5, tension=0.2, shadow_depth=0.2)
+        state = CognitiveState(
+            coherence=0.8, resonance=0.5, tension=0.2, shadow_depth=0.2
+        )
         payload = CognitivePayload(user_input="fork test")
         worker = ContextWorker[CognitivePayload](
             Context[CognitivePayload](state=state, value=payload)
@@ -178,7 +196,9 @@ class TestForking(unittest.TestCase):
         self.assertEqual(worker.current().response, "")
 
     def test_merge_selects_branch(self):
-        state = CognitiveState(coherence=0.8, resonance=0.5, tension=0.2, shadow_depth=0.2)
+        state = CognitiveState(
+            coherence=0.8, resonance=0.5, tension=0.2, shadow_depth=0.2
+        )
         payload = CognitivePayload(user_input="merge test")
         worker = ContextWorker[CognitivePayload](
             Context[CognitivePayload](state=state, value=payload)
@@ -205,7 +225,9 @@ class TestForking(unittest.TestCase):
 class TestSnapshotLogger(unittest.TestCase):
     def test_capture_and_round_trip(self):
         logger = SnapshotLogger(max_snapshots=3)
-        state = CognitiveState(coherence=0.8, resonance=0.5, tension=0.3, shadow_depth=0.2)
+        state = CognitiveState(
+            coherence=0.8, resonance=0.5, tension=0.3, shadow_depth=0.2
+        )
         payload = CognitivePayload(user_input="snapshot test", response="hello")
         worker = ContextWorker[CognitivePayload](
             Context[CognitivePayload](state=state, value=payload)
@@ -256,7 +278,9 @@ class TestTransitionComparator(unittest.TestCase):
             ),
         )
         self.assertLess(report.accuracy_score, 1.0)
-        self.assertEqual(report.delta_error["tension"], -0.2)  # predicted 0.4, actual 0.2
+        self.assertEqual(
+            report.delta_error["tension"], -0.2
+        )  # predicted 0.4, actual 0.2
 
     def test_evaluate_on_history(self):
         comp = TransitionComparator()
@@ -287,9 +311,7 @@ class TestPredictedTransitionStep(unittest.TestCase):
         def naive_predictor(s: CognitiveState) -> CognitiveState:
             return s.model_copy(update={"tension": s.tension - 0.2})
 
-        worker = worker.extend(
-            lambda w: predicted_transition_step(w, naive_predictor)
-        )
+        worker = worker.extend(lambda w: predicted_transition_step(w, naive_predictor))
 
         self.assertIn("predicted_state", worker.current().metadata)
         pred = CognitiveState(**worker.current().metadata["predicted_state"])

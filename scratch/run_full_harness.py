@@ -7,6 +7,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 PYTHON_BIN = str(PROJECT_ROOT / ".venv" / "bin" / "python3")
 
+
 def main():
     print("[1] Starting live test harness...")
     harness_proc = subprocess.Popen(
@@ -16,14 +17,14 @@ def main():
         stderr=subprocess.PIPE,
         text=True,
         cwd=str(PROJECT_ROOT),
-        bufsize=1
+        bufsize=1,
     )
 
     # Read harness output character by character to avoid blocking on newline
     print("[2] Waiting for harness to complete snapshot...")
     prompt_found = False
     output_buf = ""
-    
+
     while True:
         char = harness_proc.stdout.read(1)
         if not char:
@@ -34,7 +35,7 @@ def main():
         if "Press ENTER when you have finished all 9 prompts" in output_buf:
             prompt_found = True
             break
-            
+
     if not prompt_found:
         print("ERROR: Harness did not reach the prompt line!")
         # Print stderr
@@ -46,6 +47,7 @@ def main():
     # Reset active state to baseline zero before booting server
     print("\n[2b] Resetting active state to baseline zero...")
     import shutil
+
     state_dir = Path("/home/crexs/.drift_os")
     if state_dir.exists():
         for item in state_dir.iterdir():
@@ -63,11 +65,21 @@ def main():
     print("[3] Booting up uvicorn API server...")
     # Start uvicorn server
     api_proc = subprocess.Popen(
-        [PYTHON_BIN, "-m", "uvicorn", "interfaces.api:app", "--host", "127.0.0.1", "--port", "8765", "--no-access-log"],
+        [
+            PYTHON_BIN,
+            "-m",
+            "uvicorn",
+            "interfaces.api:app",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            "8765",
+            "--no-access-log",
+        ],
         cwd=str(PROJECT_ROOT),
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        text=True
+        text=True,
     )
 
     # Wait a few seconds for the API server to be ready
@@ -81,7 +93,7 @@ def main():
             [PYTHON_BIN, "scripts/automate_prompts.py"],
             cwd=str(PROJECT_ROOT),
             capture_output=True,
-            text=True
+            text=True,
         )
         print(result.stdout)
         if result.returncode != 0:
@@ -119,7 +131,11 @@ def main():
     # Find the most recent live_test directory inside ABLATION_RESULTS
     ablation_dir = PROJECT_ROOT / "ABLATION_RESULTS"
     if ablation_dir.exists():
-        subdirs = [d for d in ablation_dir.iterdir() if d.is_dir() and d.name.startswith("live_test_")]
+        subdirs = [
+            d
+            for d in ablation_dir.iterdir()
+            if d.is_dir() and d.name.startswith("live_test_")
+        ]
         if subdirs:
             latest_dir = max(subdirs, key=lambda d: d.name)
             findings_file = latest_dir / "results" / "findings.json"
@@ -127,9 +143,11 @@ def main():
                 print(f"\n[+] Found latest findings: {findings_file}")
                 findings_data = json.loads(findings_file.read_text())
                 print(json.dumps(findings_data, indent=2))
-                
+
                 # Print first 10 lines of test_only_governor_calibration.jsonl
-                gov_file = latest_dir / "results" / "test_only_governor_calibration.jsonl"
+                gov_file = (
+                    latest_dir / "results" / "test_only_governor_calibration.jsonl"
+                )
                 if gov_file.exists():
                     print(f"\n[+] First 10 lines of {gov_file.name}:")
                     with gov_file.open() as f:
@@ -138,6 +156,7 @@ def main():
                             if not l:
                                 break
                             print(l.strip())
+
 
 if __name__ == "__main__":
     main()

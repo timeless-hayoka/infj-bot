@@ -7,17 +7,18 @@ from datetime import datetime, timedelta
 from drift.core.config import DATA_DIR
 from drift.core.local_llm import OllamaBridge
 
-logging.basicConfig(level=logging.INFO, format='[*] %(message)s')
+logging.basicConfig(level=logging.INFO, format="[*] %(message)s")
 
 BEING_DB = DATA_DIR / "being.db"
 NEXUS_DB = DATA_DIR / "nexus.db"
 ARCHIVE_DB = DATA_DIR / "archive.db"
 
+
 class MemoryConsolidator:
     def __init__(self, cutoff_hours: int = 48):
         self.cutoff_hours = cutoff_hours
         self.cutoff_time = datetime.now() - timedelta(hours=cutoff_hours)
-        self.llm = OllamaBridge() # Prefer local model to save API costs
+        self.llm = OllamaBridge()  # Prefer local model to save API costs
         self._init_dbs()
 
     def _init_dbs(self):
@@ -53,8 +54,8 @@ class MemoryConsolidator:
         with sqlite3.connect(BEING_DB) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
-                "SELECT * FROM thoughts WHERE timestamp < ?", 
-                (self.cutoff_time.isoformat(),)
+                "SELECT * FROM thoughts WHERE timestamp < ?",
+                (self.cutoff_time.isoformat(),),
             ).fetchall()
         return [dict(r) for r in rows]
 
@@ -64,7 +65,7 @@ class MemoryConsolidator:
             return []
 
         log_text = "\n".join([f"[{r['timestamp']}] {r['content']}" for r in raw_logs])
-        
+
         prompt = f"""
 You are a cognitive consolidation script. Analyze the following raw conversation logs and extract enduring, generalized knowledge.
 DO NOT summarize the conversation. Extract specific traits, preferences, rules, or patterns.
@@ -84,7 +85,7 @@ JSON Output:"""
         try:
             response = self.llm.generate(
                 system="You are a data extraction tool. Output strictly valid JSON arrays.",
-                prompt=prompt
+                prompt=prompt,
             )
             cleaned = response.strip().replace("```json", "").replace("```", "")
             return json.loads(cleaned)
@@ -95,42 +96,59 @@ JSON Output:"""
     def commit_and_archive(self, raw_logs: list, new_knowledge: list):
         """Save schemas, move raw data to cold storage, and delete from active memory."""
         now = datetime.now().isoformat()
-        
+
         # 1. Upsert Durable Knowledge
         with sqlite3.connect(NEXUS_DB) as conn:
             for item in new_knowledge:
                 try:
-                    conn.execute("""
+                    conn.execute(
+                        """
                         INSERT INTO durable_knowledge (category, content, confidence, frequency_count, last_reinforced, created_at)
                         VALUES (?, ?, ?, 1, ?, ?)
-                    """, (item['category'], item['content'], item['confidence'], now, now))
-                    logging.info(f"[+] New Schema: [{item['category']}] {item['content']}")
+                    """,
+                        (
+                            item["category"],
+                            item["content"],
+                            item["confidence"],
+                            now,
+                            now,
+                        ),
+                    )
+                    logging.info(
+                        f"[+] New Schema: [{item['category']}] {item['content']}"
+                    )
                 except sqlite3.IntegrityError:
-                    conn.execute("""
+                    conn.execute(
+                        """
                         UPDATE durable_knowledge 
                         SET frequency_count = frequency_count + 1,
                             confidence = MIN(1.0, confidence + 0.1),
                             last_reinforced = ?
                         WHERE content = ?
-                    """, (now, item['content']))
+                    """,
+                        (now, item["content"]),
+                    )
                     logging.info(f"[*] Reinforced: {item['content']}")
 
         # 2. Move to Cold Storage
         with sqlite3.connect(ARCHIVE_DB) as conn:
             for log in raw_logs:
-                conn.execute("""
+                conn.execute(
+                    """
                     INSERT INTO cold_storage_thoughts (original_id, timestamp, content, category, archived_at)
                     VALUES (?, ?, ?, ?, ?)
-                """, (log['id'], log['timestamp'], log['content'], log['category'], now))
+                """,
+                    (log["id"], log["timestamp"], log["content"], log["category"], now),
+                )
 
         # 3. Purge from Active Memory
-        ids_to_delete = [log['id'] for log in raw_logs]
+        ids_to_delete = [log["id"] for log in raw_logs]
         with sqlite3.connect(BEING_DB) as conn:
             conn.execute(
-                f"DELETE FROM thoughts WHERE id IN ({','.join('?' * len(ids_to_delete))})", 
-                ids_to_delete
+                f"DELETE FROM thoughts WHERE id IN ({','.join('?' * len(ids_to_delete))})",
+                ids_to_delete,
             )
-        
+
         logging.info(f"[+] Consolidated and archived {len(raw_logs)} raw thoughts.")
 
     def run(self):
@@ -142,11 +160,14 @@ JSON Output:"""
 
         logging.info(f"Found {len(logs)} stale logs. Analyzing...")
         knowledge = self.classify_logs(logs)
-        
+
         if knowledge:
             self.commit_and_archive(logs, knowledge)
         else:
-            logging.warning("No durable knowledge extracted. Logs retained for next cycle.")
+            logging.warning(
+                "No durable knowledge extracted. Logs retained for next cycle."
+            )
+
 
 if __name__ == "__main__":
     # Initialize with cutoff_hours=0 for the initial test run to capture all recent baseline logs

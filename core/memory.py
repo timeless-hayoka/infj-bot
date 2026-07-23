@@ -328,6 +328,7 @@ class DriftMemory:
         entries = self.unified_manager.recall_sync(query, limit=n_results)
         try:
             from drift.core.causal_wiring import retrieved_memory_keys_var
+
             retrieved_memory_keys_var.set([e.unified_id for e in entries])
         except Exception:
             pass
@@ -359,28 +360,35 @@ class DriftMemory:
 
             retriever = DMURetriever(
                 chroma_collection=self.unified_manager.collection,
-                psc_engine=get_psc_engine()
+                psc_engine=get_psc_engine(),
             )
 
             # Retrieve via V4 DMU re-ranking (broader candidate pool)
             results = retriever.retrieve(
                 query_embedding=query_embedding,
                 top_k=n_results,
-                n_candidates=n_results * 4
+                n_candidates=n_results * 4,
             )
-            
-            logger.info(f"[memory] DMU Retrieval: got {len(results)} results for query: {query[:50]}...")
+
+            logger.info(
+                f"[memory] DMU Retrieval: got {len(results)} results for query: {query[:50]}..."
+            )
 
             if not results:
                 # Fallback to standard if DMU found nothing
                 standard = self.retrieve_context(query, n_results=n_results)
-                logger.info(f"[memory] DMU empty, fallback context length: {len(standard)}")
+                logger.info(
+                    f"[memory] DMU empty, fallback context length: {len(standard)}"
+                )
                 return standard
 
             # Log retrieved keys to causal wiring for observability
             try:
                 from drift.core.causal_wiring import retrieved_memory_keys_var
-                retrieved_memory_keys_var.set([item.get("id", "unknown") for item in results])
+
+                retrieved_memory_keys_var.set(
+                    [item.get("id", "unknown") for item in results]
+                )
             except Exception:
                 pass
 
@@ -390,7 +398,7 @@ class DriftMemory:
                 content = item.get("content", "")
                 if content:
                     formatted.append(f"Memory: {content}")
-            
+
             return "\n---\n".join(formatted)
         except Exception:
             # Safe fallback: if DMU fails for any reason, use standard retrieval

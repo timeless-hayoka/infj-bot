@@ -6,6 +6,7 @@ from pathlib import Path
 from collections import Counter
 import statistics
 
+
 def analyze_security_audit(log_path: str = "security_audit.jsonl", last_n: int = 500):
     path = Path(log_path)
     if not path.exists():
@@ -13,7 +14,7 @@ def analyze_security_audit(log_path: str = "security_audit.jsonl", last_n: int =
         return
 
     logs = []
-    with open(path, 'r', encoding='utf-8') as f:
+    with open(path, "r", encoding="utf-8") as f:
         for line in list(f)[-last_n:]:
             try:
                 logs.append(json.loads(line.strip()))
@@ -40,23 +41,32 @@ def analyze_security_audit(log_path: str = "security_audit.jsonl", last_n: int =
     for cat, count in categories.most_common(8):
         print(f"  {cat:20} : {count}")
 
-    print(f"\nHigh Social Risk Events: {len(high_risk)} ({len(high_risk)/len(logs)*100:.1f}%)")
-    print(f"Blocked Events: {len(blocked)} ({len(blocked)/len(logs)*100:.1f}%)")
+    print(
+        f"\nHigh Social Risk Events: {len(high_risk)} ({len(high_risk) / len(logs) * 100:.1f}%)"
+    )
+    print(f"Blocked Events: {len(blocked)} ({len(blocked) / len(logs) * 100:.1f}%)")
 
     # PEDI / DII correlation
     pedi_values = [log.get("pedi_value", 0) for log in logs if log.get("pedi_value")]
     dii_values = [log.get("dii_value", 0) for log in logs if log.get("dii_value")]
 
     if pedi_values:
-        print(f"\nPEDI  — mean: {statistics.mean(pedi_values):.3f}  min: {min(pedi_values):.3f}  max: {max(pedi_values):.3f}")
+        print(
+            f"\nPEDI  — mean: {statistics.mean(pedi_values):.3f}  min: {min(pedi_values):.3f}  max: {max(pedi_values):.3f}"
+        )
     if dii_values:
-        print(f"DII   — mean: {statistics.mean(dii_values):.3f}  min: {min(dii_values):.3f}  max: {max(dii_values):.3f}")
+        print(
+            f"DII   — mean: {statistics.mean(dii_values):.3f}  min: {min(dii_values):.3f}  max: {max(dii_values):.3f}"
+        )
 
     # Recent high-risk summary
     if high_risk:
         print("\n--- Recent High-Risk Events ---")
         for log in high_risk[-5:]:
-            print(f"  {log['ts'][:19]} | {log.get('action','?'):6} | social={log.get('social_risk',0):.2f} | PEDI={log.get('pedi_value',0):.2f}")
+            print(
+                f"  {log['ts'][:19]} | {log.get('action', '?'):6} | social={log.get('social_risk', 0):.2f} | PEDI={log.get('pedi_value', 0):.2f}"
+            )
+
 
 if __name__ == "__main__":
     analyze_security_audit()

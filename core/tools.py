@@ -146,15 +146,12 @@ def _audit_tool_call(name: str, arguments: Dict[str, Any], result: str) -> None:
             "result_preview": str(result).replace("\n", " ")[:500],
         }
         _TOOL_AUDIT_LOGGER.append(record)
-        
+
         # Phase 6: Sync to Unified Audit
         try:
             from drift.core.unified_audit import audit_log
-            audit_log(
-                event_type="tool_execution",
-                source="tools",
-                payload=record
-            )
+
+            audit_log(event_type="tool_execution", source="tools", payload=record)
         except Exception:
             pass
     except Exception:

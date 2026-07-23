@@ -102,12 +102,15 @@ def upload_file(path: str, dry_run: bool) -> None:
         print(f"  UPLOAD (dry-run): {path}")
         return
     cmd = [
-        "hf", "upload",
+        "hf",
+        "upload",
         REPO_ID,
         str(local),
         path,
-        "--repo-type", REPO_TYPE,
-        "--commit-message", f"sync: update {path}",
+        "--repo-type",
+        REPO_TYPE,
+        "--commit-message",
+        f"sync: update {path}",
         "--quiet",
     ]
     print(f"  UPLOAD: {path}")
@@ -124,6 +127,7 @@ def delete_file(path: str, dry_run: bool) -> None:
     # huggingface_hub API deletion requires Python; fallback to git push
     print(f"  DELETE: {path}")
     from huggingface_hub import HfApi, CommitOperationDelete
+
     api = HfApi()
     api.create_commit(
         repo_id=REPO_ID,

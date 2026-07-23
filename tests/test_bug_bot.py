@@ -25,7 +25,7 @@ _stubbed_modules = [
     "chromadb.api.types",
     "sentence_transformers",
     "numpy",
-    "drift.core.memory"
+    "drift.core.memory",
 ]
 for m in _stubbed_modules:
     if m in sys.modules:

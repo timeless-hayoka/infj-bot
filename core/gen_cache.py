@@ -24,7 +24,9 @@ class DiskGenCache:
             return None
         # update timestamp to reflect recent use
         try:
-            self._conn.execute("UPDATE cache SET ts = ? WHERE k = ?", (int(time.time()), key))
+            self._conn.execute(
+                "UPDATE cache SET ts = ? WHERE k = ?", (int(time.time()), key)
+            )
             self._conn.commit()
         except Exception:
             pass
@@ -32,7 +34,9 @@ class DiskGenCache:
 
     def set(self, key: str, value: str) -> None:
         ts = int(time.time())
-        self._conn.execute("INSERT OR REPLACE INTO cache (k, v, ts) VALUES (?, ?, ?)", (key, value, ts))
+        self._conn.execute(
+            "INSERT OR REPLACE INTO cache (k, v, ts) VALUES (?, ?, ?)", (key, value, ts)
+        )
         self._conn.commit()
         # enforce max entries
         cur = self._conn.execute("SELECT COUNT(1) FROM cache")
@@ -42,7 +46,7 @@ class DiskGenCache:
             to_delete = count - self.max_entries
             self._conn.execute(
                 "DELETE FROM cache WHERE k IN (SELECT k FROM cache ORDER BY ts ASC LIMIT ?)",
-                (to_delete,)
+                (to_delete,),
             )
             self._conn.commit()
 

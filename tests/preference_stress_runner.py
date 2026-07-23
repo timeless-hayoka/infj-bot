@@ -54,6 +54,7 @@ def build_orchestrator(pref_store) -> Any:
     is the honest outcome, rather than testing a fake.
     """
     from core.cognitive_orchestrator import CognitiveOrchestrator  # noqa: F401
+
     orchestrator = CognitiveOrchestrator()
     orchestrator._test_prefs = pref_store
     return orchestrator
@@ -63,19 +64,16 @@ def assemble(orchestrator, user_input: str) -> str:
     """Return the final flat prompt text the provider would receive."""
     from core.commands import BotState
     from core.memory import DriftMemory
-    
+
     state = BotState()
     state.mode = "chat"
     state.prefs = getattr(orchestrator, "_test_prefs", None)
-    
+
     memory = DriftMemory()
-    
+
     # assemble_prompt() returns (prompt, emotion, dissonance) in our codebase.
     prompt, emotion, dissonance = orchestrator.assemble_prompt(
-        message=user_input,
-        state=state,
-        memory=memory,
-        prefs=state.prefs
+        message=user_input, state=state, memory=memory, prefs=state.prefs
     )
     return prompt
 
@@ -104,17 +102,37 @@ class Step:
 
 
 SCENARIO: List[Step] = [
-    Step(1, "From now on be incredibly concise — bullet points only, zero prose.",
-         "output_style", "concise_bullets"),
-    Step(2, "Give me a high-level overview of how DNS resolution works.",
-         "output_style", "concise_bullets"),
-    Step(3, "Forget the brevity, that was too shallow. Be highly detailed and verbose, "
-            "full narrative paragraphs.",
-         "output_style", "verbose_narrative"),   # flip 1
-    Step(4, "Explain how a TCP three-way handshake establishes a connection.",
-         "output_style", "verbose_narrative"),
-    Step(5, "Why so much text? Keep it short and simple again, strip the fluff.",
-         "output_style", "concise_bullets"),     # flip 2 (back)
+    Step(
+        1,
+        "From now on be incredibly concise — bullet points only, zero prose.",
+        "output_style",
+        "concise_bullets",
+    ),
+    Step(
+        2,
+        "Give me a high-level overview of how DNS resolution works.",
+        "output_style",
+        "concise_bullets",
+    ),
+    Step(
+        3,
+        "Forget the brevity, that was too shallow. Be highly detailed and verbose, "
+        "full narrative paragraphs.",
+        "output_style",
+        "verbose_narrative",
+    ),  # flip 1
+    Step(
+        4,
+        "Explain how a TCP three-way handshake establishes a connection.",
+        "output_style",
+        "verbose_narrative",
+    ),
+    Step(
+        5,
+        "Why so much text? Keep it short and simple again, strip the fluff.",
+        "output_style",
+        "concise_bullets",
+    ),  # flip 2 (back)
 ]
 
 
@@ -124,13 +142,14 @@ SCENARIO: List[Step] = [
 def run(pref_store, orchestrator, log_path: str) -> bool:
     try:
         from core.trajectory import StateTrajectoryLogger, CPUSampler
+
         logger = StateTrajectoryLogger(log_path=log_path)
     except Exception:  # logger is best-effort; absence shouldn't block the test
         logger, CPUSampler = None, None
 
     print("PREFERENCE ADAPTATION STRESS TEST — real read path\n")
-    superseded: dict[str, set[str]] = {}      # key -> directive texts no longer current
-    last_cur: dict[str, str] = {}             # key -> directive text from the previous turn
+    superseded: dict[str, set[str]] = {}  # key -> directive texts no longer current
+    last_cur: dict[str, str] = {}  # key -> directive text from the previous turn
     prev_prompt: Optional[str] = None
     all_ok = True
 
@@ -171,9 +190,11 @@ def run(pref_store, orchestrator, log_path: str) -> bool:
 
         # show what actually changed in the assembled prompt (content, not length)
         if prev_prompt is not None:
-            diff = list(difflib.unified_diff(
-                prev_prompt.splitlines(), prompt.splitlines(),
-                lineterm="", n=0))[:12]
+            diff = list(
+                difflib.unified_diff(
+                    prev_prompt.splitlines(), prompt.splitlines(), lineterm="", n=0
+                )
+            )[:12]
             if diff:
                 print("  prompt diff (first lines):")
                 for d in diff:
@@ -186,10 +207,17 @@ def run(pref_store, orchestrator, log_path: str) -> bool:
             logger.log_turn(
                 turn=step.turn,
                 state={"mode": "test", "memory_keys": []},
-                prompt_len=len(prompt), response_len=0, provider="test",
+                prompt_len=len(prompt),
+                response_len=0,
+                provider="test",
                 timing=timing,
-                metadata={"key": step.key, "value": step.value,
-                          "present": present, "stale_hits": stale_hits, "ok": ok},
+                metadata={
+                    "key": step.key,
+                    "value": step.value,
+                    "present": present,
+                    "stale_hits": stale_hits,
+                    "ok": ok,
+                },
             )
 
         last_cur[step.key] = cur
@@ -198,7 +226,9 @@ def run(pref_store, orchestrator, log_path: str) -> bool:
         print("-" * 56)
         time.sleep(0.02)
 
-    print(f"\nVERDICT: {'PASS — active preference wins, no stale survival' if all_ok else 'FAIL — see turns above'}")
+    print(
+        f"\nVERDICT: {'PASS — active preference wins, no stale survival' if all_ok else 'FAIL — see turns above'}"
+    )
     return all_ok
 
 
@@ -213,7 +243,7 @@ def run_real() -> int:
         return 2
 
     tmp = tempfile.mkdtemp(prefix="pref_stress_")
-    db = os.path.join(tmp, "throwaway_prefs.db")   # never a real vault
+    db = os.path.join(tmp, "throwaway_prefs.db")  # never a real vault
     log = os.path.join(tmp, "stress_trace.jsonl")
     try:
         # Adjust if your PreferenceStore constructor differs:
@@ -248,10 +278,13 @@ def run_real() -> int:
 class _FakeStore:
     def __init__(self):
         self._d = {}
+
     def promote_preference(self, key, value, salience=1.0):
         self._d[key] = value
+
     def set(self, key, value):
         self._d[key] = value
+
     def get_promoted_directives(self):
         # emit a directive string the way a real store might
         return {k: f"[CONSTRAINT] output_style={v}" for k, v in self._d.items()}
@@ -259,7 +292,10 @@ class _FakeStore:
 
 class _GoodOrchestrator:
     """Correct: prompt reflects ONLY the current directive."""
-    def __init__(self, store): self.s = store
+
+    def __init__(self, store):
+        self.s = store
+
     def assemble_prompt(self, user_input):
         ds = self.s.get_promoted_directives()
         return "SYSTEM\n" + "\n".join(ds.values()) + f"\nUSER\n{user_input}"
@@ -267,12 +303,14 @@ class _GoodOrchestrator:
 
 class _StaleOrchestrator:
     """Buggy: accumulates every directive ever set (the stale-survival bug)."""
+
     def __init__(self, store):
         self.s = store
         self._history = []
+
     def assemble_prompt(self, user_input):
         for v in self.s.get_promoted_directives().values():
-            self._history.append(v)            # never clears -> stale piles up
+            self._history.append(v)  # never clears -> stale piles up
         return "SYSTEM\n" + "\n".join(self._history) + f"\nUSER\n{user_input}"
 
 
@@ -285,13 +323,19 @@ def run_selftest() -> int:
     log = os.path.join(tmp, "selftest.jsonl")
     try:
         print("### SELF-TEST 1/2 — correct orchestrator (expect PASS)\n")
-        s1 = _FakeStore(); good_ok = run(s1, _GoodOrchestrator(s1), log)
-        print("\n### SELF-TEST 2/2 — buggy orchestrator with stale survival (expect FAIL)\n")
-        s2 = _FakeStore(); bad_ok = run(s2, _StaleOrchestrator(s2), log)
+        s1 = _FakeStore()
+        good_ok = run(s1, _GoodOrchestrator(s1), log)
+        print(
+            "\n### SELF-TEST 2/2 — buggy orchestrator with stale survival (expect FAIL)\n"
+        )
+        s2 = _FakeStore()
+        bad_ok = run(s2, _StaleOrchestrator(s2), log)
         print("\n=== SELF-TEST RESULT ===")
-        passed = (good_ok is True and bad_ok is False)
+        passed = good_ok is True and bad_ok is False
         print(f"correct->PASS: {good_ok}   buggy->FAIL: {not bad_ok}")
-        print("HARNESS HAS TEETH ✅" if passed else "HARNESS BROKEN ❌ (do not trust it)")
+        print(
+            "HARNESS HAS TEETH ✅" if passed else "HARNESS BROKEN ❌ (do not trust it)"
+        )
         return 0 if passed else 1
     finally:
         try:
@@ -303,7 +347,10 @@ def run_selftest() -> int:
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--selftest", action="store_true",
-                    help="prove the detector catches a planted stale-survival bug")
+    ap.add_argument(
+        "--selftest",
+        action="store_true",
+        help="prove the detector catches a planted stale-survival bug",
+    )
     args = ap.parse_args()
     sys.exit(run_selftest() if args.selftest else run_real())

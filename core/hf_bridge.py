@@ -3,6 +3,7 @@ from huggingface_hub import InferenceClient
 from huggingface_hub.errors import HfHubHTTPError
 from drift.core.config import HF_PRO_TOKEN, DRIFT_HF_MODEL
 
+
 class DriftHFBridge:
     def __init__(self, api_token: str = None, model_id: str = None):
         """Initializes the connection to Hugging Face Pro."""
@@ -54,13 +55,14 @@ class DriftHFBridge:
                 top_p=top_p if top_p is not None else 1.0,
             )
             return response.choices[0].message.content
-            
+
         except HfHubHTTPError as e:
             print(f"[CRITICAL ERROR] Hugging Face API rejected the request: {e}")
             return None
         except Exception as e:
             print(f"[SYSTEM ERROR] Local execution failure: {e}")
             return None
+
 
 def self_check_hf_integration(token: str, model: str):
     """

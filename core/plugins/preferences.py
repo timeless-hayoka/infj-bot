@@ -123,11 +123,11 @@ class PreferenceStore:
         """Format preferences into a short snippet for the system prompt."""
         prefs = self.all()
         lines = ["USER PREFERENCES:"]
-        
+
         output_style = prefs.get("output_style")
         if output_style:
             lines.append(f"[CONSTRAINT] output_style={output_style}")
-            
+
         style = prefs.get("communication_style", "warm and analytical")
         length = prefs.get("response_length", "medium")
         lines.append(f"- Communication style: {style}")

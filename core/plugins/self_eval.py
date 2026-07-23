@@ -64,10 +64,13 @@ class SelfEvaluator:
 
         # Confidence heuristic: high certainty words minus uncertainty words, clamped
         confidence = 1.0 - hallucination_score + (uncertainty_score * 0.3)
-        
+
         # Dual-channel confidence adjustment: if prompt signals low epistemic / communicative confidence,
         # adjust the confidence score downwards.
-        if "[Communicative Confidence: LOW" in prompt or "Communicative Confidence: LOW" in prompt:
+        if (
+            "[Communicative Confidence: LOW" in prompt
+            or "Communicative Confidence: LOW" in prompt
+        ):
             confidence = min(0.35, confidence - 0.4)
 
         confidence = max(0.1, min(0.95, confidence))

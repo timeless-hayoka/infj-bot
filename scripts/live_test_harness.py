@@ -57,8 +57,6 @@ def discover_state_paths() -> dict[str, Path]:
     return paths
 
 
-
-
 # --------------------------------------------------------------------------- #
 # Snapshot
 # --------------------------------------------------------------------------- #
@@ -112,7 +110,9 @@ def capture_telemetry(results_dir: Path, pre_counts: dict) -> dict:
 
         # Save full log and test-only slice
         shutil.copy2(log_path, results_dir / log_name)
-        (results_dir / f"test_only_{log_name}").write_text("\n".join(new_entries) + "\n")
+        (results_dir / f"test_only_{log_name}").write_text(
+            "\n".join(new_entries) + "\n"
+        )
 
         summary[log_name] = {"entries": len(all_entries), "new": len(new_entries)}
         print(f"  [CAPTURE] {log_name}: {len(new_entries)} new entries from this test")
@@ -143,7 +143,9 @@ def analyze_telemetry(results_dir: Path) -> dict:
 
         if e.get("event") == "TURN":
             turns.append(e)
-        elif e.get("event", "").startswith("MODE_ENTERED") or "MODE_ENTERED" in str(e.get("interventions", [])):
+        elif e.get("event", "").startswith("MODE_ENTERED") or "MODE_ENTERED" in str(
+            e.get("interventions", [])
+        ):
             mode_transitions.append(e)
         elif e.get("event") == "INTERVENTION_FAILED":
             failures.append(e)
@@ -158,30 +160,47 @@ def analyze_telemetry(results_dir: Path) -> dict:
 
     # Check if longer responses drain more (the core hypothesis)
     short_turns = [t for t in turns if t["response_len"] < 300]
-    long_turns  = [t for t in turns if t["response_len"] > 800]
-    avg_short_drain = (sum(t["delta_energy"] for t in short_turns) / len(short_turns)
-                       if short_turns else None)
-    avg_long_drain  = (sum(t["delta_energy"] for t in long_turns) / len(long_turns)
-                       if long_turns else None)
+    long_turns = [t for t in turns if t["response_len"] > 800]
+    avg_short_drain = (
+        sum(t["delta_energy"] for t in short_turns) / len(short_turns)
+        if short_turns
+        else None
+    )
+    avg_long_drain = (
+        sum(t["delta_energy"] for t in long_turns) / len(long_turns)
+        if long_turns
+        else None
+    )
 
     coupling_verdict = "INSUFFICIENT DATA"
     if avg_short_drain is not None and avg_long_drain is not None:
         if avg_long_drain > avg_short_drain * 1.10:
-            coupling_verdict = "COUPLED — longer responses drain more (hypothesis supported)"
+            coupling_verdict = (
+                "COUPLED — longer responses drain more (hypothesis supported)"
+            )
         elif abs(avg_long_drain - avg_short_drain) < 0.0001:
-            coupling_verdict = "FLAT — identical drain regardless of length (timer, not effort)"
+            coupling_verdict = (
+                "FLAT — identical drain regardless of length (timer, not effort)"
+            )
         else:
-            coupling_verdict = f"WEAK — long drain {avg_long_drain:.6f} vs short {avg_short_drain:.6f}"
+            coupling_verdict = (
+                f"WEAK — long drain {avg_long_drain:.6f} vs short {avg_short_drain:.6f}"
+            )
 
     # DII check
-    dii_values = [t.get("state", {}).get("dii") for t in turns
-                  if isinstance(t.get("state", {}).get("dii"), (int, float))]
+    dii_values = [
+        t.get("state", {}).get("dii")
+        for t in turns
+        if isinstance(t.get("state", {}).get("dii"), (int, float))
+    ]
     dii_verdict = "NOT IN LOG"
     if dii_values:
         unique_dii = set(round(v, 4) for v in dii_values)
-        dii_verdict = ("STUCK at 0.5 — tracker not initialized"
-                       if unique_dii == {0.5} else
-                       f"LIVE — {len(unique_dii)} unique values, range {min(dii_values):.4f}–{max(dii_values):.4f}")
+        dii_verdict = (
+            "STUCK at 0.5 — tracker not initialized"
+            if unique_dii == {0.5}
+            else f"LIVE — {len(unique_dii)} unique values, range {min(dii_values):.4f}–{max(dii_values):.4f}"
+        )
 
     return {
         "turns_logged": len(turns),
@@ -234,7 +253,9 @@ def verify_restore(state_paths: dict[str, Path]) -> bool:
         elif path.suffix == ".db":
             try:
                 conn = sqlite3.connect(path)
-                tables = conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+                tables = conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table'"
+                ).fetchall()
                 conn.close()
                 print(f"  [VERIFY] {path.name} — {len(tables)} tables readable")
             except Exception as e:
@@ -263,7 +284,9 @@ def run_monitor() -> None:
                 f"max={e['max_tokens']:4d} | drain={e['delta_energy']:+.6f} | "
                 f"resp={e['response_len']:5d} | dii={dii}"
             )
-        elif "MODE_ENTERED" in str(e.get("interventions", [])) or "MODE_ENTERED" in e.get("event",""):
+        elif "MODE_ENTERED" in str(
+            e.get("interventions", [])
+        ) or "MODE_ENTERED" in e.get("event", ""):
             print(f"  ⚡  MODE TRANSITION → {e}")
         elif e.get("event") == "INTERVENTION_FAILED":
             print(f"  ❌  INTERVENTION_FAILED: {e}")
@@ -275,8 +298,11 @@ def run_monitor() -> None:
 # --------------------------------------------------------------------------- #
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--monitor", action="store_true",
-                        help="Run as live telemetry monitor (pipe stdin from tail -f)")
+    parser.add_argument(
+        "--monitor",
+        action="store_true",
+        help="Run as live telemetry monitor (pipe stdin from tail -f)",
+    )
     args = parser.parse_args()
 
     if args.monitor:
@@ -284,7 +310,7 @@ def main() -> None:
         return
 
     ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-    backup_dir  = PROJECT_ROOT / "ABLATION_RESULTS" / f"live_test_{ts}" / "state_backup"
+    backup_dir = PROJECT_ROOT / "ABLATION_RESULTS" / f"live_test_{ts}" / "state_backup"
     results_dir = PROJECT_ROOT / "ABLATION_RESULTS" / f"live_test_{ts}" / "results"
 
     print("=" * 66)
@@ -313,8 +339,10 @@ def main() -> None:
     print("      Open DRIFT in another terminal, run them in order.")
     print("      Monitor telemetry: tail -f logs/governor_calibration.jsonl")
     print("      OR in a third terminal:")
-    print("      tail -f logs/governor_calibration.jsonl | "
-          "python3 scripts/live_test_harness.py --monitor")
+    print(
+        "      tail -f logs/governor_calibration.jsonl | "
+        "python3 scripts/live_test_harness.py --monitor"
+    )
     print("=" * 66)
 
     print("""
@@ -355,7 +383,9 @@ def main() -> None:
   • If energy hits 0.25 and max_tokens stays 1000: governor not wired.
 """)
 
-    input("Press ENTER when you have finished all 9 prompts and are ready to capture + wipe... ")
+    input(
+        "Press ENTER when you have finished all 9 prompts and are ready to capture + wipe... "
+    )
 
     # --- Capture telemetry ---
     print(f"\n[4/5] CAPTURING TELEMETRY → {results_dir}")
@@ -373,16 +403,27 @@ def main() -> None:
     print(f"  Gated turns:           {findings.get('gated_turns', 0)}")
     print(f"  Mode transitions:      {findings.get('mode_transitions', 0)}")
     print(f"  Min energy reached:    {findings.get('min_energy', '?')}")
-    print(f"  Gate intercepted:      {findings.get('gate_intercepted_generation', False)}")
+    print(
+        f"  Gate intercepted:      {findings.get('gate_intercepted_generation', False)}"
+    )
     print(f"  DII verdict:           {findings.get('dii_verdict', '?')}")
     print(f"  Coupling verdict:      {findings.get('coupling_verdict', '?')}")
 
     if not findings.get("gate_intercepted_generation"):
-        print("\n  ⚠️  WARNING: No gated turns. Governor is not intercepting generation.")
-        print("     Check that _governor.apply().max_tokens is passed to the API call in brain.py.")
-    if findings.get("modes_seen") == ["NORMAL"] and findings.get("turns_logged", 0) >= 9:
+        print(
+            "\n  ⚠️  WARNING: No gated turns. Governor is not intercepting generation."
+        )
+        print(
+            "     Check that _governor.apply().max_tokens is passed to the API call in brain.py."
+        )
+    if (
+        findings.get("modes_seen") == ["NORMAL"]
+        and findings.get("turns_logged", 0) >= 9
+    ):
         print("\n  ⚠️  WARNING: Energy never left NORMAL despite 9 long prompts.")
-        print("     Either energy coupling is still flat (expected before α calibration)")
+        print(
+            "     Either energy coupling is still flat (expected before α calibration)"
+        )
         print("     or BASE_NETWORK_COST is too small to reach the threshold.")
 
     # --- Restore ---

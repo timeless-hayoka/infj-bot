@@ -16,9 +16,11 @@ BEING_DB = DATA_DIR / "being.db"
 NEXUS_DB = DATA_DIR / "nexus.db"
 ARCHIVE_DB = DATA_DIR / "archive.db"
 
+
 def backup_db():
     print("[*] Backing up being.db...")
     shutil.copyfile(BEING_DB, BEING_DB.with_suffix(".db.pre_test"))
+
 
 def populate_mock_data():
     print("[*] Populating mock thoughts...")
@@ -35,45 +37,67 @@ def populate_mock_data():
             volitional INTEGER DEFAULT 0
         )
     """)
-    
+
     # Insert some stale thoughts older than 48 hours
     stale_time = (datetime.now() - timedelta(hours=50)).isoformat()
     mock_thoughts = [
-        (stale_time, "The user prefers a clean dark mode UI with Outfit typography and vibrant accents.", "preference"),
-        (stale_time, "The user frequently runs terminal command queries after midnight.", "behavioral_pattern"),
-        (stale_time, "System rule: Never use generic placeholders; always create assets dynamically.", "system_rule"),
-        (stale_time, "The user expressed frustration when API responses took longer than 5 seconds.", "emotional_signal")
+        (
+            stale_time,
+            "The user prefers a clean dark mode UI with Outfit typography and vibrant accents.",
+            "preference",
+        ),
+        (
+            stale_time,
+            "The user frequently runs terminal command queries after midnight.",
+            "behavioral_pattern",
+        ),
+        (
+            stale_time,
+            "System rule: Never use generic placeholders; always create assets dynamically.",
+            "system_rule",
+        ),
+        (
+            stale_time,
+            "The user expressed frustration when API responses took longer than 5 seconds.",
+            "emotional_signal",
+        ),
     ]
-    conn.executemany("""
+    conn.executemany(
+        """
         INSERT INTO thoughts (timestamp, content, category)
         VALUES (?, ?, ?)
-    """, mock_thoughts)
+    """,
+        mock_thoughts,
+    )
     conn.commit()
     conn.close()
     print("[+] Successfully inserted 4 mock thoughts into being.db.")
 
+
 def get_being_telemetry():
     being = get_being()
     return being.state.to_dict() if hasattr(being, "state") else {}
+
 
 if __name__ == "__main__":
     # Log state before
     backup_db()
     state_before = get_being_telemetry()
     print("[*] Drift state BEFORE test:", state_before)
-    
+
     populate_mock_data()
-    
+
     # Run the memory consolidator
     print("[*] Running MemoryConsolidator...")
     from scripts.memory_consolidation import MemoryConsolidator
+
     consolidator = MemoryConsolidator(cutoff_hours=0)
     consolidator.run()
-    
+
     # Log state after
     state_after = get_being_telemetry()
     print("[*] Drift state AFTER test:", state_after)
-    
+
     # Verification checks
     print("\n--- VERIFICATION CHECKS ---")
     if ARCHIVE_DB.exists():

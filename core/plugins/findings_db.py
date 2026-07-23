@@ -179,9 +179,7 @@ class FindingsDB:
             conn.commit()
         return cur.lastrowid
 
-    def exists_by_asset_and_vuln_type(
-        self, asset: str, vuln_type: str
-    ) -> bool:
+    def exists_by_asset_and_vuln_type(self, asset: str, vuln_type: str) -> bool:
         """Check whether a finding with the same asset + vuln_type already exists."""
         with self._conn() as conn:
             row = conn.execute(

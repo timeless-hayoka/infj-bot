@@ -29,7 +29,7 @@ sys_instruction = brain.get_system_instruction(prompt)
 print(f"[TRACE] System instruction length: {len(sys_instruction)}")
 
 print("[TRACE] Formatting full prompt...")
-tool_prompt = "Format your tool call exactly as..." # mocked tool prompt
+tool_prompt = "Format your tool call exactly as..."  # mocked tool prompt
 chain_block = ""
 history_context = ""
 full_prompt = (

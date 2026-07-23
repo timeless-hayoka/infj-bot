@@ -31,18 +31,43 @@ TEST_PROMPTS = [
 
 # Markers of old formal persona
 FORMAL_MARKERS = [
-    "metacognitive", "adversarial kindness", "plan-critic loop",
-    "cognitive dissonance", "feedback loops", "second-order effects",
-    "I am an AI companion", "DRIFT-inspired", "philosophical",
-    "your energy is at", "your curiosity is at", "I notice you're",
-    "my current state", "heartbeat", "temperature", "attachment to user",
+    "metacognitive",
+    "adversarial kindness",
+    "plan-critic loop",
+    "cognitive dissonance",
+    "feedback loops",
+    "second-order effects",
+    "I am an AI companion",
+    "DRIFT-inspired",
+    "philosophical",
+    "your energy is at",
+    "your curiosity is at",
+    "I notice you're",
+    "my current state",
+    "heartbeat",
+    "temperature",
+    "attachment to user",
 ]
 
 # Markers of new chill persona
 CHILL_MARKERS = [
-    "chillin", "vibe", "lowkey", "highkey", "nah", "yep",
-    "kinda", "sorta", "honestly", "real talk", "no stress",
-    "bet", "say less", "aight", "hm", "alright", "ok ok",
+    "chillin",
+    "vibe",
+    "lowkey",
+    "highkey",
+    "nah",
+    "yep",
+    "kinda",
+    "sorta",
+    "honestly",
+    "real talk",
+    "no stress",
+    "bet",
+    "say less",
+    "aight",
+    "hm",
+    "alright",
+    "ok ok",
 ]
 
 
@@ -71,10 +96,17 @@ def health_check() -> dict:
 def score_tone(text: str) -> dict:
     formal_hits = [m for m in FORMAL_MARKERS if m.lower() in text.lower()]
     chill_hits = [m for m in CHILL_MARKERS if m.lower() in text.lower()]
-    state_parrot = any(phrase in text.lower() for phrase in [
-        "energy is at", "curiosity is at", "attachment is at",
-        "mood is", "heartbeat", "my current state",
-    ])
+    state_parrot = any(
+        phrase in text.lower()
+        for phrase in [
+            "energy is at",
+            "curiosity is at",
+            "attachment is at",
+            "mood is",
+            "heartbeat",
+            "my current state",
+        ]
+    )
     return {
         "formal_markers": formal_hits,
         "chill_markers": chill_hits,
@@ -111,18 +143,22 @@ def run_tests():
         print(f"  {display}")
 
         scores = score_tone(reply)
-        print(f"  Formal markers: {scores['formal_score']} | Chill markers: {scores['chill_score']} | State parrot: {scores['state_parrot']}")
+        print(
+            f"  Formal markers: {scores['formal_score']} | Chill markers: {scores['chill_score']} | State parrot: {scores['state_parrot']}"
+        )
 
         total_formal += scores["formal_score"]
         total_chill += scores["chill_score"]
         total_parrot += 1 if scores["state_parrot"] else 0
 
-        results.append({
-            "label": label,
-            "prompt": prompt,
-            "reply": reply,
-            "scores": scores,
-        })
+        results.append(
+            {
+                "label": label,
+                "prompt": prompt,
+                "reply": reply,
+                "scores": scores,
+            }
+        )
 
     summary = {
         "timestamp": datetime.now().isoformat(),
@@ -133,8 +169,12 @@ def run_tests():
         "state_parrot_instances": total_parrot,
         "verdict": {
             "tone": "CHILL ✓" if total_chill > total_formal else "FORMAL ✗",
-            "repetition": "CLEAN ✓" if total_parrot == 0 else f"PARROT ✗ ({total_parrot} times)",
-            "overall": "PASS" if (total_chill > total_formal and total_parrot == 0) else "NEEDS WORK",
+            "repetition": "CLEAN ✓"
+            if total_parrot == 0
+            else f"PARROT ✗ ({total_parrot} times)",
+            "overall": "PASS"
+            if (total_chill > total_formal and total_parrot == 0)
+            else "NEEDS WORK",
         },
         "results": results,
     }
