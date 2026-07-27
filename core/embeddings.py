@@ -48,9 +48,16 @@ class SemanticEmbeddingFunction:
                 except Exception as e:
                     if "meta tensor" in str(e):
                         # Attempt recovery if somehow still on meta
-                        self._model = SentenceTransformer(
-                            "all-MiniLM-L6-v2", device="cpu", trust_remote_code=True
-                        )
+                        try:
+                            self._model = SentenceTransformer(
+                                "all-MiniLM-L6-v2", device="cpu", trust_remote_code=True
+                            )
+                        except Exception:
+                            raise e
+                    elif "ProxyError" in str(type(e).__name__) or "ConnectionError" in str(type(e).__name__):
+                        # Network error - fall back to local hashing
+                        self._model = None
+                        raise RuntimeError(f"Network error downloading embedding model: {e}. Use LocalEmbeddingFunction instead.") from e
                     else:
                         raise e
         return self._model
@@ -128,9 +135,16 @@ class LocalEmbeddingFunction:
 
 
 def get_default_embedding_function():
+    # Allow forcing local embeddings for offline/test environments
+    if os.environ.get("DRIFT_USE_LOCAL_EMBEDDINGS", "").lower() in ("1", "true", "yes"):
+        return LocalEmbeddingFunction()
+
     try:
         import sentence_transformers  # noqa: F401
-
         return SemanticEmbeddingFunction()
     except ImportError:
         return LocalEmbeddingFunction()
+    except Exception as e:
+        if "ProxyError" in str(type(e).__name__) or "ConnectionError" in str(type(e).__name__):
+            return LocalEmbeddingFunction()
+        raise

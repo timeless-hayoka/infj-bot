@@ -454,11 +454,16 @@ class TestDeterminism:
         pytest.importorskip(
             "sentence_transformers", reason="sentence_transformers not installed"
         )
-        emb_fn = SemanticEmbeddingFunction()
-        text = "The quick brown fox"
-        e1 = emb_fn.embed_query(text)
-        e2 = emb_fn.embed_query(text)
-        assert pytest.approx(e1.tolist()) == e2.tolist()
+        try:
+            emb_fn = SemanticEmbeddingFunction()
+            text = "The quick brown fox"
+            e1 = emb_fn.embed_query(text)
+            e2 = emb_fn.embed_query(text)
+            assert pytest.approx(e1.tolist()) == e2.tolist()
+        except RuntimeError as e:
+            if "Network error" in str(e):
+                pytest.skip("Network unavailable for semantic embeddings")
+            raise
 
     def test_memory_roundtrip_idempotent(self, tmp_path):
         memory = DriftMemory(persist_directory=str(tmp_path))
