@@ -19,4 +19,4 @@ fi
 export INFJ_EMBEDDING_MODE="${INFJ_EMBEDDING_MODE:-local}"
 
 # Run the MCP server unbuffered so external orchestrators can read logs promptly
-python -u mcp_server.py
+python -u -m drift.core.mcp_server

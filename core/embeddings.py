@@ -135,8 +135,11 @@ class LocalEmbeddingFunction:
 
 
 def get_default_embedding_function():
-    # Allow forcing local embeddings for offline/test environments
+    # Allow forcing local embeddings for offline/test environments.
+    # INFJ_EMBEDDING_MODE=local is the documented switch used by scripts/run_mcp.sh.
     if os.environ.get("DRIFT_USE_LOCAL_EMBEDDINGS", "").lower() in ("1", "true", "yes"):
+        return LocalEmbeddingFunction()
+    if os.environ.get("INFJ_EMBEDDING_MODE", "").strip().lower() == "local":
         return LocalEmbeddingFunction()
 
     try:

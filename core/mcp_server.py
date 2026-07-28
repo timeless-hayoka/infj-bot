@@ -9,7 +9,11 @@ from typing import Any, Dict, List, Optional
 import logging
 from collections import deque
 
-from mcp.server.fastmcp import FastMCP
+try:
+    # MCP SDK >= 2.0 renamed FastMCP to MCPServer and moved the module.
+    from mcp.server.mcpserver import MCPServer as _MCPServer
+except ImportError:  # pragma: no cover - depends on installed SDK version
+    from mcp.server.fastmcp import FastMCP as _MCPServer
 
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
@@ -36,7 +40,7 @@ try:
 except Exception:
     HiveOrchestrator = None  # type: ignore[misc,assignment]
 
-mcp = FastMCP(
+mcp = _MCPServer(
     "infj_companion",
     instructions="""
 You are interfacing with the INFJ Companion Bot — a local AI companion with deep memory,
