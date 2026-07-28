@@ -454,16 +454,17 @@ class TestDeterminism:
         pytest.importorskip(
             "sentence_transformers", reason="sentence_transformers not installed"
         )
-        try:
-            emb_fn = SemanticEmbeddingFunction()
-            text = "The quick brown fox"
-            e1 = emb_fn.embed_query(text)
-            e2 = emb_fn.embed_query(text)
-            assert pytest.approx(e1.tolist()) == e2.tolist()
-        except RuntimeError as e:
-            if "Network error" in str(e):
-                pytest.skip("Network unavailable for semantic embeddings")
-            raise
+        emb_fn = SemanticEmbeddingFunction()
+        text = "The quick brown fox"
+
+        def as_list(v):
+            return v.tolist() if hasattr(v, "tolist") else list(v)
+
+        e1 = as_list(emb_fn.embed_query(text))
+        e2 = as_list(emb_fn.embed_query(text))
+        # Determinism must hold whether the semantic model loaded or the
+        # offline fallback took over — no skip, no message matching.
+        assert pytest.approx(e1) == e2
 
     def test_memory_roundtrip_idempotent(self, tmp_path):
         memory = DriftMemory(persist_directory=str(tmp_path))

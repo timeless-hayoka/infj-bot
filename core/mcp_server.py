@@ -9,12 +9,6 @@ from typing import Any, Dict, List, Optional
 import logging
 from collections import deque
 
-try:
-    # MCP SDK >= 2.0 renamed FastMCP to MCPServer and moved the module.
-    from mcp.server.mcpserver import MCPServer as _MCPServer
-except ImportError:  # pragma: no cover - depends on installed SDK version
-    from mcp.server.fastmcp import FastMCP as _MCPServer
-
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -34,6 +28,12 @@ from drift.core.plugins.emotion import detect_emotion
 from drift.core.plugins.goals import GoalsDB
 from drift.core.memory import DriftMemory
 from drift.core.global_workspace import GlobalWorkspace
+
+try:
+    # MCP SDK >= 2.0 renamed FastMCP to MCPServer and moved the module.
+    from mcp.server.mcpserver import MCPServer as _MCPServer
+except ImportError:  # pragma: no cover - depends on installed SDK version
+    from mcp.server.fastmcp import FastMCP as _MCPServer
 
 try:
     from hive_mind.orchestrator import HiveOrchestrator
