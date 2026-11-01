@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import os
+import hashlib
+import importlib.util
 import subprocess
 import sys
 from pathlib import Path
@@ -18,6 +20,7 @@ from drift.config_adapter import (
 )
 
 _knowledge_provider: Any | None = None
+_knowledge_source_fingerprint: tuple[str, str] | None = None
 
 
 def resolve_anchor_repo_root() -> Path | None:
@@ -38,19 +41,31 @@ def resolve_anchor_repo_root() -> Path | None:
 
 def get_anchor_knowledge_provider():
     """Return a cached KnowledgeProvider for the ANCHOR repo, or None if unavailable."""
-    global _knowledge_provider
+    global _knowledge_provider, _knowledge_source_fingerprint
     root = resolve_anchor_repo_root()
     if root is None:
         return None
-    if _knowledge_provider is not None and getattr(_knowledge_provider, "root", None) == (root / "knowledge").resolve():
+    source = root / "knowledge_provider.py"
+    fingerprint = (
+        hashlib.sha256((root / "knowledge/manifest.json").read_bytes()).hexdigest(),
+        hashlib.sha256(source.read_bytes()).hexdigest(),
+    )
+    if (_knowledge_provider is not None
+            and getattr(_knowledge_provider, "root", None) == (root / "knowledge").resolve()
+            and _knowledge_source_fingerprint == fingerprint):
         return _knowledge_provider
 
-    root_str = str(root)
-    if root_str not in sys.path:
-        sys.path.insert(0, root_str)
-    from knowledge_provider import KnowledgeProvider
-
-    _knowledge_provider = KnowledgeProvider(root / "knowledge")
+    # Load by exact path: sys.modules must not reuse another checkout's provider.
+    module_name = "_drift_anchor_provider_" + hashlib.sha256(str(root).encode()).hexdigest()[:12]
+    spec = importlib.util.spec_from_file_location(module_name, source)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Unable to load ANCHOR knowledge provider: {source}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    # Execute the observed source bytes instead of a potentially stale .pyc file.
+    exec(compile(source.read_bytes(), str(source), "exec"), module.__dict__)
+    _knowledge_provider = module.KnowledgeProvider(root / "knowledge")
+    _knowledge_source_fingerprint = fingerprint
     return _knowledge_provider
 
 

@@ -2,9 +2,9 @@ name: Quality
 
 on:
   push:
-    branches: [main, master]
+    branches: [anchor, main, master]
   pull_request:
-    branches: [main, master]
+    branches: [anchor, main, master]
 
 jobs:
   lint:
@@ -64,5 +64,5 @@ jobs:
 
       - name: Type check core modules
         run: |
-          mypy config.py brain.py memory.py rate_limit.py maintenance.py \
+          mypy core/config.py core/brain.py core/memory.py core/rate_limit.py core/maintenance.py \
             --ignore-missing-imports --warn-redundant-casts || true
