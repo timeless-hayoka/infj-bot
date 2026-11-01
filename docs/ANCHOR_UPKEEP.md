@@ -15,3 +15,5 @@ A missing checkout or incompatible API exits 1. The daily job detects contract b
 Full MCP, model, ChromaDB persistence, voice, and release validation remain separate gates. A green contract check is intentionally narrower than a full application health claim. Existing Quality scan/typecheck commands that use `|| true` remain advisory and should not be treated as enforcing release gates.
 
 The knowledge consumer fingerprints the manifest and provider source on access. Manifest changes rebuild cached topics; provider edits and checkout switches load the exact source from the selected checkout. Existing Markdown topic bodies are read from disk. These refresh rules are regression-tested in `tests/test_anchor_freshness.py`. The source checkout remains operator-controlled trusted code, as it was before this change.
+
+Do not commit local virtual environments or aliases to them. The historical tracked `.venv -> venv` link prevented `python -m venv .venv` from bootstrapping on a clean CI runner; this link is removed. Bootstrap creates a real local environment, which remains ignored.
