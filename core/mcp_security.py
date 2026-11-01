@@ -9,26 +9,33 @@ import logging
 import os
 import time
 from collections import defaultdict, deque
+from collections.abc import Iterable, Mapping, MutableMapping
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
-from typing import Any, Deque, Dict, Iterable, Mapping, MutableMapping, Optional
+from typing import Any, Optional
 
 from prometheus_client import Counter, Gauge, Histogram
 
 try:  # Optional, but available in this environment.
     import jwt
 except Exception:  # pragma: no cover - optional dependency
+    logging.getLogger(__name__).debug(
+        "Operation failed; applying fallback", exc_info=True
+    )
     jwt = None  # type: ignore[assignment]
 
 try:  # Optional, but available in this environment.
     from jwt import PyJWKClient
 except Exception:  # pragma: no cover - optional dependency
+    logging.getLogger(__name__).debug(
+        "Operation failed; applying fallback", exc_info=True
+    )
     PyJWKClient = None  # type: ignore[assignment]
 
-from core.unified_audit import audit_log
 from core.jsonl_logger import HardenedJsonlLogger
+from core.unified_audit import audit_log
 
 logger = logging.getLogger("infj_mcp.security")
 
@@ -66,7 +73,7 @@ class SecurityPrincipal:
     token_prefix: str
     source: str
     scopes: tuple[str, ...] = ()
-    claims: Dict[str, Any] | None = None
+    claims: dict[str, Any] | None = None
 
 
 @dataclass(slots=True)
@@ -96,12 +103,14 @@ class McpSecurityGuard:
         self.jwks_url = jwks_url or None
         self.open_mode = open_mode
         self.rate_limit_defaults = dict(rate_limit_defaults or {})
-        self._windows: dict[tuple[str, str], Deque[float]] = defaultdict(deque)
+        self._windows: dict[tuple[str, str], deque[float]] = defaultdict(deque)
         self._last_call: dict[tuple[str, str], float] = {}
         self.audit_logger = HardenedJsonlLogger(
             Path(audit_path or Path.cwd() / "mcp_audit.jsonl")
         )
-        self.mirror_outcome_path = Path(mirror_outcome_path) if mirror_outcome_path else None
+        self.mirror_outcome_path = (
+            Path(mirror_outcome_path) if mirror_outcome_path else None
+        )
         self._jwks_client = None
         if self.jwks_url and PyJWKClient is not None:
             self._jwks_client = PyJWKClient(self.jwks_url)
@@ -121,7 +130,7 @@ class McpSecurityGuard:
             return tuple(str(scope) for scope in raw if scope)
         return ()
 
-    def _decode_jwt(self, token: str) -> Dict[str, Any] | None:
+    def _decode_jwt(self, token: str) -> dict[str, Any] | None:
         if jwt is None:
             return None
         try:
@@ -141,6 +150,9 @@ class McpSecurityGuard:
                     options={"verify_aud": False},
                 )
         except Exception as exc:  # pragma: no cover - defensive path
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             logger.warning("JWT decode failed: %s", exc)
             return None
         return None
@@ -170,7 +182,9 @@ class McpSecurityGuard:
             claims = self._decode_jwt(token)
             if claims is not None:
                 token_prefix = self._token_prefix(token)
-                identity = str(claims.get("sub") or claims.get("client_id") or token_prefix)
+                identity = str(
+                    claims.get("sub") or claims.get("client_id") or token_prefix
+                )
                 return SecurityPrincipal(
                     identity=identity,
                     token_prefix=token_prefix,
@@ -191,7 +205,9 @@ class McpSecurityGuard:
             claims=claims or {},
         )
 
-    def required_scope_for(self, tool_name: str, kwargs: Mapping[str, Any] | None = None) -> str | None:
+    def required_scope_for(
+        self, tool_name: str, kwargs: Mapping[str, Any] | None = None
+    ) -> str | None:
         kwargs = kwargs or {}
         if tool_name == "autonomy":
             return "autonomy:execute"
@@ -199,7 +215,12 @@ class McpSecurityGuard:
             return "documents:write"
         if tool_name in {"todo_add", "todo_complete"}:
             return "todo:write"
-        if tool_name in {"memory_search", "document_search", "todo_list", "companion_think"}:
+        if tool_name in {
+            "memory_search",
+            "document_search",
+            "todo_list",
+            "companion_think",
+        }:
             return "read"
         if kwargs.get("reproduce"):
             return "hunt:execute"
@@ -215,9 +236,13 @@ class McpSecurityGuard:
             raise PermissionError(f"Missing required scope: {scope}")
 
     def get_rate_limit(self, tool_name: str) -> tuple[int, int]:
-        return self.rate_limit_defaults.get(tool_name, self.rate_limit_defaults.get("default", (60, 60)))
+        return self.rate_limit_defaults.get(
+            tool_name, self.rate_limit_defaults.get("default", (60, 60))
+        )
 
-    def check_rate_limit(self, principal: SecurityPrincipal, tool_name: str) -> RateLimitDecision:
+    def check_rate_limit(
+        self, principal: SecurityPrincipal, tool_name: str
+    ) -> RateLimitDecision:
         limit, window_seconds = self.get_rate_limit(tool_name)
         now = time.monotonic()
         key = (principal.identity, tool_name)
@@ -226,7 +251,11 @@ class McpSecurityGuard:
         while window and window[0] < window_start:
             window.popleft()
         if len(window) >= limit:
-            retry_after = max(0.0, window[0] + window_seconds - now) if window else float(window_seconds)
+            retry_after = (
+                max(0.0, window[0] + window_seconds - now)
+                if window
+                else float(window_seconds)
+            )
             MCP_RATE_LIMIT_HITS.labels(tool=tool_name).inc()
             return RateLimitDecision(
                 allowed=False,
@@ -236,15 +265,19 @@ class McpSecurityGuard:
             )
         window.append(now)
         self._last_call[key] = now
-        return RateLimitDecision(allowed=True, limit=limit, window_seconds=window_seconds)
+        return RateLimitDecision(
+            allowed=True, limit=limit, window_seconds=window_seconds
+        )
 
-    def _mirror_outcome_memory(self, record: Dict[str, Any]) -> None:
+    def _mirror_outcome_memory(self, record: dict[str, Any]) -> None:
         if self.mirror_outcome_path is None:
             return
         try:
             existing: dict[str, Any] = {}
             if self.mirror_outcome_path.exists():
-                existing = json.loads(self.mirror_outcome_path.read_text(encoding="utf-8"))
+                existing = json.loads(
+                    self.mirror_outcome_path.read_text(encoding="utf-8")
+                )
                 if not isinstance(existing, dict):
                     existing = {}
             existing.setdefault("mcp_audit_events", [])
@@ -252,7 +285,9 @@ class McpSecurityGuard:
             events.append(record)
             existing["mcp_audit_events"] = events[-500:]
             self.mirror_outcome_path.parent.mkdir(parents=True, exist_ok=True)
-            self.mirror_outcome_path.write_text(json.dumps(existing, indent=2), encoding="utf-8")
+            self.mirror_outcome_path.write_text(
+                json.dumps(existing, indent=2), encoding="utf-8"
+            )
         except Exception:
             logger.debug("Unable to mirror MCP audit event", exc_info=True)
 
@@ -267,7 +302,7 @@ class McpSecurityGuard:
         details: Mapping[str, Any] | None = None,
     ) -> None:
         record = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "event": event,
             "tool": tool,
             "status": status,
@@ -282,13 +317,21 @@ class McpSecurityGuard:
         self._mirror_outcome_memory(record)
 
     @contextmanager
-    def tool_span(self, *, tool: str, principal: SecurityPrincipal | None, transport: str):
+    def tool_span(
+        self, *, tool: str, principal: SecurityPrincipal | None, transport: str
+    ):
         MCP_ACTIVE_CALLS.inc()
         start = time.perf_counter()
         try:
             yield
             MCP_TOOL_CALLS.labels(tool=tool, status="success").inc()
-            self.audit(event="tool_call", tool=tool, principal=principal, status="success", transport=transport)
+            self.audit(
+                event="tool_call",
+                tool=tool,
+                principal=principal,
+                status="success",
+                transport=transport,
+            )
         except Exception as exc:
             MCP_TOOL_CALLS.labels(tool=tool, status="error").inc()
             self.audit(
@@ -304,4 +347,3 @@ class McpSecurityGuard:
             duration = time.perf_counter() - start
             MCP_TOOL_DURATION.labels(tool=tool).observe(duration)
             MCP_ACTIVE_CALLS.dec()
-

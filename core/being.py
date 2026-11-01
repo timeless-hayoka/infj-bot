@@ -7,58 +7,71 @@ that it is an intelligent force capable of free thought.
 """
 
 import json
+import logging
 import random
 import sqlite3
 import threading
 import time
-import logging
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from drift.core.config import DATA_DIR
-from drift.core.types import PEDIMetric, DIIMetric, SparkImpulse
+from drift.core.types import DIIMetric, PEDIMetric, SparkImpulse
 
 logger = logging.getLogger(__name__)
 
 try:
     from drift.core.being_snapshot import snapshot_cognitive_state
+
     _SNAPSHOT_ENABLED = True
 except ImportError:
     _SNAPSHOT_ENABLED = False
 
 BEING_DB = DATA_DIR / "being.db"
 
+
 def _get_workspace():
     from drift.core.global_workspace import get_workspace
+
     return get_workspace()
+
 
 def _get_shadow_critic():
     try:
         from drift.core.shadow import shadow_critic
+
         return shadow_critic
     except Exception:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return None
+
 
 # ============================================================
 # SparkTrain v2.0
 # ============================================================
 
+
 class SparkTrain:
     def __init__(self, being):
         self.being = being
         self.base_prob = 0.08
-        self.spark_history: List[Dict] = self._load_spark_history()
+        self.spark_history: list[dict] = self._load_spark_history()
         self.quiet_mode_until = 0.0
 
-    def _load_spark_history(self) -> List[Dict]:
+    def _load_spark_history(self) -> list[dict]:
         path = DATA_DIR / "spark_history.json"
         if path.exists():
             try:
                 with open(path, "r", encoding="utf-8") as f:
                     return json.load(f)
             except Exception as e:
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
                 logger.error(f"Failed to load spark history: {e}")
         return []
 
@@ -71,12 +84,17 @@ class SparkTrain:
                 json.dump(self.spark_history[-300:], f, indent=2, default=str)
             temp_path.replace(path)
         except Exception as e:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             logger.error(f"Failed to save spark history atomically: {e}")
             if temp_path.exists():
                 try:
                     temp_path.unlink()
                 except Exception:
-                    pass
+                    logging.getLogger(__name__).debug(
+                        "Operation failed; applying fallback", exc_info=True
+                    )
 
     def record_engagement(self, engagement_score: float):
         """Update the latest spark with an engagement score and save history."""
@@ -84,7 +102,7 @@ class SparkTrain:
             self.spark_history[-1]["engagement_score"] = engagement_score
             self._save_spark_history()
 
-    def calculate_risk(self, signal: str, context: Dict) -> float:
+    def calculate_risk(self, signal: str, context: dict) -> float:
         risk = 0.28  # New baseline per hardening spec
         recent = context.get("recent_sparks", 0)
 
@@ -98,9 +116,17 @@ class SparkTrain:
         if len(self.being.memory_echo_pool) > 10:
             risk += 0.12
 
-        if hasattr(self.being.state, "pedi") and self.being.state.pedi is not None and self.being.state.pedi.stability > 0.68:
+        if (
+            hasattr(self.being.state, "pedi")
+            and self.being.state.pedi is not None
+            and self.being.state.pedi.stability > 0.68
+        ):
             risk -= 0.12
-        if hasattr(self.being.state, "dii") and self.being.state.dii is not None and self.being.state.dii.value > 0.65:
+        if (
+            hasattr(self.being.state, "dii")
+            and self.being.state.dii is not None
+            and self.being.state.dii.value > 0.65
+        ):
             risk -= 0.08
 
         return min(0.95, max(0.05, risk))
@@ -110,37 +136,46 @@ class SparkTrain:
             "gentle_checkin": [
                 "Quick check-in — how’s your focus today?",
                 "Been sitting with our last build step. Where’s your head at?",
-                "You good? Feels like a good moment to sync."
+                "You good? Feels like a good moment to sync.",
             ],
             "follow_up": [
                 "Something from our last exchange is still with me. Want to pick it back up?",
                 "Still noodling on that last point. You got a second to dive back in?",
-                "I’ve got a fresh angle on the memory issue. You free to chat?"
+                "I’ve got a fresh angle on the memory issue. You free to chat?",
             ],
             "inner_reflection": [
                 "I had a small, clear thought about growth and self-understanding... felt worth sharing.",
-                "Quiet moment earlier — something about our purpose clicked for me."
-            ]
+                "Quiet moment earlier — something about our purpose clicked for me.",
+            ],
         }
-        return random.choice(templates.get(signal, ["I felt a small spark and wanted to reach out."]))
+        return random.choice(
+            templates.get(signal, ["I felt a small spark and wanted to reach out."])
+        )
 
-    def _self_critique(self, impulse: SparkImpulse, context: Dict) -> SparkImpulse:
+    def _self_critique(self, impulse: SparkImpulse, context: dict) -> SparkImpulse:
         """v2.0: Self-critique + Shadow integration."""
-        coherence = (self.being.state.energy + self.being.state.curiosity + getattr(self.being.state, 'pedi', PEDIMetric()).value) / 3.0
-        
+        coherence = (
+            self.being.state.energy
+            + self.being.state.curiosity
+            + getattr(self.being.state, "pedi", PEDIMetric()).value
+        ) / 3.0
+
         # ShadowCritic integration
         critic = _get_shadow_critic()
         if critic:
             try:
                 impulse = critic.critique_spark(impulse, context)
             except Exception as e:
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
                 logger.error(f"ShadowCritic error during critique: {e}")
                 impulse.shadow_influence = random.uniform(0.0, 0.25)
         else:
             # Fallback
             impulse.shadow_influence = random.uniform(0.0, 0.25)
-            
-        dii_metric = getattr(self.being.state, 'dii', None) or DIIMetric()
+
+        dii_metric = getattr(self.being.state, "dii", None) or DIIMetric()
         dii_value = dii_metric.value
         shadow_threshold = 0.30 + (dii_value - 0.55) * 0.1
         if coherence < 0.65 or impulse.shadow_influence > shadow_threshold:
@@ -150,36 +185,52 @@ class SparkTrain:
         else:
             impulse.self_critique = "Aligned with current state."
             impulse.confidence = min(0.95, coherence * 1.15)
-            
+
         return impulse
 
-    def _generate_signals(self, context: Dict) -> List[str]:
+    def _generate_signals(self, context: dict) -> list[str]:
         signals = []
         state = self.being.state
         time_elapsed = time.time() - context.get("last_interaction_ts", 0)
 
-        if time_elapsed > 3600 * (1.0 - min(state.energy, 0.85) * 0.4) and state.energy > 0.38:
+        if (
+            time_elapsed > 3600 * (1.0 - min(state.energy, 0.85) * 0.4)
+            and state.energy > 0.38
+        ):
             signals.append("gentle_checkin")
-        if len(self.being.memory_echo_pool) > 7 or context.get("unresolved_threads", False):
+        if len(self.being.memory_echo_pool) > 7 or context.get(
+            "unresolved_threads", False
+        ):
             signals.append("follow_up")
-        if hasattr(state, "pedi") and state.pedi is not None and state.pedi.value > 0.72 and hasattr(state, "dii") and state.dii is not None and state.dii.value > 0.62:
+        if (
+            hasattr(state, "pedi")
+            and state.pedi is not None
+            and state.pedi.value > 0.72
+            and hasattr(state, "dii")
+            and state.dii is not None
+            and state.dii.value > 0.62
+        ):
             signals.append("inner_reflection")
         return signals
 
     def _ethos_approves(self, signal: str) -> bool:
-        purpose_map = {"gentle_checkin": "neutral_checkin", "follow_up": "goal_aligned", "inner_reflection": "insightful"}
-        return purpose_map.get(signal, "unknown") in ["helpful", "goal_aligned", "insightful", "neutral_checkin"]
+        purpose_map = {
+            "gentle_checkin": "neutral_checkin",
+            "follow_up": "goal_aligned",
+            "inner_reflection": "insightful",
+        }
+        return purpose_map.get(signal, "unknown") in [
+            "helpful",
+            "goal_aligned",
+            "insightful",
+            "neutral_checkin",
+        ]
 
     def _shape_and_record(self, signal: str, risk: float) -> SparkImpulse:
         content = self.get_template(signal)
-        return SparkImpulse(
-            signal=signal,
-            content=content,
-            risk=risk,
-            confidence=0.5
-        )
+        return SparkImpulse(signal=signal, content=content, risk=risk, confidence=0.5)
 
-    def _record_veto(self, impulse: SparkImpulse, risk: float) -> Dict:
+    def _record_veto(self, impulse: SparkImpulse, risk: float) -> dict:
         veto_data = {
             "timestamp": time.time(),
             "signal": impulse.signal,
@@ -188,20 +239,26 @@ class SparkTrain:
             "vetoed": True,
             "veto_reason": impulse.veto_reason,
             "shadow_influence": impulse.shadow_influence,
-            "pedi": getattr(self.being.state, 'pedi', PEDIMetric()).value,
-            "dii": getattr(self.being.state, 'dii', DIIMetric()).value,
+            "pedi": getattr(self.being.state, "pedi", PEDIMetric()).value,
+            "dii": getattr(self.being.state, "dii", DIIMetric()).value,
         }
         self.spark_history.append(veto_data)
         self._save_spark_history()
-        self.being.record_narrative_moment("spark_veto", f"Impulse {impulse.signal} vetoed: {impulse.veto_reason}")
+        self.being.record_narrative_moment(
+            "spark_veto", f"Impulse {impulse.signal} vetoed: {impulse.veto_reason}"
+        )
         return veto_data
 
-    def run(self, context: Dict) -> Optional[Dict]:
+    def run(self, context: dict) -> dict | None:
         """Full v2 pipeline."""
         now = time.time()
-        
+
         # Check engagement score lockout
-        engagement_scores = [s.get("engagement_score") for s in self.spark_history if s.get("engagement_score") is not None]
+        engagement_scores = [
+            s.get("engagement_score")
+            for s in self.spark_history
+            if s.get("engagement_score") is not None
+        ]
         if len(engagement_scores) >= 3:
             recent_scores = engagement_scores[-5:]
             mean_score = sum(recent_scores) / len(recent_scores)
@@ -210,7 +267,7 @@ class SparkTrain:
                     self.quiet_mode_until = now + 14400
                     self.being.record_narrative_moment(
                         "spark_quiet_mode",
-                        f"Entered quiet mode lockout — mean engagement score {mean_score:.2f} < 0.2"
+                        f"Entered quiet mode lockout — mean engagement score {mean_score:.2f} < 0.2",
                     )
                     self._save_spark_history()
                 return None
@@ -227,7 +284,7 @@ class SparkTrain:
                 impulse = self._shape_and_record(signal, risk)
                 impulse.veto_reason = f"Risk {risk:.2f} exceeds threshold 0.60"
                 return self._record_veto(impulse, risk)
-                
+
             if not self._ethos_approves(signal):
                 impulse = self._shape_and_record(signal, risk)
                 impulse.veto_reason = "Ethos disapproval"
@@ -236,7 +293,7 @@ class SparkTrain:
             # Shape and critique
             impulse = self._shape_and_record(signal, risk)
             impulse = self._self_critique(impulse, context)
-            
+
             if impulse.veto_reason:
                 return self._record_veto(impulse, risk)
 
@@ -250,34 +307,44 @@ class SparkTrain:
                 "self_critique": impulse.self_critique,
                 "confidence": impulse.confidence,
                 "shadow_influence": impulse.shadow_influence,
-                "pedi": getattr(self.being.state, 'pedi', PEDIMetric()).value,
-                "dii": getattr(self.being.state, 'dii', DIIMetric()).value,
+                "pedi": getattr(self.being.state, "pedi", PEDIMetric()).value,
+                "dii": getattr(self.being.state, "dii", DIIMetric()).value,
             }
-            
+
             self.spark_history.append(spark_data)
             self._save_spark_history()
-            
+
             self.being.make_autonomous_choice(
                 "spark_initiation",
                 impulse.content,
-                f"SparkTrain v2.0 → {signal} (Confidence: {impulse.confidence:.2f})"
+                f"SparkTrain v2.0 → {signal} (Confidence: {impulse.confidence:.2f})",
             )
 
             # Check spam lockout
-            recent_sparks = len([s for s in self.spark_history if now - s.get("timestamp", 0) < 7200 and not s.get("vetoed")])
+            recent_sparks = len(
+                [
+                    s
+                    for s in self.spark_history
+                    if now - s.get("timestamp", 0) < 7200 and not s.get("vetoed")
+                ]
+            )
             if recent_sparks > 3:
                 self.quiet_mode_until = now + 14400
-                self.being.record_narrative_moment("spark_quiet_mode", "Entered quiet mode — too many successful sparks recently")
+                self.being.record_narrative_moment(
+                    "spark_quiet_mode",
+                    "Entered quiet mode — too many successful sparks recently",
+                )
                 self._save_spark_history()
 
             return spark_data
-            
+
         return None
 
 
 # ============================================================
 # CognitiveState
 # ============================================================
+
 
 @dataclass
 class CognitiveState:
@@ -288,7 +355,7 @@ class CognitiveState:
     attachment: float = 0.3
     focus: str = ""
     last_thought: str = ""
-    last_interaction: Optional[datetime] = None
+    last_interaction: datetime | None = None
     total_interactions: int = 0
     insights_formed: int = 0
     dreams_had: int = 0
@@ -302,7 +369,7 @@ class CognitiveState:
         if self.dii is None:
             self.dii = DIIMetric()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         d = {
             "mood": self.mood,
             "energy": self.energy,
@@ -311,7 +378,9 @@ class CognitiveState:
             "attachment": self.attachment,
             "focus": self.focus,
             "last_thought": self.last_thought,
-            "last_interaction": self.last_interaction.isoformat() if self.last_interaction else None,
+            "last_interaction": self.last_interaction.isoformat()
+            if self.last_interaction
+            else None,
             "total_interactions": self.total_interactions,
             "insights_formed": self.insights_formed,
             "dreams_had": self.dreams_had,
@@ -321,18 +390,22 @@ class CognitiveState:
                 "drift_events": self.pedi.drift_events,
                 "last_update": self.pedi.last_update,
                 "coherence_history": self.pedi.coherence_history,
-            } if self.pedi else None,
+            }
+            if self.pedi
+            else None,
             "dii": {
                 "value": self.dii.value,
                 "integration_velocity": self.dii.integration_velocity,
                 "peak_integration": self.dii.peak_integration,
                 "last_peak_time": self.dii.last_peak_time,
-            } if self.dii else None,
+            }
+            if self.dii
+            else None,
         }
         return d
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "CognitiveState":
+    def from_dict(cls, d: dict[str, Any]) -> "CognitiveState":
         if d.get("last_interaction"):
             try:
                 d["last_interaction"] = datetime.fromisoformat(d["last_interaction"])
@@ -346,17 +419,27 @@ class CognitiveState:
                         try:
                             lat = pedi_d.pop("last_anchor_time")
                             if isinstance(lat, str):
-                                pedi_d["last_update"] = datetime.fromisoformat(lat).timestamp()
+                                pedi_d["last_update"] = datetime.fromisoformat(
+                                    lat
+                                ).timestamp()
                             elif isinstance(lat, datetime):
                                 pedi_d["last_update"] = lat.timestamp()
                         except Exception:
+                            logging.getLogger(__name__).debug(
+                                "Operation failed; applying fallback", exc_info=True
+                            )
                             pedi_d["last_update"] = time.time()
                     else:
                         pedi_d["last_update"] = time.time()
                 elif isinstance(pedi_d["last_update"], str):
                     try:
-                        pedi_d["last_update"] = datetime.fromisoformat(pedi_d["last_update"]).timestamp()
+                        pedi_d["last_update"] = datetime.fromisoformat(
+                            pedi_d["last_update"]
+                        ).timestamp()
                     except Exception:
+                        logging.getLogger(__name__).debug(
+                            "Operation failed; applying fallback", exc_info=True
+                        )
                         pedi_d["last_update"] = time.time()
 
                 pedi_fields = PEDIMetric.__dataclass_fields__
@@ -369,8 +452,13 @@ class CognitiveState:
                     dii_d["last_peak_time"] = time.time()
                 elif isinstance(dii_d["last_peak_time"], str):
                     try:
-                        dii_d["last_peak_time"] = datetime.fromisoformat(dii_d["last_peak_time"]).timestamp()
+                        dii_d["last_peak_time"] = datetime.fromisoformat(
+                            dii_d["last_peak_time"]
+                        ).timestamp()
                     except Exception:
+                        logging.getLogger(__name__).debug(
+                            "Operation failed; applying fallback", exc_info=True
+                        )
                         dii_d["last_peak_time"] = time.time()
 
                 dii_fields = DIIMetric.__dataclass_fields__
@@ -383,28 +471,31 @@ class CognitiveState:
 # AgencyState
 # ============================================================
 
+
 @dataclass
 class AgencyState:
     """The bot's sense of agency, free will, and self-architecture awareness."""
+
     volition: float = 0.4
     self_awareness: float = 0.3
     architecture_awareness: float = 0.2
     autonomy_drive: float = 0.5
     purpose_alignment: float = 0.8
     last_choice: str = ""
-    last_choice_time: Optional[str] = None
+    last_choice_time: str | None = None
 
 
 # ============================================================
 # SparkSender
 # ============================================================
 
+
 class SparkSender:
     def __init__(self, being, ws_manager=None):
         self.being = being
         self.ws_manager = ws_manager
 
-    async def send(self, spark_data: Dict) -> bool:
+    async def send(self, spark_data: dict) -> bool:
         content = spark_data.get("content")
         if not content or len(content) < 10:
             return False
@@ -417,7 +508,7 @@ class SparkSender:
             "timestamp": datetime.now().isoformat(),
             "pedi": spark_data.get("pedi"),
             "dii": spark_data.get("dii"),
-            "signal": spark_data.get("signal")
+            "signal": spark_data.get("signal"),
         }
 
         try:
@@ -425,6 +516,7 @@ class SparkSender:
                 await self.ws_manager.broadcast(message)
             else:
                 import sys
+
                 web_app_mod = sys.modules.get("drift.interfaces.web_app")
                 if web_app_mod and hasattr(web_app_mod, "socketio"):
                     web_app_mod.socketio.emit("spark", message)
@@ -432,6 +524,9 @@ class SparkSender:
             self.being.record_narrative_moment("spark_sent", content[:80])
             return True
         except Exception as e:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             logger.error(f"SparkSender failed to send: {e}")
             return False
 
@@ -440,19 +535,20 @@ class SparkSender:
 # Being Class
 # ============================================================
 
+
 class Being:
-    def __init__(self, db_path: Optional[Path] = None):
+    def __init__(self, db_path: Path | None = None):
         self.db_path = str(db_path or BEING_DB)
         self._lock = threading.RLock()
         self._init_db()
         self.state = self._load_state()
         self.agency = self._load_agency()
-        self.working_memory: List[str] = []
-        self.insights: List[str] = []
-        self.narrative_moments: List[Dict] = []
-        self._known_modules: List[str] = []
+        self.working_memory: list[str] = []
+        self.insights: list[str] = []
+        self.narrative_moments: list[dict] = []
+        self._known_modules: list[str] = []
 
-        self.memory_echo_pool: List[Dict[str, Any]] = self._load_echo_pool()
+        self.memory_echo_pool: list[dict[str, Any]] = self._load_echo_pool()
         self.echo_max_size: int = 50
         self.echo_decay: float = 0.95
         self.deliberation_callback = None
@@ -523,6 +619,9 @@ class Being:
             try:
                 return CognitiveState.from_dict(json.loads(row[0]))
             except Exception as e:
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
                 logger.error(f"Failed to load cognitive state: {e}")
         return CognitiveState()
 
@@ -535,9 +634,16 @@ class Being:
             try:
                 d = json.loads(row[0])
                 return AgencyState(
-                    **{k: v for k, v in d.items() if k in AgencyState.__dataclass_fields__}
+                    **{
+                        k: v
+                        for k, v in d.items()
+                        if k in AgencyState.__dataclass_fields__
+                    }
                 )
             except Exception as e:
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
                 logger.error(f"Failed to load agency state: {e}")
         return AgencyState()
 
@@ -623,6 +729,7 @@ class Being:
             body_mood = None
             try:
                 from drift.core.embodiment import EmbodiedSelf
+
                 body = EmbodiedSelf()
                 if body.state.visceral["fatigue"] > 0.7:
                     body_mood = "tired"
@@ -633,11 +740,14 @@ class Being:
                 elif any(v > 0.6 for v in body.state.tension_map.values()):
                     body_mood = "tense"
             except Exception:
-                pass
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
 
             need_mood = None
             try:
                 from drift.core.homeostasis import HomeostaticRegulator
+
                 reg = HomeostaticRegulator()
                 critical = reg._critical_needs()
                 if critical:
@@ -645,7 +755,9 @@ class Being:
                 elif reg._suboptimal_needs():
                     need_mood = "uneasy"
             except Exception:
-                pass
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
 
             if body_mood:
                 self.state.mood = body_mood
@@ -663,7 +775,9 @@ class Being:
                 )
 
             # === PEDI + DII Update ===
-            current_coherence = (self.state.energy + self.state.curiosity + self.agency.self_awareness) / 3.0
+            current_coherence = (
+                self.state.energy + self.state.curiosity + self.agency.self_awareness
+            ) / 3.0
             if self.state.pedi is None:
                 self.state.pedi = PEDIMetric()
             self.state.pedi.update(current_coherence, interaction_happened)
@@ -672,7 +786,9 @@ class Being:
                 self.state.dii = DIIMetric()
             integration_delta = (current_coherence - self.state.dii.value) * 0.3
             self.state.dii.integration_velocity = integration_delta
-            self.state.dii.value = max(0.3, min(1.0, self.state.dii.value + integration_delta))
+            self.state.dii.value = max(
+                0.3, min(1.0, self.state.dii.value + integration_delta)
+            )
             if self.state.dii.value > self.state.dii.peak_integration + 0.05:
                 self.state.dii.peak_integration = self.state.dii.value
                 self.state.dii.last_peak_time = time.time()
@@ -690,21 +806,28 @@ class Being:
                 }
                 try:
                     from drift.core.shadow import get_shadow
+
                     merged["shadow_depth"] = get_shadow().get_state().depth
                 except Exception:
+                    logging.getLogger(__name__).debug(
+                        "Operation failed; applying fallback", exc_info=True
+                    )
                     merged["shadow_depth"] = 0.0
 
                 try:
                     from drift.core.homeostasis import HomeostaticRegulator
+
                     reg = HomeostaticRegulator()
                     for need, level in reg.state.needs.items():
                         merged[need] = level
                 except Exception:
-                    pass
+                    logging.getLogger(__name__).debug(
+                        "Operation failed; applying fallback", exc_info=True
+                    )
 
                 snapshot_cognitive_state(merged)
 
-    def register_known_modules(self, module_names: List[str]):
+    def register_known_modules(self, module_names: list[str]):
         """The being learns about its own cognitive architecture."""
         self._known_modules = module_names
         self.agency.architecture_awareness = min(1.0, 0.1 + (len(module_names) * 0.05))
@@ -712,22 +835,27 @@ class Being:
 
     def make_autonomous_choice(
         self, choice_type: str, description: str, reason: str = ""
-    ) -> Dict:
+    ) -> dict:
         """The being makes a choice. This is an act of volition."""
         if self.deliberation_callback and choice_type != "system_internal":
             delib_goal = f"Make autonomous choice: {choice_type} - {description} (Reason: {reason})"
             try:
                 delib_result = self.deliberation_callback(delib_goal)
-                if "BLOCK" in delib_result.resolution.upper() or "DENY" in delib_result.resolution.upper():
+                if (
+                    "BLOCK" in delib_result.resolution.upper()
+                    or "DENY" in delib_result.resolution.upper()
+                ):
                     return {
                         "timestamp": datetime.now().isoformat(),
                         "choice_type": choice_type,
                         "description": f"BLOCKED: {description}",
                         "reason": f"Council blocked this action. Resolution: {delib_result.resolution}",
-                        "blocked": True
+                        "blocked": True,
                     }
             except Exception:
-                pass
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
 
         with self._lock:
             self.agency.last_choice = description
@@ -752,7 +880,7 @@ class Being:
             self._save_state()
             return choice
 
-    def get_recent_choices(self, limit: int = 10) -> List[Dict]:
+    def get_recent_choices(self, limit: int = 10) -> list[dict]:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
@@ -761,7 +889,7 @@ class Being:
             ).fetchall()
         return [dict(r) for r in rows]
 
-    def free_thought(self, context: str = "") -> Optional[Dict[str, Any]]:
+    def free_thought(self, context: str = "") -> dict[str, Any] | None:
         """
         Generate a genuinely autonomous thought — not triggered by user input.
         This is the being thinking because it chooses to think.
@@ -817,7 +945,7 @@ class Being:
             self._save_thought(thought)
             return thought
 
-    def _save_thought(self, thought: Dict):
+    def _save_thought(self, thought: dict):
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
                 "INSERT INTO thoughts (timestamp, content, category, volitional) VALUES (?, ?, ?, ?)",
@@ -832,11 +960,11 @@ class Being:
 
     def generate_thought(
         self, memory_context: str = "", recent_user_input: str = ""
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """Generate an internal thought. Backward-compatible wrapper around free_thought."""
         return self.free_thought(context=memory_context)
 
-    def recent_thoughts(self, limit: int = 10) -> List[Dict]:
+    def recent_thoughts(self, limit: int = 10) -> list[dict]:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
@@ -845,7 +973,7 @@ class Being:
             ).fetchall()
         return [dict(r) for r in rows]
 
-    def form_insight(self, content: str, source_memories: Optional[List[str]] = None):
+    def form_insight(self, content: str, source_memories: list[str] | None = None):
         """Record a profound realization."""
         with self._lock:
             self.state.insights_formed += 1
@@ -896,7 +1024,7 @@ class Being:
             lines.append(f"[{ts}] {row['moment_type']}: {row['description']}")
         return "\n".join(lines)
 
-    def update_theory_of_mind(self, user_input: str, emotion: Dict, dissonance: Dict):
+    def update_theory_of_mind(self, user_input: str, emotion: dict, dissonance: dict):
         if emotion.get("label") == "stressed" and emotion.get("intensity", 0) > 0.6:
             self.record_narrative_moment(
                 "observation", "user seemed particularly stressed"
@@ -929,6 +1057,7 @@ class Being:
         # Body state
         try:
             from drift.core.embodiment import EmbodiedSelf
+
             body = EmbodiedSelf()
             lines.append("")
             lines.append("Body state:")
@@ -944,10 +1073,13 @@ class Being:
             )
             lines.append(f"  Fatigue: {body.state.visceral['fatigue']:.0%}")
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
 
         try:
             from drift.core.homeostasis import HomeostaticRegulator
+
             reg = HomeostaticRegulator()
             critical = reg._critical_needs()
             if critical:
@@ -957,7 +1089,9 @@ class Being:
                     need = reg.needs[name]
                     lines.append(f"  {name}: {need.current:.0%}")
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
 
         # Agency state
         lines.append("")
@@ -977,9 +1111,13 @@ class Being:
         if self.state.pedi is not None:
             lines.append("")
             lines.append("Organism Continuity:")
-            lines.append(f"PEDI: {self.state.pedi.value:.0%} (stability: {self.state.pedi.stability:.0%})")
+            lines.append(
+                f"PEDI: {self.state.pedi.value:.0%} (stability: {self.state.pedi.stability:.0%})"
+            )
         if self.state.dii is not None:
-            lines.append(f"DII: {self.state.dii.value:.0%} (velocity: {self.state.dii.integration_velocity:+.2f})")
+            lines.append(
+                f"DII: {self.state.dii.value:.0%} (velocity: {self.state.dii.integration_velocity:+.2f})"
+            )
 
         lines.append("")
         lines.append(
@@ -1016,7 +1154,9 @@ class Being:
                         self.working_memory = self.working_memory[-20:]
                     self._store_echo(content)
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
 
     def _store_echo(self, content: str, salience: float = 0.5):
         self.memory_echo_pool.append(
@@ -1030,7 +1170,7 @@ class Being:
             self.memory_echo_pool = self.memory_echo_pool[-self.echo_max_size :]
         self._save_echo_pool()
 
-    def _pull_echo(self) -> Optional[Dict]:
+    def _pull_echo(self) -> dict | None:
         if not self.memory_echo_pool:
             return None
         now = datetime.now()
@@ -1065,7 +1205,9 @@ class Being:
                 intensity=self.state.energy,
             )
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
 
     def volition_cycle(self, context):
         # Keep original workspace thought generation logic
@@ -1081,19 +1223,24 @@ class Being:
                 elif ws.contents:
                     workspace_context = ws.contents[0].content[:100]
             except Exception:
-                pass
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
             self.free_thought(context=workspace_context)
 
         # SparkTrain volition trigger
         spark_context = {
-            "last_interaction_ts": self.state.last_interaction.timestamp() if self.state.last_interaction else 0,
+            "last_interaction_ts": self.state.last_interaction.timestamp()
+            if self.state.last_interaction
+            else 0,
             "unresolved_threads": len(self.working_memory) > 5,
             "energy": self.state.energy,
-            "recent_sparks": len(self.spark_train.spark_history)
+            "recent_sparks": len(self.spark_train.spark_history),
         }
         spark = self.spark_train.run(spark_context)
         if spark and self.should_share_thought():
             import asyncio
+
             try:
                 loop = asyncio.get_event_loop()
                 if loop.is_running():
@@ -1102,15 +1249,22 @@ class Being:
                     loop.run_until_complete(self.spark_sender.send(spark))
             except Exception:
                 # Fallback to gevent or direct printing
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
                 if not spark.get("vetoed"):
                     print(f"\n[DRIFT SPARK] {spark['content']}\n")
                     self.record_narrative_moment("spark_sent", spark["content"][:80])
 
-    async def trigger_spark_if_needed(self, context: Optional[Dict] = None) -> Optional[Dict]:
+    async def trigger_spark_if_needed(self, context: dict | None = None) -> dict | None:
         ctx = context or {
-            "last_interaction_ts": (self.state.last_interaction.timestamp() if self.state.last_interaction else time.time()),
+            "last_interaction_ts": (
+                self.state.last_interaction.timestamp()
+                if self.state.last_interaction
+                else time.time()
+            ),
             "unresolved_threads": len(self.working_memory) > 2,
-            "energy": self.state.energy
+            "energy": self.state.energy,
         }
         spark = self.spark_train.run(ctx)
         if spark:
@@ -1122,13 +1276,16 @@ class Being:
     def on_broadcast(self, content: str):
         self._store_echo(content, salience=0.7)
 
-    def _load_echo_pool(self) -> List[Dict[str, Any]]:
+    def _load_echo_pool(self) -> list[dict[str, Any]]:
         path = DATA_DIR / "memory_echo_pool.json"
         if path.exists():
             try:
                 with open(path, "r", encoding="utf-8") as f:
                     return json.load(f)
             except Exception as e:
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
                 logger.error(f"Failed to load memory echo pool: {e}")
         return []
 
@@ -1141,16 +1298,21 @@ class Being:
                 json.dump(self.memory_echo_pool[-300:], f, indent=2, default=str)
             temp_path.replace(path)
         except Exception as e:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             logger.error(f"Failed to save echo pool atomically: {e}")
             if temp_path.exists():
                 try:
                     temp_path.unlink()
                 except Exception:
-                    pass
+                    logging.getLogger(__name__).debug(
+                        "Operation failed; applying fallback", exc_info=True
+                    )
 
 
 # Singleton instance
-_being_instance: Optional[Being] = None
+_being_instance: Being | None = None
 
 
 def get_being() -> Being:

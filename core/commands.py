@@ -1,13 +1,13 @@
 import json
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Set
+
 from drift.core.cognition import map_dissonance
 from drift.core.plugins.growth import format_growth, growth_profile
-from drift.core.plugins.scheduler import TaskScheduler, parse_duration
 from drift.core.plugins.preferences import PreferenceStore
-
+from drift.core.plugins.scheduler import TaskScheduler, parse_duration
 
 MODES = {
     "companion": "Warm, curious, emotionally aware conversation.",
@@ -28,7 +28,7 @@ class BotState:
     proactive_enabled: bool = True
     turns: int = 0
     started_at: datetime = field(default_factory=datetime.now)
-    authorized_targets: Set[str] = field(default_factory=set)
+    authorized_targets: set[str] = field(default_factory=set)
     scheduler: TaskScheduler = field(default_factory=TaskScheduler)
     prefs: PreferenceStore = field(default_factory=PreferenceStore)
 
@@ -273,6 +273,9 @@ def handle_memory_command(args, memory):
         try:
             count = memory.import_json(path)
         except Exception as exc:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             return f"Import failed: {exc}"
         return f"Imported {count} memories from {Path(path).resolve()}"
     if args.startswith("learn "):
@@ -490,6 +493,9 @@ def handle_ingest_command(args, doc_store):
     try:
         count = doc_store.ingest(path, tags=tags)
     except Exception as exc:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return f"Ingest failed: {exc}"
     return f"Ingested {count} chunks from {path}."
 
@@ -601,7 +607,7 @@ def _parse_kv_bug_add(text: str) -> dict:
 
 
 def handle_bug_command(args, _state, brain=None, memory=None):
-    _ = memory  # noqa: F841
+    _ = memory
     if not args:
         return command_help("bug")
     from drift.core.bug_bot import BugBot
@@ -750,6 +756,9 @@ def handle_security_command(args):
                         f"{data.get('category', '?')} (score={data.get('score', '?')})"
                     )
         except Exception as exc:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             return f"Error reading audit log: {exc}"
         return (
             "Recent security events:\n" + "\n".join(lines)
@@ -908,6 +917,9 @@ def handle_export_command(args, history):
         count = history.export_jsonl(path)
         return f"Exported {count} conversation entries to {Path(path).resolve()}"
     except Exception as exc:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return f"Export failed: {exc}"
 
 
@@ -921,6 +933,9 @@ def handle_import_command(args, history):
         count = history.import_jsonl(path)
         return f"Imported {count} conversation entries from {Path(path).resolve()}"
     except Exception as exc:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return f"Import failed: {exc}"
 
 
@@ -1174,18 +1189,27 @@ def handle_proposals_command(args):
             sm.approve_proposal(int(pid))
             return f"Approved proposal [{pid}]. I will await implementation."
         except Exception as exc:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             return f"Could not approve: {exc}"
     if action == "reject":
         try:
             sm.reject_proposal(int(pid))
             return f"Rejected proposal [{pid}]. I will dream differently."
         except Exception as exc:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             return f"Could not reject: {exc}"
     if action == "applied":
         try:
             sm.apply_proposal(int(pid))
             return f"Marked proposal [{pid}] as applied. I am changed."
         except Exception as exc:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             return f"Could not mark applied: {exc}"
     return (
         "Use: /proposals [approve|reject|applied] <id> or /proposals to list pending."
@@ -1708,7 +1732,7 @@ def handle_hive_command(args, brain=None, memory=None):
             if not thought:
                 return "Usage: /hive propose <thought>"
 
-            from drift.hive_mind.protocol.dcp import DCPMessage, Resolution, NodeRole
+            from drift.hive_mind.protocol.dcp import DCPMessage, NodeRole, Resolution
 
             msg = DCPMessage.thought(
                 source_node="spark-0", source_role=NodeRole.PRIMARY, content=thought
@@ -1800,6 +1824,9 @@ def handle_hive_command(args, brain=None, memory=None):
 
         return "Unknown hive subcommand. Usage: /hive | /hive propose <thought> | /hive nexus decide <goal> | /hive reflect | /hive council status"
     except Exception as e:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return f"Hive command failed: {e}"
 
 

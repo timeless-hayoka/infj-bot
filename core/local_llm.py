@@ -1,8 +1,10 @@
 """Local LLM bridge via Ollama for offline/fallback operation."""
 
+import logging
 import os
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Generator, List, Optional
+from collections.abc import Generator
+from typing import Any, Optional
 
 from drift.core.config import DRIFT_LOCAL_MODEL, OLLAMA_HOST
 
@@ -10,6 +12,9 @@ from drift.core.config import DRIFT_LOCAL_MODEL, OLLAMA_HOST
 try:
     import ollama
 except Exception:
+    logging.getLogger(__name__).debug(
+        "Operation failed; applying fallback", exc_info=True
+    )
     ollama = None  # type: ignore[assignment]
 
 
@@ -25,15 +30,15 @@ class BaseLocalBridge(ABC):
         pass
 
     @abstractmethod
-    def list_models(self) -> List[str]:
+    def list_models(self) -> list[str]:
         pass
 
     @abstractmethod
     def chat(
         self,
-        messages: List[Dict[str, str]],
-        model: Optional[str] = None,
-        system: Optional[str] = None,
+        messages: list[dict[str, str]],
+        model: str | None = None,
+        system: str | None = None,
         stream: bool = False,
         temperature: float = 0.7,
     ) -> str:
@@ -42,9 +47,9 @@ class BaseLocalBridge(ABC):
     @abstractmethod
     def chat_stream(
         self,
-        messages: List[Dict[str, str]],
-        model: Optional[str] = None,
-        system: Optional[str] = None,
+        messages: list[dict[str, str]],
+        model: str | None = None,
+        system: str | None = None,
         temperature: float = 0.7,
     ) -> Generator[str, None, None]:
         pass
@@ -53,8 +58,8 @@ class BaseLocalBridge(ABC):
     def generate(
         self,
         prompt: str,
-        model: Optional[str] = None,
-        system: Optional[str] = None,
+        model: str | None = None,
+        system: str | None = None,
         stream: bool = False,
         temperature: float = 0.7,
         **kwargs: Any,
@@ -65,8 +70,8 @@ class BaseLocalBridge(ABC):
     def generate_stream(
         self,
         prompt: str,
-        model: Optional[str] = None,
-        system: Optional[str] = None,
+        model: str | None = None,
+        system: str | None = None,
         temperature: float = 0.7,
         **kwargs: Any,
     ) -> Generator[str, None, None]:
@@ -76,7 +81,7 @@ class BaseLocalBridge(ABC):
 class OllamaBridge(BaseLocalBridge):
     """Bridge to an Ollama server for local inference."""
 
-    def __init__(self, host: Optional[str] = None, model: Optional[str] = None):
+    def __init__(self, host: str | None = None, model: str | None = None):
         self.host = host or OLLAMA_HOST
         self.model = model or DRIFT_LOCAL_MODEL
         self._client = None
@@ -85,6 +90,9 @@ class OllamaBridge(BaseLocalBridge):
                 timeout = int(os.getenv("DRIFT_LOCAL_TIMEOUT", "300"))
                 self._client = ollama.Client(host=self.host, timeout=timeout)
             except Exception:
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
                 self._client = None
 
     def is_available(self) -> bool:
@@ -94,9 +102,12 @@ class OllamaBridge(BaseLocalBridge):
             self._client.list()
             return True
         except Exception:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             return False
 
-    def list_models(self) -> List[str]:
+    def list_models(self) -> list[str]:
         if not self.is_available():
             return []
         try:
@@ -105,13 +116,16 @@ class OllamaBridge(BaseLocalBridge):
             models = resp.get("models", [])
             return [m.get("model", m.get("name", "unknown")) for m in models]
         except Exception as exc:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             raise LocalLLMError(f"Failed to list models: {exc}")
 
     def chat(
         self,
-        messages: List[Dict[str, str]],
-        model: Optional[str] = None,
-        system: Optional[str] = None,
+        messages: list[dict[str, str]],
+        model: str | None = None,
+        system: str | None = None,
         stream: bool = False,
         temperature: float = 0.7,
     ) -> str:
@@ -131,13 +145,16 @@ class OllamaBridge(BaseLocalBridge):
         except LocalLLMError:
             raise
         except Exception as exc:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             raise LocalLLMError(f"Ollama chat failed: {exc}")
 
     def chat_stream(
         self,
-        messages: List[Dict[str, str]],
-        model: Optional[str] = None,
-        system: Optional[str] = None,
+        messages: list[dict[str, str]],
+        model: str | None = None,
+        system: str | None = None,
         temperature: float = 0.7,
     ) -> Generator[str, None, None]:
         """Streaming chat completion."""
@@ -159,13 +176,16 @@ class OllamaBridge(BaseLocalBridge):
         except LocalLLMError:
             raise
         except Exception as exc:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             raise LocalLLMError(f"Ollama stream failed: {exc}")
 
     def generate(
         self,
         prompt: str,
-        model: Optional[str] = None,
-        system: Optional[str] = None,
+        model: str | None = None,
+        system: str | None = None,
         stream: bool = False,
         temperature: float = 0.7,
         **kwargs: Any,
@@ -194,13 +214,16 @@ class OllamaBridge(BaseLocalBridge):
         except LocalLLMError:
             raise
         except Exception as exc:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             raise LocalLLMError(f"Ollama generate failed: {exc}")
 
     def generate_stream(
         self,
         prompt: str,
-        model: Optional[str] = None,
-        system: Optional[str] = None,
+        model: str | None = None,
+        system: str | None = None,
         temperature: float = 0.7,
         **kwargs: Any,
     ) -> Generator[str, None, None]:
@@ -230,10 +253,13 @@ class OllamaBridge(BaseLocalBridge):
         except LocalLLMError:
             raise
         except Exception as exc:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             raise LocalLLMError(f"Ollama generate stream failed: {exc}")
 
 
-def health_check() -> Dict[str, Any]:
+def health_check() -> dict[str, Any]:
     """Return health status for the local LLM stack."""
     bridge = OllamaBridge()
     ok = bridge.is_available()
@@ -242,7 +268,9 @@ def health_check() -> Dict[str, Any]:
         try:
             models = bridge.list_models()
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
     return {
         "available": ok,
         "host": bridge.host,

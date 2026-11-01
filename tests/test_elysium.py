@@ -1,18 +1,19 @@
 """Smoke tests for Elysium Phase 5 hive engine (async)."""
 
-import pytest
 import tempfile
 from pathlib import Path
+from typing import ClassVar
 
-from drift.core.hive.nexus import NexusSelfModel, ActiveTension
+import pytest
 from drift.core.hive.council_member import (
+    Council,
     CouncilMember,
     CouncilRole,
-    Council,
     MemoryViewFilter,
     Proposal,
 )
-from drift.core.hive.elysium import ElysiumEngine, DeliberationResult
+from drift.core.hive.elysium import DeliberationResult, ElysiumEngine
+from drift.core.hive.nexus import ActiveTension, NexusSelfModel
 
 
 class TestNexusSelfModel:
@@ -206,7 +207,7 @@ class TestElysiumEngine:
                     class FakeEntry:
                         unified_id = "1"
                         event = FakeEvent()
-                        metadata = {
+                        metadata: ClassVar = {
                             "salience": 0.8,
                             "emotional": 0.2,
                             "tags": ["shadow"],

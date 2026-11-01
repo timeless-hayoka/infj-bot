@@ -2,13 +2,14 @@
 WebSocket manager for real-time broadcasting.
 """
 
-from typing import List
+import logging
+
 from fastapi import WebSocket
 
 
 class ConnectionManager:
     def __init__(self):
-        self.active_connections: List[WebSocket] = []
+        self.active_connections: list[WebSocket] = []
 
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
@@ -24,7 +25,9 @@ class ConnectionManager:
                 await connection.send_json(message)
             except Exception:
                 # If sending fails, we'll clean up later or ignore for now
-                pass
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
 
 
 manager = ConnectionManager()

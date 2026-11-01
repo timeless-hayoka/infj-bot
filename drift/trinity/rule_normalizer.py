@@ -40,10 +40,14 @@ class RuleNormalizer:
 
         keyed = f"{tool}:{rule_id}"
         if keyed in self.mappings:
-            return self._from_mapping(rule_id, tool, self.mappings[keyed], confidence=0.95)
+            return self._from_mapping(
+                rule_id, tool, self.mappings[keyed], confidence=0.95
+            )
 
         if rule_id in self.rule_id_fallbacks:
-            return self._from_mapping(rule_id, tool, self.rule_id_fallbacks[rule_id], confidence=0.85)
+            return self._from_mapping(
+                rule_id, tool, self.rule_id_fallbacks[rule_id], confidence=0.85
+            )
 
         props = finding.properties or finding.raw_result.get("properties") or {}
         cwe = props.get("cwe") or props.get("CWE")
@@ -78,7 +82,11 @@ class RuleNormalizer:
         confidence: float,
     ) -> NormalizedRule:
         cwe = data.get("cwe")
-        category = data.get("category") or self._category_from_cwe(cwe) if cwe else "Uncategorized"
+        category = (
+            data.get("category") or self._category_from_cwe(cwe)
+            if cwe
+            else "Uncategorized"
+        )
         return NormalizedRule(
             original_rule_id=rule_id,
             tool=tool,

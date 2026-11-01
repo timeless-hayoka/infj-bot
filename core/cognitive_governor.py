@@ -35,14 +35,14 @@ INTEGRATION POINTS
 from __future__ import annotations
 
 import json
+import logging
 import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional
+from typing import ClassVar, Optional
 
 import numpy as np
-
 
 # --------------------------------------------------------------------------- #
 # Mode definitions — integrate with existing DRIFT mode names
@@ -68,20 +68,21 @@ ENERGY_MODES = {
 }
 
 ENERGY_THRESHOLDS = {
-    "NORMAL":    (-1.0, 2.0),
+    "NORMAL": (-1.0, 2.0),
     "LOW_POWER": (-2.0, -1.0),
-    "CRITICAL":  (-3.0, -2.0),
+    "CRITICAL": (-3.0, -2.0),
 }
 
 
 @dataclass
 class GateResult:
     """Output of a single governor decision."""
+
     max_tokens: int
     energy_mode: str
-    mode_entered: bool              # True if mode changed this turn
-    interventions: List[str]        # audit trail for this turn
-    gate_applied: bool              # True if max_tokens is below unconstrained
+    mode_entered: bool  # True if mode changed this turn
+    interventions: list[str]  # audit trail for this turn
+    gate_applied: bool  # True if max_tokens is below unconstrained
     energy_snapshot: float
     turn: int
 
@@ -89,6 +90,7 @@ class GateResult:
 @dataclass
 class TurnRecord:
     """One turn of causal data for α calibration."""
+
     turn: int
     prev_energy: float
     new_energy: float
@@ -96,7 +98,7 @@ class TurnRecord:
     response_len: int
     gate_applied: bool
     energy_mode: str
-    interventions: List[str]
+    interventions: list[str]
     timestamp: float = field(default_factory=time.time)
 
 
@@ -117,13 +119,13 @@ class CognitiveGovernor:
     ):
         self._lock = threading.Lock()
         self._current_mode = "NORMAL"
-        self._prev_energy: Optional[float] = None
-        self._turn_records: List[TurnRecord] = []
+        self._prev_energy: float | None = None
+        self._turn_records: list[TurnRecord] = []
         self._calibration_log = Path(calibration_log)
         self._calibration_log.parent.mkdir(parents=True, exist_ok=True)
         self.energy_min = energy_min
-        self._fitted_alpha: Optional[float] = None
-        
+        self._fitted_alpha: float | None = None
+
         # NEW: Asymmetric Recovery Parameters
         self.beta = 0.05  # Energy recovered during light rest
         self.light_rest_threshold = 200  # Max response length to qualify as rest
@@ -138,7 +140,7 @@ class CognitiveGovernor:
         to the generation API. Log GateResult.interventions.
         """
         with self._lock:
-            interventions: List[str] = []
+            interventions: list[str] = []
 
             # Determine energy mode
             new_mode = self._compute_mode(current_energy)
@@ -173,25 +175,28 @@ class CognitiveGovernor:
         prev_energy: float,
         new_energy: float,
         response_len: int,
-        gate_result: Optional[GateResult] = None,
+        gate_result: GateResult | None = None,
     ) -> TurnRecord:
         """Append causal event data. Applies light rest recovery if eligible."""
-        
+
         interventions = gate_result.interventions if gate_result else []
-        
+
         # 1. Check for Light Rest (Stabilization)
         if 0 < response_len < self.light_rest_threshold:
             # Override the drain with a recovery tick
             new_energy = min(1.0, prev_energy + self.beta)
             delta = prev_energy - new_energy  # Negative delta implies recovery
             interventions.append("LIGHT_REST_RECOVERY")
-            
+
             # WHERE TO PLUG DATA: Push the recovered energy back to the Being state
             try:
                 from drift.core.being import get_being
+
                 get_being().state.energy = new_energy
             except Exception:
-                pass
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
         else:
             delta = prev_energy - new_energy  # Standard drain (positive)
 
@@ -209,7 +214,7 @@ class CognitiveGovernor:
         with self._lock:
             self._turn_records.append(record)
             self._append_calibration_log(record)
-            
+
             # Verification: did the token gate actually reduce drain?
             # We skip this check if we just artificially recovered energy.
             if response_len >= self.light_rest_threshold:
@@ -225,27 +230,29 @@ class CognitiveGovernor:
         if not record.gate_applied:
             return
         if self._fitted_alpha is None:
-            return   # can't verify without a calibrated α
+            return  # can't verify without a calibrated α
 
         expected_drain = self._fitted_alpha * record.response_len
         actual_drain = record.delta_energy
         # Allow 20% tolerance
         if actual_drain > expected_drain * 1.20:
             # Gate reduced tokens but drain was still high — log the failure
-            self._append_event({
-                "event": "INTERVENTION_FAILED",
-                "turn": record.turn,
-                "gate_applied": True,
-                "expected_drain": round(expected_drain, 6),
-                "actual_drain": round(actual_drain, 6),
-                "response_len": record.response_len,
-                "note": "TOKEN_GATE did not reduce energy drain as predicted",
-            })
+            self._append_event(
+                {
+                    "event": "INTERVENTION_FAILED",
+                    "turn": record.turn,
+                    "gate_applied": True,
+                    "expected_drain": round(expected_drain, 6),
+                    "actual_drain": round(actual_drain, 6),
+                    "response_len": record.response_len,
+                    "note": "TOKEN_GATE did not reduce energy drain as predicted",
+                }
+            )
 
     # ---------------------------------------------------------------------- #
     # α calibration
     # ---------------------------------------------------------------------- #
-    def calibrate_alpha(self, min_samples: int = 20) -> Optional[float]:
+    def calibrate_alpha(self, min_samples: int = 20) -> float | None:
         """Fit energy_drain = α * response_len from recorded turns.
 
         Returns None if insufficient data or no variance in response_len.
@@ -255,7 +262,9 @@ class CognitiveGovernor:
             records = [r for r in self._turn_records if not r.gate_applied]
 
         if len(records) < min_samples:
-            print(f"Insufficient data: {len(records)} ungated turns (need {min_samples})")
+            print(
+                f"Insufficient data: {len(records)} ungated turns (need {min_samples})"
+            )
             return None
 
         drains = np.array([r.delta_energy for r in records])
@@ -274,12 +283,20 @@ class CognitiveGovernor:
         print(f"  corr(response_len, drain) = {r:.3f}")
         print(f"  interpretation: each output character costs {alpha:.6f} energy units")
         if abs(r) < 0.3:
-            print("  WARNING: weak correlation — energy may not be coupled to response length yet.")
-            print("  Check that response_len is being passed through timing to update_needs.")
+            print(
+                "  WARNING: weak correlation — energy may not be coupled to response length yet."
+            )
+            print(
+                "  Check that response_len is being passed through timing to update_needs."
+            )
         elif alpha < 0:
-            print("  WARNING: negative α — responses are recovering energy? Check sign convention.")
+            print(
+                "  WARNING: negative α — responses are recovering energy? Check sign convention."
+            )
         else:
-            print(f"  STATUS: calibration OK — update homeostasis.py effort cost with α={alpha:.6f}")
+            print(
+                f"  STATUS: calibration OK — update homeostasis.py effort cost with α={alpha:.6f}"
+            )
 
         self._fitted_alpha = alpha
         return alpha
@@ -341,27 +358,41 @@ def verify_beta_recovery():
     print("[*] Running Beta Recovery Self-Check...")
     try:
         gov = CognitiveGovernor(calibration_log="temp_beta_test.jsonl")
-        
+
         # Mock GateResult
         class MockGate:
-            turn = 1; gate_applied = False; energy_mode = "NORMAL"; interventions = []
-            
+            turn: ClassVar = 1
+            gate_applied: ClassVar = False
+            energy_mode: ClassVar = "NORMAL"
+            interventions: ClassVar = []
+
         # Test 1: Heavy turn (no recovery)
-        r_heavy = gov.record_turn(prev_energy=0.80, new_energy=0.75, response_len=1500, gate_result=MockGate())
+        r_heavy = gov.record_turn(
+            prev_energy=0.80, new_energy=0.75, response_len=1500, gate_result=MockGate()
+        )
         assert "LIGHT_REST_RECOVERY" not in r_heavy.interventions
         assert r_heavy.delta_energy > 0, "Heavy turn should drain energy"
 
         # Test 2: Light turn (triggers recovery)
         # Assuming homeostasis drained it to 0.74, governor should override it
-        r_light = gov.record_turn(prev_energy=0.75, new_energy=0.74, response_len=50, gate_result=MockGate()) 
+        r_light = gov.record_turn(
+            prev_energy=0.75, new_energy=0.74, response_len=50, gate_result=MockGate()
+        )
         assert "LIGHT_REST_RECOVERY" in r_light.interventions
-        assert r_light.new_energy == 0.80, f"Energy should have recovered to 0.80, got {r_light.new_energy}"
+        assert r_light.new_energy == 0.80, (
+            f"Energy should have recovered to 0.80, got {r_light.new_energy}"
+        )
         assert r_light.delta_energy < 0, "Delta should be negative (recovery)"
 
-        print("[+] Beta Recovery Verified: System successfully recharges on light loads.")
+        print(
+            "[+] Beta Recovery Verified: System successfully recharges on light loads."
+        )
     except AssertionError as e:
         print(f"[-] Verification Failed: {e}")
     except Exception as e:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         print(f"[-] Unexpected Error: {e}")
     finally:
         try:

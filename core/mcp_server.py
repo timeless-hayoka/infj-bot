@@ -4,39 +4,52 @@ Supports stdio transport (default) and a simple HTTP transport for local orchest
 """
 
 import asyncio
-import os
-from typing import Any, Dict, List, Optional
 import logging
+import os
+from typing import Any, Optional
 
 try:
     from mcp.server.fastmcp import FastMCP
 except Exception:
+    logging.getLogger(__name__).debug(
+        "Operation failed; applying fallback", exc_info=True
+    )
     FastMCP = None  # type: ignore[assignment]
 
-from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse, Response
-from fastapi.staticfiles import StaticFiles
-from prometheus_client import Gauge, Counter, generate_latest, CONTENT_TYPE_LATEST
-import uvicorn
 import time
 from datetime import datetime
 from pathlib import Path
 
-from drift.core.brain import DriftBrain
+import uvicorn
 from drift.core.being import get_being
-from drift.core.websocket_manager import manager
-from drift.core.config import PROJECT_ROOT
+from drift.core.brain import DriftBrain
 from drift.core.cognition import map_dissonance
+from drift.core.config import PROJECT_ROOT
+from drift.core.websocket_manager import manager
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi.responses import HTMLResponse, Response
+from fastapi.staticfiles import StaticFiles
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, generate_latest
+
 try:
     from drift.core.plugins.documents import DocumentStore, format_doc_results
 except Exception:
+    logging.getLogger(__name__).debug(
+        "Operation failed; applying fallback", exc_info=True
+    )
     DocumentStore = None  # type: ignore[assignment]
 
     def format_doc_results(*args, **kwargs):
         return "Document search unavailable."
+
+
 try:
     from drift.core.plugins.emotion import detect_emotion
 except Exception:
+    logging.getLogger(__name__).debug(
+        "Operation failed; applying fallback", exc_info=True
+    )
+
     def detect_emotion(*args, **kwargs):
         return {
             "label": "unknown",
@@ -47,17 +60,28 @@ except Exception:
             "needs": [],
             "detector": "unavailable",
         }
+
+
 try:
     from drift.core.plugins.goals import GoalsDB
 except Exception:
+    logging.getLogger(__name__).debug(
+        "Operation failed; applying fallback", exc_info=True
+    )
     GoalsDB = None  # type: ignore[assignment]
 try:
     from drift.core.memory import DriftMemory
 except Exception:
+    logging.getLogger(__name__).debug(
+        "Operation failed; applying fallback", exc_info=True
+    )
     DriftMemory = None  # type: ignore[assignment]
 try:
     from drift.core.global_workspace import GlobalWorkspace
 except Exception:
+    logging.getLogger(__name__).debug(
+        "Operation failed; applying fallback", exc_info=True
+    )
     GlobalWorkspace = None  # type: ignore[assignment]
 from core.mcp_security import (
     McpSecurityGuard,
@@ -67,7 +91,11 @@ from core.mcp_security import (
 try:
     from hive_mind.orchestrator import HiveOrchestrator
 except Exception:
+    logging.getLogger(__name__).debug(
+        "Operation failed; applying fallback", exc_info=True
+    )
     HiveOrchestrator = None  # type: ignore[misc,assignment]
+
 
 class _NullMCP:
     def tool(self):
@@ -101,35 +129,43 @@ Use these tools when:
     else _NullMCP()
 )
 
-brain: Optional[DriftBrain] = None
-memory: Optional[DriftMemory] = None
-goals_db: Optional[GoalsDB] = None
-doc_store: Optional[DocumentStore] = None
+brain: DriftBrain | None = None
+memory: DriftMemory | None = None
+goals_db: GoalsDB | None = None
+doc_store: DocumentStore | None = None
 
 
 # === Prometheus Metrics ===
-pedi_gauge = Gauge('drift_pedi_value', 'Persistent Entity Drift Index')
-dii_gauge = Gauge('drift_dii_value', 'Dynamic Integration Index')
-energy_gauge = Gauge('drift_energy_level', 'Current energy level')
-social_risk_gauge = Gauge('drift_social_risk', 'Current social engineering risk')
-shadow_influence_gauge = Gauge('drift_shadow_influence', 'Current shadow influence')
-active_connections_gauge = Gauge('drift_active_ws_connections', 'Active WebSocket connections')
-sparks_delivered_counter = Counter('drift_sparks_delivered_total', 'Total sparks delivered')
-security_blocks_counter = Counter('drift_security_blocks_total', 'Total security blocks')
-high_risk_events_counter = Counter('drift_high_risk_events_total', 'Total high social risk events')
+pedi_gauge = Gauge("drift_pedi_value", "Persistent Entity Drift Index")
+dii_gauge = Gauge("drift_dii_value", "Dynamic Integration Index")
+energy_gauge = Gauge("drift_energy_level", "Current energy level")
+social_risk_gauge = Gauge("drift_social_risk", "Current social engineering risk")
+shadow_influence_gauge = Gauge("drift_shadow_influence", "Current shadow influence")
+active_connections_gauge = Gauge(
+    "drift_active_ws_connections", "Active WebSocket connections"
+)
+sparks_delivered_counter = Counter(
+    "drift_sparks_delivered_total", "Total sparks delivered"
+)
+security_blocks_counter = Counter(
+    "drift_security_blocks_total", "Total security blocks"
+)
+high_risk_events_counter = Counter(
+    "drift_high_risk_events_total", "Total high social risk events"
+)
 
 
 async def broadcast_security_event(event_data: dict):
     """Broadcast security event to dashboard and update metrics."""
     event_data["type"] = "security"
     await manager.broadcast(event_data)
-    
+
     # Update counters
     if event_data.get("action") == "block":
         security_blocks_counter.inc()
     if event_data.get("social_risk", 0) > 0.5:
         high_risk_events_counter.inc()
-    
+
     # Update gauges
     social_risk_gauge.set(event_data.get("social_risk", 0))
     shadow_influence_gauge.set(event_data.get("shadow_influence", 0))
@@ -148,15 +184,17 @@ async def server_heartbeat():
                 "ts": datetime.now().isoformat(),
                 "count": heartbeat_count,
                 "status": "alive",
-                "pedi_value": getattr(being.state.pedi, 'value', 0.0),
-                "pedi_stability": getattr(being.state.pedi, 'stability', 0.0),
-                "dii_value": getattr(being.state.dii, 'value', 0.0),
-                "energy": getattr(being.state, 'energy', 0.0),
-                "message": "Server heartbeat — connection healthy"
+                "pedi_value": getattr(being.state.pedi, "value", 0.0),
+                "pedi_stability": getattr(being.state.pedi, "stability", 0.0),
+                "dii_value": getattr(being.state.dii, "value", 0.0),
+                "energy": getattr(being.state, "energy", 0.0),
+                "message": "Server heartbeat — connection healthy",
             }
             await manager.broadcast(heartbeat_msg)
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
 
 
 def get_brain() -> DriftBrain:
@@ -228,8 +266,7 @@ def create_http_app(token: str | None = None) -> FastAPI:
     async def get_dashboard():
         dashboard_path = static_dir / "dashboard.html"
         if dashboard_path.exists():
-            with open(dashboard_path, "r") as f:
-                return f.read()
+            return await asyncio.to_thread(dashboard_path.read_text, encoding="utf-8")
         return "Dashboard not found. Ensure static/dashboard.html exists."
 
     @app.get("/metrics")
@@ -252,6 +289,9 @@ def create_http_app(token: str | None = None) -> FastAPI:
         except WebSocketDisconnect:
             manager.disconnect(websocket)
         except Exception:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             manager.disconnect(websocket)
 
     # Start heartbeat
@@ -260,7 +300,7 @@ def create_http_app(token: str | None = None) -> FastAPI:
         asyncio.create_task(server_heartbeat())
 
     # Map public tool names to callables
-    TOOLS: Dict[str, Any] = {
+    TOOLS: dict[str, Any] = {
         "emotional_clarity": emotional_clarity,
         "dissonance_map": dissonance_map,
         "memory_search": memory_search,
@@ -284,10 +324,10 @@ def create_http_app(token: str | None = None) -> FastAPI:
     concurrency = int(os.getenv("MCP_AUTONOMY_CONCURRENCY", "2"))
     min_interval = float(os.getenv("MCP_AUTONOMY_MIN_INTERVAL", "1.0"))
     semaphore = asyncio.Semaphore(concurrency)
-    last_run: Dict[str, float] = {}
+    last_run: dict[str, float] = {}
 
     # Simple in-memory scheduled tasks store: id -> {run_at, plan, token}
-    scheduled: Dict[str, Dict[str, Any]] = {}
+    scheduled: dict[str, dict[str, Any]] = {}
 
     # Metrics and rate-limiting
     metrics = {
@@ -295,7 +335,6 @@ def create_http_app(token: str | None = None) -> FastAPI:
         "autonomy_count": 0,
         "scheduled_count": 0,
     }
-
 
     # configure logging
     logging.basicConfig(level=os.getenv("MCP_LOG_LEVEL", "INFO"))
@@ -342,6 +381,10 @@ def create_http_app(token: str | None = None) -> FastAPI:
                                     out = fn(*args, **kwargs)
                                     results.append({"tool": tool_name, "result": out})
                                 except Exception as exc:
+                                    logging.getLogger(__name__).debug(
+                                        "Operation failed; applying fallback",
+                                        exc_info=True,
+                                    )
                                     results.append(
                                         {"tool": tool_name, "error": str(exc)}
                                     )
@@ -359,7 +402,9 @@ def create_http_app(token: str | None = None) -> FastAPI:
         try:
             asyncio.create_task(schedule_worker())
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
 
     try:
         loop = asyncio.get_running_loop()
@@ -369,11 +414,11 @@ def create_http_app(token: str | None = None) -> FastAPI:
         pass
 
     @app.get("/health")
-    def health() -> Dict[str, str]:
+    def health() -> dict[str, str]:
         return {"status": "ok", "transport": "http"}
 
     @app.get("/status")
-    def metrics_endpoint() -> Dict[str, Any]:
+    def metrics_endpoint() -> dict[str, Any]:
         return {
             "metrics": metrics,
             "rate_limit_per_min": rate_limit_per_min,
@@ -381,9 +426,8 @@ def create_http_app(token: str | None = None) -> FastAPI:
             "auth_mode": "open" if security.open_mode else "protected",
         }
 
-
     @app.post("/invoke/{tool_name}")
-    async def invoke(tool_name: str, body: Dict[str, Any], request: Request):
+    async def invoke(tool_name: str, body: dict[str, Any], request: Request):
         fn = TOOLS.get(tool_name)
         if fn is None:
             raise HTTPException(status_code=404, detail=f"Tool {tool_name} not found")
@@ -397,8 +441,15 @@ def create_http_app(token: str | None = None) -> FastAPI:
             auth_token = body.get("_auth")
 
         try:
-            principal = security.authenticate(token=auth_token, source=f"http:{client_ip}")
-            security.enforce_scope(principal, security.required_scope_for(tool_name, body.get("kwargs") if isinstance(body, dict) else None))
+            principal = security.authenticate(
+                token=auth_token, source=f"http:{client_ip}"
+            )
+            security.enforce_scope(
+                principal,
+                security.required_scope_for(
+                    tool_name, body.get("kwargs") if isinstance(body, dict) else None
+                ),
+            )
             decision = security.check_rate_limit(principal, tool_name)
             if not decision.allowed:
                 security.audit(
@@ -419,7 +470,9 @@ def create_http_app(token: str | None = None) -> FastAPI:
                         f"Rate limit exceeded for {tool_name}. "
                         f"Retry in about {max(1, int(decision.retry_after_seconds))} seconds."
                     ),
-                    headers={"Retry-After": str(max(1, int(decision.retry_after_seconds)))}
+                    headers={
+                        "Retry-After": str(max(1, int(decision.retry_after_seconds)))
+                    },
                 )
         except PermissionError as exc:
             security.audit(
@@ -432,20 +485,25 @@ def create_http_app(token: str | None = None) -> FastAPI:
             )
             raise HTTPException(status_code=401, detail=str(exc))
 
-        args: List[Any] = body.get("args") or []
-        kwargs: Dict[str, Any] = body.get("kwargs") or {}
+        args: list[Any] = body.get("args") or []
+        kwargs: dict[str, Any] = body.get("kwargs") or {}
         try:
-            with security.tool_span(tool=tool_name, principal=principal, transport="http"):
+            with security.tool_span(
+                tool=tool_name, principal=principal, transport="http"
+            ):
                 result = fn(*args, **kwargs)
             metrics["invoke_count"] += 1
             return {"result": result}
         except HTTPException:
             raise
         except Exception as exc:  # pragma: no cover - surface errors to caller
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             raise HTTPException(status_code=500, detail=str(exc))
 
     @app.post("/autonomy")
-    async def autonomy(body: Dict[str, Any], request: Request):
+    async def autonomy(body: dict[str, Any], request: Request):
         """Execute a small plan of tool invocations sequentially.
 
         Body shape:
@@ -498,7 +556,9 @@ def create_http_app(token: str | None = None) -> FastAPI:
                 args = step.get("args") or []
                 kwargs = step.get("kwargs") or {}
                 try:
-                    security.enforce_scope(principal, security.required_scope_for(tool_name, kwargs))
+                    security.enforce_scope(
+                        principal, security.required_scope_for(tool_name, kwargs)
+                    )
                     decision = security.check_rate_limit(principal, tool_name)
                     if not decision.allowed:
                         security.audit(
@@ -508,17 +568,23 @@ def create_http_app(token: str | None = None) -> FastAPI:
                             status="rate_limited",
                             transport="http",
                             details={
-                                "retry_after_seconds": round(decision.retry_after_seconds, 2),
+                                "retry_after_seconds": round(
+                                    decision.retry_after_seconds, 2
+                                ),
                                 "limit": decision.limit,
                                 "window_seconds": decision.window_seconds,
                             },
                         )
-                        results.append({
-                            "tool": tool_name,
-                            "error": f"Rate limit exceeded. Retry in about {max(1, int(decision.retry_after_seconds))} seconds.",
-                        })
+                        results.append(
+                            {
+                                "tool": tool_name,
+                                "error": f"Rate limit exceeded. Retry in about {max(1, int(decision.retry_after_seconds))} seconds.",
+                            }
+                        )
                         continue
-                    with security.tool_span(tool=tool_name, principal=principal, transport="http"):
+                    with security.tool_span(
+                        tool=tool_name, principal=principal, transport="http"
+                    ):
                         out = fn(*args, **kwargs)
                     results.append({"tool": tool_name, "result": out})
                 except PermissionError as exc:
@@ -532,6 +598,9 @@ def create_http_app(token: str | None = None) -> FastAPI:
                     )
                     results.append({"tool": tool_name, "error": str(exc)})
                 except Exception as exc:
+                    logging.getLogger(__name__).debug(
+                        "Operation failed; applying fallback", exc_info=True
+                    )
                     results.append({"tool": tool_name, "error": str(exc)})
 
         metrics["autonomy_count"] += 1
@@ -591,14 +660,19 @@ def document_search(query: str, n_results: int = 5) -> str:
         if vault_hits:
             return format_doc_results(vault_hits)
     except Exception:
-        pass
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
     return "No matching documents found."
 
 
 @mcp.tool()
 def anchor_vault_status() -> str:
     """Return where the ANCHOR vault and knowledge corpus are mounted on this machine."""
-    from drift.core.anchor_context import get_anchor_runtime, format_anchor_vault_prompt_block
+    from drift.core.anchor_context import (
+        format_anchor_vault_prompt_block,
+        get_anchor_runtime,
+    )
 
     runtime = get_anchor_runtime()
     lines = [format_anchor_vault_prompt_block(), "", "Runtime JSON:", str(runtime)]
@@ -623,7 +697,10 @@ def vault_knowledge_search(query: str, n_results: int = 5) -> str:
 @mcp.tool()
 def anchor_knowledge_list() -> str:
     """List structured ANCHOR reference topics from the repo `knowledge/` corpus."""
-    from drift.core.anchor_context import format_anchor_repo_knowledge_status, list_anchor_repo_knowledge
+    from drift.core.anchor_context import (
+        format_anchor_repo_knowledge_status,
+        list_anchor_repo_knowledge,
+    )
 
     topics = list_anchor_repo_knowledge()
     if not topics:
@@ -640,7 +717,10 @@ def anchor_knowledge_list() -> str:
 @mcp.tool()
 def anchor_knowledge_search(query: str, limit: int = 5) -> str:
     """Search structured ANCHOR repo docs (SARIF, evidence models, architecture — not vault mirror)."""
-    from drift.core.anchor_context import format_anchor_repo_knowledge_status, search_anchor_repo_knowledge
+    from drift.core.anchor_context import (
+        format_anchor_repo_knowledge_status,
+        search_anchor_repo_knowledge,
+    )
 
     hits = search_anchor_repo_knowledge(query, limit=limit)
     if not hits:
@@ -656,7 +736,10 @@ def anchor_knowledge_search(query: str, limit: int = 5) -> str:
 @mcp.tool()
 def anchor_knowledge_get(slug: str) -> str:
     """Retrieve one ANCHOR knowledge topic by slug (e.g. sarif, evidence_models, zero_trust)."""
-    from drift.core.anchor_context import format_anchor_repo_knowledge_status, get_anchor_repo_knowledge_topic
+    from drift.core.anchor_context import (
+        format_anchor_repo_knowledge_status,
+        get_anchor_repo_knowledge_topic,
+    )
 
     payload = get_anchor_repo_knowledge_topic(slug)
     if payload is None:
@@ -668,7 +751,10 @@ def anchor_knowledge_get(slug: str) -> str:
 @mcp.tool()
 def anchor_knowledge_refs(subsystem: str) -> str:
     """List ANCHOR knowledge topics linked to a subsystem (e.g. sarif, pipeline, ledger)."""
-    from drift.core.anchor_context import format_anchor_repo_knowledge_status, refs_anchor_repo_knowledge
+    from drift.core.anchor_context import (
+        format_anchor_repo_knowledge_status,
+        refs_anchor_repo_knowledge,
+    )
 
     topics = refs_anchor_repo_knowledge(subsystem)
     if not topics:
@@ -727,6 +813,9 @@ def ingest_document(path: str, tags: str = "") -> str:
         count = get_doc_store().ingest(path, tags=tag_list)
         return f"Ingested {count} chunks from {path}."
     except Exception as exc:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return f"Ingest failed: {exc}"
 
 
@@ -766,6 +855,9 @@ def hive_status() -> str:
             f"Drift bridge: {status.get('drift_bridge', 'ok')}"
         )
     except Exception as e:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return f"Hive status unavailable: {e}"
 
 
@@ -778,6 +870,9 @@ def workspace_snapshot() -> str:
         concepts = snap.get("concepts", [])[:3]
         return f"Concepts: {len(snap.get('concepts', []))} | Focus: {snap.get('focus') or 'none'}\nTop: {' | '.join(concepts) if concepts else 'empty'}"
     except Exception as e:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return f"Workspace snapshot unavailable: {e}"
 
 

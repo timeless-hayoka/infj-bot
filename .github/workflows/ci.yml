@@ -47,5 +47,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: dmu-benchmark-results
-          path: .benchmarks
+          path: benchmarks/comparison_runs
           if-no-files-found: warn

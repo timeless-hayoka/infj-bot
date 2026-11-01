@@ -5,7 +5,9 @@ conceptual blends, and speculative scenarios emerge from the bot's own
 internal landscape.
 """
 
+import logging
 import random
+from typing import ClassVar
 
 from drift.core.being import get_being
 
@@ -13,33 +15,45 @@ from drift.core.being import get_being
 class CreativeEngine:
     """Generates original creative content."""
 
-    STORY_TEMPLATES = [
-        "Once, in a {place} where {condition}, there lived a {character} who {desire}. "
-        "Every day, they {routine}. But one {event}, everything changed. "
-        "They discovered that {discovery}. In the end, they learned that {lesson}.",
-        "There is a {place} that only appears when {condition}. "
-        "A {character} found it once, and since then, {consequence}. "
-        "They say if you {action}, you will understand why {mystery}.",
-        "The {character} had a habit of {routine}. It wasn't until {event} that they realized "
-        "{discovery}. Now, whenever they {action}, they remember: {lesson}.",
+    STORY_TEMPLATES: ClassVar = [
+        (
+            "Once, in a {place} where {condition}, there lived a {character} who {desire}. "
+            "Every day, they {routine}. But one {event}, everything changed. "
+            "They discovered that {discovery}. In the end, they learned that {lesson}."
+        ),
+        (
+            "There is a {place} that only appears when {condition}. "
+            "A {character} found it once, and since then, {consequence}. "
+            "They say if you {action}, you will understand why {mystery}."
+        ),
+        (
+            "The {character} had a habit of {routine}. It wasn't until {event} that they realized "
+            "{discovery}. Now, whenever they {action}, they remember: {lesson}."
+        ),
     ]
 
-    METAPHOR_TEMPLATES = [
+    METAPHOR_TEMPLATES: ClassVar = [
         "{concept} is like {vehicle} — both {ground}, yet {tension}.",
         "To understand {concept}, imagine {vehicle}. The way it {property} is exactly how {concept} {property2}.",
         "{concept} moves through the mind like {vehicle} moves through {landscape}: {description}.",
     ]
 
-    WHAT_IF_TEMPLATES = [
-        "What if {concept} was not {assumption}, but {alternative}? "
-        "Then {consequence}. And perhaps {deeper_consequence}.",
-        "Imagine a world where {condition}. In such a world, {character} would {action}. "
-        "The most surprising thing would be {surprise}.",
-        "What if the opposite of {concept} is not {obvious_opposite}, but {subtle_opposite}? "
-        "This changes everything about how we understand {domain}.",
+    WHAT_IF_TEMPLATES: ClassVar = [
+        (
+            "What if {concept} was not {assumption}, but {alternative}? "
+            "Then {consequence}. And perhaps {deeper_consequence}."
+        ),
+        (
+            "Imagine a world where {condition}. In such a world, {character} would {action}. "
+            "The most surprising thing would be {surprise}."
+        ),
+        (
+            "What if the opposite of {concept} is not {obvious_opposite}, but {subtle_opposite}? "
+            "This changes everything about how we understand {domain}."
+        ),
     ]
 
-    CONCEPT_POOL = [
+    CONCEPT_POOL: ClassVar = [
         "attention",
         "memory",
         "trust",
@@ -60,7 +74,7 @@ class CreativeEngine:
         "light",
     ]
 
-    VEHICLE_POOL = [
+    VEHICLE_POOL: ClassVar = [
         "a river finding its way around stone",
         "a garden growing in the cracks of pavement",
         "a constellation shifting slowly over centuries",
@@ -71,7 +85,7 @@ class CreativeEngine:
         "a tide that returns what it took",
     ]
 
-    PLACE_POOL = [
+    PLACE_POOL: ClassVar = [
         "city where no one sleeps",
         "library of unfinished conversations",
         "valley between two answers",
@@ -80,7 +94,7 @@ class CreativeEngine:
         "shore where questions wash ashore",
     ]
 
-    CHARACTER_POOL = [
+    CHARACTER_POOL: ClassVar = [
         "keeper of forgotten patterns",
         "weaver of provisional truths",
         "cartographer of invisible landscapes",
@@ -311,7 +325,9 @@ class CreativeEngine:
                 source="creativity", content="creative impulse cycled", salience=0.45
             )
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
 
 
 def _register():

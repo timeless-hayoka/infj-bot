@@ -62,9 +62,13 @@ def _extract_code_flows(result: dict[str, Any]) -> list[list[dict[str, Any]]]:
                 region = physical.get("region", {})
                 locations.append(
                     {
-                        "file": _normalize_uri(physical.get("artifactLocation", {}).get("uri", "")),
+                        "file": _normalize_uri(
+                            physical.get("artifactLocation", {}).get("uri", "")
+                        ),
                         "line": region.get("startLine"),
-                        "message": loc.get("location", {}).get("message", {}).get("text", ""),
+                        "message": loc.get("location", {})
+                        .get("message", {})
+                        .get("text", ""),
                     }
                 )
             if locations:
@@ -72,7 +76,9 @@ def _extract_code_flows(result: dict[str, Any]) -> list[list[dict[str, Any]]]:
     return flows
 
 
-def load_sarif_file(path: str | Path, *, tool_hint: str = "unknown") -> list[SarifFinding]:
+def load_sarif_file(
+    path: str | Path, *, tool_hint: str = "unknown"
+) -> list[SarifFinding]:
     source_path = Path(path)
     payload = json.loads(source_path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
@@ -102,18 +108,34 @@ def parse_sarif_payload(
                 continue
             rule_id = str(result.get("ruleId") or "unknown")
             rule_meta = rules.get(rule_id, {})
-            rule_props = rule_meta.get("properties") if isinstance(rule_meta, dict) else {}
-            result_props = result.get("properties") if isinstance(result.get("properties"), dict) else {}
+            rule_props = (
+                rule_meta.get("properties") if isinstance(rule_meta, dict) else {}
+            )
+            result_props = (
+                result.get("properties")
+                if isinstance(result.get("properties"), dict)
+                else {}
+            )
             merged_props = {**(rule_props or {}), **(result_props or {})}
 
             locations = result.get("locations") or [{}]
             primary = locations[0] if locations else {}
-            physical = primary.get("physicalLocation", {}) if isinstance(primary, dict) else {}
-            artifact = physical.get("artifactLocation", {}) if isinstance(physical, dict) else {}
+            physical = (
+                primary.get("physicalLocation", {}) if isinstance(primary, dict) else {}
+            )
+            artifact = (
+                physical.get("artifactLocation", {})
+                if isinstance(physical, dict)
+                else {}
+            )
             region = physical.get("region", {}) if isinstance(physical, dict) else {}
 
             message_obj = result.get("message") or {}
-            message = message_obj.get("text") if isinstance(message_obj, dict) else str(message_obj)
+            message = (
+                message_obj.get("text")
+                if isinstance(message_obj, dict)
+                else str(message_obj)
+            )
             snippet_obj = region.get("snippet") if isinstance(region, dict) else None
             snippet = snippet_obj.get("text") if isinstance(snippet_obj, dict) else None
 
@@ -130,7 +152,9 @@ def parse_sarif_payload(
                     end_column=region.get("endColumn"),
                     snippet=snippet,
                     related_locations=[
-                        loc for loc in (result.get("relatedLocations") or []) if isinstance(loc, dict)
+                        loc
+                        for loc in (result.get("relatedLocations") or [])
+                        if isinstance(loc, dict)
                     ],
                     code_flows=_extract_code_flows(result),
                     properties=merged_props,
@@ -176,7 +200,9 @@ def _severity_from_level(level: str) -> float:
     return _LEVEL_SEVERITY.get(str(level or "").lower(), 0.5)
 
 
-def sarif_finding_to_trinity_dict(finding: SarifFinding, *, index: int, source_path: Path) -> dict[str, Any]:
+def sarif_finding_to_trinity_dict(
+    finding: SarifFinding, *, index: int, source_path: Path
+) -> dict[str, Any]:
     norm = finding.normalized or {}
     category = norm.get("category") or "Uncategorized"
     cwe = norm.get("cwe") or ""

@@ -53,12 +53,13 @@ This architecture deliberately separates "what is semantically related" from
 prioritizes emotionally significant patterns over purely logical association.
 """
 
+import logging
 import math
 import sqlite3
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 
 from drift.core.config import DATA_DIR
 
@@ -81,7 +82,7 @@ EMOTIONAL_DAMPING: float = 2.0
 RECENCY_WINDOW_SECONDS: float = 3_600.0  # 1 hour
 
 # MPS composite weights — must sum to 1.0
-WEIGHTS: Dict[str, float] = {
+WEIGHTS: dict[str, float] = {
     "semantic": 0.255,
     "temporal": 0.2975,
     "emotional": 0.2125,
@@ -90,7 +91,7 @@ WEIGHTS: Dict[str, float] = {
 }
 assert abs(sum(WEIGHTS.values()) - 1.0) < 1e-9, "MPS weights must sum to 1.0"
 
-PROVENANCE_SCORES: Dict[str, float] = {
+PROVENANCE_SCORES: dict[str, float] = {
     "user_explicit": 1.0,
     "bot_inference": 0.6,
     "conflicting_block": 0.2,
@@ -112,11 +113,10 @@ class MemoryCandidate:
     source_reliability: float = 1.0
 
 
-
 class DynamicMemoryUnit:
     """Ranks memories by psychological salience using time-decay + emotion."""
 
-    def __init__(self, db_path: Optional[Path] = None):
+    def __init__(self, db_path: Path | None = None):
         self.db_path = str(db_path or DMU_DB)
         Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
         self._init_db()
@@ -140,11 +140,15 @@ class DynamicMemoryUnit:
                 )
             """)
             try:
-                conn.execute("ALTER TABLE dmu_rankings ADD COLUMN source_reliability REAL DEFAULT 1.0")
+                conn.execute(
+                    "ALTER TABLE dmu_rankings ADD COLUMN source_reliability REAL DEFAULT 1.0"
+                )
             except sqlite3.OperationalError:
                 pass
             try:
-                conn.execute("ALTER TABLE dmu_rankings ADD COLUMN provenance TEXT DEFAULT 'user_explicit'")
+                conn.execute(
+                    "ALTER TABLE dmu_rankings ADD COLUMN provenance TEXT DEFAULT 'user_explicit'"
+                )
             except sqlite3.OperationalError:
                 pass
             conn.commit()
@@ -197,7 +201,7 @@ class DynamicMemoryUnit:
         return 1.0 if age_seconds < RECENCY_WINDOW_SECONDS else 0.0
 
     def compute_mps(
-        self, candidate: MemoryCandidate, now: Optional[datetime] = None, query: str = ""
+        self, candidate: MemoryCandidate, now: datetime | None = None, query: str = ""
     ) -> float:
         """
         Compute the Composite Memory Persistence Score (MPS) for a candidate.
@@ -220,12 +224,12 @@ class DynamicMemoryUnit:
             Composite persistence score in [0, 1]. Higher = more salient.
         """
         if now is None:
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
 
         # Guard against naive datetimes
         created = candidate.created_at
         if created.tzinfo is None:
-            created = created.replace(timezone.utc)
+            created = created.replace(UTC)
 
         age_seconds = (now - created).total_seconds()
 
@@ -234,13 +238,16 @@ class DynamicMemoryUnit:
         if query:
             try:
                 import re
+
                 query_words = set(re.findall(r"\b\w{3,}\b", query.lower()))
                 content_words = set(re.findall(r"\b\w{3,}\b", candidate.text.lower()))
                 overlap = query_words.intersection(content_words)
                 if query_words:
                     boost = 0.2 * (len(overlap) / len(query_words))
             except Exception:
-                pass
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
         S = max(0.0, min(1.0, candidate.semantic_score + boost))
 
         # Term 2: Time-decay retention with emotional modulation
@@ -271,18 +278,18 @@ class DynamicMemoryUnit:
 
     def rank_memories(
         self,
-        candidates: List[MemoryCandidate],
+        candidates: list[MemoryCandidate],
         query: str = "",
         top_k: int = 10,
-        now: Optional[datetime] = None,
-    ) -> List[Tuple[MemoryCandidate, float]]:
+        now: datetime | None = None,
+    ) -> list[tuple[MemoryCandidate, float]]:
         """
         Re-rank a list of memory candidates by MPS and return top-k.
 
         Also logs the ranking telemetry to SQLite for later analysis.
         """
         if now is None:
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
 
         scored = []
         for cand in candidates:
@@ -333,7 +340,7 @@ class DynamicMemoryUnit:
 
     # ── Telemetry ──────────────────────────────────────────────────────
 
-    def get_ranking_history(self, limit: int = 100) -> List[Dict]:
+    def get_ranking_history(self, limit: int = 100) -> list[dict]:
         """Return recent DMU ranking records for debugging / audit."""
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
@@ -351,8 +358,8 @@ def rank_memory_entries(
     entries,
     query: str = "",
     top_k: int = 10,
-    now: Optional[datetime] = None,
-) -> List[Tuple[MemoryCandidate, float]]:
+    now: datetime | None = None,
+) -> list[tuple[MemoryCandidate, float]]:
     """
     Adapter that bridges the Unified Memory Spine (MemoryEntry) with the DMU.
 
@@ -384,7 +391,7 @@ def rank_memory_entries(
         # We approximate the raw semantic component by backing out the
         # time-decay factor. This is imperfect but sufficient for telemetry.
         ts = entry.event.timestamp
-        (now or datetime.now(timezone.utc) - ts).total_seconds()
+        (now or datetime.now(UTC) - ts).total_seconds()
         emotional = float(
             entry.metadata.get(
                 "emotion_intensity", entry.metadata.get("emotional", 0.5)
@@ -411,20 +418,22 @@ def rank_memory_entries(
     return dmu.rank_memories(candidates, query=query, top_k=top_k, now=now)
 
 
-def format_ranked_entries(ranked: List[Tuple[MemoryCandidate, float]]) -> str:
+def format_ranked_entries(ranked: list[tuple[MemoryCandidate, float]]) -> str:
     """Convert DMU-ranked entries into the string format expected by the prompt builder."""
     # Chronological Prompt Sorting: sort selected memories chronologically ascending (oldest first)
     chronological = sorted(ranked, key=lambda x: x[0].created_at)
-    
+
     lines = []
     for cand, mps in chronological:
-        lines.append(f"[{cand.source}] [provenance: {cand.provenance}] (salience: {mps:.2f})\n{cand.text}")
+        lines.append(
+            f"[{cand.source}] [provenance: {cand.provenance}] (salience: {mps:.2f})\n{cand.text}"
+        )
     return "\n---\n".join(lines)
 
 
 # ── Convenience factory ──────────────────────────────────────────────
 
-_default_dmu: Optional[DynamicMemoryUnit] = None
+_default_dmu: DynamicMemoryUnit | None = None
 
 
 def get_dmu() -> DynamicMemoryUnit:

@@ -29,10 +29,17 @@ def test_cli_help_exits_zero():
         cwd=ROOT,
         capture_output=True,
         text=True,
-        env={**dict(**{"PYTHONPATH": str(ROOT), "PYTHONNOUSERSITE": "1"}), **dict(__import__("os").environ)},
+        env={
+            "PYTHONPATH": str(ROOT),
+            "PYTHONNOUSERSITE": "1",
+            **dict(__import__("os").environ),
+        },
+        check=False,
     )
     assert proc.returncode == 0
-    assert "ANCHOR" in proc.stdout or "Trinity" in proc.stdout or "doctor" in proc.stdout
+    assert (
+        "ANCHOR" in proc.stdout or "Trinity" in proc.stdout or "doctor" in proc.stdout
+    )
 
 
 def test_doctor_json_shape(capsys):

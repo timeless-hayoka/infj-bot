@@ -5,10 +5,11 @@ and a shared history that grows richer over time. This module gives the
 bot a sense of "us" — not just "me" and "you."
 """
 
+import logging
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Optional
 
 from drift.core.config import DATA_DIR
 
@@ -35,7 +36,7 @@ RELATIONSHIP_STAGES = [
 class RelationshipModel:
     """Tracks the evolution of the bot's relationship with user."""
 
-    def __init__(self, db_path: Optional[Path] = None):
+    def __init__(self, db_path: Path | None = None):
         self.db_path = str(db_path or RELATIONSHIP_DB)
         self._init_db()
         self.stats = self._load_stats()
@@ -82,7 +83,7 @@ class RelationshipModel:
             )
             conn.commit()
 
-    def _load_stats(self) -> Dict:
+    def _load_stats(self) -> dict:
         defaults = {
             "total_interactions": 0,
             "deep_conversations": 0,
@@ -203,7 +204,7 @@ class RelationshipModel:
                 return desc
         return "Our relationship is still forming."
 
-    def get_milestones(self, limit: int = 20) -> List[Dict]:
+    def get_milestones(self, limit: int = 20) -> list[dict]:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
@@ -212,7 +213,7 @@ class RelationshipModel:
             ).fetchall()
         return [dict(r) for r in rows]
 
-    def get_inside_jokes(self, limit: int = 10) -> List[Dict]:
+    def get_inside_jokes(self, limit: int = 10) -> list[dict]:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
@@ -221,7 +222,7 @@ class RelationshipModel:
             ).fetchall()
         return [dict(r) for r in rows]
 
-    def get_shared_themes(self, limit: int = 10) -> List[Dict]:
+    def get_shared_themes(self, limit: int = 10) -> list[dict]:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
@@ -255,7 +256,7 @@ class RelationshipModel:
         lines.append(self.get_stage_description())
         return "\n".join(lines)
 
-    def recognize_anniversary(self) -> Optional[str]:
+    def recognize_anniversary(self) -> str | None:
         """Check if there's an anniversary to celebrate."""
         if not self.stats["first_interaction"]:
             return None
@@ -278,7 +279,9 @@ class RelationshipModel:
                 salience=0.5,
             )
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
 
 
 def _register():

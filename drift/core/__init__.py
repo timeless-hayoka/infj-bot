@@ -1,3 +1,4 @@
+# ruff: noqa: N999 - legacy public filename or repository compatibility shim
 """Compatibility shim that maps ``drift.core`` to the real top-level ``core`` package.
 
 This lets the historical import style keep working while the actual package

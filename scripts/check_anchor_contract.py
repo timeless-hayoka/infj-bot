@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
 """Check the real ANCHOR consumer boundary without loading model or voice stacks."""
+
 from __future__ import annotations
 
 import argparse
-from datetime import datetime, timezone
 import hashlib
 import inspect
 import json
+import logging
 import os
-from pathlib import Path
 import subprocess
 import sys
+from datetime import UTC, datetime, timezone
+from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -18,7 +20,9 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 def git_revision(root: Path) -> str:
     return subprocess.check_output(
-        ["git", "-C", str(root), "rev-parse", "HEAD"], text=True, timeout=10,
+        ["git", "-C", str(root), "rev-parse", "HEAD"],
+        text=True,
+        timeout=10,
     ).strip()
 
 
@@ -27,7 +31,7 @@ def check(anchor_root: Path) -> dict:
     if not (anchor_root / "knowledge/manifest.json").is_file():
         raise ValueError("ANCHOR knowledge manifest is missing")
     os.environ["ANCHOR_ROOT"] = str(anchor_root)
-    from core import anchor_context, anchor_analytics
+    from core import anchor_analytics, anchor_context
 
     if anchor_context.resolve_anchor_repo_root() != anchor_root:
         raise ValueError("knowledge consumer resolved a different ANCHOR checkout")
@@ -54,34 +58,53 @@ def check(anchor_root: Path) -> dict:
     analytics = anchor_analytics.build_benchmark_analytics(limit=5, top_n=3)
     if analytics["status"] != "ready":
         raise ValueError("benchmark analytics unavailable")
-    import anchor_trends
-    import anchor_strategy
-    for module in (anchor_trends, anchor_strategy):
-        if Path(module.__file__).resolve().parent != anchor_root:
+    for source in analytics["analytics_sources"].values():
+        if Path(source).resolve().parent != anchor_root:
             raise ValueError("analytics imported a module from a different checkout")
-    if analytics["benchmark_strategy"].get("source") != "anchor_strategy.compute_strategy":
+    if (
+        analytics["benchmark_strategy"].get("source")
+        != "anchor_strategy.compute_strategy"
+    ):
         raise ValueError("unexpected benchmark strategy contract")
     return {
-        "status": "PASS", "checked_at": datetime.now(timezone.utc).isoformat(),
-        "infj_commit": git_revision(PROJECT_ROOT), "anchor_commit": git_revision(anchor_root),
-        "topic_count": len(topics), "topic_sha256": hashes,
-        "manifest_sha256": hashlib.sha256((anchor_root / "knowledge/manifest.json").read_bytes()).hexdigest(),
-        "coverage": ["consumer root resolution", "canonical imports", "all registered topics",
-                     "search", "subsystem references", "canonical trends and strategy"],
-        "limitations": ["Does not update deployed checkouts or restart MCP processes",
-                        "Does not load models, voice, ChromaDB, or the full MCP server"],
+        "status": "PASS",
+        "checked_at": datetime.now(UTC).isoformat(),
+        "infj_commit": git_revision(PROJECT_ROOT),
+        "anchor_commit": git_revision(anchor_root),
+        "topic_count": len(topics),
+        "topic_sha256": hashes,
+        "manifest_sha256": hashlib.sha256(
+            (anchor_root / "knowledge/manifest.json").read_bytes()
+        ).hexdigest(),
+        "coverage": [
+            "consumer root resolution",
+            "canonical imports",
+            "all registered topics",
+            "search",
+            "subsystem references",
+            "canonical trends and strategy",
+        ],
+        "limitations": [
+            "Does not update deployed checkouts or restart MCP processes",
+            "Does not load models, voice, ChromaDB, or the full MCP server",
+        ],
     }
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--anchor-root", type=Path, default=PROJECT_ROOT.parent / "ANCHOR")
+    parser.add_argument(
+        "--anchor-root", type=Path, default=PROJECT_ROOT.parent / "ANCHOR"
+    )
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
     try:
         result = check(args.anchor_root)
         code = 0
     except Exception as exc:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         result = {"status": "FAIL", "error": f"{type(exc).__name__}: {exc}"}
         code = 1
     text = json.dumps(result, indent=2)

@@ -28,7 +28,9 @@ def test_is_sarif_payload():
 
 def test_parse_codeql_sarif_extracts_dataflow():
     payload = _load("minimal_codeql.sarif")
-    findings = parse_sarif_payload(payload, source_path="codeql.sarif", tool_hint="codeql")
+    findings = parse_sarif_payload(
+        payload, source_path="codeql.sarif", tool_hint="codeql"
+    )
     assert len(findings) == 1
     finding = findings[0]
     assert finding.tool == "CodeQL"

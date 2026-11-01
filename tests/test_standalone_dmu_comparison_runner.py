@@ -7,7 +7,11 @@ from pathlib import Path
 
 
 def test_standalone_dmu_comparison_runner_smoke(tmp_path: Path) -> None:
-    script = Path("/home/crexs/infj_bot/scripts/standalone_dmu_comparison_runner.py")
+    script = (
+        Path(__file__).resolve().parents[1]
+        / "scripts"
+        / "standalone_dmu_comparison_runner.py"
+    )
     result = subprocess.run(
         [
             sys.executable,
@@ -19,7 +23,7 @@ def test_standalone_dmu_comparison_runner_smoke(tmp_path: Path) -> None:
             "--output-dir",
             str(tmp_path),
         ],
-        cwd="/home/crexs/infj_bot",
+        cwd=str(script.parents[1]),
         capture_output=True,
         text=True,
         check=False,

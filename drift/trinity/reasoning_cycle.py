@@ -7,7 +7,11 @@ from enum import Enum
 from typing import Any
 from uuid import uuid4
 
-from drift.trinity.council.forge_council_schema import ClaimRecord, ClaimStatus, new_claim_id
+from drift.trinity.council.forge_council_schema import (
+    ClaimRecord,
+    ClaimStatus,
+    new_claim_id,
+)
 
 
 class GoalStatus(str, Enum):
@@ -38,7 +42,7 @@ class Goal:
     claim_id: str | None = None
 
     @classmethod
-    def create(cls, title: str, *, priority: float = 0.5) -> "Goal":
+    def create(cls, title: str, *, priority: float = 0.5) -> Goal:
         return cls(id=str(uuid4()), title=title, priority=priority)
 
 
@@ -57,9 +61,7 @@ class ReasoningState:
 
     def arbitrate(self) -> Goal | None:
         candidates = [
-            g
-            for g in self.goals
-            if g.status in (GoalStatus.PENDING, GoalStatus.ACTIVE)
+            g for g in self.goals if g.status in (GoalStatus.PENDING, GoalStatus.ACTIVE)
         ]
         if not candidates:
             return None
@@ -74,7 +76,9 @@ class ReasoningState:
         ]
         return goal.subtasks
 
-    def record_error(self, *, stage: str, message: str, recoverable: bool = True) -> None:
+    def record_error(
+        self, *, stage: str, message: str, recoverable: bool = True
+    ) -> None:
         self.error_model.append(
             {
                 "stage": stage,
@@ -107,7 +111,9 @@ class ReasoningCycle:
     def __init__(self) -> None:
         self.state = ReasoningState()
 
-    def plan(self, title: str, *, steps: list[str] | None = None, priority: float = 0.5) -> Goal:
+    def plan(
+        self, title: str, *, steps: list[str] | None = None, priority: float = 0.5
+    ) -> Goal:
         goal = Goal.create(title, priority=priority)
         self.state.add_goal(goal)
         if steps:
@@ -121,7 +127,9 @@ class ReasoningCycle:
                 subtask.uncertainty = max(0.0, subtask.uncertainty - 0.1)
                 break
         if goal.subtasks:
-            goal.uncertainty = sum(s.uncertainty for s in goal.subtasks) / len(goal.subtasks)
+            goal.uncertainty = sum(s.uncertainty for s in goal.subtasks) / len(
+                goal.subtasks
+            )
 
     def export_claim(self, goal: Goal) -> ClaimRecord:
         return self.state.to_claim(goal)

@@ -24,14 +24,15 @@ Claude Desktop config:
 import argparse
 import base64
 import json
+import logging
 import sys
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 import httpx
 import uvicorn
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 from fastapi import FastAPI, Request
 from google.auth.transport.requests import Request as GoogleRequest
 from google.oauth2.credentials import Credentials
@@ -46,7 +47,7 @@ SCOPES = [
 ]
 
 # Cached Google tools list
-_google_tools: List[Dict[str, Any]] = []
+_google_tools: list[dict[str, Any]] = []
 
 
 def _get_credentials() -> Credentials:
@@ -67,7 +68,7 @@ def _get_access_token() -> str:
     return _get_credentials().token
 
 
-def _fetch_google_tools() -> List[Dict[str, Any]]:
+def _fetch_google_tools() -> list[dict[str, Any]]:
     global _google_tools
     if _google_tools:
         return _google_tools
@@ -82,7 +83,7 @@ def _fetch_google_tools() -> List[Dict[str, Any]]:
     return _google_tools
 
 
-def _send_email(arguments: Dict[str, Any]) -> Dict[str, Any]:
+def _send_email(arguments: dict[str, Any]) -> dict[str, Any]:
     to = arguments.get("to", "")
     subject = arguments.get("subject", "")
     body = arguments.get("body", "")
@@ -124,13 +125,16 @@ def _send_email(arguments: Dict[str, Any]) -> Dict[str, Any]:
             "isError": False,
         }
     except Exception as exc:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return {
             "content": [{"type": "text", "text": f"Error sending email: {exc}"}],
             "isError": True,
         }
 
 
-def _proxy_to_google(request_data: Dict[str, Any]) -> Dict[str, Any]:
+def _proxy_to_google(request_data: dict[str, Any]) -> dict[str, Any]:
     headers = {
         "content-type": "application/json",
         "accept": "application/json, text/event-stream",
@@ -150,6 +154,9 @@ def _proxy_to_google(request_data: Dict[str, Any]) -> Dict[str, Any]:
             },
         }
     except Exception as exc:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return {
             "jsonrpc": "2.0",
             "id": request_data.get("id"),
@@ -157,7 +164,7 @@ def _proxy_to_google(request_data: Dict[str, Any]) -> Dict[str, Any]:
         }
 
 
-def _make_tools_list() -> List[Dict[str, Any]]:
+def _make_tools_list() -> list[dict[str, Any]]:
     tools = list(_fetch_google_tools())
     # Inject our custom send_email tool
     tools.append(
@@ -187,7 +194,7 @@ def _make_tools_list() -> List[Dict[str, Any]]:
     return tools
 
 
-def _handle_jsonrpc(request_data: Dict[str, Any]) -> Dict[str, Any]:
+def _handle_jsonrpc(request_data: dict[str, Any]) -> dict[str, Any]:
     method = request_data.get("method", "")
     req_id = request_data.get("id")
 

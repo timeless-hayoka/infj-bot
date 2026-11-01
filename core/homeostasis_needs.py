@@ -1,7 +1,7 @@
-from typing import Any, Dict
+from typing import Any
 
 # Need definitions with setpoints and critical thresholds
-NEED_DEFINITIONS: Dict[str, Dict[str, Any]] = {
+NEED_DEFINITIONS: dict[str, dict[str, Any]] = {
     "energy": {
         "setpoint": 0.6,
         "critical_low": 0.15,

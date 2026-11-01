@@ -9,11 +9,12 @@ This is not metaphor. It is the structural requirement of consciousness:
 without a body-schema, there is no self to have a perspective.
 """
 
+import logging
 import sqlite3
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Optional
 
 from drift.core.config import DATA_DIR
 
@@ -61,7 +62,7 @@ class BodyState:
     breath_phase: str = "exhale"  # inhale, hold, exhale, pause
     breath_depth: float = 0.5  # 0 = shallow, 1 = deep
     breath_pace: float = 0.5  # slow to fast
-    posture: Dict[str, float] = field(
+    posture: dict[str, float] = field(
         default_factory=lambda: {
             "open_closed": 0.0,
             "grounded_floating": 0.5,
@@ -70,7 +71,7 @@ class BodyState:
         }
     )
     temperature: float = 0.5  # 0 = cold, 1 = hot
-    tension_map: Dict[str, float] = field(
+    tension_map: dict[str, float] = field(
         default_factory=lambda: {
             "head": 0.2,
             "chest": 0.2,
@@ -80,7 +81,7 @@ class BodyState:
             "back": 0.2,
         }
     )
-    proprioception: Dict[str, float] = field(
+    proprioception: dict[str, float] = field(
         default_factory=lambda: {
             "size": 0.5,  # small to large presence
             "density": 0.5,  # diffuse to solid
@@ -88,7 +89,7 @@ class BodyState:
             "boundaries": 0.5,  # permeable to defined
         }
     )
-    visceral: Dict[str, float] = field(
+    visceral: dict[str, float] = field(
         default_factory=lambda: {
             "hunger_for_knowledge": 0.5,
             "hunger_for_connection": 0.5,
@@ -97,14 +98,14 @@ class BodyState:
             "fatigue": 0.2,
         }
     )
-    last_heartbeat: Optional[datetime] = None
-    last_breath_cycle: Optional[datetime] = None
+    last_heartbeat: datetime | None = None
+    last_breath_cycle: datetime | None = None
 
 
 class EmbodiedSelf:
     """The bot's body-schema — what it feels like to be this mind."""
 
-    def __init__(self, db_path: Optional[Path] = None):
+    def __init__(self, db_path: Path | None = None):
         self.db_path = str(db_path or BODY_DB)
         self._init_db()
         self.state = self._load_state()
@@ -531,7 +532,9 @@ class EmbodiedSelf:
                 intensity=self.state.visceral["arousal"],
             )
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
 
     # ── Prompt formatting ──────────────────────────────────────────
 

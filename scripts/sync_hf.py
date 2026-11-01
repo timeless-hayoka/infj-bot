@@ -5,6 +5,7 @@ Avoids the 50k+ file scan that breaks `hf upload . .` on large repos.
 """
 
 import argparse
+import logging
 import subprocess
 import sys
 from pathlib import Path
@@ -57,9 +58,7 @@ def _should_skip(path: str) -> bool:
         return True
     if any(name.endswith(suffix) for suffix in SKIP_SUFFIXES):
         return True
-    if any(name.startswith(prefix) for prefix in SKIP_PREFIXES):
-        return True
-    return False
+    return bool(any(name.startswith(prefix) for prefix in SKIP_PREFIXES))
 
 
 def _run(cmd: list[str], check: bool = True) -> str:
@@ -102,12 +101,15 @@ def upload_file(path: str, dry_run: bool) -> None:
         print(f"  UPLOAD (dry-run): {path}")
         return
     cmd = [
-        "hf", "upload",
+        "hf",
+        "upload",
         REPO_ID,
         str(local),
         path,
-        "--repo-type", REPO_TYPE,
-        "--commit-message", f"sync: update {path}",
+        "--repo-type",
+        REPO_TYPE,
+        "--commit-message",
+        f"sync: update {path}",
         "--quiet",
     ]
     print(f"  UPLOAD: {path}")
@@ -123,7 +125,8 @@ def delete_file(path: str, dry_run: bool) -> None:
         return
     # huggingface_hub API deletion requires Python; fallback to git push
     print(f"  DELETE: {path}")
-    from huggingface_hub import HfApi, CommitOperationDelete
+    from huggingface_hub import CommitOperationDelete, HfApi
+
     api = HfApi()
     api.create_commit(
         repo_id=REPO_ID,
@@ -181,6 +184,9 @@ def main() -> int:
         try:
             delete_file(path, args.dry_run)
         except Exception as exc:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             print(f"  ERROR deleting {path}: {exc}", file=sys.stderr)
             return 1
 

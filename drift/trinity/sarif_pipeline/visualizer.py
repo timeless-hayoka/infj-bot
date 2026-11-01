@@ -5,7 +5,11 @@ from __future__ import annotations
 from typing import Any
 
 from drift.trinity.sarif_models import SarifFinding
-from drift.trinity.sarif_pipeline.semantic_clusterer import ClusterResult, SemanticClusterer, semantic_clustering_available
+from drift.trinity.sarif_pipeline.semantic_clusterer import (
+    ClusterResult,
+    SemanticClusterer,
+    semantic_clustering_available,
+)
 
 
 def visualize_semantic_clusters(
@@ -23,7 +27,9 @@ def visualize_semantic_clusters(
         import plotly.express as px
         import umap
     except ImportError as exc:  # pragma: no cover
-        raise RuntimeError("plotly, pandas, and umap-learn are required for visualization") from exc
+        raise RuntimeError(
+            "plotly, pandas, and umap-learn are required for visualization"
+        ) from exc
 
     clusterer = SemanticClusterer(embedding_model=embedding_model)
     texts = [clusterer._embedding_text(f) for f in findings]

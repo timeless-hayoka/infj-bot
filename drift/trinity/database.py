@@ -6,9 +6,9 @@ from __future__ import annotations
 import json
 import os
 import sqlite3
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from drift.config_adapter import LOGS_DIR
 
@@ -74,7 +74,7 @@ class TrinityDatabase:
             )
             conn.commit()
 
-    def save_finding(self, finding: Dict[str, Any]) -> int:
+    def save_finding(self, finding: dict[str, Any]) -> int:
         with self._connect() as conn:
             c = conn.cursor()
             c.execute(
@@ -94,7 +94,7 @@ class TrinityDatabase:
                     int(bool(finding.get("reproduced", False))),
                     json.dumps(finding.get("evidence_sources", [])),
                     finding.get("explanation_trace"),
-                    datetime.utcnow().isoformat(),
+                    datetime.now(UTC).replace(tzinfo=None).isoformat(),
                     json.dumps(finding.get("metadata", {})),
                 ),
             )
@@ -102,11 +102,11 @@ class TrinityDatabase:
 
     def get_findings(
         self,
-        tier: Optional[str] = None,
-        reproduced: Optional[bool] = None,
-    ) -> List[Dict[str, Any]]:
+        tier: str | None = None,
+        reproduced: bool | None = None,
+    ) -> list[dict[str, Any]]:
         query = "SELECT * FROM findings WHERE 1=1"
-        params: List[Any] = []
+        params: list[Any] = []
         if tier:
             query += " AND tier = ?"
             params.append(tier)
@@ -119,7 +119,7 @@ class TrinityDatabase:
             c.execute(query, params)
             rows = c.fetchall()
 
-        findings: List[Dict[str, Any]] = []
+        findings: list[dict[str, Any]] = []
         for row in rows:
             findings.append(
                 {
@@ -139,7 +139,7 @@ class TrinityDatabase:
             )
         return findings
 
-    def log_audit(self, event: Dict[str, Any]) -> None:
+    def log_audit(self, event: dict[str, Any]) -> None:
         with self._connect() as conn:
             c = conn.cursor()
             c.execute(
@@ -148,7 +148,9 @@ class TrinityDatabase:
                 VALUES (?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    event.get("timestamp", datetime.utcnow().isoformat()),
+                    event.get(
+                        "timestamp", datetime.now(UTC).replace(tzinfo=None).isoformat()
+                    ),
                     event.get("event_type", "unknown"),
                     event.get("token_prefix"),
                     event.get("tool"),
@@ -158,7 +160,7 @@ class TrinityDatabase:
             )
             conn.commit()
 
-    def save_benchmark_run(self, metrics: Dict[str, Any]) -> None:
+    def save_benchmark_run(self, metrics: dict[str, Any]) -> None:
         with self._connect() as conn:
             c = conn.cursor()
             c.execute(
@@ -169,8 +171,10 @@ class TrinityDatabase:
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    metrics.get("run_id", datetime.utcnow().isoformat()),
-                    datetime.utcnow().isoformat(),
+                    metrics.get(
+                        "run_id", datetime.now(UTC).replace(tzinfo=None).isoformat()
+                    ),
+                    datetime.now(UTC).replace(tzinfo=None).isoformat(),
                     metrics.get("recall"),
                     metrics.get("precision"),
                     metrics.get("reproduction_success"),
@@ -188,7 +192,7 @@ class TrinityDatabase:
             row = c.fetchone()
         return int(row[0] if row else 0)
 
-    def get_latest_benchmark(self) -> Optional[Dict[str, Any]]:
+    def get_latest_benchmark(self) -> dict[str, Any] | None:
         with self._connect() as conn:
             c = conn.cursor()
             c.execute("SELECT * FROM benchmark_runs ORDER BY id DESC LIMIT 1")
@@ -207,7 +211,7 @@ class TrinityDatabase:
             "metadata": json.loads(row[8]) if row[8] else {},
         }
 
-    def get_audit_entries(self, limit: int = 50) -> List[Dict[str, Any]]:
+    def get_audit_entries(self, limit: int = 50) -> list[dict[str, Any]]:
         with self._connect() as conn:
             c = conn.cursor()
             c.execute(
@@ -216,7 +220,7 @@ class TrinityDatabase:
             )
             rows = c.fetchall()
 
-        entries: List[Dict[str, Any]] = []
+        entries: list[dict[str, Any]] = []
         for row in rows:
             entries.append(
                 {
@@ -231,7 +235,7 @@ class TrinityDatabase:
             )
         return entries
 
-    def get_benchmark_runs(self, limit: int = 50) -> List[Dict[str, Any]]:
+    def get_benchmark_runs(self, limit: int = 50) -> list[dict[str, Any]]:
         with self._connect() as conn:
             c = conn.cursor()
             c.execute(
@@ -240,7 +244,7 @@ class TrinityDatabase:
             )
             rows = c.fetchall()
 
-        runs: List[Dict[str, Any]] = []
+        runs: list[dict[str, Any]] = []
         for row in rows:
             runs.append(
                 {

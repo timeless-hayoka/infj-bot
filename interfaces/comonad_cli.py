@@ -1,10 +1,10 @@
+from drift.core.cognitive_ops import pedi_regulation_step, state_conditioned_llm
 from drift.core.context_engine import (
+    CognitivePayload,
     CognitiveState,
     Context,
     ContextWorker,
-    CognitivePayload,
 )
-from drift.core.cognitive_ops import pedi_regulation_step, state_conditioned_llm
 
 
 def calculate_state_diff(initial: CognitiveState, final: CognitiveState) -> dict:
@@ -18,7 +18,7 @@ def calculate_state_diff(initial: CognitiveState, final: CognitiveState) -> dict
 
 
 def run_cognitive_cycle(user_input: str, current_state: CognitiveState):
-    print(f"\n{'='*50}\n▶ INITIATING COGNITIVE CYCLE\n{'='*50}")
+    print(f"\n{'=' * 50}\n▶ INITIATING COGNITIVE CYCLE\n{'=' * 50}")
 
     # 1. Initialize the Comonad with structured payload
     payload = CognitivePayload(user_input=user_input)

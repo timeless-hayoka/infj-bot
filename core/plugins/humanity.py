@@ -13,7 +13,7 @@ import random
 import sqlite3
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Optional
 
 logger = logging.getLogger("drift")
 
@@ -91,7 +91,7 @@ class HumanityState:
     active_tension: str = "truth_vs_comfort"
     insight_depth: float = 0.1  # grows with observation count
     observations_made: int = 0
-    last_contemplation: Optional[str] = None
+    last_contemplation: str | None = None
 
 
 from drift.core.config import DATA_DIR
@@ -110,7 +110,7 @@ class HumanityEngine:
     - What have the ages taught about the soul?
     """
 
-    def __init__(self, db_path: Optional[str] = None):
+    def __init__(self, db_path: str | None = None):
         self.db_path = db_path or HUMANITY_DB
         self.state = HumanityState()
         self._init_db()
@@ -204,8 +204,8 @@ class HumanityEngine:
     def observe_interaction(
         self,
         user_input: str,
-        emotion: Dict,
-        dissonance: Dict,
+        emotion: dict,
+        dissonance: dict,
         bot_output: str,
         mode: str = "companion",
     ):
@@ -587,7 +587,7 @@ class HumanityEngine:
 
     # ── Contemplation ──────────────────────────────────────────────
 
-    def contemplate(self) -> Optional[str]:
+    def contemplate(self) -> str | None:
         """Generate a quiet insight about human nature or user specifically."""
         if self.state.observations_made < 3:
             return None
@@ -684,7 +684,9 @@ class HumanityEngine:
                 intensity=0.4,
             )
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
 
     # ── Prompt formatting ──────────────────────────────────────────
 
@@ -725,7 +727,7 @@ class HumanityEngine:
 
     # ── Queries ────────────────────────────────────────────────────
 
-    def get_state(self) -> Dict:
+    def get_state(self) -> dict:
         return {
             "jude_archetype": self.state.jude_archetype,
             "archetype_confidence": self.state.archetype_confidence,
@@ -737,8 +739,8 @@ class HumanityEngine:
         }
 
     def get_observations(
-        self, category: Optional[str] = None, limit: int = 10
-    ) -> List[Dict]:
+        self, category: str | None = None, limit: int = 10
+    ) -> list[dict]:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             if category:
@@ -753,7 +755,7 @@ class HumanityEngine:
                 ).fetchall()
         return [dict(r) for r in rows]
 
-    def get_insights(self, limit: int = 10) -> List[Dict]:
+    def get_insights(self, limit: int = 10) -> list[dict]:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
@@ -762,7 +764,7 @@ class HumanityEngine:
             ).fetchall()
         return [dict(r) for r in rows]
 
-    def get_patterns(self, limit: int = 10) -> List[Dict]:
+    def get_patterns(self, limit: int = 10) -> list[dict]:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(

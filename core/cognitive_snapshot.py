@@ -5,12 +5,13 @@ Provides:
 - TransitionComparator: evaluates predictor accuracy against actual transitions
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Optional
 
-from drift.core.context_engine import CognitiveState, ContextWorker, CognitivePayload
+from drift.core.context_engine import CognitivePayload, CognitiveState, ContextWorker
 from drift.core.jsonl_logger import HardenedJsonlLogger
 
 
@@ -59,7 +60,7 @@ class SnapshotLogger:
         self,
         worker: ContextWorker[CognitivePayload],
         step: int,
-        extra_metadata: Optional[dict] = None,
+        extra_metadata: dict | None = None,
     ) -> None:
         """Extract a snapshot from the current worker."""
         payload = worker.current()

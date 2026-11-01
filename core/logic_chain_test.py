@@ -1,11 +1,13 @@
 """Tests for the logic chain reasoning system."""
 
+import logging
+
 from drift.core.logic_chain import (
+    ChainNavigator,
     ChainNode,
     LogicChain,
-    ChainNavigator,
-    _fingerprint_query,
     _extract_approach,
+    _fingerprint_query,
 )
 
 
@@ -140,7 +142,7 @@ class TestChainNavigator:
     def test_should_avoid_allows_new_approach(self):
         nav = ChainNavigator()
         nav.record_step("how to fix auth?", "check the JWT expiry", "valid", "failure")
-        avoid, reason = nav.should_avoid("how to fix auth?", "inspect database logs")
+        avoid, _reason = nav.should_avoid("how to fix auth?", "inspect database logs")
         assert not avoid
 
     def test_mark_resolved(self):
@@ -200,6 +202,9 @@ if __name__ == "__main__":
                     print(f"  PASS {cls.__name__}.{name}")
                     passed += 1
                 except Exception as exc:
+                    logging.getLogger(__name__).debug(
+                        "Operation failed; applying fallback", exc_info=True
+                    )
                     print(f"  FAIL {cls.__name__}.{name}: {exc}")
                     traceback.print_exc()
                     failed += 1

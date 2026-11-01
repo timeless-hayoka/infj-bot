@@ -9,6 +9,7 @@ Covers:
 
 from __future__ import annotations
 
+import logging
 import os
 import sys
 import tempfile
@@ -231,7 +232,7 @@ class TestContinuityVector:
 
 class TestDMUScoring:
     def test_compute_mps_basic(self):
-        from drift.core.dmu_scoring import compute_mps, _DMUMemory
+        from drift.core.dmu_scoring import _DMUMemory, compute_mps
 
         mem = _DMUMemory(
             content="test memory",
@@ -250,7 +251,7 @@ class TestDMUScoring:
         assert "final_mps" in mem.score_components
 
     def test_mps_components_sum_reasonably(self):
-        from drift.core.dmu_scoring import compute_mps, _DMUMemory
+        from drift.core.dmu_scoring import _DMUMemory, compute_mps
 
         mem = _DMUMemory(
             content="hello world",
@@ -275,6 +276,7 @@ class TestDMUScoring:
             assert 0.0 <= comps[key] <= 1.0, f"{key} out of range: {comps[key]}"
         # Final MPS should be weighted sum using actual weights from dmu_scoring.py
         from drift.core.dmu_scoring import MPS_WEIGHTS
+
         expected = (
             MPS_WEIGHTS["decay"] * comps["decay"]
             + MPS_WEIGHTS["reinf"] * comps["reinf"]
@@ -287,7 +289,7 @@ class TestDMUScoring:
         assert abs(score - expected) < 0.001
 
     def test_mps_freeze_novelty(self):
-        from drift.core.dmu_scoring import compute_mps, _DMUMemory
+        from drift.core.dmu_scoring import _DMUMemory, compute_mps
         from drift.core.experiment_control import ExperimentControl
 
         control = ExperimentControl()
@@ -312,7 +314,7 @@ class TestDMUScoring:
         assert w >= 0.0
 
     def test_hard_gate_old_weak_memory(self):
-        from drift.core.dmu_scoring import _is_hard_gated, _DMUMemory
+        from drift.core.dmu_scoring import _DMUMemory, _is_hard_gated
 
         old_mem = _DMUMemory(
             content="old",
@@ -327,7 +329,7 @@ class TestDMUScoring:
         assert not _is_hard_gated(fresh_mem)
 
     def test_contextual_similarity_range(self):
-        from drift.core.dmu_scoring import _normalized_contextual_sim, _DMUMemory
+        from drift.core.dmu_scoring import _DMUMemory, _normalized_contextual_sim
 
         mem = _DMUMemory(content="hello world test memory")
         state = {"topic": "hello world"}
@@ -335,7 +337,7 @@ class TestDMUScoring:
         assert 0.0 <= sim <= 1.0
 
     def test_state_alignment_range(self):
-        from drift.core.dmu_scoring import _state_alignment_score, _DMUMemory
+        from drift.core.dmu_scoring import _DMUMemory, _state_alignment_score
 
         mem = _DMUMemory(content="test", tags=["mood", "energy"])
         state = {"mood": 0.5, "energy": 0.3}
@@ -366,6 +368,9 @@ if __name__ == "__main__":
                     print(f"  PASS {cls.__name__}.{name}")
                     passed += 1
                 except Exception as exc:
+                    logging.getLogger(__name__).debug(
+                        "Operation failed; applying fallback", exc_info=True
+                    )
                     print(f"  FAIL {cls.__name__}.{name}: {exc}")
                     traceback.print_exc()
                     failed += 1

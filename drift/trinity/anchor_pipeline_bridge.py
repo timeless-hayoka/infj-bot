@@ -72,7 +72,9 @@ def _finding_to_sarif(finding: Any) -> SarifFinding:
     )
 
 
-def _local_signal_filter(findings: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], PreprocessStats]:
+def _local_signal_filter(
+    findings: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], PreprocessStats]:
     stats = PreprocessStats(ingested=len(findings), source="local_fallback")
     kept: list[dict[str, Any]] = []
     for item in findings:
@@ -85,7 +87,9 @@ def _local_signal_filter(findings: list[dict[str, Any]]) -> tuple[list[dict[str,
             "dead-code",
             "pragma",
         )
-        if any(m in title or any(m in label for label in labels) for m in noise_markers):
+        if any(
+            m in title or any(m in label for label in labels) for m in noise_markers
+        ):
             stats.signal_discarded += 1
             continue
         stats.signal_promoted += 1
@@ -132,9 +136,9 @@ def _run_anchor_stages(
             "confidence": norm.confidence,
         }
 
-    deduped = pipeline._stage_deduplicate(raw)  # noqa: SLF001
+    deduped = pipeline._stage_deduplicate(raw)
     stats.after_dedup = len(deduped)
-    filtered, counts = pipeline._stage_signal_filter(  # noqa: SLF001
+    filtered, counts = pipeline._stage_signal_filter(
         deduped,
         apply_filter=True,
     )

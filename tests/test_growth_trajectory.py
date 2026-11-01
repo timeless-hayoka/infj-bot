@@ -5,10 +5,9 @@ import tempfile
 from pathlib import Path
 
 import pytest
-
 from drift.core.plugins.growth_trajectory import (
-    GrowthTrajectory,
     CONSCIOUSNESS_STAGES,
+    GrowthTrajectory,
 )
 
 

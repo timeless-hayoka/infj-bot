@@ -2,15 +2,24 @@
 
 from __future__ import annotations
 
+import logging
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 from drift.trinity.adapters.sarif import load_sarif_file
 from drift.trinity.rule_normalizer import RuleNormalizer
 from drift.trinity.sarif_deduplicator import SarifDeduplicator
 from drift.trinity.sarif_models import EnrichedFinding, NormalizedRule, SarifFinding
-from drift.trinity.sarif_pipeline.semantic_clusterer import ClusterResult, SemanticClusterer, semantic_clustering_available
-from drift.trinity.sarif_pipeline.storage import ChromaFindingStore, init_sqlite, persist_sqlite
+from drift.trinity.sarif_pipeline.semantic_clusterer import (
+    ClusterResult,
+    SemanticClusterer,
+    semantic_clustering_available,
+)
+from drift.trinity.sarif_pipeline.storage import (
+    ChromaFindingStore,
+    init_sqlite,
+    persist_sqlite,
+)
 
 
 class SARIFProcessingPipeline:
@@ -42,7 +51,9 @@ class SARIFProcessingPipeline:
         if enable_semantic_clustering and semantic_clustering_available():
             self.clusterer = SemanticClusterer(embedding_model=embedding_model)
         elif enable_semantic_clustering:
-            self.clusterer = None  # deps missing; pipeline still runs without clustering
+            self.clusterer = (
+                None  # deps missing; pipeline still runs without clustering
+            )
 
         self._chroma_store: ChromaFindingStore | None = None
         if enable_chroma and self.chroma_directory is not None:
@@ -107,21 +118,30 @@ class SARIFProcessingPipeline:
             context = self._get_source_context(finding) if self.source_root else None
             cluster_meta = finding.properties.get("semantic_cluster") or {}
             cluster_id = cluster_meta.get("cluster_id")
-            base_summary = cluster_summaries.get(cluster_id, "") if cluster_id is not None else ""
+            base_summary = (
+                cluster_summaries.get(cluster_id, "") if cluster_id is not None else ""
+            )
 
             final_summary = base_summary
             if enable_llm_summaries and self.llm_summarizer and cluster_id is not None:
                 prompt = self._build_cluster_prompt(finding, cluster_id, base_summary)
                 try:
                     final_summary = self.llm_summarizer(prompt).strip()
-                except Exception as exc:  # pragma: no cover - LLM hook failures are non-fatal
+                except (
+                    Exception
+                ) as exc:  # pragma: no cover - LLM hook failures are non-fatal
+                    logging.getLogger(__name__).debug(
+                        "Operation failed; applying fallback", exc_info=True
+                    )
                     final_summary = base_summary or f"LLM summarization failed: {exc}"
 
             enriched = EnrichedFinding(
                 finding=finding,
                 normalized=norm,
                 source_context=context,
-                dedup_key=self.deduplicator.key_strategy(finding, strategy=self.dedupe_strategy),
+                dedup_key=self.deduplicator.key_strategy(
+                    finding, strategy=self.dedupe_strategy
+                ),
                 cluster_id=cluster_id,
                 cluster_summary=final_summary,
             )
@@ -141,14 +161,18 @@ class SARIFProcessingPipeline:
         source_path = Path(source_path)
         results: list[dict] = []
         for index, enriched in enumerate(enriched_list):
-            row = sarif_finding_to_trinity_dict(enriched.finding, index=index, source_path=source_path)
+            row = sarif_finding_to_trinity_dict(
+                enriched.finding, index=index, source_path=source_path
+            )
             row["cluster_id"] = enriched.cluster_id
             row["cluster_summary"] = enriched.cluster_summary
             row["source_context"] = enriched.source_context
             results.append(row)
         return results
 
-    def _build_cluster_prompt(self, finding: SarifFinding, cluster_id: int, base_summary: str) -> str:
+    def _build_cluster_prompt(
+        self, finding: SarifFinding, cluster_id: int, base_summary: str
+    ) -> str:
         category = (finding.normalized or {}).get("category", "Unknown")
         return (
             "You are a senior security researcher.\n"

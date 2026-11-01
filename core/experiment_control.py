@@ -16,8 +16,9 @@ Usage:
     control.end_run()
 """
 
-import warnings
+import logging
 import subprocess
+import warnings
 from contextlib import contextmanager
 
 from drift.core.run_logger import RunLogger
@@ -107,6 +108,9 @@ class ExperimentControl:
                 subprocess.check_output(["git", "rev-parse", "HEAD"]).decode().strip()
             )
         except Exception:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             git_hash = "unknown"
 
         RunLogger.get_instance().log_run_start(self.run_id, config, git_hash)

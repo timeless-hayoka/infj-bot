@@ -10,12 +10,13 @@ In practice we compute a rolling discrete approximation using exponential
 moving averages sampled on each background cycle.
 """
 
+import logging
 import sqlite3
 import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from drift.core.config import DATA_DIR
 
@@ -39,7 +40,7 @@ class DIISample:
 class DIITracker:
     """Computes and logs Drift-Integrated Information in real time."""
 
-    def __init__(self, db_path: Optional[Path] = None):
+    def __init__(self, db_path: Path | None = None):
         self.db_path = str(db_path or DII_DB)
         self._lock = threading.Lock()
         self._init_db()
@@ -58,7 +59,7 @@ class DIITracker:
         self.sample_count: int = 0
 
         # History for dashboard / API
-        self.recent_samples: List[DIISample] = []
+        self.recent_samples: list[DIISample] = []
         self.max_samples: int = 2880  # ~24 hours at 30s intervals
 
     def _init_db(self):
@@ -177,7 +178,9 @@ class DIITracker:
             if workspace.contents:
                 return min(1.0, max(c.salience for c in workspace.contents))
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
         return 0.5
 
     def _compute_integration(self, orchestrator, homeostasis) -> float:
@@ -187,10 +190,12 @@ class DIITracker:
         if orchestrator is not None:
             try:
                 recent = orchestrator.bus.get_recent(limit=20)
-                unique_sources = set(e.get("source", "") for e in recent)
+                unique_sources = {e.get("source", "") for e in recent}
                 active_count = len(unique_sources)
             except Exception:
-                pass
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
         # Normalize: 5+ active sources = high integration
         integration_proxy = min(1.0, active_count / 8.0)
 
@@ -200,7 +205,9 @@ class DIITracker:
             try:
                 coherence_bonus = homeostasis.needs.get("coherence", {}).current * 0.2
             except Exception:
-                pass
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
 
         return min(1.0, integration_proxy + coherence_bonus)
 
@@ -214,6 +221,9 @@ class DIITracker:
             # E = load scaled so 0 = equilibrium, >0 = deviation
             return max(0.0, load * 2.0)
         except Exception:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             return 0.5
 
     def _compute_drift(self, being, shadow) -> float:
@@ -231,7 +241,9 @@ class DIITracker:
                 radar_avg = sum(shadow.radar.values()) / max(len(shadow.radar), 1)
                 drift += radar_avg * 0.2
             except Exception:
-                pass
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
         return min(1.0, drift)
 
     def _log_sample(self, sample: DIISample):
@@ -257,14 +269,16 @@ class DIITracker:
                 )
                 conn.commit()
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
 
-    def get_current(self) -> Optional[DIISample]:
+    def get_current(self) -> DIISample | None:
         """Return the most recent DII sample."""
         with self._lock:
             return self.recent_samples[-1] if self.recent_samples else None
 
-    def get_trend(self, n: int = 20) -> Dict[str, Any]:
+    def get_trend(self, n: int = 20) -> dict[str, Any]:
         """Return trend summary over last n samples."""
         with self._lock:
             if not self.recent_samples:
@@ -305,7 +319,7 @@ class DIITracker:
                 "samples": len(self.recent_samples),
             }
 
-    def get_history(self, limit: int = 100) -> List[Dict[str, Any]]:
+    def get_history(self, limit: int = 100) -> list[dict[str, Any]]:
         """Return historical samples from DB for plotting."""
         try:
             with sqlite3.connect(self.db_path) as conn:
@@ -332,11 +346,14 @@ class DIITracker:
                     for r in reversed(rows)
                 ]
         except Exception:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             return []
 
 
 # Singleton instance
-_dii_instance: Optional[DIITracker] = None
+_dii_instance: DIITracker | None = None
 
 
 def get_dii_tracker() -> DIITracker:

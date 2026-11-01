@@ -16,10 +16,10 @@ This bridge:
 Usage: wrap memory.save() calls with bridge.validate_before_save()
 """
 
-from typing import Dict, Optional
+from typing import Optional
 
-from drift.core.shadow import get_shadow
 from drift.core.memory_reliability import get_reliability_engine
+from drift.core.shadow import get_shadow
 
 # Shadow markers that indicate projection when stored as user memories
 PROJECTION_MARKERS = {
@@ -34,7 +34,7 @@ PROJECTION_MARKERS = {
 
 def validate_before_save(
     memory_text: str, user_input: str = "", bot_response: str = ""
-) -> Dict:
+) -> dict:
     """Validate a memory before saving. Returns validation result with flags."""
     shadow = get_shadow()
 
@@ -105,7 +105,7 @@ def validate_before_save(
     return result
 
 
-def _extract_emotion(text: str) -> Optional[str]:
+def _extract_emotion(text: str) -> str | None:
     """Extract dominant emotion from text."""
     emotions = {
         "anger": ["angry", "mad", "furious", "rage", "irritated"],
@@ -123,7 +123,7 @@ def _extract_emotion(text: str) -> Optional[str]:
     return None
 
 
-def _extract_user_emotion(text: str) -> Optional[str]:
+def _extract_user_emotion(text: str) -> str | None:
     """Extract emotion attributed to user in memory text."""
     # Patterns like "Jude is angry", "user seems sad", "he feels afraid"
     patterns = [

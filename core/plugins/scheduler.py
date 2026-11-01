@@ -10,7 +10,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
 from drift.core.config import DATA_DIR
 
@@ -30,7 +30,7 @@ class ScheduledTask:
 
 
 class TaskScheduler:
-    def __init__(self, db_path: Optional[Path] = None):
+    def __init__(self, db_path: Path | None = None):
         self.db_path = str(db_path or SCHEDULER_DB)
         self._lock = threading.Lock()
         self._init_db()
@@ -79,7 +79,7 @@ class TaskScheduler:
             conn.commit()
         return tid
 
-    def list_pending(self, limit: int = 20) -> List[ScheduledTask]:
+    def list_pending(self, limit: int = 20) -> list[ScheduledTask]:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
@@ -88,7 +88,7 @@ class TaskScheduler:
             ).fetchall()
         return self._rows_to_tasks(rows)
 
-    def list_due(self) -> List[ScheduledTask]:
+    def list_due(self) -> list[ScheduledTask]:
         now = datetime.now().isoformat()
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
@@ -98,7 +98,7 @@ class TaskScheduler:
             ).fetchall()
         return self._rows_to_tasks(rows)
 
-    def get_task(self, tid: str) -> Optional[ScheduledTask]:
+    def get_task(self, tid: str) -> ScheduledTask | None:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             row = conn.execute("SELECT * FROM tasks WHERE id = ?", (tid,)).fetchone()
@@ -119,7 +119,7 @@ class TaskScheduler:
             conn.commit()
             return cur.rowcount > 0
 
-    def reschedule_recurring(self, task: ScheduledTask) -> Optional[str]:
+    def reschedule_recurring(self, task: ScheduledTask) -> str | None:
         """If a task is recurring, create the next instance and return its id."""
         if not task.recurring:
             return None
@@ -149,7 +149,7 @@ class TaskScheduler:
             conn.commit()
             return cur.rowcount
 
-    def _rows_to_tasks(self, rows) -> List[ScheduledTask]:
+    def _rows_to_tasks(self, rows) -> list[ScheduledTask]:
         return [self._row_to_task(r) for r in rows]
 
     def _row_to_task(self, row) -> ScheduledTask:
@@ -165,7 +165,7 @@ class TaskScheduler:
         )
 
 
-def parse_duration(text: str) -> Optional[timedelta]:
+def parse_duration(text: str) -> timedelta | None:
     """Parse strings like '30m', '2h', '1d', '1w' into a timedelta."""
     text = text.strip().lower()
     if not text:

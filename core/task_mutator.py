@@ -25,11 +25,10 @@ Integration: Called by TaskFlow.auto_evolve after Shadow promotion.
 Feeds mutation events back to shadow_governance.py for field update.
 """
 
-from dataclasses import dataclass, field
-from typing import Optional
-from enum import Enum
 import time
-
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Optional
 
 # ── Task Types ───────────────────────────────────────────────────────────────
 
@@ -69,7 +68,7 @@ class Task:
     task_type: TaskType = TaskType.TASK
     resonant_energy: ResonantEnergy = ResonantEnergy.MEDIUM
     last_resonance: float = field(default_factory=time.time)
-    insight_flag: Optional[str] = None
+    insight_flag: str | None = None
     shadow_history: list = field(default_factory=list)
     mutation_log: list = field(default_factory=list)
     intent_stability_history: list = field(default_factory=list)
@@ -383,7 +382,7 @@ def self_check():
 
     for test in tests:
         task = test["task"]
-        mutated, event, message = execute_mutation(
+        mutated, _event, message = execute_mutation(
             task=task,
             shadow_influence=test["shadow_influence"],
             current_mode=test["mode"],

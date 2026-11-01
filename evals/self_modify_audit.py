@@ -19,14 +19,14 @@ import sqlite3
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Optional
 
 from drift.core.config import SELF_MODIFY_AUDIT_DB as AUDIT_DB
 
 
 @dataclass
 class ModificationProposal:
-    id: Optional[int] = None
+    id: int | None = None
     timestamp: str = ""
     category: str = ""  # prompt | tool | guardrail | plugin | config
     description: str = ""
@@ -42,7 +42,7 @@ class ModificationProposal:
 
 @dataclass
 class ModificationEffect:
-    id: Optional[int] = None
+    id: int | None = None
     proposal_id: int = 0
     measurement_time: str = ""
     metric_name: str = (
@@ -63,9 +63,9 @@ class StabilityReport:
     stability_score: float = 1.0  # 0.0 = unstable, 1.0 = stable
     feedback_loop_risk: float = 0.0
     drift_velocity: float = 0.0  # modifications per day
-    warnings: List[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "timestamp": self.timestamp,
             "active_modifications": self.active_modifications,
@@ -81,7 +81,7 @@ class StabilityReport:
 class SelfModificationAudit:
     """Audit trail and stability monitor for self-modification."""
 
-    def __init__(self, db_path: Optional[Path] = None):
+    def __init__(self, db_path: Path | None = None):
         self.db_path = str(db_path or AUDIT_DB)
         Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
         self._init_db()
@@ -354,9 +354,7 @@ class SelfModificationAudit:
 
     # ── Queries ──
 
-    def get_proposals(
-        self, status: Optional[str] = None, limit: int = 50
-    ) -> List[Dict]:
+    def get_proposals(self, status: str | None = None, limit: int = 50) -> list[dict]:
         with sqlite3.connect(self.db_path) as conn:
             if status:
                 cursor = conn.execute(
@@ -372,7 +370,7 @@ class SelfModificationAudit:
             rows = cursor.fetchall()
         return [dict(zip(cols, row)) for row in rows]
 
-    def get_effects(self, proposal_id: int) -> List[Dict]:
+    def get_effects(self, proposal_id: int) -> list[dict]:
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.execute(
                 "SELECT * FROM modification_effects WHERE proposal_id = ? ORDER BY measurement_time",
@@ -382,7 +380,7 @@ class SelfModificationAudit:
             rows = cursor.fetchall()
         return [dict(zip(cols, row)) for row in rows]
 
-    def get_stability_history(self, limit: int = 30) -> List[Dict]:
+    def get_stability_history(self, limit: int = 30) -> list[dict]:
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.execute(
                 "SELECT * FROM stability_snapshots ORDER BY timestamp DESC LIMIT ?",
@@ -394,7 +392,7 @@ class SelfModificationAudit:
 
 
 # Singleton
-_audit_instance: Optional[SelfModificationAudit] = None
+_audit_instance: SelfModificationAudit | None = None
 
 
 def get_self_modify_audit() -> SelfModificationAudit:

@@ -7,7 +7,11 @@ from pathlib import Path
 
 import pytest
 
-from core.companion_plugin import companion_enabled, load_companion_config, require_companion
+from core.companion_plugin import (
+    companion_enabled,
+    load_companion_config,
+    require_companion,
+)
 from core.memory_schema import MemoryLayer, MemoryModality, MemoryRecord, merge_records
 from core.self_heal_guard import PatchProposal, SelfHealGuard
 from drift.trinity.anchor_pipeline_bridge import PreprocessStats, _local_signal_filter

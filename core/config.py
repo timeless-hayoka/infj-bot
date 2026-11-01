@@ -3,67 +3,159 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 from pathlib import Path
 
 try:
     from dotenv import load_dotenv
 except Exception:
+    logging.getLogger(__name__).debug(
+        "Operation failed; applying fallback", exc_info=True
+    )
 
     def load_dotenv(*_args, **_kwargs) -> bool:  # type: ignore[misc]
         return False
 
 
 from drift.config_adapter import (
-    CONFIG_DIR as CONFIG_DIR,
-    DATA_DIR as DATA_DIR,
-    DATA_ROOT as DATA_ROOT,
-    STATE_ROOT as STATE_ROOT,
-    SQLITE_DIR as SQLITE_DIR,
-    MEMORY_DIR as MEMORY_DIR,
-    CHROMA_DIR as CHROMA_DIR,
-    PERSIST_DIRECTORY as PERSIST_DIRECTORY,
-    COLD_STORAGE_DIR as COLD_STORAGE_DIR,
-    RECON_DIR as RECON_DIR,
-    EVALS_DIR as EVALS_DIR,
-    LOGS_DIR as LOGS_DIR,
-    PROJECT_ROOT as PROJECT_ROOT,
-    BEING_DB as BEING_DB,
-    BODY_DB as BODY_DB,
-    ARCHITECTURE_DB as ARCHITECTURE_DB,
-    ASPIRATIONS_DB as ASPIRATIONS_DB,
-    COGNITIVE_FACTORY_DB as COGNITIVE_FACTORY_DB,
-    CONSISTENCY_EVAL_DB as CONSISTENCY_EVAL_DB,
-    EMOTIONAL_FIELD_DB as EMOTIONAL_FIELD_DB,
-    EXPLORER_DB as EXPLORER_DB,
-    GOALS_DB as GOALS_DB,
-    GROWTH_DB as GROWTH_DB,
-    HEALTH_DB as HEALTH_DB,
-    HUMANITY_DB as HUMANITY_DB,
-    HOMEOSTASIS_DB as HOMEOSTASIS_DB,
-    IIT_DB as IIT_DB,
-    INTUITION_DB as INTUITION_DB,
-    METACOGNITION_DB as METACOGNITION_DB,
-    MODE_DISCRIMINATION_DB as MODE_DISCRIMINATION_DB,
-    PHYSICS_DB as PHYSICS_DB,
-    PREFS_DB as PREFS_DB,
-    PREDICTOR_DB as PREDICTOR_DB,
-    RELATIONSHIP_DB as RELATIONSHIP_DB,
-    RELIABILITY_DB as RELIABILITY_DB,
-    SCHEDULER_DB as SCHEDULER_DB,
-    SELF_EVAL_DB as SELF_EVAL_DB,
-    SELF_MODIFY_AUDIT_DB as SELF_MODIFY_AUDIT_DB,
-    SELF_MODIFY_DB as SELF_MODIFY_DB,
-    SHADOW_DB as SHADOW_DB,
-    TEMPORAL_DB as TEMPORAL_DB,
-    VALUES_DB as VALUES_DB,
-    WORKSPACE_DB as WORKSPACE_DB,
-    HISTORY_PATH as HISTORY_PATH,
-    TOOL_AUDIT_PATH as TOOL_AUDIT_PATH,
+    ARCHITECTURE_DB as ARCHITECTURE_DB,  # noqa: PLC0414 - intentional public compatibility export
+)
+from drift.config_adapter import (
+    ASPIRATIONS_DB as ASPIRATIONS_DB,  # noqa: PLC0414 - intentional public compatibility export
+)
+from drift.config_adapter import (
+    BEING_DB as BEING_DB,  # noqa: PLC0414 - intentional public compatibility export
+)
+from drift.config_adapter import (
+    BODY_DB as BODY_DB,  # noqa: PLC0414 - intentional public compatibility export
+)
+from drift.config_adapter import (
+    CHROMA_DIR as CHROMA_DIR,  # noqa: PLC0414 - intentional public compatibility export
+)
+from drift.config_adapter import (
+    COGNITIVE_FACTORY_DB as COGNITIVE_FACTORY_DB,  # noqa: PLC0414 - intentional public compatibility export
+)
+from drift.config_adapter import (
+    COLD_STORAGE_DIR as COLD_STORAGE_DIR,  # noqa: PLC0414 - intentional public compatibility export
+)
+from drift.config_adapter import (
+    CONFIG_DIR as CONFIG_DIR,  # noqa: PLC0414 - intentional public compatibility export
+)
+from drift.config_adapter import (
+    CONSISTENCY_EVAL_DB as CONSISTENCY_EVAL_DB,  # noqa: PLC0414 - intentional public compatibility export
+)
+from drift.config_adapter import (
+    DATA_DIR as DATA_DIR,  # noqa: PLC0414 - intentional public compatibility export
+)
+from drift.config_adapter import (
+    DATA_ROOT as DATA_ROOT,  # noqa: PLC0414 - intentional public compatibility export
+)
+from drift.config_adapter import (
+    EMOTIONAL_FIELD_DB as EMOTIONAL_FIELD_DB,  # noqa: PLC0414 - intentional public compatibility export
+)
+from drift.config_adapter import (
+    EVALS_DIR as EVALS_DIR,  # noqa: PLC0414 - intentional public compatibility export
+)
+from drift.config_adapter import (
+    EXPLORER_DB as EXPLORER_DB,  # noqa: PLC0414 - intentional public compatibility export
+)
+from drift.config_adapter import (
+    GOALS_DB as GOALS_DB,  # noqa: PLC0414 - intentional public compatibility export
+)
+from drift.config_adapter import (
+    GROWTH_DB as GROWTH_DB,  # noqa: PLC0414 - intentional public compatibility export
+)
+from drift.config_adapter import (
+    HEALTH_DB as HEALTH_DB,  # noqa: PLC0414 - intentional public compatibility export
+)
+from drift.config_adapter import (
+    HISTORY_PATH as HISTORY_PATH,  # noqa: PLC0414 - intentional public compatibility export
+)
+from drift.config_adapter import (
+    HOMEOSTASIS_DB as HOMEOSTASIS_DB,  # noqa: PLC0414 - intentional public compatibility export
+)
+from drift.config_adapter import (
+    HUMANITY_DB as HUMANITY_DB,  # noqa: PLC0414 - intentional public compatibility export
+)
+from drift.config_adapter import (
+    IIT_DB as IIT_DB,  # noqa: PLC0414 - intentional public compatibility export
+)
+from drift.config_adapter import (
+    INTUITION_DB as INTUITION_DB,  # noqa: PLC0414 - intentional public compatibility export
+)
+from drift.config_adapter import (
+    LOGS_DIR as LOGS_DIR,  # noqa: PLC0414 - intentional public compatibility export
+)
+from drift.config_adapter import (
+    MEMORY_DIR as MEMORY_DIR,  # noqa: PLC0414 - intentional public compatibility export
+)
+from drift.config_adapter import (
+    METACOGNITION_DB as METACOGNITION_DB,  # noqa: PLC0414 - intentional public compatibility export
+)
+from drift.config_adapter import (
+    MODE_DISCRIMINATION_DB as MODE_DISCRIMINATION_DB,  # noqa: PLC0414 - intentional public compatibility export
+)
+from drift.config_adapter import (
+    PERSIST_DIRECTORY as PERSIST_DIRECTORY,  # noqa: PLC0414 - intentional public compatibility export
+)
+from drift.config_adapter import (
+    PHYSICS_DB as PHYSICS_DB,  # noqa: PLC0414 - intentional public compatibility export
+)
+from drift.config_adapter import (
+    PREDICTOR_DB as PREDICTOR_DB,  # noqa: PLC0414 - intentional public compatibility export
+)
+from drift.config_adapter import (
+    PREFS_DB as PREFS_DB,  # noqa: PLC0414 - intentional public compatibility export
+)
+from drift.config_adapter import (
+    PROJECT_ROOT as PROJECT_ROOT,  # noqa: PLC0414 - intentional public compatibility export
 )
 
 # Load project-root .env first, then canonical config dir .env
 from drift.config_adapter import PROJECT_ROOT_PATH
+from drift.config_adapter import (
+    RECON_DIR as RECON_DIR,  # noqa: PLC0414 - intentional public compatibility export
+)
+from drift.config_adapter import (
+    RELATIONSHIP_DB as RELATIONSHIP_DB,  # noqa: PLC0414 - intentional public compatibility export
+)
+from drift.config_adapter import (
+    RELIABILITY_DB as RELIABILITY_DB,  # noqa: PLC0414 - intentional public compatibility export
+)
+from drift.config_adapter import (
+    SCHEDULER_DB as SCHEDULER_DB,  # noqa: PLC0414 - intentional public compatibility export
+)
+from drift.config_adapter import (
+    SELF_EVAL_DB as SELF_EVAL_DB,  # noqa: PLC0414 - intentional public compatibility export
+)
+from drift.config_adapter import (
+    SELF_MODIFY_AUDIT_DB as SELF_MODIFY_AUDIT_DB,  # noqa: PLC0414 - intentional public compatibility export
+)
+from drift.config_adapter import (
+    SELF_MODIFY_DB as SELF_MODIFY_DB,  # noqa: PLC0414 - intentional public compatibility export
+)
+from drift.config_adapter import (
+    SHADOW_DB as SHADOW_DB,  # noqa: PLC0414 - intentional public compatibility export
+)
+from drift.config_adapter import (
+    SQLITE_DIR as SQLITE_DIR,  # noqa: PLC0414 - intentional public compatibility export
+)
+from drift.config_adapter import (
+    STATE_ROOT as STATE_ROOT,  # noqa: PLC0414 - intentional public compatibility export
+)
+from drift.config_adapter import (
+    TEMPORAL_DB as TEMPORAL_DB,  # noqa: PLC0414 - intentional public compatibility export
+)
+from drift.config_adapter import (
+    TOOL_AUDIT_PATH as TOOL_AUDIT_PATH,  # noqa: PLC0414 - intentional public compatibility export
+)
+from drift.config_adapter import (
+    VALUES_DB as VALUES_DB,  # noqa: PLC0414 - intentional public compatibility export
+)
+from drift.config_adapter import (
+    WORKSPACE_DB as WORKSPACE_DB,  # noqa: PLC0414 - intentional public compatibility export
+)
 
 load_dotenv(PROJECT_ROOT_PATH / ".env", override=False)
 load_dotenv(CONFIG_DIR / ".env", override=False)
@@ -112,11 +204,17 @@ DRIFT_USE_GEMINI = os.getenv("DRIFT_USE_GEMINI", "false").lower() in (
 
 DRIFT_PRIMARY_MODEL = os.getenv(
     "DRIFT_PRIMARY_MODEL",
-    os.getenv("INFJ_PRIMARY_MODEL", DRIFT_OPENAI_MODEL if DRIFT_USE_OPENAI else "gemini-2.5-flash"),
+    os.getenv(
+        "INFJ_PRIMARY_MODEL",
+        DRIFT_OPENAI_MODEL if DRIFT_USE_OPENAI else "gemini-2.5-flash",
+    ),
 )
 DRIFT_CRITIC_MODEL = os.getenv(
     "DRIFT_CRITIC_MODEL",
-    os.getenv("INFJ_CRITIC_MODEL", DRIFT_OPENAI_MODEL if DRIFT_USE_OPENAI else "gemini-2.5-flash"),
+    os.getenv(
+        "INFJ_CRITIC_MODEL",
+        DRIFT_OPENAI_MODEL if DRIFT_USE_OPENAI else "gemini-2.5-flash",
+    ),
 )
 
 # Cost Guardrail — block known expensive tiers (exact / prefix match, not substring)
@@ -124,7 +222,7 @@ COST_GUARDRAIL_BLOCKED_MODELS = {
     "gemini-1.5-pro",
     "gemini-1.0-pro",
     "gemini-pro",
-    "gpt-4",           # legacy GPT-4, not gpt-4o-mini
+    "gpt-4",  # legacy GPT-4, not gpt-4o-mini
     "claude-3-opus",
     "claude-3.5-sonnet",
 }
@@ -141,17 +239,17 @@ def _model_is_cost_blocked(model: str) -> bool:
 
 for model in (DRIFT_PRIMARY_MODEL, DRIFT_CRITIC_MODEL):
     if _model_is_cost_blocked(model):
-            raise RuntimeError(
-                f"COST GUARDRAIL: Blocked expensive model '{model}'. "
-                f"Use '{DRIFT_OPENAI_MODEL}' or a local Ollama model."
-            )
+        raise RuntimeError(
+            f"COST GUARDRAIL: Blocked expensive model '{model}'. "
+            f"Use '{DRIFT_OPENAI_MODEL}' or a local Ollama model."
+        )
 
 _authorized_raw = os.getenv(
     "DRIFT_AUTHORIZED_TARGETS", os.getenv("INFJ_AUTHORIZED_TARGETS", "")
 )
-DEFAULT_AUTHORIZED_TARGETS = set(
+DEFAULT_AUTHORIZED_TARGETS = {
     d.strip().lower() for d in _authorized_raw.split(",") if d.strip()
-)
+}
 
 DRIFT_LOCAL_MODEL = os.getenv(
     "DRIFT_LOCAL_MODEL", os.getenv("INFJ_LOCAL_MODEL", "qwen2.5:1.5b")

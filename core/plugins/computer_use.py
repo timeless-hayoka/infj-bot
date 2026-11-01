@@ -6,11 +6,12 @@ and safety guardrails as the reconnaissance tools.
 
 import base64
 import json
+import logging
 import re
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Optional
 from urllib.parse import urlparse
 
 
@@ -22,6 +23,9 @@ class ComputerUseError(Exception):
 try:
     from playwright.sync_api import sync_playwright
 except Exception:
+    logging.getLogger(__name__).debug(
+        "Operation failed; applying fallback", exc_info=True
+    )
     sync_playwright = None
 
 # Playwright action types that do not require a page (e.g., wait)
@@ -40,17 +44,17 @@ MUTATING_ACTIONS = {
 
 # Sensitive URL patterns that always require explicit confirmation
 SENSITIVE_PATTERNS = [
-    re.compile(r"/login", re.I),
-    re.compile(r"/signin", re.I),
-    re.compile(r"/auth", re.I),
-    re.compile(r"/checkout", re.I),
-    re.compile(r"/payment", re.I),
-    re.compile(r"/bank", re.I),
-    re.compile(r"/transfer", re.I),
-    re.compile(r"/password", re.I),
-    re.compile(r"/delete", re.I),
-    re.compile(r"/remove", re.I),
-    re.compile(r"/api/.*key", re.I),
+    re.compile(r"/login", re.IGNORECASE),
+    re.compile(r"/signin", re.IGNORECASE),
+    re.compile(r"/auth", re.IGNORECASE),
+    re.compile(r"/checkout", re.IGNORECASE),
+    re.compile(r"/payment", re.IGNORECASE),
+    re.compile(r"/bank", re.IGNORECASE),
+    re.compile(r"/transfer", re.IGNORECASE),
+    re.compile(r"/password", re.IGNORECASE),
+    re.compile(r"/delete", re.IGNORECASE),
+    re.compile(r"/remove", re.IGNORECASE),
+    re.compile(r"/api/.*key", re.IGNORECASE),
 ]
 
 # Max screenshot size in bytes (5 MB)
@@ -65,9 +69,9 @@ class ComputerUseState:
     """Runtime state for ComputerUse."""
 
     active: bool = True
-    last_run: Optional[str] = None
+    last_run: str | None = None
     session_active: bool = False
-    current_url: Optional[str] = None
+    current_url: str | None = None
 
 
 class ComputerUse:
@@ -77,14 +81,14 @@ class ComputerUse:
     and safety guardrails.
     """
 
-    def __init__(self, db_path: Optional[str] = None):
+    def __init__(self, db_path: str | None = None):
         self.state = ComputerUseState()
 
     def cycle(self, context) -> None:
         """
         Called by the consciousness loop. Updates state based on active session.
         """
-        global _active_session
+
         self.state.last_run = datetime.now().isoformat()
         self.state.session_active = _active_session is not None
         if _active_session:
@@ -104,8 +108,8 @@ class ComputerUse:
 
     def run_actions(
         self,
-        actions: List[Dict[str, Any]],
-        authorized_domains: Optional[Set[str]] = None,
+        actions: list[dict[str, Any]],
+        authorized_domains: set[str] | None = None,
     ) -> str:
         return run_computer_actions(actions, authorized_domains)
 
@@ -150,24 +154,28 @@ class ComputerSession:
     browser: Any
     context: Any
     page: Any
-    authorized_domains: Set[str] = field(default_factory=set)
-    history: List[Dict[str, Any]] = field(default_factory=list)
+    authorized_domains: set[str] = field(default_factory=set)
+    history: list[dict[str, Any]] = field(default_factory=list)
 
     def close(self):
         try:
             if self.context:
                 self.context.close()
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
         try:
             if self.browser:
                 self.browser.close()
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
 
 
 # Module-level session cache (one active session at a time)
-_active_session: Optional[ComputerSession] = None
+_active_session: ComputerSession | None = None
 
 
 def _ensure_browser() -> ComputerSession:
@@ -193,7 +201,7 @@ def _domain_from_url(url: str) -> str:
     return urlparse(url).hostname or ""
 
 
-def _is_url_allowed(url: str, authorized: Set[str]) -> bool:
+def _is_url_allowed(url: str, authorized: set[str]) -> bool:
     domain = _domain_from_url(url).lower()
     if not domain:
         return False
@@ -206,13 +214,13 @@ def _is_url_allowed(url: str, authorized: Set[str]) -> bool:
     return False
 
 
-def _is_sensitive_action(action: Dict[str, Any]) -> bool:
+def _is_sensitive_action(action: dict[str, Any]) -> bool:
     """Check if an action involves a sensitive workflow."""
     action_type = action.get("type", "").lower()
     if action_type in {"type", "keypress"}:
         text = action.get("text", "")
         # Heuristic: typing passwords or API keys
-        if re.search(r"password|secret|token|api[_-]?key", text, re.I):
+        if re.search(r"password|secret|token|api[_-]?key", text, re.IGNORECASE):
             return True
     if action_type == "navigate":
         url = action.get("url", "")
@@ -230,7 +238,7 @@ def _truncate_screenshot(b64: str, max_bytes: int = MAX_SCREENSHOT_BYTES) -> str
     return "[screenshot too large: truncated by harness]"
 
 
-def _run_action(session: ComputerSession, action: Dict[str, Any]) -> Dict[str, Any]:
+def _run_action(session: ComputerSession, action: dict[str, Any]) -> dict[str, Any]:
     """Execute a single action and return result metadata."""
     action_type = action.get("type", "").lower()
     page = session.page
@@ -312,12 +320,7 @@ def _run_action(session: ComputerSession, action: Dict[str, Any]) -> Dict[str, A
         page.mouse.up()
         result["path_points"] = len(path)
 
-    elif action_type == "wait":
-        seconds = action.get("seconds", 2)
-        time.sleep(min(seconds, 30))
-        result["seconds"] = seconds
-
-    elif action_type == "sleep":
+    elif action_type == "wait" or action_type == "sleep":
         seconds = action.get("seconds", 2)
         time.sleep(min(seconds, 30))
         result["seconds"] = seconds
@@ -329,8 +332,8 @@ def _run_action(session: ComputerSession, action: Dict[str, Any]) -> Dict[str, A
 
 
 def run_computer_actions(
-    actions: List[Dict[str, Any]],
-    authorized_domains: Optional[Set[str]] = None,
+    actions: list[dict[str, Any]],
+    authorized_domains: set[str] | None = None,
 ) -> str:
     """Run a batch of computer-use actions and return a structured report."""
     if not actions:
@@ -338,7 +341,7 @@ def run_computer_actions(
 
     session = _ensure_browser()
     if authorized_domains is not None:
-        session.authorized_domains = set(d.lower() for d in authorized_domains if d)
+        session.authorized_domains = {d.lower() for d in authorized_domains if d}
 
     results = []
     errors = []
@@ -369,6 +372,9 @@ def run_computer_actions(
             results.append(result)
             session.history.append({"action": action, "result": result})
         except Exception as exc:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             errors.append(f"Action {i} failed: {exc}")
             results.append({"index": i, "status": "error", "error": str(exc)})
 
@@ -387,6 +393,9 @@ def run_computer_actions(
                 }
             )
         except Exception as exc:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             errors.append(f"Final screenshot failed: {exc}")
 
     report = {
@@ -409,6 +418,9 @@ def close_computer_session() -> str:
     try:
         _active_session.close()
     except Exception as exc:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return f"[error closing session: {exc}]"
     finally:
         _active_session = None

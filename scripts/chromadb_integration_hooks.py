@@ -9,15 +9,19 @@ operation will raise a clear error in that case.
 from __future__ import annotations
 
 import json
+import logging
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 try:
     import chromadb
     from chromadb.config import Settings
     from chromadb.utils import embedding_functions
 except Exception as exc:  # pragma: no cover - exercised only when deps exist
+    logging.getLogger(__name__).debug(
+        "Operation failed; applying fallback", exc_info=True
+    )
     chromadb = None  # type: ignore[assignment]
     Settings = None  # type: ignore[assignment]
     embedding_functions = None  # type: ignore[assignment]
@@ -34,6 +38,7 @@ ROOT = Path(__file__).resolve().parents[1]
 for candidate in (str(SCRIPTS_DIR), str(ROOT)):
     if candidate not in sys.path:
         sys.path.insert(0, candidate)
+
 
 class ChromaMemoryStore:
     """Reusable persistent ChromaDB wrapper for DRIFT-style memory stores."""
@@ -54,8 +59,10 @@ class ChromaMemoryStore:
             path=persist_directory,
             settings=Settings(anonymized_telemetry=False),
         )
-        self.embedding_function = embedding_functions.SentenceTransformerEmbeddingFunction(
-            model_name=embedding_model_name
+        self.embedding_function = (
+            embedding_functions.SentenceTransformerEmbeddingFunction(
+                model_name=embedding_model_name
+            )
         )
         self.collection = self.client.get_or_create_collection(
             name=collection_name,
@@ -67,9 +74,9 @@ class ChromaMemoryStore:
         self,
         query_text: str,
         n_results: int = 50,
-        where: Optional[Dict[str, Any]] = None,
-        include: Optional[List[str]] = None,
-    ) -> Dict[str, Any]:
+        where: dict[str, Any] | None = None,
+        include: list[str] | None = None,
+    ) -> dict[str, Any]:
         include = include or ["documents", "metadatas", "embeddings", "distances"]
         return self.collection.query(
             query_texts=[query_text],
@@ -86,7 +93,7 @@ def get_memory_store() -> ChromaMemoryStore:
     return get_chroma_store()
 
 
-def load_dataset(dataset_path: str | Path) -> List[Dict[str, Any]]:
+def load_dataset(dataset_path: str | Path) -> list[dict[str, Any]]:
     """Load benchmark cases from a list JSON or a {'cases': [...]} document."""
     path = Path(dataset_path).expanduser().resolve()
     if not path.exists():
@@ -108,7 +115,7 @@ def load_dataset(dataset_path: str | Path) -> List[Dict[str, Any]]:
     )
 
 
-def get_query_embedding(query: str) -> List[float]:
+def get_query_embedding(query: str) -> list[float]:
     """Embed the query using the same model attached to the collection."""
     store = get_memory_store()
     embedding = store.embedding_function([query])[0]
@@ -116,22 +123,25 @@ def get_query_embedding(query: str) -> List[float]:
 
 
 def get_candidates_for_case(
-    case: Dict[str, Any],
+    case: dict[str, Any],
     *,
     n_results: int | None = None,
     apply_metadata_filter: bool = True,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """Retrieve Chroma-backed candidate memories for a labeled benchmark case."""
     try:
         from memory_store_config import get_config
     except Exception:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         limit = n_results if n_results is not None else 50
     else:
         cfg = get_config()
         limit = n_results if n_results is not None else cfg.default_n_results
 
     store = get_memory_store()
-    where_filter: Optional[Dict[str, Any]] = None
+    where_filter: dict[str, Any] | None = None
     if apply_metadata_filter:
         category = case.get("category")
         if category:
@@ -149,7 +159,7 @@ def get_candidates_for_case(
     metadatas = chroma_results.get("metadatas", [[]])[0]
     embeddings = chroma_results.get("embeddings", [[]])[0]
 
-    candidates: List[Dict[str, Any]] = []
+    candidates: list[dict[str, Any]] = []
     for idx, mem_id in enumerate(ids):
         meta = metadatas[idx] if idx < len(metadatas) and metadatas else {}
         emb = embeddings[idx] if idx < len(embeddings) and embeddings else []
@@ -162,7 +172,9 @@ def get_candidates_for_case(
             "salience": float(meta.get("salience", 0.5)),
             "emotional_valence": float(meta.get("emotional_valence", 0.0)),
             "emotional_intensity": float(meta.get("emotional_intensity", 0.5)),
-            "retention_score": float(meta.get("retention_score", meta.get("retention_decay", 0.8))),
+            "retention_score": float(
+                meta.get("retention_score", meta.get("retention_decay", 0.8))
+            ),
             "trust_level": float(meta.get("trust_level", 0.75)),
             "has_conflict": bool(meta.get("has_conflict", False)),
             "conflict_status": meta.get("conflict_status", "none"),

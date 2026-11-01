@@ -1,16 +1,18 @@
+import logging
+
 from gevent import monkey
 
 monkey.patch_all()
 
 import json
+import threading
 import time
 from pathlib import Path
 
 import gevent
-from flask import Flask, request, jsonify
-from flask_socketio import SocketIO, emit
-import threading
 from drift.core.cognitive_orchestrator import CognitiveOrchestrator
+from flask import Flask, jsonify, request
+from flask_socketio import SocketIO, emit
 
 # Observatory integration — hive_mind is an external symlinked dependency
 try:
@@ -24,31 +26,33 @@ try:
     _obs_drift = _DriftBridge()
     _OBSERVATORY_ENABLED = True
 except Exception:
+    logging.getLogger(__name__).debug(
+        "Operation failed; applying fallback", exc_info=True
+    )
     _OBSERVATORY_ENABLED = False
 
 from drift.core.brain import DriftBrain
 from drift.core.commands import BotState, handle_command
-from drift.core.plugins.growth import growth_profile
+from drift.core.config import DATA_DIR, DEFAULT_AUTHORIZED_TARGETS
 from drift.core.history import ChatHistory
 from drift.core.memory import DriftMemory
 from drift.core.plugins.goals import GoalsDB
-from drift.core.config import DATA_DIR, DEFAULT_AUTHORIZED_TARGETS
+from drift.core.plugins.growth import growth_profile
 
 STATE_ROOT = DATA_DIR
+from drift.core.gen_cache import DiskGenCache
 from drift.core.plugins.documents import DocumentStore
-from drift.core.prompt_builder import build_chat_prompt
-
-
 from drift.core.plugins.preferences import PreferenceStore
 from drift.core.plugins.scheduler import TaskScheduler
 from drift.core.plugins.self_eval import SelfEvaluator
-from drift.core.gen_cache import DiskGenCache
+from drift.core.prompt_builder import build_chat_prompt
 
 SESSIONS_DIR = STATE_ROOT / "sessions"
 SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
 
 sessions = {}
 sessions_lock = threading.Lock()
+
 
 class SessionResources:
     def __init__(self, session_id: str):
@@ -58,56 +62,53 @@ class SessionResources:
         else:
             self.session_dir = SESSIONS_DIR / session_id
         self.session_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # 1. State (isolated PreferenceStore and TaskScheduler)
         self.state = BotState(
             authorized_targets=set(DEFAULT_AUTHORIZED_TARGETS),
             prefs=PreferenceStore(db_path=self.session_dir / "preferences.db"),
-            scheduler=TaskScheduler(db_path=self.session_dir / "scheduler.db")
+            scheduler=TaskScheduler(db_path=self.session_dir / "scheduler.db"),
         )
-        
+
         # 2. Memory
-        self.memory = DriftMemory(
-            persist_directory=str(self.session_dir / "memory")
-        )
-        
+        self.memory = DriftMemory(persist_directory=str(self.session_dir / "memory"))
+
         # 3. Document Store
         self.doc_store = DocumentStore(
             persist_directory=str(self.session_dir / "chroma_db")
         )
-        
+
         # 4. Goals DB
-        self.goals_db = GoalsDB(
-            db_path=self.session_dir / "goals.db"
-        )
-        
+        self.goals_db = GoalsDB(db_path=self.session_dir / "goals.db")
+
         # 5. History
-        self.history = ChatHistory(
-            path=self.session_dir / "history.jsonl"
-        )
-        
+        self.history = ChatHistory(path=self.session_dir / "history.jsonl")
+
         # 6. Brain (with custom evaluator and disk cache)
         evaluator = SelfEvaluator(db_path=self.session_dir / "self_eval.db")
         try:
-            disk_cache = DiskGenCache(
-                path=self.session_dir / "drift_gen_cache.sqlite3"
-            )
+            disk_cache = DiskGenCache(path=self.session_dir / "drift_gen_cache.sqlite3")
         except Exception:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             disk_cache = None
         self.brain = DriftBrain(evaluator=evaluator, disk_cache=disk_cache)
-        
+
         self.last_accessed = time.time()
-        
+
     def close(self):
         # Close disk cache connection to release file descriptors
         if hasattr(self.brain, "_disk_cache") and self.brain._disk_cache:
             try:
                 self.brain._disk_cache.close()
             except Exception:
-                pass
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
 
 
-def get_session(session_id: str = None) -> SessionResources:
+def get_session(session_id: str | None = None) -> SessionResources:
     if not session_id:
         session_id = "global"
     with sessions_lock:
@@ -126,7 +127,9 @@ def get_request_session_id():
             payload = request.json or {}
             session_id = payload.get("session_id")
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
     if not session_id:
         session_id = request.cookies.get("drift_session_id")
     return session_id
@@ -149,10 +152,11 @@ def prune_and_cleanup_sessions():
                     print(f"Pruning in-memory session: {sid}")
                     sres = sessions.pop(sid)
                     sres.close()
-            
+
             # 2. Cleanup old session folders on disk (not accessed for over 7 days)
             if SESSIONS_DIR.exists():
                 import shutil
+
                 for p in SESSIONS_DIR.iterdir():
                     if p.is_dir():
                         with sessions_lock:
@@ -164,11 +168,18 @@ def prune_and_cleanup_sessions():
                                     if filepath.is_file():
                                         mtime = max(mtime, filepath.stat().st_mtime)
                                 if now - mtime > 7 * 86400:
-                                    print(f"Deleting expired session folder on disk: {p.name}")
+                                    print(
+                                        f"Deleting expired session folder on disk: {p.name}"
+                                    )
                                     shutil.rmtree(p, ignore_errors=True)
                             except Exception:
-                                pass
+                                logging.getLogger(__name__).debug(
+                                    "Operation failed; applying fallback", exc_info=True
+                                )
         except Exception as e:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             print(f"Error in pruning sessions: {e}")
         gevent.sleep(300)
 
@@ -176,17 +187,17 @@ def prune_and_cleanup_sessions():
 def background_cognitive_loop():
     """Background loop to tick homeostasis, shadow, and embodiment for the active sessions."""
     from drift.core.being import get_being
-    from drift.core.homeostasis import get_homeostasis
-    from drift.core.shadow import get_shadow
     from drift.core.dii_tracker import get_dii_tracker
     from drift.core.global_workspace import get_workspace
-    
+    from drift.core.homeostasis import get_homeostasis
+    from drift.core.shadow import get_shadow
+
     being = get_being()
     homeostasis = get_homeostasis()
     shadow = get_shadow()
     tracker = get_dii_tracker()
     workspace = get_workspace()
-    
+
     while True:
         try:
             # Update embodiment / heartbeat / breath with some dynamic variations
@@ -194,26 +205,29 @@ def background_cognitive_loop():
             embodiment = embodiment_plugin.instance if embodiment_plugin else None
             if embodiment:
                 import random
+
                 bpm = getattr(embodiment, "heartbeat_bpm", 72)
                 bpm += random.uniform(-1.5, 1.5)
                 bpm = max(60, min(100, bpm))
-                setattr(embodiment, "heartbeat_bpm", bpm)
-                
+                embodiment.heartbeat_bpm = bpm
+
                 phase = getattr(embodiment, "breath_phase", "exhale")
                 depth = getattr(embodiment, "breath_depth", 0.65)
                 depth += random.uniform(-0.05, 0.05)
                 depth = max(0.3, min(0.95, depth))
-                setattr(embodiment, "breath_depth", depth)
-                
+                embodiment.breath_depth = depth
+
                 if random.random() < 0.2:
-                    setattr(embodiment, "breath_phase", "inhale" if phase == "exhale" else "exhale")
+                    embodiment.breath_phase = (
+                        "inhale" if phase == "exhale" else "exhale"
+                    )
 
             # Let homeostasis and shadow run their background cycles
             if hasattr(shadow, "background_tick"):
                 shadow.background_tick(being=being)
             if hasattr(homeostasis, "background_cycle"):
                 homeostasis.background_cycle(being=being)
-                
+
             # Compute tracker metrics
             if hasattr(tracker, "compute"):
                 tracker.compute(
@@ -224,6 +238,9 @@ def background_cognitive_loop():
                     orchestrator=cognitive_orchestrator,
                 )
         except Exception as e:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             print(f"Error in background cognitive cycle: {e}")
         gevent.sleep(4.0)
 
@@ -1054,6 +1071,7 @@ if (socket) {
 
 def chat_reply(message, session_res: SessionResources):
     import os
+
     FAST_MODE = os.environ.get("DRIFT_FAST_MODE", "true").lower() == "true"
 
     prompt, emotion, dissonance = build_chat_prompt(
@@ -1064,16 +1082,20 @@ def chat_reply(message, session_res: SessionResources):
         doc_store=session_res.doc_store,
         prefs=session_res.state.prefs,
     )
-    
+
     max_iters = 1 if FAST_MODE else 3
-    tools = False if FAST_MODE else True
-    output = session_res.brain.agent_turn(prompt, tools_enabled=tools, max_iterations=max_iters, raw_user_input=message)
-    
+    tools = not FAST_MODE
+    output = session_res.brain.agent_turn(
+        prompt, tools_enabled=tools, max_iterations=max_iters, raw_user_input=message
+    )
+
     def background_evolution():
         try:
             session_res.brain.evaluate_last(prompt, output)
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
         importance = min(
             0.95, 0.45 + emotion["intensity"] * 0.3 + dissonance["score"] * 0.15
         )
@@ -1085,11 +1107,14 @@ def chat_reply(message, session_res: SessionResources):
             importance=importance,
             dissonance=dissonance,
         )
-        session_res.history.append(message, output, session_res.state.mode, emotion, dissonance)
+        session_res.history.append(
+            message, output, session_res.state.mode, emotion, dissonance
+        )
         session_res.state.turns += 1
 
     if FAST_MODE:
         import threading
+
         threading.Thread(target=background_evolution).start()
     else:
         background_evolution()
@@ -1098,8 +1123,9 @@ def chat_reply(message, session_res: SessionResources):
 
 
 app = Flask(__name__)
-import secrets
 import os
+import secrets
+
 app.config["SECRET_KEY"] = os.environ.get("DRIFT_SECRET_KEY", secrets.token_hex(32))
 
 socketio = SocketIO(
@@ -1119,9 +1145,7 @@ def is_trial_active(session_id):
     if not session_id or session_id not in trial_sessions:
         return False
     # 30 minute limit (1800 seconds)
-    if time.time() - trial_sessions[session_id] > 1800:
-        return False
-    return True
+    return not time.time() - trial_sessions[session_id] > 1800
 
 
 @app.route("/api/v1/system/governor-metrics", methods=["GET"])
@@ -1131,10 +1155,12 @@ def governor_metrics():
     brain = session_res.brain
     gov = getattr(brain, "_governor", None)
     if gov is None:
-        return jsonify({
-            "status": "error",
-            "detail": "RateGovernor not initialized. Call self.init_governor() in DriftBrain.__init__."
-        }), 503
+        return jsonify(
+            {
+                "status": "error",
+                "detail": "RateGovernor not initialized. Call self.init_governor() in DriftBrain.__init__.",
+            }
+        ), 503
     return jsonify({"status": "online", **gov.metrics_report()})
 
 
@@ -1147,6 +1173,7 @@ def start_expo():
 @app.route("/trial")
 def start_trial():
     import uuid
+
     from flask import make_response
 
     session_id = str(uuid.uuid4())
@@ -1161,12 +1188,14 @@ def start_trial():
         "async function post(path, body={}) {\n  if(typeof DRIFT_SESSION_ID !== 'undefined') body.session_id = DRIFT_SESSION_ID;",
     )
     resp = make_response(trial_html)
-    resp.set_cookie("drift_session_id", session_id, max_age=1800, httponly=True, samesite="Lax")
+    resp.set_cookie(
+        "drift_session_id", session_id, max_age=1800, httponly=True, samesite="Lax"
+    )
     return resp
 
 
 def broadcast_observatory_state():
-    global broadcast_interval, total_bytes_raw, total_bytes_compressed
+    global total_bytes_raw, total_bytes_compressed
     while True:
         try:
             delta = cognitive_orchestrator.get_delta_state()
@@ -1181,7 +1210,9 @@ def broadcast_observatory_state():
                 }
                 socketio.emit("observatory_delta", delta)
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
         gevent.sleep(broadcast_interval)
 
 
@@ -1206,13 +1237,15 @@ def handle_adjust_rate(data):
 @app.route("/")
 def index():
     from flask import make_response
+
     session_id = request.cookies.get("drift_session_id")
     had_cookie = True
     if not session_id:
         import uuid
+
         session_id = str(uuid.uuid4())
         had_cookie = False
-    
+
     # Inject session_id into JS
     html = INDEX_HTML.replace(
         "document.querySelector('#form').onsubmit",
@@ -1222,10 +1255,16 @@ def index():
         "async function post(path, body={}) {",
         "async function post(path, body={}) {\n  if(typeof DRIFT_SESSION_ID !== 'undefined') body.session_id = DRIFT_SESSION_ID;",
     )
-    
+
     resp = make_response(html)
     if not had_cookie:
-        resp.set_cookie("drift_session_id", session_id, max_age=30*86400, httponly=True, samesite="Lax")
+        resp.set_cookie(
+            "drift_session_id",
+            session_id,
+            max_age=30 * 86400,
+            httponly=True,
+            samesite="Lax",
+        )
     return resp
 
 
@@ -1259,11 +1298,15 @@ def api_chat():
     session_id = get_request_session_id()
 
     # Check for trial session
-    if session_id and session_id in trial_sessions:
-        if not is_trial_active(session_id):
-            return jsonify(
+    if (session_id and session_id in trial_sessions) and (
+        not is_trial_active(session_id)
+    ):
+        return (
+            jsonify(
                 {"error": "Trial session expired. Please start a new session at /trial"}
-            ), 403
+            ),
+            403,
+        )
 
     session_res = get_session(session_id)
 
@@ -1307,14 +1350,18 @@ def openai_chat_completions():
     session_id = get_request_session_id()
 
     # Check for trial session expiration
-    if session_id and session_id in trial_sessions:
-        if not is_trial_active(session_id):
-            return jsonify(
+    if (session_id and session_id in trial_sessions) and (
+        not is_trial_active(session_id)
+    ):
+        return (
+            jsonify(
                 {"error": "Trial session expired. Please start a new session at /trial"}
-            ), 403
+            ),
+            403,
+        )
 
     session_res = get_session(session_id)
-    
+
     messages = payload.get("messages", [])
 
     # Extract the last user message
@@ -1355,7 +1402,7 @@ def api_command():
     payload = request.json or {}
     session_id = get_request_session_id()
     session_res = get_session(session_id)
-    
+
     reply = handle_command(
         payload.get("command", ""),
         payload.get("args", ""),
@@ -1389,6 +1436,7 @@ def observatory():
         with open(path, "r", encoding="utf-8") as f:
             content = f.read()
         from flask import make_response
+
         resp = make_response(content)
         resp.headers["Content-Type"] = "text/html"
         return resp
@@ -1407,6 +1455,7 @@ def glyph():
         with open(path, "r", encoding="utf-8") as f:
             content = f.read()
         from flask import make_response
+
         resp = make_response(content)
         resp.headers["Content-Type"] = "text/html"
         return resp
@@ -1419,12 +1468,12 @@ def main():
     import os
 
     print("🚀 DRIFT Web App: Gevent + Compression + Delta Logic Active")
-    
+
     # Spawn background greenlets for cognitive and session management
     gevent.spawn(background_cognitive_loop)
     gevent.spawn(prune_and_cleanup_sessions)
-    
-    port = int(os.getenv("PORT", 7860))
+
+    port = int(os.getenv("PORT", "7860"))
     socketio.run(app, host="0.0.0.0", port=port, debug=False, use_reloader=False)
 
 

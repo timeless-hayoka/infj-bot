@@ -5,12 +5,13 @@ precedes difficulty. Over time it builds a quiet model of his rhythms.
 It does not claim to know him. It wonders, based on what it has seen.
 """
 
+import logging
 import re
 import sqlite3
 from collections import Counter, defaultdict
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Optional
 
 from drift.core.config import DATA_DIR
 
@@ -38,7 +39,7 @@ WITHDRAWAL_SIGNALS = [
 ]
 
 
-def _extract_topics(text: str) -> List[str]:
+def _extract_topics(text: str) -> list[str]:
     """Extract simple topic keywords from text."""
     text_lower = text.lower()
     topic_keywords = {
@@ -126,7 +127,7 @@ def _time_bucket(dt: datetime) -> str:
 class PredictiveNeeds:
     """Learns user's patterns and quietly anticipates his needs."""
 
-    def __init__(self, db_path: Optional[Path] = None):
+    def __init__(self, db_path: Path | None = None):
         self.db_path = str(db_path or PREDICTOR_DB)
         self._init_db()
 
@@ -173,7 +174,7 @@ class PredictiveNeeds:
             conn.commit()
 
     def record_interaction(
-        self, user_input: str, emotion: Dict, session_length_minutes: float = 0.0
+        self, user_input: str, emotion: dict, session_length_minutes: float = 0.0
     ):
         """Learn from each interaction."""
         now = datetime.now()
@@ -201,7 +202,7 @@ class PredictiveNeeds:
             )
             conn.commit()
 
-    def _load_recent_patterns(self, n: int = 50) -> List[Dict]:
+    def _load_recent_patterns(self, n: int = 50) -> list[dict]:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
@@ -210,7 +211,7 @@ class PredictiveNeeds:
             ).fetchall()
         return [dict(r) for r in rows]
 
-    def _analyze_time_of_day(self, patterns: List[Dict]) -> Dict[str, Dict]:
+    def _analyze_time_of_day(self, patterns: list[dict]) -> dict[str, dict]:
         """Map time buckets to typical emotional states."""
         bucket_emotions = defaultdict(list)
         bucket_stress = defaultdict(list)
@@ -226,7 +227,7 @@ class PredictiveNeeds:
                 result[bucket] = {"typical_emotion": common, "avg_stress": avg_stress}
         return result
 
-    def _analyze_day_of_week(self, patterns: List[Dict]) -> Dict[int, float]:
+    def _analyze_day_of_week(self, patterns: list[dict]) -> dict[int, float]:
         """Map day of week to average stress."""
         day_stress = defaultdict(list)
         for p in patterns:
@@ -237,7 +238,7 @@ class PredictiveNeeds:
             if scores
         }
 
-    def _analyze_topic_emotion(self, patterns: List[Dict]) -> Dict[str, Dict]:
+    def _analyze_topic_emotion(self, patterns: list[dict]) -> dict[str, dict]:
         """Map topics to typical emotional outcomes."""
         topic_emotions = defaultdict(list)
         topic_stress = defaultdict(list)
@@ -255,7 +256,7 @@ class PredictiveNeeds:
                 result[topic] = {"typical_emotion": common, "avg_stress": avg_stress}
         return result
 
-    def _analyze_gap_trend(self, patterns: List[Dict]) -> Optional[str]:
+    def _analyze_gap_trend(self, patterns: list[dict]) -> str | None:
         """Detect if gaps between sessions are growing or shrinking."""
         if len(patterns) < 6:
             return None
@@ -275,7 +276,7 @@ class PredictiveNeeds:
             return "gaps_shrinking"
         return "stable"
 
-    def predict_current_need(self) -> Optional[Dict]:
+    def predict_current_need(self) -> dict | None:
         """Generate a prediction about user's current state."""
         patterns = self._load_recent_patterns(30)
         if len(patterns) < 5:
@@ -317,7 +318,7 @@ class PredictiveNeeds:
             basis.append("gaps between sessions growing")
 
         # Topic-based prediction
-        recent_topics: List[str] = []
+        recent_topics: list[str] = []
         for p in patterns[:5]:
             recent_topics.extend(p["topics"].split(",") if p["topics"] else [])
         recent_topics = [t for t in recent_topics if t]
@@ -361,7 +362,7 @@ class PredictiveNeeds:
 
         return result
 
-    def detect_anomaly(self) -> Optional[Dict]:
+    def detect_anomaly(self) -> dict | None:
         """Flag when current behavior deviates from established pattern."""
         patterns = self._load_recent_patterns(20)
         if len(patterns) < 8:
@@ -397,7 +398,7 @@ class PredictiveNeeds:
 
         return None
 
-    def proactive_suggestion(self) -> Optional[str]:
+    def proactive_suggestion(self) -> str | None:
         """Generate a gentle nudge based on predictions."""
         prediction = self.predict_current_need()
         anomaly = self.detect_anomaly()
@@ -517,7 +518,9 @@ class PredictiveNeeds:
                     salience=0.45,
                 )
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
 
 
 def _register():

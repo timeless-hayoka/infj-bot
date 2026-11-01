@@ -23,11 +23,12 @@ Retry policy:
   Non-timeout errors fail fast — no retry
 """
 
+import logging
 import os
 import time
+from collections.abc import Callable
 from functools import wraps
-from typing import Optional, Callable
-
+from typing import Optional
 
 # ── Timeout Configuration ────────────────────────────────────────────────────
 
@@ -197,7 +198,7 @@ def generate_with_retry(
     prompt_text: str,
     history_text: str,
     mode: str = "standard",
-    llm_generate_fn: Optional[Callable] = None,
+    llm_generate_fn: Callable | None = None,
 ) -> dict:
     """
     Main generation entry point with retry and dynamic timeout.
@@ -328,6 +329,9 @@ def self_check():
         print(f"  Duration: {result['duration_sec']}s")
         print(f"  {'[OK]' if pipeline_ok else '[FAIL]'}")
     except Exception as e:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         all_pass = False
         print(f"  [FAIL] Pipeline error: {e}")
 

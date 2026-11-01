@@ -8,11 +8,11 @@ from __future__ import annotations
 
 import os
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 _MIN_INTERVAL = float(os.getenv("INFJ_HOST_LOAD_INTERVAL_SEC", "2.5"))
 
-_cache: Optional[Dict[str, Any]] = None
+_cache: dict[str, Any] | None = None
 _last_mono: float = 0.0
 _cpu_warmed: bool = False
 
@@ -25,7 +25,7 @@ def _stress_from_samples(cpu_percent: float, memory_percent: float) -> float:
     return max(0.0, min(1.0, c * 0.42 + m * 0.58))
 
 
-def sample_host_load(*, force: bool = False) -> Dict[str, Any]:
+def sample_host_load(*, force: bool = False) -> dict[str, Any]:
     """
     Return a cached snapshot of host load.
 
@@ -59,7 +59,7 @@ def sample_host_load(*, force: bool = False) -> Dict[str, Any]:
     try:
         import psutil
     except ImportError:
-        out: Dict[str, Any] = {
+        out: dict[str, Any] = {
             "ok": False,
             "stress": 0.0,
             "cpu_percent": None,

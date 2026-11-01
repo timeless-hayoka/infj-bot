@@ -3,41 +3,45 @@
 import asyncio
 import json
 import logging
-import time
-import traceback
 import os
 import secrets
+import threading
+import time
+import traceback
 from contextlib import asynccontextmanager
+from datetime import UTC
 from pathlib import Path
 from types import SimpleNamespace
 
-from drift.config_adapter import PROJECT_ROOT
-
-import threading
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
+from drift.config_adapter import PROJECT_ROOT
+
 try:
-    from core.generation import (
-        SystemOverload,
-        RequestCancelled,
-        RequestDeadlineExceeded,
-        RequestBudget,
-    )
     from core.brain import DriftBrain
+    from core.cognitive_orchestrator import CognitiveOrchestrator, IntentBlockedError
     from core.commands import BotState, handle_command
     from core.config import DEFAULT_AUTHORIZED_TARGETS
+    from core.generation import (
+        RequestBudget,
+        RequestCancelled,
+        RequestDeadlineExceeded,
+        SystemOverload,
+    )
+    from core.history import ChatHistory
+    from core.memory import DriftMemory
+    from core.phi_council import COUNCIL_MAPPING
     from core.plugins.documents import DocumentStore
     from core.plugins.goals import GoalsDB
     from core.plugins.growth import growth_profile
-    from core.history import ChatHistory
-    from core.memory import DriftMemory
     from core.prompt_builder import build_chat_prompt
     from core.tools import format_tool_inventory
-    from core.cognitive_orchestrator import CognitiveOrchestrator, IntentBlockedError
-    from core.phi_council import COUNCIL_MAPPING
 except Exception as exc:  # pragma: no cover - optional/degraded runtime path
+    logging.getLogger(__name__).debug(
+        "Operation failed; applying fallback", exc_info=True
+    )
     logger = logging.getLogger("drift")
     logger.warning(f"Core web app dependencies unavailable: {exc}")
 
@@ -47,7 +51,9 @@ except Exception as exc:  # pragma: no cover - optional/degraded runtime path
             self._kwargs = kwargs
 
         def __getattr__(self, name):
-            raise RuntimeError("Core web app dependencies are unavailable in this environment.")
+            raise RuntimeError(
+                "Core web app dependencies are unavailable in this environment."
+            )
 
     class SystemOverload(RuntimeError):
         pass
@@ -107,6 +113,9 @@ def _get_memory():
         try:
             memory = DriftMemory()
         except Exception:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             memory = None
     return memory
 
@@ -117,6 +126,9 @@ def _get_doc_store():
         try:
             doc_store = DocumentStore()
         except Exception:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             doc_store = None
     return doc_store
 
@@ -129,12 +141,18 @@ def _health_snapshot() -> dict[str, object]:
         orch = HiveOrchestrator()
         hive_status = orch.get_status()
     except Exception:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         hive_status = "offline"
 
     memory_obj = _get_memory()
     try:
         memory_count = memory_obj.count() if memory_obj is not None else 0
     except Exception:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         memory_count = 0
 
     return {
@@ -149,19 +167,20 @@ def _health_snapshot() -> dict[str, object]:
 
 
 def _anchor_snapshot(limit: int = 5) -> dict[str, object]:
-    from drift.trinity.release import get_release_info
-    from drift.trinity.http_api import build_trinity_snapshot
-    from core.being import get_being
-    from core.homeostasis import get_homeostasis
-    from core.phi_proxy import PhiProxy
-    from adapters.cognition_adapter import adapter as cog_adapter
-    from core.shadow import get_shadow
-    from core.dii_tracker import get_dii_tracker
-    from core.global_workspace import get_workspace
     import hashlib
     import hmac
     import os
     from datetime import datetime, timezone
+
+    from adapters.cognition_adapter import adapter as cog_adapter
+    from core.being import get_being
+    from core.dii_tracker import get_dii_tracker
+    from core.global_workspace import get_workspace
+    from core.homeostasis import get_homeostasis
+    from core.phi_proxy import PhiProxy
+    from core.shadow import get_shadow
+    from drift.trinity.http_api import build_trinity_snapshot
+    from drift.trinity.release import get_release_info
 
     being = get_being()
     homeo = get_homeostasis()
@@ -175,7 +194,7 @@ def _anchor_snapshot(limit: int = 5) -> dict[str, object]:
     env_var_name = "DRIFT_SHARED_KEY_V1"
     secret_str = os.environ.get(env_var_name) or os.environ.get("DRIFT_SHARED_KEY")
     is_prod = os.environ.get("DRIFT_ENV") == "production"
-    ts = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    ts = datetime.now(UTC).isoformat().replace("+00:00", "Z")
     body_hash = hashlib.sha256(b"").hexdigest()
     message = f"GET\n/api/identity\n{ts}\n{body_hash}".encode()
     metadata: dict[str, object] = {
@@ -187,10 +206,14 @@ def _anchor_snapshot(limit: int = 5) -> dict[str, object]:
         "Mode": "public",
     }
     if secret_str:
-        metadata["Signature"] = hmac.new(secret_str.encode(), message, hashlib.sha256).hexdigest()
+        metadata["Signature"] = hmac.new(
+            secret_str.encode(), message, hashlib.sha256
+        ).hexdigest()
         metadata["Mode"] = "signed"
     elif is_prod:
-        raise RuntimeError(f"CRITICAL: Shared key '{env_var_name}' is missing in production!")
+        raise RuntimeError(
+            f"CRITICAL: Shared key '{env_var_name}' is missing in production!"
+        )
 
     radar = {}
     try:
@@ -200,7 +223,9 @@ def _anchor_snapshot(limit: int = 5) -> dict[str, object]:
             else {}
         )
     except Exception:
-        pass
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
 
     needs = {}
     try:
@@ -211,7 +236,9 @@ def _anchor_snapshot(limit: int = 5) -> dict[str, object]:
                 "trend": round(need.trend, 2),
             }
     except Exception:
-        pass
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
 
     dii_data = dii.get_trend(n=20)
 
@@ -258,6 +285,9 @@ def _anchor_snapshot(limit: int = 5) -> dict[str, object]:
 
         analytics = build_benchmark_analytics(limit=max(10, limit), top_n=5)
     except Exception:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         analytics = {
             "status": "unavailable",
             "benchmark_trends": None,
@@ -308,12 +338,12 @@ def _anchor_snapshot(limit: int = 5) -> dict[str, object]:
 async def background_drift_cycle():
     """Background task to run drift cycles and compute aliveness metrics."""
     from core.being import get_being
+    from core.cognitive_orchestrator import CognitiveOrchestrator
+    from core.config import BACKGROUND_CYCLE_SECONDS, STRONG_CONTINUOUS_MODE
+    from core.dii_tracker import get_dii_tracker
+    from core.global_workspace import get_workspace
     from core.homeostasis import get_homeostasis
     from core.shadow import get_shadow
-    from core.dii_tracker import get_dii_tracker
-    from core.config import STRONG_CONTINUOUS_MODE, BACKGROUND_CYCLE_SECONDS
-    from core.cognitive_orchestrator import CognitiveOrchestrator
-    from core.global_workspace import get_workspace
 
     if not STRONG_CONTINUOUS_MODE:
         return
@@ -354,6 +384,9 @@ async def background_drift_cycle():
             )
 
         except Exception as e:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             logger.error(f"Error in background drift cycle: {e}")
 
 
@@ -390,13 +423,22 @@ def _anchor_hunt_password_bootstrap() -> tuple[str, str]:
         try:
             secret_path.chmod(0o600)
         except Exception:
-            pass
-        logger.warning("ANCHOR hunt passphrase generated once and saved to %s", secret_path)
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
+        logger.warning(
+            "ANCHOR hunt passphrase generated once and saved to %s", secret_path
+        )
         logger.warning("ANCHOR hunt passphrase: %s", password)
         return password, f"generated locally at {secret_path}"
     except Exception as exc:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         fallback = secrets.token_urlsafe(24)
-        logger.warning("ANCHOR hunt passphrase bootstrap fell back to an in-memory secret: %s", exc)
+        logger.warning(
+            "ANCHOR hunt passphrase bootstrap fell back to an in-memory secret: %s", exc
+        )
         logger.warning("ANCHOR hunt passphrase: %s", fallback)
         return fallback, "in-memory fallback (no file write)"
 
@@ -407,9 +449,13 @@ ANCHOR_HUNT_PASSWORD, ANCHOR_HUNT_PASSWORD_HINT = _anchor_hunt_password_bootstra
 def _anchor_release_banner() -> str:
     try:
         from drift.trinity.release import get_release_info
+
         release = get_release_info()
         return f"{release.get('product', 'ANCHOR')} {release.get('version', 'unknown')} • {str(release.get('status', 'unknown')).replace('_', ' ')}"
     except Exception:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return "ANCHOR local"
 
 
@@ -425,7 +471,9 @@ def _anchor_hunt_cookie_secure(request: Request) -> bool:
     env_secure = os.getenv("ANCHOR_COOKIE_SECURE", "").strip().lower()
     if env_secure in {"1", "true", "yes", "on"}:
         return True
-    proto = request.headers.get("x-forwarded-proto", "").split(",", 1)[0].strip().lower()
+    proto = (
+        request.headers.get("x-forwarded-proto", "").split(",", 1)[0].strip().lower()
+    )
     if proto == "https":
         return True
     return request.url.scheme == "https"
@@ -453,9 +501,13 @@ def _load_anchor_dashboard_html() -> str:
 """
     try:
         from drift.trinity.release import get_release_info
+
         release = get_release_info()
         banner = f"{release.get('product', 'ANCHOR')} {release.get('version', 'unknown')} • {str(release.get('status', 'unknown')).replace('_', ' ')}"
     except Exception:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         banner = "ANCHOR"
     return html.replace("{{ANCHOR_RELEASE}}", banner)
 
@@ -566,7 +618,11 @@ def _load_anchor_hunt_login_html() -> str:
 </body>
 </html>
 """
-    return html.replace("{{ANCHOR_RELEASE}}", banner).replace("{{ANCHOR_HUNT_COOKIE}}", ANCHOR_HUNT_COOKIE).replace("{{ANCHOR_HUNT_PASSWORD_HINT}}", password_hint)
+    return (
+        html.replace("{{ANCHOR_RELEASE}}", banner)
+        .replace("{{ANCHOR_HUNT_COOKIE}}", ANCHOR_HUNT_COOKIE)
+        .replace("{{ANCHOR_HUNT_PASSWORD_HINT}}", password_hint)
+    )
 
 
 def _load_trinity_hunt_html() -> str:
@@ -605,7 +661,9 @@ def _local_trinity_reply(message: str) -> str:
             f"{gate} Ask about scope, mechanism, repro, impact, CVSS, evidence, or the run timeline."
         )
 
-    if any(key in prompt for key in ("summary", "summarize", "overview", "what is this")):
+    if any(
+        key in prompt for key in ("summary", "summarize", "overview", "what is this")
+    ):
         return (
             "ANCHOR is a local-first Trinity operator console with a strict proof gate. "
             "It uses boot, recon, live run history, CVSS, provenance, and signed evidence to turn signals into reproducible cases. "
@@ -642,6 +700,7 @@ def _local_trinity_reply(message: str) -> str:
         f"{gate}"
     )
 
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     # Start background drift cycle
@@ -653,6 +712,8 @@ async def lifespan(_app: FastAPI):
     except asyncio.CancelledError:
         pass
 
+
+from datetime import UTC
 
 from core.gateway import HardenedGatewayMiddleware
 
@@ -666,69 +727,92 @@ try:
     app.include_router(build_trinity_router())
     logger.info("Trinity evidence API mounted at /api/trinity")
 except Exception as exc:
+    logging.getLogger(__name__).debug(
+        "Operation failed; applying fallback", exc_info=True
+    )
     logger.warning(f"Trinity evidence API unavailable: {exc}")
 
 for route in app.routes:
     if not hasattr(route, "path"):
         try:
-            setattr(route, "path", "/api/trinity/health")
+            route.path = "/api/trinity/health"
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
+
 
 class _RouteSentinel:
     def __init__(self, path: str):
         self.path = path
 
-if not any(getattr(route, "path", None) == "/api/trinity/health" for route in app.routes):
+
+if not any(
+    getattr(route, "path", None) == "/api/trinity/health" for route in app.routes
+):
     app.routes.append(_RouteSentinel("/api/trinity/health"))
 
 # --- MOUNT LOTUS ACADEMY ---
 try:
     from lotus_academy.main import app as lotus_app
+
     app.mount("/lotus", lotus_app)
     logger.info("Lotus Academy successfully mounted at /lotus")
 except ImportError:
     logger.warning("Lotus Academy module not found. Skipping mount.")
 except Exception as e:
+    logging.getLogger(__name__).debug(
+        "Operation failed; applying fallback", exc_info=True
+    )
     logger.error(f"Failed to mount Lotus Academy: {e}")
 
 
 # --- EXCEPTION HANDLERS ---
 @app.exception_handler(SystemOverload)
 async def system_overload_handler(request: Request, exc: SystemOverload):
-    logger.warning(f"Load shedding active: Rejected request from {request.client.host if request.client else 'unknown'} - {str(exc)}")
+    logger.warning(
+        f"Load shedding active: Rejected request from {request.client.host if request.client else 'unknown'} - {exc!s}"
+    )
     return JSONResponse(
         status_code=429,
-        content={"detail": "Too Many Requests: The cognitive queue is full. Please try again later."}
+        content={
+            "detail": "Too Many Requests: The cognitive queue is full. Please try again later."
+        },
     )
+
 
 @app.exception_handler(RequestDeadlineExceeded)
 async def deadline_exceeded_handler(request: Request, exc: RequestDeadlineExceeded):
-    logger.warning(f"Request deadline exceeded for {request.client.host if request.client else 'unknown'}")
+    logger.warning(
+        f"Request deadline exceeded for {request.client.host if request.client else 'unknown'}"
+    )
     return JSONResponse(
         status_code=408,
-        content={"detail": "Request Timeout: The system took too long to process."}
+        content={"detail": "Request Timeout: The system took too long to process."},
     )
+
 
 @app.exception_handler(RequestCancelled)
 async def request_cancelled_handler(request: Request, exc: RequestCancelled):
-    logger.info(f"Client disconnected gracefully: {request.client.host if request.client else 'unknown'}")
-    return JSONResponse(
-        status_code=499,
-        content={"detail": "Client Closed Request"}
+    logger.info(
+        f"Client disconnected gracefully: {request.client.host if request.client else 'unknown'}"
     )
+    return JSONResponse(status_code=499, content={"detail": "Client Closed Request"})
+
 
 @app.exception_handler(IntentBlockedError)
 async def intent_blocked_handler(request: Request, exc: IntentBlockedError):
-    logger.warning(f"Intent blocked for {request.client.host if request.client else 'unknown'}: {str(exc)}")
+    logger.warning(
+        f"Intent blocked for {request.client.host if request.client else 'unknown'}: {exc!s}"
+    )
     return JSONResponse(
         status_code=403,
         content={
             "detail": "Request Blocked: Malicious intent or security threat detected.",
             "refusal": str(exc),
             "threat": exc.scan_result.primary_threat,
-            "blocked": True
-        }
+            "blocked": True,
+        },
     )
 
 
@@ -738,7 +822,9 @@ async def _watch_request_disconnect(request: Request, cancel_event: threading.Ev
     try:
         while True:
             if await request.is_disconnected():
-                logger.info(f"Client {request.client.host if request.client else 'unknown'} disconnected. Firing cancellation event.")
+                logger.info(
+                    f"Client {request.client.host if request.client else 'unknown'} disconnected. Firing cancellation event."
+                )
                 cancel_event.set()
                 break
             await asyncio.sleep(0.5)
@@ -755,6 +841,7 @@ def _run_with_request_budget(callable_, request_budget, *args, **kwargs):
     finally:
         if hasattr(brain_worker._request_budget_local, "budget"):
             del brain_worker._request_budget_local.budget
+
 
 # Serve static files if any exist
 if STATIC_DIR.exists():
@@ -1427,11 +1514,13 @@ async def anchor_hunt_dashboard(request: Request):
 
 @app.get("/api/anchor/session")
 async def api_anchor_session(request: Request):
-    return JSONResponse({
-        "authenticated": _anchor_hunt_authenticated(request),
-        "cookie": ANCHOR_HUNT_COOKIE,
-        "release": _anchor_release_banner(),
-    })
+    return JSONResponse(
+        {
+            "authenticated": _anchor_hunt_authenticated(request),
+            "cookie": ANCHOR_HUNT_COOKIE,
+            "release": _anchor_release_banner(),
+        }
+    )
 
 
 @app.post("/anchor/hunt/login")
@@ -1439,7 +1528,9 @@ async def anchor_hunt_login(request: Request):
     payload = await request.json()
     password = str(payload.get("password", "")).strip()
     if password != _anchor_hunt_password():
-        return JSONResponse({"ok": False, "error": "invalid passphrase"}, status_code=401)
+        return JSONResponse(
+            {"ok": False, "error": "invalid passphrase"}, status_code=401
+        )
     response = JSONResponse({"ok": True, "authenticated": True})
     response.set_cookie(
         ANCHOR_HUNT_COOKIE,
@@ -1465,14 +1556,24 @@ async def api_trinity_evidence_sign(request: Request):
         return JSONResponse({"ok": False, "error": "login required"}, status_code=401)
     payload = await request.json()
     if not isinstance(payload, dict):
-        return JSONResponse({"ok": False, "error": "bundle payload required"}, status_code=400)
+        return JSONResponse(
+            {"ok": False, "error": "bundle payload required"}, status_code=400
+        )
     bundle = payload.get("bundle", payload)
     if not isinstance(bundle, dict):
-        return JSONResponse({"ok": False, "error": "bundle payload must be an object"}, status_code=400)
+        return JSONResponse(
+            {"ok": False, "error": "bundle payload must be an object"}, status_code=400
+        )
     from drift.trinity.http_api import EVIDENCE_SIGNING_KEY_HINT, sign_evidence_bundle
 
     signed_bundle = sign_evidence_bundle(bundle)
-    return JSONResponse({"ok": True, "signed_bundle": signed_bundle, "signing_hint": EVIDENCE_SIGNING_KEY_HINT})
+    return JSONResponse(
+        {
+            "ok": True,
+            "signed_bundle": signed_bundle,
+            "signing_hint": EVIDENCE_SIGNING_KEY_HINT,
+        }
+    )
 
 
 @app.post("/api/trinity/chat")
@@ -1481,7 +1582,9 @@ async def api_trinity_chat(request: Request):
         return JSONResponse({"ok": False, "error": "login required"}, status_code=401)
     payload = await request.json()
     message = str(payload.get("message", "")).strip()
-    return JSONResponse({"ok": True, "reply": _local_trinity_reply(message), "mode": "local"})
+    return JSONResponse(
+        {"ok": True, "reply": _local_trinity_reply(message), "mode": "local"}
+    )
 
 
 @app.get("/api/growth")
@@ -1492,45 +1595,63 @@ async def api_growth():
 @app.post("/api/reset")
 async def api_reset():
     global brain, memory, history, state, goals_db, doc_store
-    
+
     # 1. Reset ContextVars
     try:
-        from core.causal_wiring import state_override_var, generation_params_var
+        from core.causal_wiring import generation_params_var, state_override_var
+
         state_override_var.set(None)
         generation_params_var.set(None)
     except Exception:
-        pass
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
 
     # 2. Reset singletons/global modules
     try:
         import core.being as being_mod
+
         being_mod._being_instance = None
     except Exception:
-        pass
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
 
     try:
         import core.homeostasis as homeostasis_mod
+
         homeostasis_mod._homeostasis_instance = None
     except Exception:
-        pass
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
 
     try:
         import core.shadow as shadow_mod
+
         shadow_mod._shadow_instance = None
     except Exception:
-        pass
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
 
     try:
         import core.dii_tracker as dii_mod
+
         dii_mod._dii_instance = None
     except Exception:
-        pass
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
 
     try:
         import core.global_workspace as workspace_mod
+
         workspace_mod._workspace_instance = None
     except Exception:
-        pass
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
 
     # 3. Re-instantiate core structures lazily on next access
     brain = None
@@ -1543,14 +1664,15 @@ async def api_reset():
     # 4. Clean database tables
     try:
         import sqlite3
-        from core.config import MEMORY_DB, HOMEOSTASIS_DB
-        
+
+        from core.config import HOMEOSTASIS_DB, MEMORY_DB
+
         # Clear Memory
         with sqlite3.connect(MEMORY_DB) as conn:
             conn.execute("DELETE FROM memories")
             conn.execute("DELETE FROM sqlite_sequence WHERE name='memories'")
             conn.commit()
-            
+
         # Clear Homeostasis
         with sqlite3.connect(HOMEOSTASIS_DB) as conn:
             conn.execute("DELETE FROM need_history")
@@ -1561,15 +1683,24 @@ async def api_reset():
             conn.execute("DELETE FROM sqlite_sequence WHERE name='regulation_actions'")
             conn.commit()
     except Exception as e:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         logger.error(f"Error resetting database contents: {e}")
 
-    return {"status": "ok", "message": "All cognitive modules, singletons, and sqlite tables have been reset to zero."}
+    return {
+        "status": "ok",
+        "message": "All cognitive modules, singletons, and sqlite tables have been reset to zero.",
+    }
 
 
 async def read_json(request: Request):
     try:
         return await request.json()
     except Exception:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return None
 
 
@@ -1584,6 +1715,7 @@ async def api_chat(request: Request):
 
     # Set state override context variable
     from core.causal_wiring import state_override_var
+
     state_override_var.set(payload.get("state"))
 
     brain_worker = _get_brain()
@@ -1608,7 +1740,7 @@ async def api_chat(request: Request):
             prompt,
             tools_enabled=True,
             raw_user_input=message,
-            mode=state.mode
+            mode=state.mode,
         )
         try:
             await asyncio.to_thread(
@@ -1616,10 +1748,12 @@ async def api_chat(request: Request):
                 brain_worker.evaluate_last,
                 budget,
                 prompt,
-                output
+                output,
             )
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
         importance = min(
             0.95, 0.45 + emotion["intensity"] * 0.3 + dissonance["score"] * 0.15
         )
@@ -1640,10 +1774,10 @@ async def api_chat(request: Request):
         # ── Aliveness Tracking (DII) ──
         try:
             from core.being import get_being
-            from core.homeostasis import get_homeostasis
-            from core.shadow import get_shadow
             from core.dii_tracker import get_dii_tracker
             from core.global_workspace import get_workspace
+            from core.homeostasis import get_homeostasis
+            from core.shadow import get_shadow
 
             tracker = get_dii_tracker()
             tracker.compute(
@@ -1654,7 +1788,9 @@ async def api_chat(request: Request):
                 orchestrator=CognitiveOrchestrator(),
             )
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
 
         return {"reply": output}
     finally:
@@ -1682,6 +1818,7 @@ async def api_chat_stream(request: Request):
 
     # Set state override context variable
     from core.causal_wiring import state_override_var
+
     state_override_var.set(payload.get("state"))
 
     brain_worker = _get_brain()
@@ -1703,8 +1840,15 @@ async def api_chat_stream(request: Request):
             # Run synchronous stream in a thread to avoid blocking the event loop
             chunks = await asyncio.to_thread(
                 _run_with_request_budget,
-                lambda: list(brain_worker.agent_turn_stream(prompt, tools_enabled=True, raw_user_input=message, mode=state.mode)),
-                budget
+                lambda: list(
+                    brain_worker.agent_turn_stream(
+                        prompt,
+                        tools_enabled=True,
+                        raw_user_input=message,
+                        mode=state.mode,
+                    )
+                ),
+                budget,
             )
             for chunk in chunks:
                 budget.check()
@@ -1718,10 +1862,12 @@ async def api_chat_stream(request: Request):
                     brain_worker.evaluate_last,
                     budget,
                     prompt,
-                    output
+                    output,
                 )
             except Exception:
-                pass
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
             importance = min(
                 0.95, 0.45 + emotion["intensity"] * 0.3 + dissonance["score"] * 0.15
             )
@@ -1742,10 +1888,10 @@ async def api_chat_stream(request: Request):
             # ── Aliveness Tracking (DII) ──
             try:
                 from core.being import get_being
-                from core.homeostasis import get_homeostasis
-                from core.shadow import get_shadow
                 from core.dii_tracker import get_dii_tracker
                 from core.global_workspace import get_workspace
+                from core.homeostasis import get_homeostasis
+                from core.shadow import get_shadow
 
                 tracker = get_dii_tracker()
                 tracker.compute(
@@ -1756,7 +1902,9 @@ async def api_chat_stream(request: Request):
                     orchestrator=CognitiveOrchestrator(),
                 )
             except Exception:
-                pass
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
         except RequestCancelled:
             logger.info("Stream aborted internally due to client disconnect.")
             return
@@ -1771,6 +1919,9 @@ async def api_chat_stream(request: Request):
             yield "data: [DONE]\n\n"
             return
         except Exception as exc:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             traceback.print_exc()
             yield f"data: {json.dumps({'error': f'{type(exc).__name__}: {exc}'})}\n\n"
             yield "data: [DONE]\n\n"
@@ -1809,10 +1960,10 @@ async def api_tools():
 
 @app.get("/api/phi")
 async def api_phi():
+    from adapters.cognition_adapter import adapter as cog_adapter
     from core.being import get_being
     from core.homeostasis import get_homeostasis
     from core.phi_proxy import PhiProxy
-    from adapters.cognition_adapter import adapter as cog_adapter
 
     being = get_being()
     homeo = get_homeostasis()
@@ -1840,6 +1991,9 @@ async def api_hive():
         orch = HiveOrchestrator()
         return orch.get_status()
     except Exception as e:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return {"error": str(e)}
 
 
@@ -1849,11 +2003,12 @@ async def api_health():
 
 
 @app.get("/api/identity")
-async def api_identity(key_id: str = "v1", nonce: str = None):
-    import hmac
+async def api_identity(key_id: str = "v1", nonce: str | None = None):
     import hashlib
+    import hmac
     import os
     from datetime import datetime, timezone
+
     from drift.trinity.release import get_release_info
 
     # Key Rotation & Safe Environment Retrieval
@@ -1866,7 +2021,7 @@ async def api_identity(key_id: str = "v1", nonce: str = None):
         secret_str = os.environ.get("DRIFT_SHARED_KEY")
 
     release = get_release_info()
-    ts = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    ts = datetime.now(UTC).isoformat().replace("+00:00", "Z")
 
     # Body is empty for GET /api/identity
     body_hash = hashlib.sha256(b"").hexdigest()
@@ -1893,7 +2048,9 @@ async def api_identity(key_id: str = "v1", nonce: str = None):
         metadata["Signature"] = hmac.new(secret, message, hashlib.sha256).hexdigest()
         metadata["Mode"] = "signed"
     elif is_prod:
-        raise RuntimeError(f"CRITICAL: Shared key '{env_var_name}' is missing in production!")
+        raise RuntimeError(
+            f"CRITICAL: Shared key '{env_var_name}' is missing in production!"
+        )
 
     return {
         "product": release.get("product", "ANCHOR"),
@@ -1932,11 +2089,16 @@ async def api_audit(limit: int = 50):
     """Retrieve the unified audit log for monitoring and safety verification."""
     try:
         from core.unified_audit import get_audit_logger
+
         audit_logger = get_audit_logger()
         # Use read_any as a static helper or tail
         from core.jsonl_logger import HardenedJsonlLogger
+
         return HardenedJsonlLogger.tail(audit_logger.path, n=limit)
     except Exception as e:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return {"error": f"Failed to retrieve audit log: {e}"}
 
 
@@ -1945,9 +2107,13 @@ async def api_hive_deliberations(limit: int = 10):
     """Retrieve history of high-order deliberations from the Elysium engine."""
     try:
         from core.hive.elysium import get_elysium
+
         elysium = get_elysium()
         return elysium.get_deliberation_history(limit=limit)
     except Exception as e:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return {"error": f"Failed to retrieve deliberations: {e}"}
 
 
@@ -1955,10 +2121,10 @@ async def api_hive_deliberations(limit: int = 10):
 async def api_observer():
     """Full real-time cognitive state for the observer dashboard."""
     from core.being import get_being
-    from core.homeostasis import get_homeostasis
-    from core.shadow import get_shadow
     from core.dii_tracker import get_dii_tracker
     from core.global_workspace import get_workspace
+    from core.homeostasis import get_homeostasis
+    from core.shadow import get_shadow
 
     being = get_being()
     homeo = get_homeostasis()
@@ -1975,7 +2141,9 @@ async def api_observer():
             else {}
         )
     except Exception:
-        pass
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
 
     # Homeostasis needs
     needs = {}
@@ -1987,7 +2155,9 @@ async def api_observer():
                 "trend": round(need.trend, 2),
             }
     except Exception:
-        pass
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
 
     # DII
     dii_data = dii.get_trend(n=20)
@@ -2036,9 +2206,10 @@ async def api_anchor_snapshot(limit: int = 5):
 
 
 if __name__ == "__main__":
-    import uvicorn
     import os
-    
-    port = int(os.environ.get("PORT", 8765))
+
+    import uvicorn
+
+    port = int(os.environ.get("PORT", "8765"))
     host = os.environ.get("DRIFT_API_HOST", "0.0.0.0")
     uvicorn.run(app, host=host, port=port)

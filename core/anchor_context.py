@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-import os
 import hashlib
+import importlib.machinery
 import importlib.util
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -18,6 +19,12 @@ from drift.config_adapter import (
     get_anchor_knowledge_dir,
     get_anchor_vault_root,
 )
+
+
+class _FreshSourceLoader(importlib.machinery.SourceFileLoader):
+    def get_code(self, fullname):
+        return self.source_to_code(self.get_data(self.path), self.path)
+
 
 _knowledge_provider: Any | None = None
 _knowledge_source_fingerprint: tuple[str, str] | None = None
@@ -50,20 +57,26 @@ def get_anchor_knowledge_provider():
         hashlib.sha256((root / "knowledge/manifest.json").read_bytes()).hexdigest(),
         hashlib.sha256(source.read_bytes()).hexdigest(),
     )
-    if (_knowledge_provider is not None
-            and getattr(_knowledge_provider, "root", None) == (root / "knowledge").resolve()
-            and _knowledge_source_fingerprint == fingerprint):
+    if (
+        _knowledge_provider is not None
+        and getattr(_knowledge_provider, "root", None) == (root / "knowledge").resolve()
+        and _knowledge_source_fingerprint == fingerprint
+    ):
         return _knowledge_provider
 
     # Load by exact path: sys.modules must not reuse another checkout's provider.
-    module_name = "_drift_anchor_provider_" + hashlib.sha256(str(root).encode()).hexdigest()[:12]
-    spec = importlib.util.spec_from_file_location(module_name, source)
+    module_name = (
+        "_drift_anchor_provider_" + hashlib.sha256(str(root).encode()).hexdigest()[:12]
+    )
+    spec = importlib.util.spec_from_file_location(
+        module_name, source, loader=_FreshSourceLoader(module_name, str(source))
+    )
     if spec is None or spec.loader is None:
         raise ImportError(f"Unable to load ANCHOR knowledge provider: {source}")
     module = importlib.util.module_from_spec(spec)
     sys.modules[module_name] = module
     # Execute the observed source bytes instead of a potentially stale .pyc file.
-    exec(compile(source.read_bytes(), str(source), "exec"), module.__dict__)
+    spec.loader.exec_module(module)
     _knowledge_provider = module.KnowledgeProvider(root / "knowledge")
     _knowledge_source_fingerprint = fingerprint
     return _knowledge_provider
@@ -80,7 +93,10 @@ def search_anchor_repo_knowledge(query: str, *, limit: int = 5) -> list[dict[str
     provider = get_anchor_knowledge_provider()
     if provider is None or not query.strip():
         return []
-    return [hit.to_dict() for hit in provider.search(query.strip(), limit=max(1, min(limit, 20)))]
+    return [
+        hit.to_dict()
+        for hit in provider.search(query.strip(), limit=max(1, min(limit, 20)))
+    ]
 
 
 def get_anchor_repo_knowledge_topic(slug: str) -> dict[str, Any] | None:
@@ -129,7 +145,9 @@ def get_anchor_runtime() -> dict[str, Any]:
         "vault_root": str(vault) if vault else None,
         "knowledge_root": str(knowledge) if knowledge else None,
         "knowledge_chroma_dir": str(chroma) if chroma else str(PERSIST_DIRECTORY),
-        "knowledge_source": "anchor_vault" if knowledge and knowledge.is_dir() else "local",
+        "knowledge_source": "anchor_vault"
+        if knowledge and knowledge.is_dir()
+        else "local",
     }
 
 

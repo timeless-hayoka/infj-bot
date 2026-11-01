@@ -1,5 +1,6 @@
 VENV_DIR ?= .venv
 PYTHON ?= $(VENV_DIR)/bin/python
+export PATH := $(abspath $(VENV_DIR)/bin):$(PATH)
 STANDALONE_RUNNER := $(PYTHON) scripts/standalone_dmu_comparison_runner.py
 EXPORT_DATASET := $(PYTHON) scripts/export_dmu_benchmark_dataset.py
 

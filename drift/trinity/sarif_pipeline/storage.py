@@ -67,7 +67,9 @@ def persist_sqlite(db_path: Path, enriched: EnrichedFinding) -> None:
 
 
 class ChromaFindingStore:
-    def __init__(self, persist_directory: Path, collection_name: str = "security_findings") -> None:
+    def __init__(
+        self, persist_directory: Path, collection_name: str = "security_findings"
+    ) -> None:
         try:
             import chromadb
         except ImportError as exc:  # pragma: no cover - optional runtime
@@ -88,7 +90,9 @@ class ChromaFindingStore:
             "cwe": enriched.normalized.cwe or "",
             "file": enriched.finding.file_path,
             "line": enriched.finding.start_line,
-            "cluster_id": str(enriched.cluster_id) if enriched.cluster_id is not None else "-1",
+            "cluster_id": str(enriched.cluster_id)
+            if enriched.cluster_id is not None
+            else "-1",
         }
         self._collection.upsert(
             ids=[enriched.dedup_key],

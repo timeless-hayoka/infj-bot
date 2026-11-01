@@ -17,9 +17,11 @@ Design goals (from operator feedback):
 
 import argparse
 import json
+import logging
 from collections import Counter
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Iterator, Optional
+from typing import Optional
 
 
 def _read_jsonl_fault_tolerant(path: Path) -> Iterator[dict]:
@@ -34,10 +36,13 @@ def _read_jsonl_fault_tolerant(path: Path) -> Iterator[dict]:
             try:
                 yield json.loads(line)
             except Exception:
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
                 continue
 
 
-def _get_ts(record: dict) -> Optional[str]:
+def _get_ts(record: dict) -> str | None:
     return record.get("ts") or record.get("timestamp")
 
 
@@ -59,7 +64,7 @@ def tail(paths: list[Path], n: int) -> None:
         print(f"[{p.name}] {ts}  {json.dumps(rec, default=str)[:200]}")
 
 
-def summary(paths: list[Path], since: Optional[str] = None) -> None:
+def summary(paths: list[Path], since: str | None = None) -> None:
     total = 0
     valid = 0
     corrupt = 0
@@ -76,8 +81,12 @@ def summary(paths: list[Path], since: Optional[str] = None) -> None:
                 timestamps.append(ts)
         # Corrupt estimate: raw line count minus valid decoded lines
         try:
-            raw_lines = sum(1 for _ in open(p, "r", encoding="utf-8", errors="replace"))
+            with open(p, "r", encoding="utf-8", errors="replace") as source:
+                raw_lines = sum(1 for _ in source)
         except Exception:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             raw_lines = 0
         file_corrupt = max(0, raw_lines - file_total)
         corrupt += file_corrupt
@@ -120,10 +129,14 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Offline JSONL analyzer")
     parser.add_argument("paths", nargs="+", type=Path, help="JSONL file(s)")
     parser.add_argument("--tail", type=int, metavar="N", help="Show last N records")
-    parser.add_argument("--since", type=str, metavar="DATE", help="ISO date/time filter")
+    parser.add_argument(
+        "--since", type=str, metavar="DATE", help="ISO date/time filter"
+    )
     parser.add_argument("--summary", action="store_true", help="Print aggregate stats")
     parser.add_argument("--field", type=str, metavar="KEY", help="Field to histogram")
-    parser.add_argument("--hist", action="store_true", help="Show histogram for --field")
+    parser.add_argument(
+        "--hist", action="store_true", help="Show histogram for --field"
+    )
     args = parser.parse_args()
 
     if args.tail:

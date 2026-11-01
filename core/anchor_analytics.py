@@ -1,10 +1,14 @@
 """Load ANCHOR benchmark trends/strategy without duplicating math."""
+
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import sys
+from contextlib import contextmanager
 from pathlib import Path
+from threading import RLock
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -18,15 +22,45 @@ def resolve_anchor_root() -> Path | None:
     candidates.append(ROOT / "ANCHOR")
     for path in candidates:
         resolved = path.resolve()
-        if (resolved / "anchor_trends.py").exists() and (resolved / "benchmarks" / "index.json").exists():
+        if (resolved / "anchor_trends.py").exists() and (
+            resolved / "benchmarks" / "index.json"
+        ).exists():
             return resolved
     return None
 
 
-def _ensure_anchor_import(root: Path) -> None:
-    root_str = str(root)
-    if root_str not in sys.path:
-        sys.path.insert(0, root_str)
+_IMPORT_LOCK = RLock()
+
+
+@contextmanager
+def _analytics_modules(root: Path):
+    # Canonical strategy imports canonical trends by name. Restore those aliases
+    # afterwards, and never add the sibling checkout to the application's path.
+    from core.anchor_context import _FreshSourceLoader
+
+    names = ("anchor_trends", "anchor_strategy")
+    with _IMPORT_LOCK:
+        previous = {name: sys.modules.get(name) for name in names}
+        modules = {}
+        try:
+            for name in names:
+                source = root / f"{name}.py"
+                spec = importlib.util.spec_from_file_location(
+                    name, source, loader=_FreshSourceLoader(name, str(source))
+                )
+                if spec is None or spec.loader is None:
+                    raise ImportError(f"Unable to load canonical analytics: {source}")
+                module = importlib.util.module_from_spec(spec)
+                sys.modules[name] = module
+                spec.loader.exec_module(module)
+                modules[name] = module
+            yield modules
+        finally:
+            for name, module in previous.items():
+                if module is None:
+                    sys.modules.pop(name, None)
+                else:
+                    sys.modules[name] = module
 
 
 def load_anchor_manifest(root: Path) -> list[dict[str, Any]]:
@@ -66,23 +100,27 @@ def build_benchmark_analytics(*, limit: int = 10, top_n: int = 5) -> dict[str, A
             "benchmark_strategy": None,
         }
 
-    _ensure_anchor_import(root)
-    from anchor_strategy import compute_strategy
-    from anchor_trends import compute_benchmark_trends
-
     entries = load_anchor_manifest(root)
     outcomes = load_anchor_outcomes(root)
-    trends = compute_benchmark_trends(entries, root=root, limit=limit)
-    strategy = compute_strategy(
-        entries,
-        outcomes,
-        root=root,
-        trends_limit=limit,
-        top_n=top_n,
-    )
+    with _analytics_modules(root) as modules:
+        trends = modules["anchor_trends"].compute_benchmark_trends(
+            entries, root=root, limit=limit
+        )
+        strategy = modules["anchor_strategy"].compute_strategy(
+            entries,
+            outcomes,
+            root=root,
+            trends_limit=limit,
+            top_n=top_n,
+        )
+        sources = {
+            name: str(Path(module.__file__).resolve())
+            for name, module in modules.items()
+        }
     return {
         "status": "ready",
         "anchor_root": str(root),
+        "analytics_sources": sources,
         "benchmark_trends": trends,
         "benchmark_strategy": strategy,
     }

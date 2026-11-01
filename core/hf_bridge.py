@@ -1,10 +1,13 @@
+import logging
 from typing import Optional
+
+from drift.core.config import DRIFT_HF_MODEL, HF_PRO_TOKEN
 from huggingface_hub import InferenceClient
 from huggingface_hub.errors import HfHubHTTPError
-from drift.core.config import HF_PRO_TOKEN, DRIFT_HF_MODEL
+
 
 class DriftHFBridge:
-    def __init__(self, api_token: str = None, model_id: str = None):
+    def __init__(self, api_token: str | None = None, model_id: str | None = None):
         """Initializes the connection to Hugging Face Pro."""
         self.api_token = api_token or HF_PRO_TOKEN
         self.model_id = model_id or DRIFT_HF_MODEL
@@ -20,8 +23,8 @@ class DriftHFBridge:
         system_prompt: str,
         user_input: str,
         history: list[dict] | None = None,
-        temperature: Optional[float] = None,
-        top_p: Optional[float] = None,
+        temperature: float | None = None,
+        top_p: float | None = None,
     ) -> str:
         """Sends the localized state and prompt to HF for heavy inference.
 
@@ -54,13 +57,17 @@ class DriftHFBridge:
                 top_p=top_p if top_p is not None else 1.0,
             )
             return response.choices[0].message.content
-            
+
         except HfHubHTTPError as e:
             print(f"[CRITICAL ERROR] Hugging Face API rejected the request: {e}")
             return None
         except Exception as e:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             print(f"[SYSTEM ERROR] Local execution failure: {e}")
             return None
+
 
 def self_check_hf_integration(token: str, model: str):
     """

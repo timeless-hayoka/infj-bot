@@ -31,7 +31,12 @@ def gatekeeper_cli() -> Path:
         script = Path(env_root) / "scripts" / "forge_v5_gatekeeper.py"
         if script.is_file():
             return script
-    sibling = Path(__file__).resolve().parents[2] / "AI-Forge-Protocol" / "scripts" / "forge_v5_gatekeeper.py"
+    sibling = (
+        Path(__file__).resolve().parents[2]
+        / "AI-Forge-Protocol"
+        / "scripts"
+        / "forge_v5_gatekeeper.py"
+    )
     if sibling.is_file():
         return sibling
     return Path(__file__).resolve().parents[1] / "forge_v5_gatekeeper.py"

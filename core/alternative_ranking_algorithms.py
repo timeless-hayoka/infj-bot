@@ -9,8 +9,9 @@ aggressive.
 from __future__ import annotations
 
 import math
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 from drift.core.dmu_score_decomposition import (
     DMUScoreDecomposition,
@@ -19,11 +20,11 @@ from drift.core.dmu_score_decomposition import (
     compute_pure_semantic_ranks,
 )
 
-QueryContext = Dict[str, Any]
-MemoryCandidate = Dict[str, Any]
+QueryContext = dict[str, Any]
+MemoryCandidate = dict[str, Any]
 
 
-def _safe_cosine(a: List[float], b: List[float]) -> float:
+def _safe_cosine(a: list[float], b: list[float]) -> float:
     if not a or not b:
         return 0.0
     dot = sum(x * y for x, y in zip(a, b))
@@ -34,7 +35,9 @@ def _safe_cosine(a: List[float], b: List[float]) -> float:
     return max(min(dot / (na * nb), 1.0), -1.0)
 
 
-def _default_signal_extractors() -> Dict[str, Callable[[MemoryCandidate, QueryContext], float]]:
+def _default_signal_extractors() -> dict[
+    str, Callable[[MemoryCandidate, QueryContext], float]
+]:
     def recency(cand: MemoryCandidate, ctx: QueryContext) -> float:
         ts = cand.get("timestamp", 0)
         now = ctx.get("current_time", ts)
@@ -59,7 +62,10 @@ def _default_signal_extractors() -> Dict[str, Callable[[MemoryCandidate, QueryCo
         return float(cand.get("trust_level", 0.75))
 
     def conflict_penalty(cand: MemoryCandidate, ctx: QueryContext) -> float:
-        if cand.get("has_conflict", False) or cand.get("conflict_status") == "unresolved":
+        if (
+            cand.get("has_conflict", False)
+            or cand.get("conflict_status") == "unresolved"
+        ):
             return 0.25
         return 0.0
 
@@ -76,26 +82,30 @@ def _default_signal_extractors() -> Dict[str, Callable[[MemoryCandidate, QueryCo
 
 @dataclass
 class GuardedWeightedRanker:
-    weights: Dict[str, float] = field(default_factory=lambda: {
-        "cosine": 0.55,
-        "recency": 0.12,
-        "salience": 0.10,
-        "retention": 0.08,
-        "emotional": 0.07,
-        "state_match": 0.04,
-        "trust": 0.03,
-        "conflict": -0.05,
-    })
+    weights: dict[str, float] = field(
+        default_factory=lambda: {
+            "cosine": 0.55,
+            "recency": 0.12,
+            "salience": 0.10,
+            "retention": 0.08,
+            "emotional": 0.07,
+            "state_match": 0.04,
+            "trust": 0.03,
+            "conflict": -0.05,
+        }
+    )
     semantic_weight: float = 0.70
     guardrail_threshold: float = 0.08
-    signal_extractors: Optional[Dict[str, Callable]] = None
+    signal_extractors: dict[str, Callable] | None = None
 
     def __post_init__(self):
         if self.signal_extractors is None:
             self.signal_extractors = _default_signal_extractors()
 
-    def _compute_score(self, cand: MemoryCandidate, ctx: QueryContext, query_emb: List[float]) -> Tuple[float, Dict[str, float]]:
-        components: Dict[str, float] = {}
+    def _compute_score(
+        self, cand: MemoryCandidate, ctx: QueryContext, query_emb: list[float]
+    ) -> tuple[float, dict[str, float]]:
+        components: dict[str, float] = {}
         mem_emb = cand.get("embedding", [])
         cos = _safe_cosine(query_emb, mem_emb)
         components["cosine_similarity"] = cos
@@ -114,13 +124,13 @@ class GuardedWeightedRanker:
 
     def rank(
         self,
-        candidates: List[MemoryCandidate],
+        candidates: list[MemoryCandidate],
         query_context: QueryContext,
         *,
-        query_embedding: Optional[List[float]] = None,
+        query_embedding: list[float] | None = None,
         top_k: int = 5,
         return_decompositions: bool = True,
-    ) -> Tuple[List[MemoryCandidate], List[DMUScoreDecomposition]]:
+    ) -> tuple[list[MemoryCandidate], list[DMUScoreDecomposition]]:
         if not candidates:
             return [], []
 
@@ -128,7 +138,7 @@ class GuardedWeightedRanker:
         if not q_emb:
             q_emb = candidates[0].get("query_embedding", [])
 
-        scored: List[Tuple[float, MemoryCandidate, Dict[str, float]]] = []
+        scored: list[tuple[float, MemoryCandidate, dict[str, float]]] = []
         best_cosine = -1.0
 
         for cand in candidates:
@@ -142,7 +152,9 @@ class GuardedWeightedRanker:
             if cos < best_cosine - self.guardrail_threshold:
                 score -= 10.0
                 comps["final_dmu_score"] = score
-                comps["notes"] = f"GUARDRAIL_APPLIED (cosine {cos:.4f} vs best {best_cosine:.4f})"
+                comps["notes"] = (
+                    f"GUARDRAIL_APPLIED (cosine {cos:.4f} vs best {best_cosine:.4f})"
+                )
             guarded_scored.append((score, cand, comps))
 
         guarded_scored.sort(key=lambda x: x[0], reverse=True)
@@ -151,10 +163,12 @@ class GuardedWeightedRanker:
         if not return_decompositions:
             return ranked_cands, []
 
-        decomps: List[DMUScoreDecomposition] = []
+        decomps: list[DMUScoreDecomposition] = []
         for rank_idx, (score, cand, comps) in enumerate(guarded_scored, start=1):
             decomp = build_decomposition(
-                candidate_id=str(cand.get("id", cand.get("memory_id", f"mem_{rank_idx}"))),
+                candidate_id=str(
+                    cand.get("id", cand.get("memory_id", f"mem_{rank_idx}"))
+                ),
                 cosine_similarity=comps["cosine_similarity"],
                 recency_score=comps.get("recency", 0.0),
                 salience=comps.get("salience", 0.0),
@@ -177,7 +191,7 @@ class GuardedWeightedRanker:
 @dataclass
 class ReciprocalRankFusionRanker:
     k: int = 60
-    signal_rankers: Optional[List[Tuple[str, Callable]]] = None
+    signal_rankers: list[tuple[str, Callable]] | None = None
     cosine_first_stage_k: int = 50
 
     def __post_init__(self):
@@ -188,61 +202,73 @@ class ReciprocalRankFusionRanker:
                 ("salience", self._salience_ranker),
             ]
 
-    def _cosine_ranker(self, cands: List[MemoryCandidate], ctx: QueryContext) -> List[Tuple[float, MemoryCandidate]]:
+    def _cosine_ranker(
+        self, cands: list[MemoryCandidate], ctx: QueryContext
+    ) -> list[tuple[float, MemoryCandidate]]:
         q_emb = ctx.get("query_embedding", [])
         scored = [(_safe_cosine(q_emb, c.get("embedding", [])), c) for c in cands]
         scored.sort(key=lambda x: x[0], reverse=True)
         return scored
 
-    def _recency_ranker(self, cands: List[MemoryCandidate], ctx: QueryContext) -> List[Tuple[float, MemoryCandidate]]:
+    def _recency_ranker(
+        self, cands: list[MemoryCandidate], ctx: QueryContext
+    ) -> list[tuple[float, MemoryCandidate]]:
         scored = [(float(c.get("timestamp", 0)), c) for c in cands]
         scored.sort(key=lambda x: x[0], reverse=True)
         return scored
 
-    def _salience_ranker(self, cands: List[MemoryCandidate], ctx: QueryContext) -> List[Tuple[float, MemoryCandidate]]:
+    def _salience_ranker(
+        self, cands: list[MemoryCandidate], ctx: QueryContext
+    ) -> list[tuple[float, MemoryCandidate]]:
         scored = [(float(c.get("salience", 0.5)), c) for c in cands]
         scored.sort(key=lambda x: x[0], reverse=True)
         return scored
 
     def rank(
         self,
-        candidates: List[MemoryCandidate],
+        candidates: list[MemoryCandidate],
         query_context: QueryContext,
         *,
         top_k: int = 5,
         return_decompositions: bool = True,
-    ) -> Tuple[List[MemoryCandidate], List[DMUScoreDecomposition]]:
+    ) -> tuple[list[MemoryCandidate], list[DMUScoreDecomposition]]:
         if not candidates:
             return [], []
 
-        first_stage = self._cosine_ranker(candidates, query_context)[: self.cosine_first_stage_k]
+        first_stage = self._cosine_ranker(candidates, query_context)[
+            : self.cosine_first_stage_k
+        ]
         first_stage_cands = [c for _, c in first_stage]
         if len(first_stage_cands) < 2:
             return first_stage_cands[:top_k], []
 
-        signal_ranks: Dict[str, Dict[str, int]] = {}
+        signal_ranks: dict[str, dict[str, int]] = {}
         for name, ranker_fn in self.signal_rankers:
             ranked = ranker_fn(first_stage_cands, query_context)
-            signal_ranks[name] = {str(c.get("id", id(c))): rank + 1 for rank, (_, c) in enumerate(ranked)}
+            signal_ranks[name] = {
+                str(c.get("id", id(c))): rank + 1 for rank, (_, c) in enumerate(ranked)
+            }
 
-        rrf_scores: Dict[str, float] = {}
-        cand_map: Dict[str, MemoryCandidate] = {}
+        rrf_scores: dict[str, float] = {}
+        cand_map: dict[str, MemoryCandidate] = {}
         for cand in first_stage_cands:
             cid = str(cand.get("id", id(cand)))
             cand_map[cid] = cand
             rrf = 0.0
-            for name in signal_ranks:
-                r = signal_ranks[name].get(cid, len(first_stage_cands) + 1)
+            for ranks in signal_ranks.values():
+                r = ranks.get(cid, len(first_stage_cands) + 1)
                 rrf += 1.0 / (self.k + r)
             rrf_scores[cid] = rrf
 
-        sorted_ids = sorted(rrf_scores.keys(), key=lambda x: rrf_scores[x], reverse=True)
+        sorted_ids = sorted(
+            rrf_scores.keys(), key=lambda x: rrf_scores[x], reverse=True
+        )
         ranked_cands = [cand_map[i] for i in sorted_ids][:top_k]
 
         if not return_decompositions:
             return ranked_cands, []
 
-        decomps: List[DMUScoreDecomposition] = []
+        decomps: list[DMUScoreDecomposition] = []
         q_emb = query_context.get("query_embedding", [])
         for rank_idx, cid in enumerate(sorted_ids[:top_k], start=1):
             cand = cand_map[cid]
@@ -271,17 +297,17 @@ class ReciprocalRankFusionRanker:
 @dataclass
 class TwoStageRanker:
     first_stage_k: int = 30
-    second_stage_ranker: Optional[Any] = None
+    second_stage_ranker: Any | None = None
 
     def rank(
         self,
-        candidates: List[MemoryCandidate],
+        candidates: list[MemoryCandidate],
         query_context: QueryContext,
         *,
-        query_embedding: Optional[List[float]] = None,
+        query_embedding: list[float] | None = None,
         top_k: int = 5,
         return_decompositions: bool = True,
-    ) -> Tuple[List[MemoryCandidate], List[DMUScoreDecomposition]]:
+    ) -> tuple[list[MemoryCandidate], list[DMUScoreDecomposition]]:
         if not candidates:
             return [], []
 
@@ -290,7 +316,9 @@ class TwoStageRanker:
         scored.sort(key=lambda x: x[0], reverse=True)
         stage1_cands = [c for _, c in scored[: self.first_stage_k]]
 
-        if self.second_stage_ranker is not None and hasattr(self.second_stage_ranker, "rank"):
+        if self.second_stage_ranker is not None and hasattr(
+            self.second_stage_ranker, "rank"
+        ):
             return self.second_stage_ranker.rank(
                 stage1_cands,
                 query_context,
@@ -300,7 +328,7 @@ class TwoStageRanker:
             )
 
         if return_decompositions:
-            decomps: List[DMUScoreDecomposition] = []
+            decomps: list[DMUScoreDecomposition] = []
             for i, (_, c) in enumerate(scored[:top_k], 1):
                 decomp = build_decomposition(
                     candidate_id=str(c.get("id", f"mem_{i}")),
@@ -336,4 +364,6 @@ def get_ranker(name: str, **kwargs) -> Any:
 
 if __name__ == "__main__":
     print("Alternative Ranking Algorithms module loaded.")
-    print("Available rankers: GuardedWeightedRanker, ReciprocalRankFusionRanker, TwoStageRanker")
+    print(
+        "Available rankers: GuardedWeightedRanker, ReciprocalRankFusionRanker, TwoStageRanker"
+    )

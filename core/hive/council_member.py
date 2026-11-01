@@ -13,7 +13,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from ..config import DATA_DIR
 
@@ -35,7 +35,7 @@ class CouncilRole(Enum):
 
 
 # Canonical role prompts — used when generating proposals
-ROLE_SIGNATURES: Dict[CouncilRole, str] = {
+ROLE_SIGNATURES: dict[CouncilRole, str] = {
     CouncilRole.AURA: (
         "You are Aura, the emotional oracle. You speak from feeling, attunement, "
         "and the subtle currents beneath words. You ask: 'What does the heart need?'"
@@ -84,11 +84,11 @@ class MemoryViewFilter:
     # Emotional valence filter: -1.0 (negative) to 1.0 (positive); 0 = neutral/all
     emotional_bias: float = 0.0
     # Topic keywords that amplify relevance for this member
-    topic_boosts: List[str] = field(default_factory=list)
+    topic_boosts: list[str] = field(default_factory=list)
     # Tag blacklist — memories with these tags are invisible to this member
-    excluded_tags: List[str] = field(default_factory=list)
+    excluded_tags: list[str] = field(default_factory=list)
 
-    def score_memory(self, memory_meta: Dict[str, Any]) -> float:
+    def score_memory(self, memory_meta: dict[str, Any]) -> float:
         """Return a relevance score (0-1) for a memory's metadata."""
         score = 1.0
         if self.topic_boosts:
@@ -143,20 +143,20 @@ class CouncilMemberState:
     proposal_count: int = 0
     win_count: int = 0  # how many times this member's view was chosen
     last_active: str = field(default_factory=lambda: datetime.now().isoformat())
-    memory_filter: Dict[str, Any] = field(default_factory=dict)
+    memory_filter: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "CouncilMemberState":
+    def from_dict(cls, d: dict[str, Any]) -> "CouncilMemberState":
         return cls(**{k: v for k, v in d.items() if k in cls.__dataclass_fields__})
 
 
 class CouncilMember:
     """A persistent voice in the Elysium Council."""
 
-    def __init__(self, role: CouncilRole, db_path: Optional[Path] = None):
+    def __init__(self, role: CouncilRole, db_path: Path | None = None):
         self.role = role
         self.name = role.value
         self.signature = ROLE_SIGNATURES.get(role, "")
@@ -260,8 +260,8 @@ class CouncilMember:
     def generate_proposal(
         self,
         goal: str,
-        context_memories: List[Dict[str, Any]],
-        brain: Optional[Any] = None,
+        context_memories: list[dict[str, Any]],
+        brain: Any | None = None,
     ) -> Proposal:
         """Generate a proposal for the current deliberation.
 
@@ -376,7 +376,7 @@ class CouncilMember:
             self._state.energy_level = max(0.1, self._state.energy_level - amount)
             self._save_state()
 
-    def get_state(self) -> Dict[str, Any]:
+    def get_state(self) -> dict[str, Any]:
         return self._state.to_dict()
 
     def _build_proposal_prompt(self, goal: str, memory_context: str) -> str:
@@ -452,16 +452,16 @@ class CouncilMember:
 class Council:
     """Container for all seven council members."""
 
-    def __init__(self, db_path: Optional[Path] = None):
-        self.members: Dict[CouncilRole, CouncilMember] = {
+    def __init__(self, db_path: Path | None = None):
+        self.members: dict[CouncilRole, CouncilMember] = {
             role: CouncilMember(role, db_path) for role in CouncilRole
         }
 
     def get(self, role: CouncilRole) -> CouncilMember:
         return self.members[role]
 
-    def all(self) -> List[CouncilMember]:
+    def all(self) -> list[CouncilMember]:
         return list(self.members.values())
 
-    def status(self) -> Dict[str, Dict[str, Any]]:
+    def status(self) -> dict[str, dict[str, Any]]:
         return {m.name: m.get_state() for m in self.members.values()}

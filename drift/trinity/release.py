@@ -8,6 +8,7 @@ stable across commands.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import shutil
 import subprocess
@@ -45,6 +46,9 @@ def _anchor_data_root() -> Path | None:
         test_dir.mkdir(parents=True, exist_ok=True)
         return path
     except Exception:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return None
 
 
@@ -63,7 +67,6 @@ TRINITY_ARCHIVE_DIR, TRINITY_ARCHIVE_LEDGER_PATH = _resolve_trinity_paths()
 RELEASE_MANIFEST_PATH = PROJECT_ROOT / "release.json"
 
 
-
 def utc_stamp() -> str:
     return datetime.now(UTC).isoformat().replace("+00:00", "Z")
 
@@ -77,6 +80,9 @@ def _read_pyproject_version() -> str:
         project = data.get("project", {})
         return str(project.get("version") or "0.10.0")
     except Exception:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return "0.10.0"
 
 
@@ -92,6 +98,9 @@ def _git_commit_short() -> str:
         commit = result.stdout.strip()
         return commit or "unknown"
     except Exception:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return "unknown"
 
 
@@ -107,8 +116,10 @@ def _git_branch() -> str:
         branch = result.stdout.strip()
         return branch or "unknown"
     except Exception:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return "unknown"
-
 
 
 def _default_release_manifest() -> dict[str, Any]:
@@ -131,17 +142,27 @@ def _load_release_manifest() -> dict[str, Any]:
             if isinstance(loaded, dict):
                 return loaded
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
     return _default_release_manifest()
+
 
 def get_release_info() -> dict[str, Any]:
     manifest = _load_release_manifest()
     try:
         installed_version = metadata.version("drift")
     except Exception:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         installed_version = _read_pyproject_version()
     version = str(manifest.get("version") or installed_version)
-    build = str(manifest.get("build_date") or manifest.get("build") or datetime.now(UTC).strftime("%Y.%m.%d"))
+    build = str(
+        manifest.get("build_date")
+        or manifest.get("build")
+        or datetime.now(UTC).strftime("%Y.%m.%d")
+    )
     return {
         "product": str(manifest.get("product") or "ANCHOR"),
         "engine": str(manifest.get("engine") or "Trinity"),
@@ -152,10 +173,14 @@ def get_release_info() -> dict[str, Any]:
         "commit": str(manifest.get("commit") or _git_commit_short()),
         "branch": str(manifest.get("branch") or _git_branch()),
         "status": str(manifest.get("status") or "release_candidate"),
-        "build_id": str(manifest.get("build_id") or f"anchor-{version}-{build.replace('.', '')}"),
+        "build_id": str(
+            manifest.get("build_id") or f"anchor-{version}-{build.replace('.', '')}"
+        ),
         "tests_passed": manifest.get("tests_passed"),
         "warnings": manifest.get("warnings"),
-        "release_note": str(manifest.get("release_note") or manifest.get("notes") or ""),
+        "release_note": str(
+            manifest.get("release_note") or manifest.get("notes") or ""
+        ),
         "manifest_path": str(RELEASE_MANIFEST_PATH),
         "project_root": str(PROJECT_ROOT),
         "cases_dir": str(TRINITY_CASES_DIR),
@@ -182,14 +207,11 @@ def render_release_text(info: dict[str, Any]) -> str:
         ]
     )
 
+
 def brand_public_report_text(report: str) -> str:
     text = (report or "").strip()
     if not text:
-        return "\n".join([
-            "ANCHOR Investigation Report",
-            "Powered by Trinity",
-            "",
-        ])
+        return "ANCHOR Investigation Report\nPowered by Trinity\n"
 
     replacements = [
         ("# Trinity Evidence Packet", "# ANCHOR Investigation Report"),
@@ -203,12 +225,7 @@ def brand_public_report_text(report: str) -> str:
             branded = branded.replace(old, new, 1)
             break
     else:
-        branded = "\n".join([
-            "ANCHOR Investigation Report",
-            "Powered by Trinity",
-            "",
-            branded,
-        ])
+        branded = f"ANCHOR Investigation Report\nPowered by Trinity\n\n{branded}"
         return branded
 
     if "Powered by Trinity" not in branded:
@@ -218,6 +235,7 @@ def brand_public_report_text(report: str) -> str:
             1,
         )
     return branded
+
 
 @dataclass
 class TrinityArchiveLedger:
@@ -251,9 +269,12 @@ class TrinityArchiveLedger:
 
     def find(self, archive_id: str) -> dict[str, Any] | None:
         matches = [
-            entry for entry in self.recent(10_000) if str(entry.get("archive_id")) == str(archive_id)
+            entry
+            for entry in self.recent(10_000)
+            if str(entry.get("archive_id")) == str(archive_id)
         ]
         return matches[-1] if matches else None
+
 
 def _history_ledger(ledger_path: str | Path | None = None) -> TrinityCaseLedger:
     return TrinityCaseLedger(Path(ledger_path) if ledger_path else TRINITY_LEDGER_PATH)
@@ -274,7 +295,11 @@ def load_history(
             continue
         if status and str(entry.get("status", "")).lower() != str(status).lower():
             continue
-        if scanner_format and str(entry.get("scanner_format", "")).lower() != str(scanner_format).lower():
+        if (
+            scanner_format
+            and str(entry.get("scanner_format", "")).lower()
+            != str(scanner_format).lower()
+        ):
             continue
         filtered.append(entry)
     return filtered[-max(0, int(limit)) :]
@@ -314,6 +339,7 @@ def render_history_text(entries: list[dict[str, Any]]) -> str:
         lines.append("No Trinity history recorded yet.")
     return "\n".join(lines)
 
+
 def render_archive_text(record: dict[str, Any]) -> str:
     return "\n".join(
         [
@@ -326,8 +352,13 @@ def render_archive_text(record: dict[str, Any]) -> str:
         ]
     )
 
-def _archive_root_for(case_id: str, archive_id: str, output_dir: str | Path | None = None) -> Path:
-    return Path(output_dir) if output_dir else TRINITY_ARCHIVE_DIR / case_id / archive_id
+
+def _archive_root_for(
+    case_id: str, archive_id: str, output_dir: str | Path | None = None
+) -> Path:
+    return (
+        Path(output_dir) if output_dir else TRINITY_ARCHIVE_DIR / case_id / archive_id
+    )
 
 
 def _archive_manifest(
@@ -371,7 +402,11 @@ def create_archive(
         raise FileNotFoundError(f"Case not found: {case_ref}")
 
     bundle = load_case_bundle(case_root)
-    case_id = str(bundle.get("case_id") or (bundle.get("claim") or {}).get("id") or Path(case_root).name)
+    case_id = str(
+        bundle.get("case_id")
+        or (bundle.get("claim") or {}).get("id")
+        or Path(case_root).name
+    )
     archive_id = f"{case_id}-{datetime.now(UTC).strftime('%Y%m%d%H%M%S')}"
     archive_root = _archive_root_for(case_id, archive_id, output_dir)
     archive_root.parent.mkdir(parents=True, exist_ok=True)
@@ -394,7 +429,9 @@ def create_archive(
 
     zip_path: str | None = None
     if zip_output:
-        zip_target = shutil.make_archive(str(archive_root), "zip", root_dir=archive_root)
+        zip_target = shutil.make_archive(
+            str(archive_root), "zip", root_dir=archive_root
+        )
         zip_path = str(Path(zip_target))
         manifest["zip_path"] = zip_path
         (archive_root / "archive_manifest.json").write_text(
@@ -402,7 +439,9 @@ def create_archive(
             encoding="utf-8",
         )
 
-    archive_entry = TrinityArchiveLedger(archive_ledger_path or TRINITY_ARCHIVE_LEDGER_PATH).append(
+    archive_entry = TrinityArchiveLedger(
+        archive_ledger_path or TRINITY_ARCHIVE_LEDGER_PATH
+    ).append(
         {
             "archive_id": archive_id,
             "case_id": case_id,
@@ -522,7 +561,9 @@ def build_upgrade_plan(apply: bool = False) -> dict[str, Any]:
         "apply": apply,
         "commands": commands,
         "executed": executed,
-        "note": "Applied release update" if apply else "Dry run only; no commands executed",
+        "note": "Applied release update"
+        if apply
+        else "Dry run only; no commands executed",
     }
 
 

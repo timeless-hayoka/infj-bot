@@ -11,10 +11,11 @@ Safe by design:
 """
 
 import json
+import logging
 import subprocess
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
 from drift.core.config import PROJECT_ROOT
 from drift.core.memory import DriftMemory
@@ -22,7 +23,6 @@ from drift.core.plugins.bugcrowd_client import BugcrowdClient
 from drift.core.plugins.findings_db import Finding, FindingsDB
 from drift.core.plugins.report_builder import ReportBuilder
 from drift.core.plugins.target_manager import TargetManager
-
 
 RECON_DIR = Path(PROJECT_ROOT) / "recon"
 BUGBOT_LOG = Path(PROJECT_ROOT) / "logs" / "bugbot.log"
@@ -43,8 +43,8 @@ class BugBot:
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
-        memory: Optional[DriftMemory] = None,
+        api_key: str | None = None,
+        memory: DriftMemory | None = None,
     ):
         self.client = BugcrowdClient(api_key=api_key)
         self.findings = FindingsDB()
@@ -61,6 +61,9 @@ class BugBot:
         try:
             programs = self.client.list_programs()
         except Exception as exc:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             return f"❌ Failed to fetch programs: {exc}"
 
         if not programs:
@@ -76,6 +79,9 @@ class BugBot:
                     f"Synced program: {prog.name} ({len(full.scope)} in / {len(full.oos)} out)"
                 )
             except Exception as exc:
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
                 self._log(f"⚠️ Failed to sync {prog.name}: {exc}")
 
         return f"✅ Synced {len(programs)} program(s). Targets: {self.targets.count(scope='in')} in / {self.targets.count(scope='out')} out."
@@ -85,6 +91,9 @@ class BugBot:
         try:
             programs = self.client.list_programs()
         except Exception as exc:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             return f"❌ {exc}"
         if not programs:
             return "No programs found."
@@ -112,7 +121,7 @@ class BugBot:
         domains = [t.asset for t in targets if t.asset_type in ("domain", "wildcard")]
         urls = [t.asset for t in targets if t.asset_type == "url"]
 
-        results: List[str] = []
+        results: list[str] = []
         stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         out_dir = RECON_DIR / program_id / stamp
         out_dir.mkdir(parents=True, exist_ok=True)
@@ -135,7 +144,7 @@ class BugBot:
         self._log(f"Recon {program_id}/{tool}: {summary[:200]}")
         return f"🛰️ Recon complete for {program_id}\n{summary}\n📁 Artifacts: {out_dir}"
 
-    def _run_subfinder(self, domains: List[str], out_dir: Path) -> str:
+    def _run_subfinder(self, domains: list[str], out_dir: Path) -> str:
         domain_file = out_dir / "domains.txt"
         domain_file.write_text("\n".join(domains))
         output = out_dir / "subdomains.txt"
@@ -152,9 +161,12 @@ class BugBot:
         except FileNotFoundError:
             return "  ⚠️ subfinder not installed"
         except Exception as exc:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             return f"  ❌ subfinder error: {exc}"
 
-    def _run_nuclei(self, targets: List[str], out_dir: Path) -> str:
+    def _run_nuclei(self, targets: list[str], out_dir: Path) -> str:
         target_file = out_dir / "nuclei_targets.txt"
         target_file.write_text("\n".join(targets))
         output = out_dir / "nuclei.json"
@@ -191,7 +203,12 @@ class BugBot:
                         vuln_type = f"Nuclei: {item.get('template-id', 'unknown')}"
                         dedup_key = (asset, vuln_type)
                         # DB-level dedup check — no arbitrary limit
-                        duplicate = dedup_key in seen_this_run or self.findings.exists_by_asset_and_vuln_type(asset, vuln_type)
+                        duplicate = (
+                            dedup_key in seen_this_run
+                            or self.findings.exists_by_asset_and_vuln_type(
+                                asset, vuln_type
+                            )
+                        )
                         if duplicate:
                             skipped += 1
                             continue
@@ -209,7 +226,8 @@ class BugBot:
                     [
                         d
                         for d in data
-                        if d.get("info", {}).get("severity", "").lower() in ("critical", "high")
+                        if d.get("info", {}).get("severity", "").lower()
+                        in ("critical", "high")
                     ]
                 )
                 skip_note = f", {skipped} skipped (dedup)" if skipped else ""
@@ -218,9 +236,12 @@ class BugBot:
         except FileNotFoundError:
             return "  ⚠️ nuclei not installed"
         except Exception as exc:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             return f"  ❌ nuclei error: {exc}"
 
-    def _run_ffuf(self, targets: List[str], out_dir: Path) -> str:
+    def _run_ffuf(self, targets: list[str], out_dir: Path) -> str:
         # Run ffuf on first domain only (safety)
         domain = targets[0].replace("https://", "").replace("http://", "").split("/")[0]
         output = out_dir / "ffuf.json"
@@ -255,6 +276,9 @@ class BugBot:
         except FileNotFoundError:
             return "  ⚠️ ffuf not installed"
         except Exception as exc:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             return f"  ❌ ffuf error: {exc}"
 
     # ── Findings ──────────────────────────────────────────────────
@@ -319,7 +343,7 @@ class BugBot:
         return "\n".join(lines)
 
     def list_findings(
-        self, program_id: Optional[str] = None, status: Optional[str] = None
+        self, program_id: str | None = None, status: str | None = None
     ) -> str:
         items = self.findings.list(program_id=program_id, status=status, limit=100)
         if not items:
@@ -391,6 +415,9 @@ class BugBot:
             )
             return f"✅ Submitted to Bugcrowd! Submission ID: {sub_id}"
         except Exception as exc:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             return f"❌ Submission failed: {exc}"
 
     def attach_evidence(
@@ -477,7 +504,9 @@ class BugBot:
                 if enhanced:
                     return enhanced
             except Exception:
-                pass
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
 
         return (
             standard_report
@@ -492,5 +521,6 @@ class BugBot:
 
     def _log(self, msg: str):
         from drift.core.jsonl_logger import HardenedJsonlLogger
+
         line = f"[{datetime.now().isoformat(timespec='seconds')}] {msg}"
         HardenedJsonlLogger(BUGBOT_LOG).write_raw(line)

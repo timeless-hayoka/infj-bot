@@ -43,7 +43,7 @@ def anchor_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
         encoding="utf-8",
     )
     monkeypatch.setenv("ANCHOR_ROOT", str(repo))
-    import core.anchor_context as anchor_context
+    from core import anchor_context
 
     anchor_context._knowledge_provider = None
     for name in ("core.anchor_context", "drift.core.anchor_context"):

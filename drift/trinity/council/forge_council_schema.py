@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 from uuid import uuid4
 
 
@@ -44,9 +44,9 @@ class AgentState:
     role: str
     score: float = 0.5
     authority: float = 0.5
-    recent_performance: List[float] = field(default_factory=list)
-    drive_state: Dict[str, float] = field(default_factory=dict)
-    memory_refs: List[str] = field(default_factory=list)
+    recent_performance: list[float] = field(default_factory=list)
+    drive_state: dict[str, float] = field(default_factory=dict)
+    memory_refs: list[str] = field(default_factory=list)
 
     def observe(self, performance: float) -> None:
         self.recent_performance.append(performance)
@@ -62,14 +62,14 @@ class AgentMessage:
     sender: str
     receiver: str
     message_type: str
-    claim_id: Optional[str]
-    content: Dict[str, Any]
-    evidence_refs: List[str]
+    claim_id: str | None
+    content: dict[str, Any]
+    evidence_refs: list[str]
     confidence: float
     requires_response: bool = False
     timestamp: str = field(default_factory=utc_stamp)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -78,13 +78,13 @@ class EvidenceItem:
     id: str
     source_agent: str
     evidence_type: str
-    content: Dict[str, Any]
+    content: dict[str, Any]
     strength: float
     reproducible: bool = False
-    claim_id: Optional[str] = None
+    claim_id: str | None = None
     timestamp: str = field(default_factory=utc_stamp)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -94,13 +94,13 @@ class ClaimRecord:
     status: ClaimStatus = ClaimStatus.PROPOSED
     proposer: str = ""
     subject: str = ""
-    content: Dict[str, Any] = field(default_factory=dict)
-    evidence_refs: List[str] = field(default_factory=list)
-    challenge_notes: List[str] = field(default_factory=list)
-    disproof_attempts: List[str] = field(default_factory=list)
+    content: dict[str, Any] = field(default_factory=dict)
+    evidence_refs: list[str] = field(default_factory=list)
+    challenge_notes: list[str] = field(default_factory=list)
+    disproof_attempts: list[str] = field(default_factory=list)
     reproduction_status: str = "unattempted"
     confidence: float = 0.0
-    accepted_by: Optional[str] = None
+    accepted_by: str | None = None
     memory_updated: bool = False
     created_at: str = field(default_factory=utc_stamp)
     updated_at: str = field(default_factory=utc_stamp)
@@ -125,15 +125,16 @@ class ClaimRecord:
         if note:
             if new_status == ClaimStatus.CHALLENGED:
                 self.challenge_notes.append(note)
-            elif new_status == ClaimStatus.REPRO_ATTEMPTED:
-                self.disproof_attempts.append(note)
-            elif new_status == ClaimStatus.REJECTED:
+            elif (
+                new_status == ClaimStatus.REPRO_ATTEMPTED
+                or new_status == ClaimStatus.REJECTED
+            ):
                 self.disproof_attempts.append(note)
 
         self.status = new_status
         self.touch()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         payload = asdict(self)
         payload["status"] = self.status.value
         return payload

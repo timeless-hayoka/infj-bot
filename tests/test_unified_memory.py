@@ -1,17 +1,19 @@
-import pytest
 import datetime
-import tempfile
 import os
-import anyio
+import tempfile
 
-from drift.core.unified_memory import MemoryManager, Event
+import anyio
+import pytest
+from drift.core.unified_memory import Event, MemoryManager
 
 
 @pytest.fixture
 def temp_dirs():
-    with tempfile.TemporaryDirectory() as sqlite_dir:
-        with tempfile.TemporaryDirectory() as chroma_dir:
-            yield sqlite_dir, chroma_dir
+    with (
+        tempfile.TemporaryDirectory() as sqlite_dir,
+        tempfile.TemporaryDirectory() as chroma_dir,
+    ):
+        yield (sqlite_dir, chroma_dir)
 
 
 @pytest.mark.anyio

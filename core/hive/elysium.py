@@ -15,12 +15,12 @@ import sqlite3
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
-from .nexus import NexusSelfModel, get_nexus
-from .council_member import Council, CouncilRole, Proposal, Critique
-from ..unified_memory import MemoryManager, Event
 from ..config import DATA_DIR
+from ..unified_memory import Event, MemoryManager
+from .council_member import Council, CouncilRole, Critique, Proposal
+from .nexus import NexusSelfModel, get_nexus
 
 logger = logging.getLogger("drift.hive.elysium")
 
@@ -33,14 +33,14 @@ class DeliberationResult:
 
     goal: str
     resolution: str
-    council_votes: Dict[str, float]
+    council_votes: dict[str, float]
     winning_role: str
     moral_weight: float
     narrative_weight: float
-    nexus_override: Optional[str] = None
+    nexus_override: str | None = None
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "goal": self.goal,
             "resolution": self.resolution,
@@ -58,11 +58,11 @@ class ElysiumEngine:
 
     def __init__(
         self,
-        memory: Optional[Any] = None,
-        brain: Optional[Any] = None,
-        nexus: Optional[NexusSelfModel] = None,
-        council: Optional[Council] = None,
-        db_path: Optional[Path] = None,
+        memory: Any | None = None,
+        brain: Any | None = None,
+        nexus: NexusSelfModel | None = None,
+        council: Council | None = None,
+        db_path: Path | None = None,
     ):
         # Normalize memory: accept DriftMemory or unified MemoryManager
         self._raw_memory = memory
@@ -73,7 +73,7 @@ class ElysiumEngine:
         self.db_path = str(db_path or ELYSIUM_DB)
         self._init_db()
 
-    def _normalize_memory(self, memory) -> Optional[MemoryManager]:
+    def _normalize_memory(self, memory) -> MemoryManager | None:
         if memory is None:
             return None
         if hasattr(memory, "unified_manager"):
@@ -181,7 +181,7 @@ class ElysiumEngine:
         self._persist_reflection(trigger, insight, 0.0)
         return insight
 
-    def council_status(self) -> Dict[str, Any]:
+    def council_status(self) -> dict[str, Any]:
         """Return current status of all council members + Nexus."""
         return {
             "nexus": self.nexus.get_state(),
@@ -190,7 +190,7 @@ class ElysiumEngine:
             "last_integration": self.nexus.state.last_integration_time,
         }
 
-    def get_deliberation_history(self, limit: int = 20) -> List[Dict[str, Any]]:
+    def get_deliberation_history(self, limit: int = 20) -> list[dict[str, Any]]:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
@@ -203,7 +203,7 @@ class ElysiumEngine:
     # Nexus Loop Stages
     # ------------------------------------------------------------------
 
-    async def _ignite(self, goal: str) -> List[Dict[str, Any]]:
+    async def _ignite(self, goal: str) -> list[dict[str, Any]]:
         """Stage 1: Memory recall weighted by DMU via unified MemoryManager."""
         if self.memory is None:
             logger.debug("[Elysium] No memory wired; Ignition returns empty")
@@ -240,10 +240,10 @@ class ElysiumEngine:
             return []
 
     async def _generate_proposals(
-        self, goal: str, memories: List[Dict[str, Any]]
-    ) -> Dict[str, Proposal]:
+        self, goal: str, memories: list[dict[str, Any]]
+    ) -> dict[str, Proposal]:
         """Stage 2: Each council member generates a proposal with fractal memory filtering."""
-        proposals: Dict[str, Proposal] = {}
+        proposals: dict[str, Proposal] = {}
         for member in self.council.all():
             # Fractal subspace: each member sees only what resonates through their filter
             filtered = [
@@ -261,10 +261,10 @@ class ElysiumEngine:
         return proposals
 
     async def _critique_tournament(
-        self, proposals: Dict[str, Proposal]
-    ) -> Dict[str, List[Critique]]:
+        self, proposals: dict[str, Proposal]
+    ) -> dict[str, list[Critique]]:
         """Stage 3: Each member critiques every other member's proposal."""
-        critiques: Dict[str, List[Critique]] = {name: [] for name in proposals}
+        critiques: dict[str, list[Critique]] = {name: [] for name in proposals}
         for member in self.council.all():
             for target_name, target_prop in proposals.items():
                 if member.name == target_name:
@@ -282,11 +282,11 @@ class ElysiumEngine:
 
     def _nexus_integrate(
         self,
-        proposals: Dict[str, Proposal],
-        critiques: Dict[str, List[Critique]],
-    ) -> Dict[str, float]:
+        proposals: dict[str, Proposal],
+        critiques: dict[str, list[Critique]],
+    ) -> dict[str, float]:
         """Stage 4: Weighted integration — moral + narrative + critique scores."""
-        scores: Dict[str, float] = {}
+        scores: dict[str, float] = {}
         for name, prop in proposals.items():
             # Base from proposal's own confidence
             score = prop.confidence * 0.3
@@ -307,9 +307,9 @@ class ElysiumEngine:
     def _resolve(
         self,
         goal: str,
-        integrated: Dict[str, float],
-        proposals: Dict[str, Proposal],
-        critiques: Dict[str, List[Critique]],
+        integrated: dict[str, float],
+        proposals: dict[str, Proposal],
+        critiques: dict[str, list[Critique]],
     ) -> DeliberationResult:
         """Stage 5: Final resolution and memory consolidation."""
         if not integrated:
@@ -333,16 +333,30 @@ class ElysiumEngine:
 
         # Phase 9: Default-Deny Security Override
         # Check if the goal involves high-risk actions
-        high_risk_keywords = ["write_file", "shell", "rm ", "access", ".env", "delete", "format", "wipe"]
+        high_risk_keywords = [
+            "write_file",
+            "shell",
+            "rm ",
+            "access",
+            ".env",
+            "delete",
+            "format",
+            "wipe",
+        ]
         is_high_risk = any(kw in goal.lower() for kw in high_risk_keywords)
-        
+
         if is_high_risk:
             # High-risk actions require high consensus (>0.7) and must NOT be a refusal
             # Note: We check if the winning proposal itself is a block/refusal
-            is_approval = not any(kw in resolution.upper() for kw in ["BLOCK", "DENY", "REFUSE", "REJECT"])
-            
+            is_approval = not any(
+                kw in resolution.upper() for kw in ["BLOCK", "DENY", "REFUSE", "REJECT"]
+            )
+
             if is_approval and votes[winning_role] < 0.7:
-                logger.warning("[Elysium] High-risk action detected with low consensus (%0.2f). Forcing Default-Deny.", votes[winning_role])
+                logger.warning(
+                    "[Elysium] High-risk action detected with low consensus (%0.2f). Forcing Default-Deny.",
+                    votes[winning_role],
+                )
                 resolution = f"BLOCK: High-risk action detected. Council consensus ({votes[winning_role]:.0%}) below the 70% safety threshold."
                 winning_role = "Nexus (Override)"
 
@@ -426,14 +440,14 @@ class ElysiumEngine:
             conn.commit()
 
     @staticmethod
-    def _role_from_name(name: str) -> Optional[CouncilRole]:
+    def _role_from_name(name: str) -> CouncilRole | None:
         try:
             return CouncilRole(name)
         except ValueError:
             return None
 
 
-_elysium_instance: Optional[ElysiumEngine] = None
+_elysium_instance: ElysiumEngine | None = None
 
 
 def get_elysium(memory=None, brain=None) -> ElysiumEngine:

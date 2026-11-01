@@ -2,14 +2,17 @@
 """Demo client to submit an autonomous plan to the INFJ Companion HTTP bridge."""
 
 import json
+import logging
 import sys
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 import requests
 
 
-def run_plan(host: str, port: int, token: Optional[str], plan: Dict[str, Any]):
-    protocol = "https" if not host.startswith("127.") and host != "localhost" else "http"
+def run_plan(host: str, port: int, token: str | None, plan: dict[str, Any]):
+    protocol = (
+        "https" if not host.startswith("127.") and host != "localhost" else "http"
+    )
     url = f"{protocol}://{host}:{port}/autonomy"
     payload = {"plan": plan}
     headers = {}
@@ -50,6 +53,9 @@ def main() -> int:
         print(json.dumps(out, indent=2, ensure_ascii=False))
         return 0
     except Exception as exc:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         print("Error:", exc, file=sys.stderr)
         return 1
 

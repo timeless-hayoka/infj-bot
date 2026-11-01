@@ -5,12 +5,13 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import logging
 import os
 import secrets
 import sys
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
@@ -24,7 +25,9 @@ from fastapi.responses import JSONResponse, StreamingResponse
 APP_VERSION = "1.0.0"
 ROOT = Path(__file__).resolve().parent
 PROJECT_ROOT = Path(os.getenv("ANCHOR_PROJECT_ROOT", str(ROOT))).expanduser().resolve()
-SIGNING_KEY_PATH = Path(os.getenv("ANCHOR_SIGNING_KEY_PATH", str(ROOT / "anchor_signing_key.pem"))).expanduser()
+SIGNING_KEY_PATH = Path(
+    os.getenv("ANCHOR_SIGNING_KEY_PATH", str(ROOT / "anchor_signing_key.pem"))
+).expanduser()
 DEFAULT_HOST = os.getenv("ANCHOR_SERVER_HOST", "127.0.0.1")
 DEFAULT_PORT = int(os.getenv("ANCHOR_SERVER_PORT", "8000"))
 DEFAULT_SCRIPT = os.getenv("ANCHOR_DEFAULT_HUNT_SCRIPT", "trinity_hunt_v4_2_fixed.py")
@@ -36,40 +39,132 @@ ALLOWED_SCRIPT_NAMES = {
     ).split(",")
     if name.strip()
 }
-ALLOW_HUNT_ARGS = os.getenv("ANCHOR_ALLOW_HUNT_ARGS", "0").strip().lower() in {"1", "true", "yes"}
+ALLOW_HUNT_ARGS = os.getenv("ANCHOR_ALLOW_HUNT_ARGS", "0").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+}
 BENCHMARK = "3a8b8bf0"
 LADDER = {"DETECTED": 0, "CORRELATED": 1, "REPRODUCED_REAL": 2}
 TERMINAL_EVENTS = {"run.completed", "run.stopped"}
 
 SWC = {
-    "SWC-101": {"name": "Integer Overflow / Underflow", "sev": "high", "fix": "Use Solidity ^0.8 checked math or SafeMath.", "cvss": 7.5, "vector": "AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N"},
-    "SWC-104": {"name": "Unchecked Call Return", "sev": "medium", "fix": "Check the boolean return of low-level calls or use a checked transfer.", "cvss": 6.5, "vector": "AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:L"},
-    "SWC-105": {"name": "Unprotected Ether Withdrawal", "sev": "high", "fix": "Add access control and withdrawal limits.", "cvss": 9.1, "vector": "AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:H"},
-    "SWC-106": {"name": "Unprotected Selfdestruct", "sev": "critical", "fix": "Gate selfdestruct behind access control, or remove it entirely.", "cvss": 9.1, "vector": "AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:H"},
-    "SWC-107": {"name": "Reentrancy", "sev": "high", "fix": "Apply checks-effects-interactions or a reentrancy guard.", "cvss": 9.1, "vector": "AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:H"},
-    "SWC-115": {"name": "Authorization via tx.origin", "sev": "high", "fix": "Use msg.sender for authorization, never tx.origin.", "cvss": 6.5, "vector": "AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:H/A:N"},
+    "SWC-101": {
+        "name": "Integer Overflow / Underflow",
+        "sev": "high",
+        "fix": "Use Solidity ^0.8 checked math or SafeMath.",
+        "cvss": 7.5,
+        "vector": "AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N",
+    },
+    "SWC-104": {
+        "name": "Unchecked Call Return",
+        "sev": "medium",
+        "fix": "Check the boolean return of low-level calls or use a checked transfer.",
+        "cvss": 6.5,
+        "vector": "AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:L",
+    },
+    "SWC-105": {
+        "name": "Unprotected Ether Withdrawal",
+        "sev": "high",
+        "fix": "Add access control and withdrawal limits.",
+        "cvss": 9.1,
+        "vector": "AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:H",
+    },
+    "SWC-106": {
+        "name": "Unprotected Selfdestruct",
+        "sev": "critical",
+        "fix": "Gate selfdestruct behind access control, or remove it entirely.",
+        "cvss": 9.1,
+        "vector": "AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:H",
+    },
+    "SWC-107": {
+        "name": "Reentrancy",
+        "sev": "high",
+        "fix": "Apply checks-effects-interactions or a reentrancy guard.",
+        "cvss": 9.1,
+        "vector": "AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:H",
+    },
+    "SWC-115": {
+        "name": "Authorization via tx.origin",
+        "sev": "high",
+        "fix": "Use msg.sender for authorization, never tx.origin.",
+        "cvss": 6.5,
+        "vector": "AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:H/A:N",
+    },
 }
 
 SPECIMENS = [
-    {"case_id": "TinyReentrancy", "contract": "TinyReentrancy", "swc": "SWC-107", "validation_state": "REPRODUCED_REAL"},
-    {"case_id": "TinyReentrancyEvents", "contract": "TinyReentrancyEvents", "swc": "SWC-107", "validation_state": "REPRODUCED_REAL"},
-    {"case_id": "TinyReentrancyHelper", "contract": "TinyReentrancyHelper", "swc": "SWC-107", "validation_state": "REPRODUCED_REAL"},
-    {"case_id": "TinyUnprotectedSelfdestruct", "contract": "TinyUnprotectedSelfdestruct", "swc": "SWC-106", "validation_state": "REPRODUCED_REAL"},
-    {"case_id": "TinyUnprotectedWithdrawal", "contract": "TinyUnprotectedWithdrawal", "swc": "SWC-105", "validation_state": "REPRODUCED_REAL"},
-    {"case_id": "TinyIntegerOverflow", "contract": "TinyIntegerOverflow", "swc": "SWC-101", "validation_state": "REPRODUCED_REAL"},
-    {"case_id": "TinyIntegerUnderflow", "contract": "TinyIntegerUnderflow", "swc": "SWC-101", "validation_state": "REPRODUCED_REAL"},
-    {"case_id": "TinyTxOrigin", "contract": "TinyTxOrigin", "swc": "SWC-115", "validation_state": "REPRODUCED_REAL"},
-    {"case_id": "TinyUncheckedTransfer", "contract": "TinyUncheckedTransfer", "swc": "SWC-104", "validation_state": "REPRODUCED_REAL"},
-    {"case_id": "TinySafeReentrancy", "contract": "TinySafeReentrancy", "swc": None, "validation_state": "NEGATIVE_CONTROL_PASSED"},
+    {
+        "case_id": "TinyReentrancy",
+        "contract": "TinyReentrancy",
+        "swc": "SWC-107",
+        "validation_state": "REPRODUCED_REAL",
+    },
+    {
+        "case_id": "TinyReentrancyEvents",
+        "contract": "TinyReentrancyEvents",
+        "swc": "SWC-107",
+        "validation_state": "REPRODUCED_REAL",
+    },
+    {
+        "case_id": "TinyReentrancyHelper",
+        "contract": "TinyReentrancyHelper",
+        "swc": "SWC-107",
+        "validation_state": "REPRODUCED_REAL",
+    },
+    {
+        "case_id": "TinyUnprotectedSelfdestruct",
+        "contract": "TinyUnprotectedSelfdestruct",
+        "swc": "SWC-106",
+        "validation_state": "REPRODUCED_REAL",
+    },
+    {
+        "case_id": "TinyUnprotectedWithdrawal",
+        "contract": "TinyUnprotectedWithdrawal",
+        "swc": "SWC-105",
+        "validation_state": "REPRODUCED_REAL",
+    },
+    {
+        "case_id": "TinyIntegerOverflow",
+        "contract": "TinyIntegerOverflow",
+        "swc": "SWC-101",
+        "validation_state": "REPRODUCED_REAL",
+    },
+    {
+        "case_id": "TinyIntegerUnderflow",
+        "contract": "TinyIntegerUnderflow",
+        "swc": "SWC-101",
+        "validation_state": "REPRODUCED_REAL",
+    },
+    {
+        "case_id": "TinyTxOrigin",
+        "contract": "TinyTxOrigin",
+        "swc": "SWC-115",
+        "validation_state": "REPRODUCED_REAL",
+    },
+    {
+        "case_id": "TinyUncheckedTransfer",
+        "contract": "TinyUncheckedTransfer",
+        "swc": "SWC-104",
+        "validation_state": "REPRODUCED_REAL",
+    },
+    {
+        "case_id": "TinySafeReentrancy",
+        "contract": "TinySafeReentrancy",
+        "swc": None,
+        "validation_state": "NEGATIVE_CONTROL_PASSED",
+    },
 ]
 
 
 def utc_stamp() -> str:
-    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    return datetime.now(UTC).isoformat().replace("+00:00", "Z")
 
 
 def canonical_json(payload: Any) -> bytes:
-    return json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
+    return json.dumps(
+        payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True
+    ).encode("utf-8")
 
 
 def _self_url() -> str:
@@ -85,12 +180,20 @@ def _ensure_under_project_root(path: Path, label: str) -> Path:
     candidate = candidate.resolve()
     try:
         candidate.relative_to(PROJECT_ROOT)
-    except ValueError as exc:
-        raise ValueError(f"{label} must stay under the approved project root: {PROJECT_ROOT}") from exc
+    except (ValueError, TypeError) as exc:
+        raise ValueError(
+            f"{label} must stay under the approved project root: {PROJECT_ROOT}"
+        ) from exc
     return candidate
 
 
-def _resolve_project_path(raw: str | None, *, default: str | None = None, must_exist: bool = True, label: str = "path") -> Path | None:
+def _resolve_project_path(
+    raw: str | None,
+    *,
+    default: str | None = None,
+    must_exist: bool = True,
+    label: str = "path",
+) -> Path | None:
     value = raw
     if value is None or not str(value).strip():
         if default is None:
@@ -106,7 +209,7 @@ def _normalize_args(value: Any) -> list[str]:
     if value is None:
         return []
     if not isinstance(value, list):
-        raise ValueError("args must be a list")
+        raise TypeError("args must be a list")
     return [str(v) for v in value]
 
 
@@ -121,10 +224,14 @@ def _bootstrap_signing_key() -> tuple[Ed25519PrivateKey, str]:
                     try:
                         os.chmod(path, 0o600)
                     except Exception:
-                        pass
+                        logging.getLogger(__name__).debug(
+                            "Operation failed; applying fallback", exc_info=True
+                        )
                     return key, f"stored locally at {path}"
             except Exception:
-                pass
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
         path.parent.mkdir(parents=True, exist_ok=True)
         key = Ed25519PrivateKey.generate()
         pem = key.private_bytes(
@@ -141,17 +248,26 @@ def _bootstrap_signing_key() -> tuple[Ed25519PrivateKey, str]:
         try:
             os.chmod(path, 0o600)
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
         return key, f"generated locally at {path}"
     except Exception:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return Ed25519PrivateKey.generate(), "in-memory fallback"
 
 
 SIGNING_KEY, SIGNING_HINT = _bootstrap_signing_key()
-PUBLIC_KEY_HEX = SIGNING_KEY.public_key().public_bytes(
-    encoding=serialization.Encoding.Raw,
-    format=serialization.PublicFormat.Raw,
-).hex()
+PUBLIC_KEY_HEX = (
+    SIGNING_KEY.public_key()
+    .public_bytes(
+        encoding=serialization.Encoding.Raw,
+        format=serialization.PublicFormat.Raw,
+    )
+    .hex()
+)
 PUBLIC_KEY_ID = PUBLIC_KEY_HEX[:16]
 
 
@@ -183,16 +299,18 @@ def fixture_case(spec: dict[str, Any]) -> dict[str, Any]:
     reproduced = [swc] if swc and ladder_index(state) >= 2 else []
     artifacts = []
     if state == "REPRODUCED_REAL" and swc:
-        artifacts.append({
-            "swc": swc,
-            "success": True,
-            "exploit_verified": True,
-            "assertion_count": 1,
-            "unavailable": False,
-            "test_path": f"test/Test_{spec['case_id']}.t.sol",
-            "stderr": "",
-            "failure_reason": "",
-        })
+        artifacts.append(
+            {
+                "swc": swc,
+                "success": True,
+                "exploit_verified": True,
+                "assertion_count": 1,
+                "unavailable": False,
+                "test_path": f"test/Test_{spec['case_id']}.t.sol",
+                "stderr": "",
+                "failure_reason": "",
+            }
+        )
     return {
         "case_id": spec["case_id"],
         "contract": spec["contract"],
@@ -202,7 +320,9 @@ def fixture_case(spec: dict[str, Any]) -> dict[str, Any]:
         "correlated": correlated,
         "reproduced_real": reproduced,
         "validation_state": state,
-        "reproduction_status": "REPRODUCED_REAL" if state == "REPRODUCED_REAL" else ("NOT_TESTED" if state == "NEGATIVE_CONTROL_PASSED" else "FAILED"),
+        "reproduction_status": "REPRODUCED_REAL"
+        if state == "REPRODUCED_REAL"
+        else ("NOT_TESTED" if state == "NEGATIVE_CONTROL_PASSED" else "FAILED"),
         "true_positive": 1 if state == "REPRODUCED_REAL" else 0,
         "false_positive": 0,
         "false_negative": 0,
@@ -216,7 +336,9 @@ def fixture_case(spec: dict[str, Any]) -> dict[str, Any]:
 
 def specimen_registry() -> dict[str, Any]:
     results = [fixture_case(spec) for spec in SPECIMENS]
-    reproduced = sum(1 for item in results if item["validation_state"] == "REPRODUCED_REAL")
+    reproduced = sum(
+        1 for item in results if item["validation_state"] == "REPRODUCED_REAL"
+    )
     total = len(results)
     precision = 1.0 if total else 0.0
     return {
@@ -247,25 +369,32 @@ def normalize_registry(data: Any) -> list[dict[str, Any]]:
 
 
 def case_from_registry(entry: dict[str, Any]) -> dict[str, Any]:
-    validation_state = str(entry.get("validation_state") or entry.get("status") or "UNKNOWN")
+    validation_state = str(
+        entry.get("validation_state") or entry.get("status") or "UNKNOWN"
+    )
     if validation_state == "UNAVAILABLE":
         validation_state = "TOOL_UNAVAILABLE"
     artifacts = entry.get("execution_artifacts") or []
     if not isinstance(artifacts, list):
         artifacts = []
     if not artifacts and validation_state == "REPRODUCED_REAL":
-        artifacts = [{
-            "swc": entry.get("swc"),
-            "success": True,
-            "exploit_verified": True,
-            "assertion_count": entry.get("assertion_count", 1),
-            "unavailable": False,
-            "test_path": entry.get("test_path"),
-            "stderr": "",
-            "failure_reason": "",
-        }]
+        artifacts = [
+            {
+                "swc": entry.get("swc"),
+                "success": True,
+                "exploit_verified": True,
+                "assertion_count": entry.get("assertion_count", 1),
+                "unavailable": False,
+                "test_path": entry.get("test_path"),
+                "stderr": "",
+                "failure_reason": "",
+            }
+        ]
     return {
-        "case_id": entry.get("case_id") or entry.get("id") or entry.get("challenge") or "unknown_case",
+        "case_id": entry.get("case_id")
+        or entry.get("id")
+        or entry.get("challenge")
+        or "unknown_case",
         "contract": entry.get("contract") or entry.get("subject") or None,
         "swc": entry.get("swc") or (entry.get("expected") or [None])[0],
         "expected": entry.get("expected") or [],
@@ -273,15 +402,18 @@ def case_from_registry(entry: dict[str, Any]) -> dict[str, Any]:
         "correlated": entry.get("correlated") or [],
         "reproduced_real": entry.get("reproduced_real") or [],
         "validation_state": validation_state,
-        "reproduction_status": entry.get("reproduction_status") or ("REPRODUCED_REAL" if validation_state == "REPRODUCED_REAL" else "FAILED"),
+        "reproduction_status": entry.get("reproduction_status")
+        or ("REPRODUCED_REAL" if validation_state == "REPRODUCED_REAL" else "FAILED"),
         "execution_artifacts": artifacts,
         "timestamp": entry.get("timestamp") or utc_stamp(),
     }
 
 
-def build_registry_from_cases(run: "Run") -> dict[str, Any]:
+def build_registry_from_cases(run: Run) -> dict[str, Any]:
     results = list(run.cases.values())
-    reproduced = sum(1 for item in results if item.get("validation_state") == "REPRODUCED_REAL")
+    reproduced = sum(
+        1 for item in results if item.get("validation_state") == "REPRODUCED_REAL"
+    )
     total = len(results)
     precision = 1.0 if total else 0.0
     return {
@@ -317,7 +449,9 @@ class Run:
     ingested: bool = False
     cancelled: bool = False
 
-    def _event(self, type_: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    def _event(
+        self, type_: str, payload: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         seq = len(self.events) + 1
         return {
             "schema_version": "1.0",
@@ -350,40 +484,58 @@ class Run:
                 "timestamp": payload.get("timestamp") or utc_stamp(),
             }
         elif event_type == "stage.started":
-            self.cases.setdefault(case_id, {"case_id": case_id})["stage"] = payload.get("stage")
+            self.cases.setdefault(case_id, {"case_id": case_id})["stage"] = payload.get(
+                "stage"
+            )
         elif event_type == "finding.detected":
             case = self.cases.setdefault(case_id, {"case_id": case_id})
-            case.update({"swc": payload.get("swc") or case.get("swc"), "validation_state": "DETECTED"})
+            case.update(
+                {
+                    "swc": payload.get("swc") or case.get("swc"),
+                    "validation_state": "DETECTED",
+                }
+            )
             if payload.get("swc"):
                 case["detected"] = [payload.get("swc")]
         elif event_type == "finding.correlated":
             case = self.cases.setdefault(case_id, {"case_id": case_id})
-            case.update({"swc": payload.get("swc") or case.get("swc"), "validation_state": "CORRELATED"})
+            case.update(
+                {
+                    "swc": payload.get("swc") or case.get("swc"),
+                    "validation_state": "CORRELATED",
+                }
+            )
             if payload.get("swc"):
                 case["correlated"] = [payload.get("swc")]
         elif event_type == "poc.result":
             case = self.cases.setdefault(case_id, {"case_id": case_id})
             verified = bool(payload.get("exploit_verified"))
-            case.update({
-                "swc": payload.get("swc") or case.get("swc"),
-                "validation_state": "REPRODUCED_REAL" if verified else "FAILED",
-                "reproduction_status": "REPRODUCED_REAL" if verified else "FAILED",
-            })
+            case.update(
+                {
+                    "swc": payload.get("swc") or case.get("swc"),
+                    "validation_state": "REPRODUCED_REAL" if verified else "FAILED",
+                    "reproduction_status": "REPRODUCED_REAL" if verified else "FAILED",
+                }
+            )
             if verified and payload.get("swc"):
                 case["reproduced_real"] = [payload.get("swc")]
-                case.setdefault("execution_artifacts", []).append({
-                    "swc": payload.get("swc"),
-                    "success": True,
-                    "exploit_verified": True,
-                    "assertion_count": payload.get("assertion_count", 1),
-                    "unavailable": False,
-                    "test_path": payload.get("test_path"),
-                    "stderr": "",
-                    "failure_reason": "",
-                })
+                case.setdefault("execution_artifacts", []).append(
+                    {
+                        "swc": payload.get("swc"),
+                        "success": True,
+                        "exploit_verified": True,
+                        "assertion_count": payload.get("assertion_count", 1),
+                        "unavailable": False,
+                        "test_path": payload.get("test_path"),
+                        "stderr": "",
+                        "failure_reason": "",
+                    }
+                )
         elif event_type == "case.completed":
             case = self.cases.setdefault(case_id, {"case_id": case_id})
-            case["validation_state"] = payload.get("validation_state") or case.get("validation_state", "UNKNOWN")
+            case["validation_state"] = payload.get("validation_state") or case.get(
+                "validation_state", "UNKNOWN"
+            )
             case["stage"] = "done"
         elif event_type == "run.completed":
             self.status = "done"
@@ -407,7 +559,9 @@ class Run:
             for queue in subscribers:
                 queue.put_nowait(None)
 
-    async def emit(self, type_: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    async def emit(
+        self, type_: str, payload: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         event = self._event(type_, payload)
         await self.publish(event, terminal=type_ in TERMINAL_EVENTS)
         return event
@@ -415,7 +569,9 @@ class Run:
     async def ingest_envelope(self, event: dict[str, Any]) -> None:
         await self.publish(event, terminal=event.get("type") in TERMINAL_EVENTS)
 
-    async def open_stream(self, after: str | None = None) -> tuple[asyncio.Queue | None, list[dict[str, Any]], bool]:
+    async def open_stream(
+        self, after: str | None = None
+    ) -> tuple[asyncio.Queue | None, list[dict[str, Any]], bool]:
         queue: asyncio.Queue = asyncio.Queue()
         async with self.lock:
             start = 0
@@ -463,7 +619,10 @@ def _terminal_registry(run: Run) -> dict[str, Any]:
 
 async def demo_run(run: Run) -> None:
     total = len(SPECIMENS)
-    await run.emit("run.started", {"mode": "demo", "benchmark_id": run.benchmark, "total_cases": total})
+    await run.emit(
+        "run.started",
+        {"mode": "demo", "benchmark_id": run.benchmark, "total_cases": total},
+    )
     reproduced = 0
     for spec in SPECIMENS:
         if run.cancelled:
@@ -475,48 +634,125 @@ async def demo_run(run: Run) -> None:
         run_case = fixture_case(spec)
         run.cases[case_id] = run_case
         CASE_INDEX[case_id] = run_case
-        await run.emit("case.started", {"case_id": case_id, "contract": contract, "expected": run_case["expected"]})
+        await run.emit(
+            "case.started",
+            {
+                "case_id": case_id,
+                "contract": contract,
+                "expected": run_case["expected"],
+            },
+        )
         await run.emit("stage.started", {"case_id": case_id, "stage": "slither"})
         await asyncio.sleep(0.08)
         if swc:
-            await run.emit("finding.detected", {"case_id": case_id, "swc": swc, "source": "slither", "severity": (SWC.get(swc) or {}).get("sev")})
+            await run.emit(
+                "finding.detected",
+                {
+                    "case_id": case_id,
+                    "swc": swc,
+                    "source": "slither",
+                    "severity": (SWC.get(swc) or {}).get("sev"),
+                },
+            )
         await run.emit("stage.started", {"case_id": case_id, "stage": "mythril"})
         await asyncio.sleep(0.08)
         if state == "REPRODUCED_REAL":
-            await run.emit("stage.started", {"case_id": case_id, "stage": "echidna-test"})
+            await run.emit(
+                "stage.started", {"case_id": case_id, "stage": "echidna-test"}
+            )
             await run.emit("stage.started", {"case_id": case_id, "stage": "medusa"})
-            await run.emit("finding.correlated", {"case_id": case_id, "swc": swc, "evidence": ["slither", "mythril", "echidna-test", "medusa"]})
+            await run.emit(
+                "finding.correlated",
+                {
+                    "case_id": case_id,
+                    "swc": swc,
+                    "evidence": ["slither", "mythril", "echidna-test", "medusa"],
+                },
+            )
             await run.emit("stage.started", {"case_id": case_id, "stage": "forge"})
             artifact = run_case["execution_artifacts"][0]
-            await run.emit("poc.result", {"case_id": case_id, "swc": swc, "exploit_verified": True, "assertion_count": artifact.get("assertion_count", 1), "test_path": artifact.get("test_path")})
+            await run.emit(
+                "poc.result",
+                {
+                    "case_id": case_id,
+                    "swc": swc,
+                    "exploit_verified": True,
+                    "assertion_count": artifact.get("assertion_count", 1),
+                    "test_path": artifact.get("test_path"),
+                },
+            )
             reproduced += 1
-        await run.emit("case.completed", {"case_id": case_id, "validation_state": state})
+        await run.emit(
+            "case.completed", {"case_id": case_id, "validation_state": state}
+        )
         await asyncio.sleep(0.05)
     run.registry = specimen_registry()
-    await run.emit("run.completed", {"reproduced": reproduced, "total": total, "precision": 1.0 if total else 0.0, "recall": 1.0 if total else 0.0, "f1": 1.0 if total else 0.0})
+    await run.emit(
+        "run.completed",
+        {
+            "reproduced": reproduced,
+            "total": total,
+            "precision": 1.0 if total else 0.0,
+            "recall": 1.0 if total else 0.0,
+            "f1": 1.0 if total else 0.0,
+        },
+    )
 
 
 async def hunt_run(run: Run) -> None:
     try:
-        script = _resolve_project_path(run.params.get("script"), default=DEFAULT_SCRIPT, must_exist=True, label="hunt script")
-        registry_path = _resolve_project_path(run.params.get("registry"), default="registry.json", must_exist=False, label="registry path")
+        script = _resolve_project_path(
+            run.params.get("script"),
+            default=DEFAULT_SCRIPT,
+            must_exist=True,
+            label="hunt script",
+        )
+        registry_path = _resolve_project_path(
+            run.params.get("registry"),
+            default="registry.json",
+            must_exist=False,
+            label="registry path",
+        )
         args = _normalize_args(run.params.get("args"))
-    except ValueError as exc:
+    except (ValueError, TypeError) as exc:
         await run.emit("log.line", {"message": str(exc), "text": str(exc)})
         run.registry = build_registry_from_cases(run)
-        await run.emit("run.completed", {"reproduced": 0, "total": 0, "precision": 0.0, "recall": 0.0, "f1": 0.0})
+        await run.emit(
+            "run.completed",
+            {"reproduced": 0, "total": 0, "precision": 0.0, "recall": 0.0, "f1": 0.0},
+        )
         return
     if args and not ALLOW_HUNT_ARGS:
-        await run.emit("log.line", {"message": "hunt args rejected: set ANCHOR_ALLOW_HUNT_ARGS=1 to allow explicit script arguments.", "text": "hunt args rejected"})
+        await run.emit(
+            "log.line",
+            {
+                "message": "hunt args rejected: set ANCHOR_ALLOW_HUNT_ARGS=1 to allow explicit script arguments.",
+                "text": "hunt args rejected",
+            },
+        )
         run.registry = build_registry_from_cases(run)
-        await run.emit("run.completed", {"reproduced": 0, "total": 0, "precision": 0.0, "recall": 0.0, "f1": 0.0})
+        await run.emit(
+            "run.completed",
+            {"reproduced": 0, "total": 0, "precision": 0.0, "recall": 0.0, "f1": 0.0},
+        )
         return
     if script.name not in ALLOWED_SCRIPT_NAMES:
-        await run.emit("log.line", {"message": f"hunt script rejected: {script.name} is not allowlisted.", "text": "hunt script rejected"})
+        await run.emit(
+            "log.line",
+            {
+                "message": f"hunt script rejected: {script.name} is not allowlisted.",
+                "text": "hunt script rejected",
+            },
+        )
         run.registry = build_registry_from_cases(run)
-        await run.emit("run.completed", {"reproduced": 0, "total": 0, "precision": 0.0, "recall": 0.0, "f1": 0.0})
+        await run.emit(
+            "run.completed",
+            {"reproduced": 0, "total": 0, "precision": 0.0, "recall": 0.0, "f1": 0.0},
+        )
         return
-    await run.emit("run.started", {"mode": "hunt", "benchmark_id": run.benchmark, "total_cases": 0})
+    await run.emit(
+        "run.started", {"mode": "hunt", "benchmark_id": run.benchmark, "total_cases": 0}
+    )
     env = dict(os.environ)
     env["ANCHOR_SERVER_URL"] = _self_url()
     env["ANCHOR_RUN_ID"] = run.run_id
@@ -532,9 +768,21 @@ async def hunt_run(run: Run) -> None:
             stderr=asyncio.subprocess.STDOUT,
         )
     except Exception as exc:
-        await run.emit("log.line", {"message": f"failed to launch hunt: {exc}", "text": f"failed to launch hunt: {exc}"})
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
+        await run.emit(
+            "log.line",
+            {
+                "message": f"failed to launch hunt: {exc}",
+                "text": f"failed to launch hunt: {exc}",
+            },
+        )
         run.registry = build_registry_from_cases(run)
-        await run.emit("run.completed", {"reproduced": 0, "total": 0, "precision": 0.0, "recall": 0.0, "f1": 0.0})
+        await run.emit(
+            "run.completed",
+            {"reproduced": 0, "total": 0, "precision": 0.0, "recall": 0.0, "f1": 0.0},
+        )
         return
     run.process = proc
 
@@ -559,27 +807,84 @@ async def hunt_run(run: Run) -> None:
     if registry_path and registry_path.exists():
         try:
             registry_data = json.loads(registry_path.read_text(encoding="utf-8"))
-            run.registry = registry_data if isinstance(registry_data, dict) else {"results": registry_data}
+            run.registry = (
+                registry_data
+                if isinstance(registry_data, dict)
+                else {"results": registry_data}
+            )
             results = normalize_registry(registry_data)
             total = len(results)
-            reproduced = sum(1 for item in results if item.get("validation_state") == "REPRODUCED_REAL" or item.get("success"))
+            reproduced = sum(
+                1
+                for item in results
+                if item.get("validation_state") == "REPRODUCED_REAL"
+                or item.get("success")
+            )
             if not run.ingested:
                 for item in results:
                     normalized = case_from_registry(item)
                     cid = normalized["case_id"]
                     run.cases[cid] = normalized
                     CASE_INDEX[cid] = normalized
-                    await run.emit("case.started", {"case_id": cid, "contract": normalized.get("contract"), "expected": normalized.get("expected", [])})
+                    await run.emit(
+                        "case.started",
+                        {
+                            "case_id": cid,
+                            "contract": normalized.get("contract"),
+                            "expected": normalized.get("expected", []),
+                        },
+                    )
                     if ladder_index(normalized["validation_state"]) >= 0:
-                        await run.emit("finding.detected", {"case_id": cid, "swc": normalized.get("swc"), "source": "registry", "severity": (SWC.get(normalized.get("swc")) or {}).get("sev")})
+                        await run.emit(
+                            "finding.detected",
+                            {
+                                "case_id": cid,
+                                "swc": normalized.get("swc"),
+                                "source": "registry",
+                                "severity": (SWC.get(normalized.get("swc")) or {}).get(
+                                    "sev"
+                                ),
+                            },
+                        )
                     if ladder_index(normalized["validation_state"]) >= 1:
-                        await run.emit("finding.correlated", {"case_id": cid, "swc": normalized.get("swc"), "evidence": ["registry"]})
+                        await run.emit(
+                            "finding.correlated",
+                            {
+                                "case_id": cid,
+                                "swc": normalized.get("swc"),
+                                "evidence": ["registry"],
+                            },
+                        )
                     if ladder_index(normalized["validation_state"]) >= 2:
                         artifact = (normalized.get("execution_artifacts") or [{}])[0]
-                        await run.emit("poc.result", {"case_id": cid, "swc": normalized.get("swc"), "exploit_verified": True, "assertion_count": artifact.get("assertion_count", 1), "test_path": artifact.get("test_path")})
-                    await run.emit("case.completed", {"case_id": cid, "validation_state": normalized.get("validation_state")})
+                        await run.emit(
+                            "poc.result",
+                            {
+                                "case_id": cid,
+                                "swc": normalized.get("swc"),
+                                "exploit_verified": True,
+                                "assertion_count": artifact.get("assertion_count", 1),
+                                "test_path": artifact.get("test_path"),
+                            },
+                        )
+                    await run.emit(
+                        "case.completed",
+                        {
+                            "case_id": cid,
+                            "validation_state": normalized.get("validation_state"),
+                        },
+                    )
         except Exception as exc:
-            await run.emit("log.line", {"message": f"registry parse failed: {exc}", "text": f"registry parse failed: {exc}"})
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
+            await run.emit(
+                "log.line",
+                {
+                    "message": f"registry parse failed: {exc}",
+                    "text": f"registry parse failed: {exc}",
+                },
+            )
 
     if run.registry is None:
         run.registry = build_registry_from_cases(run)
@@ -588,15 +893,28 @@ async def hunt_run(run: Run) -> None:
     elif total == 0:
         results = normalize_registry(run.registry)
         total = len(results)
-        reproduced = sum(1 for item in results if item.get("validation_state") == "REPRODUCED_REAL" or item.get("success"))
+        reproduced = sum(
+            1
+            for item in results
+            if item.get("validation_state") == "REPRODUCED_REAL" or item.get("success")
+        )
 
-    await run.emit("run.completed", {
-        "reproduced": reproduced,
-        "total": total,
-        "precision": float(run.registry.get("precision", 0.0)) if isinstance(run.registry, dict) else 0.0,
-        "recall": float(run.registry.get("recall", 0.0)) if isinstance(run.registry, dict) else 0.0,
-        "f1": float(run.registry.get("f1", 0.0)) if isinstance(run.registry, dict) else 0.0,
-    })
+    await run.emit(
+        "run.completed",
+        {
+            "reproduced": reproduced,
+            "total": total,
+            "precision": float(run.registry.get("precision", 0.0))
+            if isinstance(run.registry, dict)
+            else 0.0,
+            "recall": float(run.registry.get("recall", 0.0))
+            if isinstance(run.registry, dict)
+            else 0.0,
+            "f1": float(run.registry.get("f1", 0.0))
+            if isinstance(run.registry, dict)
+            else 0.0,
+        },
+    )
 
 
 async def run_driver(run: Run) -> None:
@@ -613,16 +931,30 @@ async def run_driver(run: Run) -> None:
             run.done.set()
 
 
-def create_run(mode: str = "demo", *, script: str | None = None, registry: str | None = None, args: Optional[list[str]] = None, benchmark: str | None = None, target: str | None = None) -> Run:
+def create_run(
+    mode: str = "demo",
+    *,
+    script: str | None = None,
+    registry: str | None = None,
+    args: list[str] | None = None,
+    benchmark: str | None = None,
+    target: str | None = None,
+) -> Run:
     run_id = f"run_{secrets.token_hex(6)}"
     params: dict[str, Any] = {"target": target}
     if script is not None:
-        params["script"] = str(_resolve_project_path(script, must_exist=True, label="hunt script"))
+        params["script"] = str(
+            _resolve_project_path(script, must_exist=True, label="hunt script")
+        )
     if registry is not None:
-        params["registry"] = str(_resolve_project_path(registry, must_exist=False, label="registry path"))
+        params["registry"] = str(
+            _resolve_project_path(registry, must_exist=False, label="registry path")
+        )
     if args is not None:
         params["args"] = _normalize_args(args)
-    return Run(run_id=run_id, benchmark=str(benchmark or BENCHMARK), mode=mode, params=params)
+    return Run(
+        run_id=run_id, benchmark=str(benchmark or BENCHMARK), mode=mode, params=params
+    )
 
 
 app = FastAPI(title="ANCHOR run server", version=APP_VERSION)
@@ -649,7 +981,11 @@ async def root() -> dict[str, Any]:
 
 @app.get("/pubkey")
 async def pubkey() -> dict[str, Any]:
-    return {"algorithm": "ed25519", "public_key": PUBLIC_KEY_HEX, "public_key_id": PUBLIC_KEY_ID}
+    return {
+        "algorithm": "ed25519",
+        "public_key": PUBLIC_KEY_HEX,
+        "public_key_id": PUBLIC_KEY_ID,
+    }
 
 
 @app.post("/runs")
@@ -657,6 +993,9 @@ async def create_run_route(req: Request) -> dict[str, Any]:
     try:
         body = await req.json()
     except Exception:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         body = {}
     if not isinstance(body, dict):
         body = {}
@@ -665,7 +1004,10 @@ async def create_run_route(req: Request) -> dict[str, Any]:
         mode = "demo"
     args = body.get("args")
     if args and not ALLOW_HUNT_ARGS:
-        raise HTTPException(status_code=400, detail="hunt args are disabled; set ANCHOR_ALLOW_HUNT_ARGS=1 to allow explicit script arguments")
+        raise HTTPException(
+            status_code=400,
+            detail="hunt args are disabled; set ANCHOR_ALLOW_HUNT_ARGS=1 to allow explicit script arguments",
+        )
     try:
         run = create_run(
             mode,
@@ -675,12 +1017,14 @@ async def create_run_route(req: Request) -> dict[str, Any]:
             benchmark=body.get("benchmark"),
             target=body.get("target"),
         )
-    except ValueError as exc:
+    except (ValueError, TypeError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     if run.mode == "hunt" and run.params.get("script") is not None:
         script_name = Path(run.params["script"]).name
         if script_name not in ALLOWED_SCRIPT_NAMES:
-            raise HTTPException(status_code=400, detail=f"hunt script {script_name} is not allowlisted")
+            raise HTTPException(
+                status_code=400, detail=f"hunt script {script_name} is not allowlisted"
+            )
     RUNS[run.run_id] = run
     run.task = asyncio.create_task(run_driver(run))
     return {"run_id": run.run_id, "mode": run.mode, "status": run.status}
@@ -706,7 +1050,7 @@ async def run_events(run_id: str, request: Request) -> StreamingResponse:
                     break
                 try:
                     event = await asyncio.wait_for(queue.get(), timeout=15)
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     if run.done.is_set():
                         break
                     yield ": keepalive\n\n"
@@ -722,7 +1066,11 @@ async def run_events(run_id: str, request: Request) -> StreamingResponse:
     return StreamingResponse(
         stream(),
         media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"},
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
     )
 
 
@@ -739,7 +1087,20 @@ async def ingest(run_id: str, req: Request) -> dict[str, Any]:
         raise HTTPException(status_code=400, detail="Event type is required")
     payload = body.get("payload")
     if not isinstance(payload, dict):
-        payload = {k: v for k, v in body.items() if k not in {"schema_version", "event_id", "run_id", "type", "event_type", "timestamp", "payload"}}
+        payload = {
+            k: v
+            for k, v in body.items()
+            if k
+            not in {
+                "schema_version",
+                "event_id",
+                "run_id",
+                "type",
+                "event_type",
+                "timestamp",
+                "payload",
+            }
+        }
     event = {
         "schema_version": str(body.get("schema_version") or "1.0"),
         "event_id": str(body.get("event_id") or f"evt_{secrets.token_hex(8)}"),
@@ -824,7 +1185,12 @@ async def evidence_sign(req: Request) -> dict[str, Any]:
         raise HTTPException(status_code=400, detail="Evidence bundle must be an object")
     bundle.pop("signature", None)
     bundle.pop("integrity", None)
-    return {"ok": True, "signed_bundle": sign_bundle(bundle), "signing_hint": SIGNING_HINT, "public_key": PUBLIC_KEY_HEX}
+    return {
+        "ok": True,
+        "signed_bundle": sign_bundle(bundle),
+        "signing_hint": SIGNING_HINT,
+        "public_key": PUBLIC_KEY_HEX,
+    }
 
 
 if __name__ == "__main__":

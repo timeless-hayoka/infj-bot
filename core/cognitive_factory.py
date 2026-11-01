@@ -12,7 +12,7 @@ import os
 import textwrap
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import ClassVar, Optional
 
 from drift.core.cognitive_architecture import CognitiveArchitecture
 
@@ -106,7 +106,7 @@ class AbilityProposal:
     description: str
     purpose: str
     observed_need: str
-    proposed_methods: List[str]
+    proposed_methods: list[str]
     confidence: float  # 0.0–1.0
     created_at: str
 
@@ -117,7 +117,7 @@ class CognitiveFactory:
     """
 
     # Patterns that suggest the bot might benefit from a new module
-    NEED_PATTERNS: List[Dict] = [
+    NEED_PATTERNS: ClassVar[list[dict]] = [
         {
             "keyword": "gratitude",
             "module_name": "gratitude_journal",
@@ -156,7 +156,7 @@ class CognitiveFactory:
         },
     ]
 
-    def __init__(self, db_path: Optional[str] = None):
+    def __init__(self, db_path: str | None = None):
         self.db_path = db_path or os.path.join("data", "cognitive_factory.db")
         self._init_db()
 
@@ -193,7 +193,7 @@ class CognitiveFactory:
     #  Proposal logic
     # ------------------------------------------------------------------
 
-    def propose(self, observed_need: str) -> Optional[AbilityProposal]:
+    def propose(self, observed_need: str) -> AbilityProposal | None:
         """
         Given an observed need string, propose a new cognitive module.
         Returns None if no pattern matches.
@@ -236,7 +236,7 @@ class CognitiveFactory:
                 ),
             )
 
-    def list_pending_proposals(self) -> List[AbilityProposal]:
+    def list_pending_proposals(self) -> list[AbilityProposal]:
         """Return all proposals awaiting user's decision."""
         import json
         import sqlite3
@@ -282,9 +282,9 @@ class CognitiveFactory:
         )
         return source
 
-    def _build_custom_methods(self, methods: List[str], class_name: str) -> str:
+    def _build_custom_methods(self, methods: list[str], class_name: str) -> str:
         """Generate stub method bodies from proposed method names."""
-        stubs: List[str] = []
+        stubs: list[str] = []
         for method in methods:
             stub = textwrap.dedent(f"""
                 def {method}(self) -> str:
@@ -302,12 +302,12 @@ class CognitiveFactory:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def validate_source(source: str) -> Dict:
+    def validate_source(source: str) -> dict:
         """
         Parse generated source with AST and enforce safety rules.
         Returns {"valid": bool, "errors": List[str], "warnings": List[str]}
         """
-        result: Dict = {"valid": False, "errors": [], "warnings": []}
+        result: dict = {"valid": False, "errors": [], "warnings": []}
         try:
             tree = ast.parse(source)
         except SyntaxError as exc:
@@ -330,17 +330,18 @@ class CognitiveFactory:
                 name = ""
                 if isinstance(func, ast.Name):
                     name = func.id
-                elif isinstance(func, ast.Attribute):
-                    # simple attr like os.system
-                    if isinstance(func.value, ast.Name):
-                        name = f"{func.value.id}.{func.attr}"
+                elif isinstance(func, ast.Attribute) and isinstance(
+                    func.value, ast.Name
+                ):
+                    name = f"{func.value.id}.{func.attr}"
                 if name in dangerous_names:
                     result["errors"].append(f"Dangerous call blocked: {name}")
 
             # Rule 2: no __import__ at expression level
-            if isinstance(node, ast.Call):
-                if isinstance(node.func, ast.Name) and node.func.id == "__import__":
-                    result["errors"].append("__import__ is forbidden")
+            if isinstance(node, ast.Call) and (
+                isinstance(node.func, ast.Name) and node.func.id == "__import__"
+            ):
+                result["errors"].append("__import__ is forbidden")
 
         # Rule 3: must contain a class and a _register() function
         has_class = any(isinstance(n, ast.ClassDef) for n in ast.walk(tree))
@@ -369,7 +370,7 @@ class CognitiveFactory:
 
     def install(
         self, proposal: AbilityProposal, source: str, project_root: str = "."
-    ) -> Dict:
+    ) -> dict:
         """
         Validate, write, and register a new module.
         Requires that user has already approved the proposal.
@@ -446,7 +447,7 @@ class CognitiveFactory:
 
 
 # Singleton for global access
-_factory_instance: Optional[CognitiveFactory] = None
+_factory_instance: CognitiveFactory | None = None
 
 
 def get_factory() -> CognitiveFactory:

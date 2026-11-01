@@ -5,8 +5,7 @@ import tempfile
 from pathlib import Path
 
 import pytest
-
-from drift.core.plugins.aspirations import AspirationalSelf, MAX_ACTIVE_ASPIRATIONS
+from drift.core.plugins.aspirations import MAX_ACTIVE_ASPIRATIONS, AspirationalSelf
 
 
 @pytest.fixture

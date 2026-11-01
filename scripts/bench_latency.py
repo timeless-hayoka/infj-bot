@@ -7,6 +7,7 @@ Usage:
 
 It runs a small DriftBrain init and one `think()` call and reports elapsed time.
 """
+
 import os
 import subprocess
 import sys
@@ -38,8 +39,7 @@ print('sdk', getattr(b,'sdk',None))
 
 cmd = [sys.executable, "-c", snippet]
 print(f"Running benchmark mode={MODE}...")
-proc = subprocess.run(cmd, env=env, capture_output=True, text=True)
+proc = subprocess.run(cmd, env=env, capture_output=True, text=True, check=False)
 print(proc.stdout)
 if proc.stderr:
     print(proc.stderr, file=sys.stderr)
-

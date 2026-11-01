@@ -142,9 +142,9 @@ A lightweight consensus engine for multi-voice deliberation. Nodes propose thoug
 
 ```python
 # What happens when you /hive propose ...
-engine.propose(msg)                          # open a thread
-engine.vote(thread_id, "lantern-4", "BLOCK") # safety node votes
-engine.resolve(thread_id, Resolution.TABLED) # thread closed
+engine.propose(msg)  # open a thread
+engine.vote(thread_id, "lantern-4", "BLOCK")  # safety node votes
+engine.resolve(thread_id, Resolution.TABLED)  # thread closed
 ```
 
 The **Elysium** engine (in `core/hive/`) runs deeper async deliberations with a persistent Nexus self-model and 7 council voices (Aura, Logic, Meme, Vibe, Ethos, Pulse, Nexus).

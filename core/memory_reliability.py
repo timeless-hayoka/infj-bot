@@ -25,7 +25,7 @@ import sqlite3
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 
 from drift.core.config import RELIABILITY_DB
 
@@ -52,14 +52,14 @@ class MemoryReliabilityRecord:
     source_type: str = "bot_observation"
     base_confidence: float = 0.6
     current_reliability: float = 0.6
-    created_at: Optional[datetime] = None
-    last_reinforced: Optional[datetime] = None
+    created_at: datetime | None = None
+    last_reinforced: datetime | None = None
     reinforcement_count: int = 0
     contradiction_count: int = 0
     decay_rate: float = 0.01
     projection_flag: bool = False  # Shadow detected this as projection
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "memory_id": self.memory_id,
             "source_type": self.source_type,
@@ -73,19 +73,19 @@ class MemoryReliabilityRecord:
 
 @dataclass
 class Contradiction:
-    id: Optional[int] = None
+    id: int | None = None
     memory_a_id: str = ""
     memory_b_id: str = ""
     contradiction_type: str = ""  # factual | emotional | temporal | identity
     severity: float = 0.5
-    detected_at: Optional[datetime] = None
+    detected_at: datetime | None = None
     resolution: str = "unresolved"  # unresolved | user_confirmed_a | user_confirmed_b | merged | deprecated
 
 
 class MemoryReliabilityEngine:
     """Tracks memory confidence, detects contradictions, integrates with Shadow."""
 
-    def __init__(self, db_path: Optional[Path] = None):
+    def __init__(self, db_path: Path | None = None):
         self.db_path = str(db_path or RELIABILITY_DB)
         Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
         self._init_db()
@@ -218,7 +218,7 @@ class MemoryReliabilityEngine:
 
     def _detect_contradiction(
         self, text_a: str, text_b: str
-    ) -> Tuple[Optional[str], float]:
+    ) -> tuple[str | None, float]:
         """Detect contradiction between two memory texts."""
         a_lower = text_a.lower()
         b_lower = text_b.lower()
@@ -297,9 +297,10 @@ class MemoryReliabilityEngine:
             emotion_words.get(w, 0) for w in b.split() if w in emotion_words
         )
 
-        if abs(a_valence) > 0.5 and abs(b_valence) > 0.5:
-            if (a_valence > 0 and b_valence < 0) or (a_valence < 0 and b_valence > 0):
-                return min(1.0, 0.6 + abs(a_valence - b_valence) * 0.2)
+        if (abs(a_valence) > 0.5 and abs(b_valence) > 0.5) and (
+            a_valence > 0 and b_valence < 0 or (a_valence < 0 and b_valence > 0)
+        ):
+            return min(1.0, 0.6 + abs(a_valence - b_valence) * 0.2)
         return 0.0
 
     def _temporal_contradiction_score(self, a: str, b: str) -> float:
@@ -356,7 +357,7 @@ class MemoryReliabilityEngine:
             )
             conn.commit()
 
-    def get_projection_memories(self) -> List[Dict]:
+    def get_projection_memories(self) -> list[dict]:
         """Get all memories flagged as projections."""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.execute(
@@ -368,7 +369,7 @@ class MemoryReliabilityEngine:
 
     # ── Queries ──
 
-    def get_reliability(self, memory_id: str) -> Optional[float]:
+    def get_reliability(self, memory_id: str) -> float | None:
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.execute(
                 "SELECT current_reliability FROM memory_reliability WHERE memory_id = ?",
@@ -377,7 +378,7 @@ class MemoryReliabilityEngine:
             row = cursor.fetchone()
         return row[0] if row else None
 
-    def get_unresolved_contradictions(self) -> List[Dict]:
+    def get_unresolved_contradictions(self) -> list[dict]:
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.execute(
                 """SELECT c.*, a.text as text_a, b.text as text_b
@@ -410,7 +411,7 @@ class MemoryReliabilityEngine:
 
     def get_reliable_memories(
         self, threshold: float = 0.5, limit: int = 100
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """Get memories above reliability threshold."""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.execute(
@@ -425,7 +426,7 @@ class MemoryReliabilityEngine:
 
 
 # Singleton
-_reliability_instance: Optional[MemoryReliabilityEngine] = None
+_reliability_instance: MemoryReliabilityEngine | None = None
 
 
 def get_reliability_engine() -> MemoryReliabilityEngine:

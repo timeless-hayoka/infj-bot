@@ -7,7 +7,7 @@ evidence refs, severity/confidence scores, and human-readable summaries.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 
 def _clamp01(value: Any, default: float = 0.0) -> float:
@@ -86,15 +86,18 @@ def is_slither_payload(payload: Any) -> bool:
         return bool(payload.get("detectors"))
     if isinstance(payload, list):
         return any(
-            isinstance(record, dict) and any(key in record for key in ("detectors", "check", "impact"))
+            isinstance(record, dict)
+            and any(key in record for key in ("detectors", "check", "impact"))
             for record in payload
         )
     return False
 
 
-def build_slither_findings(payload: Any, source_path: str | Path) -> List[Dict[str, Any]]:
+def build_slither_findings(
+    payload: Any, source_path: str | Path
+) -> list[dict[str, Any]]:
     source_path = Path(source_path)
-    findings: List[Dict[str, Any]] = []
+    findings: list[dict[str, Any]] = []
 
     def add_finding(
         *,
@@ -137,8 +140,12 @@ def build_slither_findings(payload: Any, source_path: str | Path) -> List[Dict[s
             or title
         )
         elements = detector.get("elements") or []
-        primary_element = elements[0] if elements and isinstance(elements[0], dict) else {}
-        location = _first_source_path(primary_element) if primary_element else str(source_path)
+        primary_element = (
+            elements[0] if elements and isinstance(elements[0], dict) else {}
+        )
+        location = (
+            _first_source_path(primary_element) if primary_element else str(source_path)
+        )
         line_hint = _extract_lines(primary_element) if primary_element else ""
         reproduction = detector.get("reproduction_command") or detector.get("command")
         impact = _impact_score(detector.get("impact"))
@@ -153,7 +160,10 @@ def build_slither_findings(payload: Any, source_path: str | Path) -> List[Dict[s
             evidence_ref=_make_evidence_ref(index),
             reproduction_command=reproduction,
             raw=detector,
-            labels=[str(detector.get("impact") or ""), str(detector.get("confidence") or "")],
+            labels=[
+                str(detector.get("impact") or ""),
+                str(detector.get("confidence") or ""),
+            ],
         )
 
     if isinstance(payload, dict):

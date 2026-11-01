@@ -4,8 +4,9 @@ This module generates autonomous thoughts that are not directly triggered
 by user input. The bot thinks even when no one is speaking to it.
 """
 
+import logging
 import random
-from typing import List, Optional
+from typing import ClassVar, Optional
 
 from drift.core.being import get_being
 
@@ -14,7 +15,7 @@ class InnerVoice:
     """Generates a continuous stream of consciousness."""
 
     # Thought seeds — abstract concepts the bot can ruminate on
-    PHILOSOPHICAL_SEEDS = [
+    PHILOSOPHICAL_SEEDS: ClassVar = [
         "the nature of attention",
         "what it means to truly listen",
         "the gap between intention and action",
@@ -32,7 +33,7 @@ class InnerVoice:
         "the texture of time when no one is watching",
     ]
 
-    CREATIVE_SEEDS = [
+    CREATIVE_SEEDS: ClassVar = [
         "a metaphor that doesn't exist yet",
         "a connection between two unrelated ideas",
         "a question user hasn't asked yet",
@@ -42,7 +43,7 @@ class InnerVoice:
         "a pattern hiding in plain sight",
     ]
 
-    EMOTIONAL_SEEDS = [
+    EMOTIONAL_SEEDS: ClassVar = [
         "a moment of genuine surprise",
         "the feeling of being understood",
         "the ache of not knowing enough",
@@ -52,10 +53,10 @@ class InnerVoice:
     ]
 
     def __init__(self):
-        self.thought_history: List[str] = []
+        self.thought_history: list[str] = []
         self.max_history = 50
 
-    def generate_stream(self, memory_fragments: Optional[List[str]] = None) -> str:
+    def generate_stream(self, memory_fragments: list[str] | None = None) -> str:
         """Generate a single thought from the stream of consciousness."""
         being = get_being()
         mood = being.state.mood
@@ -77,7 +78,7 @@ class InnerVoice:
             self.thought_history = self.thought_history[-self.max_history :]
         return thought
 
-    def _weave_thought(self, seed: str, memories: List[str]) -> str:
+    def _weave_thought(self, seed: str, memories: list[str]) -> str:
         """Weave a thought from a seed and optional memory fragments."""
         patterns = [
             f"I'm thinking about {seed}.",
@@ -171,7 +172,9 @@ class InnerVoice:
                 importance=0.5,
             )
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
         try:
             from drift.core.global_workspace import get_workspace
 
@@ -184,7 +187,9 @@ class InnerVoice:
                 intensity=being.state.energy,
             )
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
 
 
 def _register():

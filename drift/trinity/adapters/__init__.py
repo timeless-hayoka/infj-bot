@@ -1,6 +1,12 @@
+# ruff: noqa: N999 - legacy public filename or repository compatibility shim
 """Trinity scanner adapters."""
 
-from .sarif import build_sarif_findings, is_sarif_payload, parse_sarif_payload, process_sarif_findings
+from .sarif import (
+    build_sarif_findings,
+    is_sarif_payload,
+    parse_sarif_payload,
+    process_sarif_findings,
+)
 from .slither import build_slither_findings, is_slither_payload
 
 __all__ = [

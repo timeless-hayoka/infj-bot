@@ -25,7 +25,7 @@ _stubbed_modules = [
     "chromadb.api.types",
     "sentence_transformers",
     "numpy",
-    "drift.core.memory"
+    "drift.core.memory",
 ]
 for m in _stubbed_modules:
     if m in sys.modules:
@@ -67,11 +67,11 @@ sys.modules["drift.core.memory"] = _memory_stub
 # Now safe to import the modules under test
 # ---------------------------------------------------------------------------
 
-from drift.core.plugins.findings_db import Finding, FindingsDB  # noqa: E402
-from drift.core.plugins.report_builder import ReportBuilder  # noqa: E402
-from drift.core.bug_bot import BugBot, RECON_DIR  # noqa: E402, F401
-from drift.core.plugins.target_manager import TargetManager  # noqa: E402, F401
-from drift.core.commands import _parse_kv_bug_add  # noqa: E402, F401
+from drift.core.bug_bot import RECON_DIR, BugBot
+from drift.core.commands import _parse_kv_bug_add
+from drift.core.plugins.findings_db import Finding, FindingsDB
+from drift.core.plugins.report_builder import ReportBuilder
+from drift.core.plugins.target_manager import TargetManager
 
 # ---------------------------------------------------------------------------
 # Restore the original modules immediately after imports are resolved
@@ -285,7 +285,7 @@ class TestBugBotStats:
 
 class TestBugBotGenerateReport:
     def test_generate_report_writes_file(self, bot) -> None:
-        from drift.core.bug_bot import RECON_DIR  # noqa: F811
+        from drift.core.bug_bot import RECON_DIR
 
         RECON_DIR.mkdir(parents=True, exist_ok=True)
         bot.add_finding(title="LFI", severity="P2", asset="cdn.example.com")
@@ -449,7 +449,7 @@ class TestNucleiDeduplication:
 
 class TestBugAddKeyValueParsing:
     def test_parse_kv_all_keys(self) -> None:
-        from drift.core.commands import _parse_kv_bug_add  # noqa: F811
+        from drift.core.commands import _parse_kv_bug_add
 
         text = (
             "title=SQL Injection via search severity=P2 asset=api.example.com "
@@ -467,13 +467,13 @@ class TestBugAddKeyValueParsing:
         assert result.get("fix") == "Use params"
 
     def test_parse_kv_minimal(self) -> None:
-        from drift.core.commands import _parse_kv_bug_add  # noqa: F811
+        from drift.core.commands import _parse_kv_bug_add
 
         result = _parse_kv_bug_add("title=XSS Bug")
         assert result.get("title") == "XSS Bug"
 
     def test_parse_kv_values_with_spaces(self) -> None:
-        from drift.core.commands import _parse_kv_bug_add  # noqa: F811
+        from drift.core.commands import _parse_kv_bug_add
 
         result = _parse_kv_bug_add("title=My Finding With Spaces severity=P1")
         assert result.get("title") == "My Finding With Spaces"

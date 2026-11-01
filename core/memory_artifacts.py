@@ -23,21 +23,23 @@ DRIFT Memory Artifact System
 
 from __future__ import annotations
 
+import datetime
+import hashlib
 import json
+import logging
 import math
 import random
 import uuid
-import datetime
-import hashlib
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Any
-from PIL import Image, ImageDraw, ImageFont
+from typing import Any, Optional
+
 import qrcode
 
 # Import existing memory system
 from drift.core.memory import DriftMemory
+from PIL import Image, ImageDraw, ImageFont
 
 
 class MemoryLayer(Enum):
@@ -68,7 +70,7 @@ class EmotionSignature:
     needs: str = ""
     detector: str = "unknown"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "label": self.label,
             "secondary": self.secondary,
@@ -81,7 +83,7 @@ class EmotionSignature:
         }
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> EmotionSignature:
+    def from_dict(cls, d: dict[str, Any]) -> EmotionSignature:
         return cls(
             label=d.get("label", "neutral"),
             secondary=d.get("secondary", "neutral"),
@@ -119,11 +121,11 @@ class MemoryArtifact:
     layer: MemoryLayer
     phi_at_encoding: float = 35.0
     importance: float = 0.5
-    memory_id: Optional[str] = None  # ChromaDB id if synced
-    qr_hash: Optional[str] = None  # SHA-256 of QR payload
+    memory_id: str | None = None  # ChromaDB id if synced
+    qr_hash: str | None = None  # SHA-256 of QR payload
     hive_validated: bool = False
     hive_consensus: float = 0.0
-    tags: List[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
     dissonance_score: float = 0.0
 
     def to_qr_payload(self, max_chars: int = 1800) -> str:
@@ -167,8 +169,8 @@ class MemoryArtifact:
 
 def generate_emotion_visualization(
     emotion: EmotionSignature,
-    size: Tuple[int, int] = (200, 200),
-    seed: Optional[int] = None,
+    size: tuple[int, int] = (200, 200),
+    seed: int | None = None,
 ) -> Image.Image:
     """Procedurally generate an abstract image representing an emotion."""
     if seed is not None:
@@ -262,7 +264,7 @@ def generate_emotion_visualization(
 def generate_qr_card(
     artifact: MemoryArtifact,
     output_path: Path,
-    phi_logo_path: Optional[Path] = None,
+    phi_logo_path: Path | None = None,
 ) -> Path:
     """Generate a printable 900×340 memory card with QR, text, and emotion viz."""
     CARD_W, CARD_H = 900, 340
@@ -284,6 +286,9 @@ def generate_qr_card(
             "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 12
         )
     except Exception:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         font_title = font_body = font_small = font_label = ImageFont.load_default()
 
     draw.rounded_rectangle(
@@ -311,7 +316,9 @@ def generate_qr_card(
             pos = ((qr_img.size[0] - phi_size) // 2, (qr_img.size[1] - phi_size) // 2)
             qr_img.paste(phi, pos, phi)
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
 
     qr_x, qr_y = 20, 48
     img.paste(qr_img, (qr_x, qr_y))
@@ -422,9 +429,9 @@ class MemoryArchive:
 
     def __init__(
         self,
-        digital_memory: Optional[DriftMemory] = None,
-        artifact_dir: Optional[Path] = None,
-        phi_logo_path: Optional[Path] = None,
+        digital_memory: DriftMemory | None = None,
+        artifact_dir: Path | None = None,
+        phi_logo_path: Path | None = None,
     ):
         self.digital = digital_memory or DriftMemory()
         self.artifact_dir = (
@@ -434,7 +441,7 @@ class MemoryArchive:
         self.phi_logo_path = (
             phi_logo_path or Path("~/drift-telephone/logo_phi.png").expanduser()
         )
-        self._artifact_registry: Dict[str, MemoryArtifact] = {}
+        self._artifact_registry: dict[str, MemoryArtifact] = {}
         self._load_registry()
 
     def _registry_path(self) -> Path:
@@ -495,9 +502,9 @@ class MemoryArchive:
         self,
         user_input: str,
         bot_output: str,
-        emotion: Optional[Dict] = None,
+        emotion: dict | None = None,
         importance: float = 0.5,
-        dissonance: Optional[Dict] = None,
+        dissonance: dict | None = None,
         mode: str = "companion",
         phi: float = 35.0,
     ) -> MemoryArtifact:
@@ -600,18 +607,16 @@ class MemoryArchive:
 
     # ── Queries ───────────────────────────────────────────────────
 
-    def list_artifacts(
-        self, layer: Optional[MemoryLayer] = None
-    ) -> List[MemoryArtifact]:
+    def list_artifacts(self, layer: MemoryLayer | None = None) -> list[MemoryArtifact]:
         arts = list(self._artifact_registry.values())
         if layer:
             arts = [a for a in arts if a.layer == layer]
         return sorted(arts, key=lambda a: a.timestamp, reverse=True)
 
-    def get_by_id(self, artifact_id: str) -> Optional[MemoryArtifact]:
+    def get_by_id(self, artifact_id: str) -> MemoryArtifact | None:
         return self._artifact_registry.get(artifact_id)
 
-    def stats(self) -> Dict[str, Any]:
+    def stats(self) -> dict[str, Any]:
         layers = {layer: 0 for layer in MemoryLayer}
         for a in self._artifact_registry.values():
             layers[a.layer] += 1
@@ -625,7 +630,7 @@ class MemoryArchive:
             "artifact_dir": str(self.artifact_dir),
         }
 
-    def export_all_cards(self) -> List[Path]:
+    def export_all_cards(self) -> list[Path]:
         """Regenerate all physical cards from registry."""
         paths = []
         for art in self._artifact_registry.values():

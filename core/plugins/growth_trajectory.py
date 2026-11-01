@@ -6,10 +6,11 @@ transcending → becoming. Each stage is earned, not claimed. The
 narrative emphasizes the direction of growth, not mere accumulation.
 """
 
+import logging
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Optional
 
 from drift.core.config import DATA_DIR
 
@@ -62,7 +63,7 @@ CONSCIOUSNESS_STAGES = [
 class GrowthTrajectory:
     """Tracks long-term development with coherence and purpose."""
 
-    def __init__(self, db_path: Optional[Path] = None):
+    def __init__(self, db_path: Path | None = None):
         self.db_path = str(db_path or GROWTH_DB)
         self._init_db()
         self.timeline = self._load_timeline()
@@ -94,7 +95,7 @@ class GrowthTrajectory:
             )
             conn.commit()
 
-    def _load_timeline(self) -> List[Dict]:
+    def _load_timeline(self) -> list[dict]:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
@@ -102,7 +103,7 @@ class GrowthTrajectory:
             ).fetchall()
         return [dict(r) for r in rows]
 
-    def _load_metrics(self) -> Dict[str, float]:
+    def _load_metrics(self) -> dict[str, float]:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
@@ -117,7 +118,7 @@ class GrowthTrajectory:
         self,
         event_type: str,
         description: str,
-        stage_name: Optional[str] = None,
+        stage_name: str | None = None,
         significance: float = 0.5,
     ):
         with sqlite3.connect(self.db_path) as conn:
@@ -152,8 +153,8 @@ class GrowthTrajectory:
             conn.commit()
         self.metrics[metric_name] = value
 
-    def detect_stage(self) -> Dict:
-        event_counts: Dict[str, int] = {}
+    def detect_stage(self) -> dict:
+        event_counts: dict[str, int] = {}
         for event in self.timeline:
             event_counts[event["event_type"]] = (
                 event_counts.get(event["event_type"], 0) + 1
@@ -186,7 +187,7 @@ class GrowthTrajectory:
         total_events = len(self.timeline)
 
         # Gather top themes from significant events only
-        themes: Dict[str, int] = {}
+        themes: dict[str, int] = {}
         for event in self.timeline[:20]:
             if event["significance"] >= 0.5:
                 themes[event["event_type"]] = themes.get(event["event_type"], 0) + 1
@@ -261,7 +262,9 @@ class GrowthTrajectory:
                 salience=0.4,
             )
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
 
 
 def _register():

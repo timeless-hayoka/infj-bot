@@ -1,5 +1,6 @@
 import argparse
 import concurrent.futures
+import logging
 import shutil
 import statistics
 import tempfile
@@ -8,7 +9,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from drift.core.memory import DriftMemory, LocalEmbeddingFunction
-
 
 PROMPTS = [
     "I feel pulled between discipline and imagination.",
@@ -50,6 +50,9 @@ def time_call(operation, func, *args):
         func(*args)
         return Timing(operation, time.perf_counter() - start, True)
     except Exception as exc:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return Timing(operation, time.perf_counter() - start, False, repr(exc))
 
 
@@ -58,6 +61,9 @@ def timed_result(operation, func, *args):
     try:
         return func(*args), Timing(operation, time.perf_counter() - start, True)
     except Exception as exc:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return None, Timing(operation, time.perf_counter() - start, False, repr(exc))
 
 
@@ -141,6 +147,9 @@ def main():
             try:
                 timings.extend(future.result())
             except Exception as exc:
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
                 timings.append(Timing("worker", 0.0, False, repr(exc)))
 
     total_seconds = time.perf_counter() - start

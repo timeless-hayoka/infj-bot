@@ -4,13 +4,13 @@ Tracks vulnerabilities, evidence, reproduction steps, and submission status.
 Integrates with DRIFT memory for long-term recall.
 """
 
+import builtins
 import sqlite3
 import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
-
+from typing import Any, Optional
 
 DEFAULT_DB_PATH = (
     Path(__file__).resolve().parent.parent.parent / "data" / "bugbot_findings.db"
@@ -46,7 +46,7 @@ class Finding:
 
 
 class FindingsDB:
-    def __init__(self, db_path: Optional[Path] = None):
+    def __init__(self, db_path: Path | None = None):
         self.db_path = db_path or DEFAULT_DB_PATH
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._init_db()
@@ -115,7 +115,7 @@ class FindingsDB:
             conn.commit()
         return finding.id
 
-    def get(self, finding_id: str) -> Optional[Finding]:
+    def get(self, finding_id: str) -> Finding | None:
         with self._conn() as conn:
             row = conn.execute(
                 "SELECT * FROM findings WHERE id = ?", (finding_id,)
@@ -140,13 +140,13 @@ class FindingsDB:
 
     def list(
         self,
-        program_id: Optional[str] = None,
-        status: Optional[str] = None,
-        severity: Optional[str] = None,
+        program_id: str | None = None,
+        status: str | None = None,
+        severity: str | None = None,
         limit: int = 50,
-    ) -> List[Finding]:
+    ) -> list[Finding]:
         query = "SELECT * FROM findings WHERE 1=1"
-        params: List[Any] = []
+        params: list[Any] = []
         if program_id:
             query += " AND program_id = ?"
             params.append(program_id)
@@ -179,9 +179,7 @@ class FindingsDB:
             conn.commit()
         return cur.lastrowid
 
-    def exists_by_asset_and_vuln_type(
-        self, asset: str, vuln_type: str
-    ) -> bool:
+    def exists_by_asset_and_vuln_type(self, asset: str, vuln_type: str) -> bool:
         """Check whether a finding with the same asset + vuln_type already exists."""
         with self._conn() as conn:
             row = conn.execute(
@@ -190,7 +188,7 @@ class FindingsDB:
             ).fetchone()
         return row is not None
 
-    def get_evidence(self, finding_id: str) -> List[Dict[str, Any]]:
+    def get_evidence(self, finding_id: str) -> builtins.list[dict[str, Any]]:
         with self._conn() as conn:
             rows = conn.execute(
                 "SELECT * FROM evidence WHERE finding_id = ? ORDER BY created_at",
@@ -198,7 +196,7 @@ class FindingsDB:
             ).fetchall()
         return [dict(r) for r in rows]
 
-    def stats(self) -> Dict[str, Any]:
+    def stats(self) -> dict[str, Any]:
         with self._conn() as conn:
             total = conn.execute("SELECT COUNT(*) FROM findings").fetchone()[0]
             by_status = {
@@ -227,4 +225,4 @@ class FindingsDB:
         }
 
     def _row_to_finding(self, row: sqlite3.Row) -> Finding:
-        return Finding(**{k: row[k] for k in row.keys()})
+        return Finding(**{k: row[k] for k in row})

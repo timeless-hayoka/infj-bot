@@ -5,7 +5,6 @@ import tempfile
 from pathlib import Path
 
 import pytest
-
 from drift.core.plugins.predictor import PredictiveNeeds
 
 
@@ -53,7 +52,7 @@ class TestPredictiveNeeds:
         patterns = p._load_recent_patterns(10)
         result = p._analyze_time_of_day(patterns)
         # The time bucket depends on when the test runs, so just check structure
-        for bucket, data in result.items():
+        for data in result.values():
             assert "typical_emotion" in data
             assert "avg_stress" in data
 

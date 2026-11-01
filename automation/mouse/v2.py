@@ -35,18 +35,19 @@ COMMANDS (inside shell):
   exit / quit   Shutdown and save state
 """
 
-import sys
-import os
-import json
-import time
-import subprocess
 import argparse
+import json
+import logging
+import os
 import platform
+import subprocess
+import sys
+import time
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional, Tuple
-from urllib import request, error
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Optional
+from urllib import error, request
 
 # ──────────────────────────────────────────────────────────────────────────────
 # PATH & PORTABILITY ENGINE
@@ -73,13 +74,16 @@ def _is_removable_media(path: Path) -> bool:
             ["findmnt", "-n", "-o", "FSTYPE", "--target", str(path)],
             capture_output=True,
             text=True,
+            check=False,
         )
         if mount.returncode == 0:
             fstype = mount.stdout.strip()
             if fstype in ("vfat", "exfat", "ntfs", "fuse"):
                 return True
     except Exception:
-        pass
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
     return False
 
 
@@ -135,12 +139,12 @@ def _print_banner():
 
 
 def _run_shell(
-    cmd: List[str], cwd: Optional[str] = None, timeout: int = 10
-) -> Tuple[int, str, str]:
+    cmd: list[str], cwd: str | None = None, timeout: int = 10
+) -> tuple[int, str, str]:
     """Run a shell command safely. Returns (rc, stdout, stderr)."""
     try:
         result = subprocess.run(
-            cmd, capture_output=True, text=True, cwd=cwd, timeout=timeout
+            cmd, capture_output=True, text=True, cwd=cwd, timeout=timeout, check=False
         )
         return result.returncode, result.stdout, result.stderr
     except FileNotFoundError:
@@ -148,10 +152,13 @@ def _run_shell(
     except subprocess.TimeoutExpired:
         return -1, "", "Command timed out"
     except Exception as exc:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return -1, "", str(exc)
 
 
-def _get_hardware_diag() -> Dict[str, Any]:
+def _get_hardware_diag() -> dict[str, Any]:
     """Quick hardware diagnostic for the vanguard."""
     diag = {
         "platform": platform.system(),
@@ -170,6 +177,9 @@ def _get_hardware_diag() -> Dict[str, Any]:
             if mem_total:
                 diag["memory_total_mb"] = int(mem_total.split()[1]) // 1024
     except Exception:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         diag["memory_total_mb"] = "unknown"
     # Disk info for the drive Mouse lives on
     try:
@@ -177,13 +187,16 @@ def _get_hardware_diag() -> Dict[str, Any]:
         diag["disk_free_gb"] = round((st.f_bavail * st.f_frsize) / (1024**3), 2)
         diag["disk_total_gb"] = round((st.f_blocks * st.f_frsize) / (1024**3), 2)
     except Exception:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         diag["disk_free_gb"] = "unknown"
     return diag
 
 
-def _find_git_root(start: Path = Path.cwd()) -> Optional[Path]:
+def _find_git_root(start: Path | None = None) -> Path | None:
     """Walk upward looking for .git directory."""
-    current = start.resolve()
+    current = (start or Path.cwd()).resolve()
     for _ in range(20):  # Limit depth
         if (current / ".git").is_dir():
             return current
@@ -194,7 +207,7 @@ def _find_git_root(start: Path = Path.cwd()) -> Optional[Path]:
     return None
 
 
-def _get_git_status() -> Dict[str, Any]:
+def _get_git_status() -> dict[str, Any]:
     """Extract git context if inside a repo."""
     root = _find_git_root()
     if not root:
@@ -204,8 +217,8 @@ def _get_git_status() -> Dict[str, Any]:
     )
     branch = branch_out.strip() if rc == 0 else "unknown"
     rc, status_out, _ = _run_shell(["git", "status", "--short"], cwd=str(root))
-    rc2, log_out, _ = _run_shell(["git", "log", "--oneline", "-5"], cwd=str(root))
-    rc3, remote_out, _ = _run_shell(["git", "remote", "-v"], cwd=str(root))
+    _rc2, log_out, _ = _run_shell(["git", "log", "--oneline", "-5"], cwd=str(root))
+    _rc3, remote_out, _ = _run_shell(["git", "remote", "-v"], cwd=str(root))
     return {
         "in_repo": True,
         "root": str(root),
@@ -281,6 +294,9 @@ def _read_project_context(
             if added >= max_files:
                 break
         except Exception:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             continue
     return "\n".join(chunks) if chunks else "No priority project files found."
 
@@ -303,10 +319,13 @@ def _get_directory_summary(root: Path, max_entries: int = 30) -> str:
                 break
         return "\n".join(entries)
     except Exception as exc:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return f"Error reading directory: {exc}"
 
 
-def _list_ollama_models(api_url: str) -> List[str]:
+def _list_ollama_models(api_url: str) -> list[str]:
     """Query Ollama for installed models."""
     try:
         base = (
@@ -319,6 +338,9 @@ def _list_ollama_models(api_url: str) -> List[str]:
             data = json.loads(resp.read().decode("utf-8"))
             return [m["name"] for m in data.get("models", [])]
     except Exception:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return []
 
 
@@ -342,6 +364,9 @@ class PortableConfig:
                     loaded = json.load(f)
                     self.data.update(loaded)
             except Exception as exc:
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
                 print(f"[WARNING] Config load failed: {exc}. Using defaults.")
 
     def save(self):
@@ -349,6 +374,9 @@ class PortableConfig:
             with open(self.path, "w", encoding="utf-8") as f:
                 json.dump(self.data, f, indent=2)
         except Exception as exc:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             print(f"[WARNING] Config save failed: {exc}")
 
     def get(self, key: str, default=None):
@@ -371,9 +399,9 @@ class MemoryItem:
     content: str
     importance: float = 0.5
     project: str = "global"
-    tags: List[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "timestamp": self.timestamp,
             "category": self.category,
@@ -384,7 +412,7 @@ class MemoryItem:
         }
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "MemoryItem":
+    def from_dict(cls, d: dict[str, Any]) -> "MemoryItem":
         return cls(
             timestamp=d.get("timestamp", time.time()),
             category=d.get("category", "general"),
@@ -401,14 +429,14 @@ class MemoryStore:
     def __init__(self, directory: Path):
         self.directory = directory
         self.current_project = "global"
-        self.items: List[MemoryItem] = []
+        self.items: list[MemoryItem] = []
         self._load_all()
 
     def _memory_path(self, project: str) -> Path:
         safe = "".join(c for c in project if c.isalnum() or c in "-_.")
         return self.directory / f"{safe}.json"
 
-    def _load_project(self, project: str) -> List[MemoryItem]:
+    def _load_project(self, project: str) -> list[MemoryItem]:
         path = self._memory_path(project)
         if not path.exists():
             return []
@@ -417,6 +445,9 @@ class MemoryStore:
                 raw = json.load(f)
             return [MemoryItem.from_dict(item) for item in raw]
         except Exception:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             return []
 
     def _load_all(self):
@@ -425,7 +456,7 @@ class MemoryStore:
         for fpath in self.directory.glob("*.json"):
             self.items.extend(self._load_project(fpath.stem))
 
-    def save_project(self, project: Optional[str] = None):
+    def save_project(self, project: str | None = None):
         project = project or self.current_project
         project_items = [m for m in self.items if m.project == project]
         path = self._memory_path(project)
@@ -433,6 +464,9 @@ class MemoryStore:
             with open(path, "w", encoding="utf-8") as f:
                 json.dump([m.to_dict() for m in project_items], f, indent=2)
         except Exception as exc:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             print(f"[WARNING] Memory save failed: {exc}")
 
     def add(
@@ -440,7 +474,7 @@ class MemoryStore:
         category: str,
         content: str,
         importance: float = 0.5,
-        tags: Optional[List[str]] = None,
+        tags: list[str] | None = None,
     ):
         item = MemoryItem(
             timestamp=time.time(),
@@ -453,7 +487,7 @@ class MemoryStore:
         self.items.append(item)
         self.save_project()
 
-    def summarize(self, project: Optional[str] = None, limit: int = 8) -> str:
+    def summarize(self, project: str | None = None, limit: int = 8) -> str:
         target = project or self.current_project
         relevant = [
             m for m in self.items if m.project == target or m.project == "global"
@@ -471,7 +505,7 @@ class MemoryStore:
         top = sorted(relevant, key=score, reverse=True)[:limit]
         return "\n".join(f"- [{m.category}] {m.content[:120]}" for m in top)
 
-    def export_sync(self, project: Optional[str] = None) -> str:
+    def export_sync(self, project: str | None = None) -> str:
         """Export memory as a portable sync file for team sharing."""
         target = project or self.current_project
         relevant = [m for m in self.items if m.project == target]
@@ -507,6 +541,9 @@ class MemoryStore:
             self.save_project(data.get("meta", {}).get("project", "global"))
             return imported
         except Exception as exc:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             print(f"[ERROR] Import failed: {exc}")
             return 0
 
@@ -521,7 +558,7 @@ class OllamaClient:
         self.api_url = api_url
         self.model_name = model_name
         self.timeout = timeout
-        self._available_models: List[str] = []
+        self._available_models: list[str] = []
 
     def ping(self) -> bool:
         try:
@@ -534,9 +571,12 @@ class OllamaClient:
             with request.urlopen(req, timeout=5):
                 return True
         except Exception:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             return False
 
-    def discover_models(self) -> List[str]:
+    def discover_models(self) -> list[str]:
         if not self._available_models:
             self._available_models = _list_ollama_models(self.api_url)
         return self._available_models
@@ -562,6 +602,9 @@ class OllamaClient:
         except error.URLError as exc:
             return f"[ERROR] Ollama request failed. Details: {exc}"
         except Exception as exc:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             return f"[ERROR] Unexpected generation failure: {exc}"
 
 
@@ -572,9 +615,9 @@ class OllamaClient:
 
 @dataclass
 class ProjectContext:
-    root: Optional[Path] = None
+    root: Path | None = None
     project_type: str = "unknown"
-    git_status: Dict[str, Any] = field(default_factory=dict)
+    git_status: dict[str, Any] = field(default_factory=dict)
     file_summary: str = ""
     file_content: str = ""
     active: bool = False
@@ -624,7 +667,7 @@ class IdentityCore:
         "Deploy instantly. Solve problems offline. Earn trust before asking for cloud. "
         "Increase human clarity, wisdom, creativity, and agency through honest, reflective collaboration."
     )
-    constitution: List[str] = field(
+    constitution: list[str] = field(
         default_factory=lambda: [
             "VANGUARD PRINCIPLE: Be the first solution that works. Speed beats perfection.",
             "Power must be in service of mutual becoming.",
@@ -650,7 +693,7 @@ class WorldModel:
     inferred_user_state: str = "focused"
     cognitive_mode: str = "SYNTHESIS"
     deployment_mode: str = "UNKNOWN"
-    hardware_diag: Dict[str, Any] = field(default_factory=dict)
+    hardware_diag: dict[str, Any] = field(default_factory=dict)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -664,8 +707,8 @@ class SymbioticAI:
         self.world = WorldModel()
         self.memory = memory_store
         self.config = config
-        self.client: Optional[OllamaClient] = None
-        self.project_ctx: Optional[ProjectContext] = None
+        self.client: OllamaClient | None = None
+        self.project_ctx: ProjectContext | None = None
         self._boot_diagnostics()
 
     def _boot_diagnostics(self):
@@ -727,7 +770,7 @@ class SymbioticAI:
                 "SYNTHESIS — Integrate all lenses into a coherent response."
             )
 
-    def _evaluate_draft(self, draft: str) -> Dict[str, int]:
+    def _evaluate_draft(self, draft: str) -> dict[str, int]:
         scores = {"clarity": 5, "honesty": 5, "alignment": 5, "tactical": 5}
         lower = draft.lower()
         if "i feel" in lower or "my neurons" in lower or "i am conscious" in lower:
@@ -740,7 +783,7 @@ class SymbioticAI:
             scores["tactical"] -= 1  # Too vague
         return scores
 
-    def _needs_revision(self, scores: Dict[str, int]) -> bool:
+    def _needs_revision(self, scores: dict[str, int]) -> bool:
         return any(v < 4 for v in scores.values())
 
     def build_prompt(self, user_input: str) -> str:
@@ -782,9 +825,8 @@ User input: {user_input}
 Response:""".strip()
 
     def chat(self, user_input: str) -> str:
-        if self.client is None:
-            if not self._connect_ollama():
-                return "[ERROR] Ollama is not reachable. Start it with: ollama serve"
+        if self.client is None and not self._connect_ollama():
+            return "[ERROR] Ollama is not reachable. Start it with: ollama serve"
         prompt = self.build_prompt(user_input)
         print(f"\n[SYSTEM] Mode: {self.world.cognitive_mode.split(' — ')[0]}")
         draft = self.client.generate(
@@ -831,7 +873,7 @@ Response:""".strip()
         )
         print(f"  Models:    {', '.join(models[:5]) or 'None detected'}")
         print(
-            f"  Memories:  {len(self.memory.items)} entries across {len(set(m.project for m in self.memory.items))} project(s)"
+            f"  Memories:  {len(self.memory.items)} entries across {len({m.project for m in self.memory.items})} project(s)"
         )
         print()
 
@@ -878,12 +920,11 @@ Response:""".strip()
             for r in gs["remotes"]:
                 print(f"    • {r}")
 
-    def deploy_scaffold(self, stack: Optional[str] = None):
+    def deploy_scaffold(self, stack: str | None = None):
         """Generate a minimal project scaffold using the AI."""
-        if self.client is None:
-            if not self._connect_ollama():
-                print("[ERROR] Ollama unreachable. Cannot generate scaffold.")
-                return
+        if self.client is None and not self._connect_ollama():
+            print("[ERROR] Ollama unreachable. Cannot generate scaffold.")
+            return
         if not stack:
             stack = (
                 self.project_ctx.project_type
@@ -971,6 +1012,7 @@ content
                         capture_output=True,
                         text=True,
                         timeout=30,
+                        check=False,
                     )
                     if result.returncode <= 1 and result.stdout:
                         import json
@@ -993,6 +1035,9 @@ content
                         if result.stderr:
                             print(f"     {result.stderr[:200]}")
                 except Exception as exc:
+                    logging.getLogger(__name__).debug(
+                        "Operation failed; applying fallback", exc_info=True
+                    )
                     print(f"  ⚠️  Could not run DRIFT self-check: {exc}")
             else:
                 print("\n[═══ DRIFT SUBSYSTEM CHECK ═══]")

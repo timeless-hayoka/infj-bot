@@ -57,7 +57,9 @@ def main() -> int:
         default="v2_opaque_labels",
     )
     args = parser.parse_args()
-    path = export_dataset(args.output, cases=args.cases, dataset_version=args.dataset_version)
+    path = export_dataset(
+        args.output, cases=args.cases, dataset_version=args.dataset_version
+    )
     print(f"Wrote {len(json.loads(path.read_text())['cases'])} cases to {path}")
     return 0
 

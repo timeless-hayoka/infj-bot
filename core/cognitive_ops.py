@@ -1,5 +1,6 @@
-from typing import Callable
-from drift.core.context_engine import ContextWorker, CognitiveState, CognitivePayload
+from collections.abc import Callable
+
+from drift.core.context_engine import CognitivePayload, CognitiveState, ContextWorker
 
 
 def pedi_regulation_step(

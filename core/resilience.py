@@ -8,10 +8,11 @@ import logging
 import sqlite3
 import threading
 import time
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Awaitable, Callable, Dict, List, Optional
+from typing import Any, Optional
 
 logger = logging.getLogger("drift")
 
@@ -33,7 +34,7 @@ class CircuitBreaker:
 
     _state: CircuitState = field(default=CircuitState.CLOSED, repr=False)
     _failures: int = field(default=0, repr=False)
-    _last_failure_time: Optional[float] = field(default=None, repr=False)
+    _last_failure_time: float | None = field(default=None, repr=False)
     _successes_during_half_open: int = field(default=0, repr=False)
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
@@ -105,10 +106,10 @@ HEALTH_DB = DATA_DIR / "health.db"
 class HealthMonitor:
     """Monitors the health of cognitive modules and subsystems."""
 
-    def __init__(self, db_path: Optional[str] = None):
+    def __init__(self, db_path: str | None = None):
         self.db_path = db_path or HEALTH_DB
-        self._checks: Dict[str, Callable[[], HealthCheck]] = {}
-        self._history: List[HealthCheck] = []
+        self._checks: dict[str, Callable[[], HealthCheck]] = {}
+        self._history: list[HealthCheck] = []
         self._max_history = 500
         self._init_db()
 
@@ -133,7 +134,7 @@ class HealthMonitor:
         """Register a health check function."""
         self._checks[name] = checker
 
-    def check(self, name: Optional[str] = None) -> List[HealthCheck]:
+    def check(self, name: str | None = None) -> list[HealthCheck]:
         """Run health checks. If name given, check only that module."""
         results = []
         names = [name] if name else list(self._checks.keys())
@@ -145,6 +146,9 @@ class HealthMonitor:
             try:
                 result = checker()
             except Exception as exc:
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
                 result = HealthCheck(
                     name=n,
                     healthy=False,
@@ -179,8 +183,8 @@ class HealthMonitor:
         return all(r.healthy for r in results)
 
     def get_history(
-        self, name: Optional[str] = None, limit: int = 20
-    ) -> List[HealthCheck]:
+        self, name: str | None = None, limit: int = 20
+    ) -> list[HealthCheck]:
         events = self._history
         if name:
             events = [e for e in events if e.name == name]
@@ -238,7 +242,7 @@ class ResilienceManager:
     """Single entry point for all resilience concerns."""
 
     def __init__(self):
-        self.breakers: Dict[str, CircuitBreaker] = {}
+        self.breakers: dict[str, CircuitBreaker] = {}
         self.health = HealthMonitor()
         self.watchdog = Watchdog(timeout_seconds=120.0)
 
@@ -259,7 +263,7 @@ class ResilienceManager:
             return result
         except Exception as exc:
             breaker.record_failure()
-            logger.exception("Execution failed for '%s': %s", name, exc)
+            logger.exception("Execution failed for '%s'", name)
             return fallback
 
     def execute_sync(self, name: str, func: Callable, fallback: Any = None):
@@ -274,7 +278,7 @@ class ResilienceManager:
             return result
         except Exception as exc:
             breaker.record_failure()
-            logger.exception("Execution failed for '%s': %s", name, exc)
+            logger.exception("Execution failed for '%s'", name)
             return fallback
 
     def heartbeat(self):
@@ -285,7 +289,7 @@ class ResilienceManager:
 
 
 # Singleton
-_resilience_instance: Optional[ResilienceManager] = None
+_resilience_instance: ResilienceManager | None = None
 
 
 def get_resilience() -> ResilienceManager:

@@ -4,7 +4,7 @@ model_types.py — Neutral location for core data models to prevent circular imp
 
 import time
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Optional
 
 
 @dataclass
@@ -13,7 +13,7 @@ class SparkImpulse:
     content: str = ""
     risk: float = 0.0
     self_critique: str = ""
-    veto_reason: Optional[str] = None
+    veto_reason: str | None = None
     confidence: float = 0.0
     shadow_influence: float = 0.0
 
@@ -21,6 +21,7 @@ class SparkImpulse:
 @dataclass
 class SecurityScanResult:
     """Result of scanning a single user input."""
+
     input_preview: str
     blocked: bool = False
     warn: bool = False
@@ -31,13 +32,13 @@ class SecurityScanResult:
     pedi_stability: float = 0.0
     dii_value: float = 0.0
     dii_velocity: float = 0.0
-    category_scores: Dict[str, float] = field(default_factory=dict)
-    matched_patterns: Dict[str, List[str]] = field(default_factory=dict)
-    primary_threat: Optional[str] = None
-    sanitized_input: Optional[str] = None
-    refusal_message: Optional[str] = None
+    category_scores: dict[str, float] = field(default_factory=dict)
+    matched_patterns: dict[str, list[str]] = field(default_factory=dict)
+    primary_threat: str | None = None
+    sanitized_input: str | None = None
+    refusal_message: str | None = None
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "blocked": self.blocked,
             "warn": self.warn,
@@ -59,7 +60,7 @@ class PEDIMetric:
     stability: float = 0.8
     drift_events: int = 0
     last_update: float = field(default_factory=time.time)
-    coherence_history: List[float] = field(default_factory=lambda: [0.75] * 10)
+    coherence_history: list[float] = field(default_factory=lambda: [0.75] * 10)
 
     def update(self, coherence: float, interaction: bool = False):
         self.coherence_history.append(coherence)

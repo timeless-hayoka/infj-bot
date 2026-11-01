@@ -14,7 +14,7 @@ from fastapi.testclient import TestClient
 def load_server(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     key_path = tmp_path / "anchor_signing_key.pem"
     monkeypatch.setenv("ANCHOR_SIGNING_KEY_PATH", str(key_path))
-    monkeypatch.setenv("ANCHOR_PROJECT_ROOT", "/home/crexs/infj_bot")
+    monkeypatch.setenv("ANCHOR_PROJECT_ROOT", str(Path(__file__).resolve().parents[1]))
     module = importlib.import_module("anchor_server")
     return importlib.reload(module)
 
@@ -29,7 +29,9 @@ def parse_sse_events(lines):
     return events
 
 
-def test_anchor_server_demo_run_streams_and_signs(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
+def test_anchor_server_demo_run_streams_and_signs(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
     server = load_server(monkeypatch, tmp_path)
     assert stat.S_IMODE(Path(server.SIGNING_KEY_PATH).stat().st_mode) == 0o600
 
@@ -58,9 +60,26 @@ def test_anchor_server_demo_run_streams_and_signs(monkeypatch: pytest.MonkeyPatc
         assert "poc.result" in types
         assert "case.completed" in types
         assert "run.completed" in types
-        assert types.index("run.started") < types.index("case.started") < types.index("finding.detected") < types.index("finding.correlated") < types.index("poc.result") < types.index("case.completed") < types.index("run.completed")
+        assert (
+            types.index("run.started")
+            < types.index("case.started")
+            < types.index("finding.detected")
+            < types.index("finding.correlated")
+            < types.index("poc.result")
+            < types.index("case.completed")
+            < types.index("run.completed")
+        )
 
-        evidence = client.post("/evidence/sign", json={"bundle": {"schema_version": "1.0", "kind": "anchor.evidence_bundle", "case_id": "demo"}})
+        evidence = client.post(
+            "/evidence/sign",
+            json={
+                "bundle": {
+                    "schema_version": "1.0",
+                    "kind": "anchor.evidence_bundle",
+                    "case_id": "demo",
+                }
+            },
+        )
         assert evidence.status_code == 200
         signed = evidence.json()["signed_bundle"]
         assert signed["signature"]["status"] == "SIGNED"
@@ -69,7 +88,9 @@ def test_anchor_server_demo_run_streams_and_signs(monkeypatch: pytest.MonkeyPatc
         assert signed["public_key"] == pubkey.json()["public_key"]
 
 
-def test_anchor_server_replays_after_cursor_and_ingests_events(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
+def test_anchor_server_replays_after_cursor_and_ingests_events(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
     server = load_server(monkeypatch, tmp_path)
 
     with TestClient(server.app) as client:
@@ -83,7 +104,9 @@ def test_anchor_server_replays_after_cursor_and_ingests_events(monkeypatch: pyte
         first_event_id = all_events[0]["event_id"]
         second_event_id = all_events[1]["event_id"]
 
-        with client.stream("GET", f"/runs/{run_id}/events?after={first_event_id}") as stream:
+        with client.stream(
+            "GET", f"/runs/{run_id}/events?after={first_event_id}"
+        ) as stream:
             replayed = parse_sse_events(stream.iter_lines())
 
         assert replayed
@@ -92,10 +115,28 @@ def test_anchor_server_replays_after_cursor_and_ingests_events(monkeypatch: pyte
 
         ingest = client.post(
             f"/runs/{run_id}/ingest",
-            json={"type": "case.started", "payload": {"case_id": "case_live", "contract": "Demo", "expected": ["SWC-107"]}},
+            json={
+                "type": "case.started",
+                "payload": {
+                    "case_id": "case_live",
+                    "contract": "Demo",
+                    "expected": ["SWC-107"],
+                },
+            },
         )
         assert ingest.status_code == 200
 
         case = client.get("/cases/case_live")
         assert case.status_code == 200
         assert case.json()["case_id"] == "case_live"
+
+
+def test_anchor_server_invalid_argument_type_is_client_error(monkeypatch, tmp_path):
+    monkeypatch.setenv("ANCHOR_ALLOW_HUNT_ARGS", "1")
+    server = load_server(monkeypatch, tmp_path)
+    with TestClient(server.app) as client:
+        response = client.post(
+            "/runs", json={"mode": "demo", "args": {"unexpected": True}}
+        )
+    assert response.status_code == 400
+    assert "args must be a list" in response.json()["detail"]

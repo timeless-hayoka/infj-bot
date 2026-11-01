@@ -1,5 +1,7 @@
+import logging
 import os
 import sys
+
 import google.generativeai as genai
 
 # =====================================================================
@@ -70,7 +72,10 @@ Source Code:
         response = model.generate_content(prompt)
         return response.text
     except Exception as e:
-        return f"STATUS: FAIL\nREASONING: API call failed with error: {str(e)}\nSUGGESTED CORRECTION: N/A"
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
+        return f"STATUS: FAIL\nREASONING: API call failed with error: {e!s}\nSUGGESTED CORRECTION: N/A"
 
 
 def main():

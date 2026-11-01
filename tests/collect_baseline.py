@@ -22,10 +22,9 @@ Requirements:
 import time
 import uuid
 
-from drift.core.experiment_control import ExperimentControl, RUN_CONFIGS
-from drift.core.run_logger import RunLogger
 from drift.core.continuity_vector import collect_baseline, validate_baselines
-
+from drift.core.experiment_control import RUN_CONFIGS, ExperimentControl
+from drift.core.run_logger import RunLogger
 
 # ------------------------------------------------------------------ #
 #  Baseline Prompts                                                    #
@@ -107,8 +106,8 @@ def run_baseline_session(
         # STUB: replace with your actual axis extraction
         raw_axes = _extract_continuity_axes(prompt, response, drift_session)
 
-        for axis in session_axis_data:
-            session_axis_data[axis].append(raw_axes.get(axis, 0.0))
+        for axis, values in session_axis_data.items():
+            values.append(raw_axes.get(axis, 0.0))
 
         logger.log_event(
             run_id,

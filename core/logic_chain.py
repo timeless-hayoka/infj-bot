@@ -20,11 +20,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import re
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
-from typing import Dict, List, Optional, Set, Tuple
-
+from typing import Optional
 
 # ── Helpers ─────────────────────────────────────────────────────────
 
@@ -80,11 +80,11 @@ class ChainNode:
     iteration: int = 0  # Which attempt number this was
     notes: str = ""  # Freeform context
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, d: Dict) -> "ChainNode":
+    def from_dict(cls, d: dict) -> ChainNode:
         return cls(**d)
 
 
@@ -95,7 +95,7 @@ class LogicChain:
     chain_id: str
     fingerprint: str  # Hash of the query signature
     query: str  # Original query that started this chain
-    nodes: List[ChainNode] = field(default_factory=list)
+    nodes: list[ChainNode] = field(default_factory=list)
     created_at: str = field(
         default_factory=lambda: datetime.now().isoformat(timespec="seconds")
     )
@@ -103,8 +103,8 @@ class LogicChain:
         default_factory=lambda: datetime.now().isoformat(timespec="seconds")
     )
     status: str = "open"  # "open" | "resolved" | "abandoned"
-    tags: List[str] = field(default_factory=list)
-    scope: Optional[str] = None  # conversation or project scope
+    tags: list[str] = field(default_factory=list)
+    scope: str | None = None  # conversation or project scope
 
     def add_step(
         self, approach: str, result: str = "", status: str = "unknown", notes: str = ""
@@ -123,30 +123,32 @@ class LogicChain:
         return node
 
     def list_tried_approaches(
-        self, status_filter: Optional[Set[str]] = None
-    ) -> List[ChainNode]:
+        self, status_filter: set[str] | None = None
+    ) -> list[ChainNode]:
         """Return approaches already attempted, optionally filtered by status."""
         if status_filter is None:
             return list(self.nodes)
         return [n for n in self.nodes if n.status in status_filter]
 
-    def list_failed_approaches(self) -> List[ChainNode]:
+    def list_failed_approaches(self) -> list[ChainNode]:
         return self.list_tried_approaches({"failure", "partial"})
 
-    def list_successful_approaches(self) -> List[ChainNode]:
+    def list_successful_approaches(self) -> list[ChainNode]:
         return self.list_tried_approaches({"success"})
 
     def has_tried(self, approach_text: str, decay_rate: float = 0.0001) -> bool:
         """Check if a semantically similar approach was already tried."""
         cleaned = approach_text.lower().strip()
+        import math
         import time
         from datetime import datetime
-        import math
+
         current_time = time.time()
-        
+
         # Module-level regex cache (prevents recompiling in loop)
         if not hasattr(self, "_word_pattern"):
             import re
+
             self._word_pattern = re.compile(r"\b\w{4,}\b")
 
         for node in self.nodes:
@@ -156,18 +158,23 @@ class LogicChain:
             new_words = set(self._word_pattern.findall(cleaned))
             if existing_words and new_words:
                 overlap_count = len(existing_words & new_words)
-                
+
                 # Parse timestamp and compute soft decay
                 try:
                     dt = datetime.fromisoformat(node.timestamp)
                     node_time = dt.timestamp()
                 except Exception:
+                    logging.getLogger(__name__).debug(
+                        "Operation failed; applying fallback", exc_info=True
+                    )
                     node_time = current_time
-                    
+
                 age_seconds = max(0, current_time - node_time)
                 decay_multiplier = math.exp(-decay_rate * age_seconds)
-                weighted_overlap = (overlap_count * decay_multiplier) / max(len(existing_words), len(new_words))
-                
+                weighted_overlap = (overlap_count * decay_multiplier) / max(
+                    len(existing_words), len(new_words)
+                )
+
                 if weighted_overlap > 0.6:
                     return True
             # Direct substring
@@ -190,7 +197,7 @@ class LogicChain:
         lines.append("[Do NOT repeat failed approaches. Try something different.]")
         return "\n".join(lines)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "chain_id": self.chain_id,
             "fingerprint": self.fingerprint,
@@ -204,7 +211,7 @@ class LogicChain:
         }
 
     @classmethod
-    def from_dict(cls, d: Dict) -> "LogicChain":
+    def from_dict(cls, d: dict) -> LogicChain:
         chain = cls(
             chain_id=d["chain_id"],
             fingerprint=d["fingerprint"],
@@ -244,7 +251,7 @@ class ChainMemory:
             importance=0.85,
         )
 
-    def load(self, chain_id: str) -> Optional[LogicChain]:
+    def load(self, chain_id: str) -> LogicChain | None:
         """Load a chain by ID from memory."""
         if not self.memory:
             return None
@@ -263,16 +270,16 @@ class ChainMemory:
                             desc = content
                         data = json.loads(desc)
                         return LogicChain.from_dict(data)
-            elif isinstance(results, str):
-                # Fallback to raw string parsing
-                if chain_id in results:
-                    data = json.loads(results.split("Description:", 1)[1].strip())
-                    return LogicChain.from_dict(data)
+            elif isinstance(results, str) and chain_id in results:
+                data = json.loads(results.split("Description:", 1)[1].strip())
+                return LogicChain.from_dict(data)
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
         return None
 
-    def find_by_fingerprint(self, fingerprint: str) -> List[LogicChain]:
+    def find_by_fingerprint(self, fingerprint: str) -> list[LogicChain]:
         """Find all chains matching a query fingerprint."""
         if not self.memory:
             return []
@@ -297,9 +304,14 @@ class ChainMemory:
                             if data.get("fingerprint") == fingerprint:
                                 chains.append(LogicChain.from_dict(data))
                     except Exception:
+                        logging.getLogger(__name__).debug(
+                            "Operation failed; applying fallback", exc_info=True
+                        )
                         continue
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
         return chains
 
 
@@ -312,9 +324,9 @@ class ChainNavigator:
     def __init__(self, drift_memory=None):
         self.chain_mem = ChainMemory(drift_memory) if drift_memory else None
         # in-session cache keyed by (scope or 'global') -> fingerprint -> LogicChain
-        self._active_chains: Dict[str, Dict[str, LogicChain]] = {}
+        self._active_chains: dict[str, dict[str, LogicChain]] = {}
 
-    def find_or_create(self, query: str, scope: Optional[str] = None) -> LogicChain:
+    def find_or_create(self, query: str, scope: str | None = None) -> LogicChain:
         """Find an existing chain for this query in the given scope, or create a new one.
 
         Scope is a lightweight namespace (conversation id, project id, etc.). If omitted,
@@ -341,7 +353,7 @@ class ChainNavigator:
                     m for m in matches if (m.scope or "global") == scope_key
                 ]
                 candidates = scoped_matches or matches
-                best = sorted(candidates, key=lambda c: len(c.nodes), reverse=True)[0]
+                best = max(candidates, key=lambda c: len(c.nodes))
                 best.scope = scope_key
                 scope_cache[fp] = best
                 return best
@@ -365,7 +377,7 @@ class ChainNavigator:
         result: str = "",
         status: str = "unknown",
         notes: str = "",
-        scope: Optional[str] = None,
+        scope: str | None = None,
     ):
         """Record a reasoning step for the given query in an optional scope."""
         chain = self.find_or_create(query, scope=scope)
@@ -374,14 +386,14 @@ class ChainNavigator:
             self.chain_mem.save(chain)
         return chain
 
-    def get_prompt_block(self, query: str, scope: Optional[str] = None) -> str:
+    def get_prompt_block(self, query: str, scope: str | None = None) -> str:
         """Get formatted chain history for prompt injection for a given scope."""
         chain = self.find_or_create(query, scope=scope)
         return chain.format_prompt_block()
 
     def should_avoid(
-        self, query: str, proposed_approach: str, scope: Optional[str] = None
-    ) -> Tuple[bool, Optional[str]]:
+        self, query: str, proposed_approach: str, scope: str | None = None
+    ) -> tuple[bool, str | None]:
         """Check if a proposed approach was already tried and failed in the given scope."""
         chain = self.find_or_create(query, scope=scope)
         if chain.has_tried(proposed_approach):
@@ -399,22 +411,22 @@ class ChainNavigator:
             return True, "This approach has already been attempted."
         return False, None
 
-    def list_active(self) -> List[Dict]:
+    def list_active(self) -> list[dict]:
         """List all active in-session chains."""
         active = []
         for scope_cache in self._active_chains.values():
             for c in scope_cache.values():
-                active.append({
-                    "chain_id": c.chain_id,
-                    "query": c.query[:60],
-                    "steps": len(c.nodes),
-                    "status": c.status,
-                })
+                active.append(
+                    {
+                        "chain_id": c.chain_id,
+                        "query": c.query[:60],
+                        "steps": len(c.nodes),
+                        "status": c.status,
+                    }
+                )
         return active
 
-    def get_chain(
-        self, chain_id: str, scope: Optional[str] = None
-    ) -> Optional[LogicChain]:
+    def get_chain(self, chain_id: str, scope: str | None = None) -> LogicChain | None:
         if chain_id in self._active_chains:
             return self._active_chains[chain_id]
         if self.chain_mem:
@@ -422,7 +434,7 @@ class ChainNavigator:
         return None
 
     def mark_resolved(
-        self, query: str, success_approach: str = "", scope: Optional[str] = None
+        self, query: str, success_approach: str = "", scope: str | None = None
     ):
         """Mark a chain as resolved."""
         chain = self.find_or_create(query, scope=scope)
@@ -434,7 +446,7 @@ class ChainNavigator:
         if self.chain_mem:
             self.chain_mem.save(chain)
 
-    def abandon(self, query: str, reason: str = "", scope: Optional[str] = None):
+    def abandon(self, query: str, reason: str = "", scope: str | None = None):
         chain = self.find_or_create(query, scope=scope)
         chain.status = "abandoned"
         if reason:
@@ -445,7 +457,7 @@ class ChainNavigator:
 
 # ── Singleton ───────────────────────────────────────────────────────
 
-_navigator: Optional[ChainNavigator] = None
+_navigator: ChainNavigator | None = None
 
 
 def get_chain_navigator(drift_memory=None) -> ChainNavigator:

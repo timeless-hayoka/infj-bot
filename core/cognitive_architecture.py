@@ -13,10 +13,11 @@ import json
 import logging
 import random
 import sqlite3
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Optional
 
 from drift.core.config import DATA_DIR
 
@@ -65,9 +66,9 @@ class CycleContext:
     brain: Any
     iteration: int
     minutes_since_interaction: float
-    last_interaction_time: Optional[datetime]
+    last_interaction_time: datetime | None
     last_user_input: str = ""
-    last_interaction: Optional[Dict] = None
+    last_interaction: dict | None = None
 
 
 @dataclass
@@ -77,22 +78,22 @@ class CognitivePlugin:
     name: str
     description: str
     module_path: str
-    instance_factory: Optional[Callable] = None
+    instance_factory: Callable | None = None
     instance: Any = field(default=None, repr=False)
 
     # Consciousness loop
-    cycle_handler: Optional[str] = None
+    cycle_handler: str | None = None
     cycle_frequency: int = 1
-    cycle_condition: Optional[str] = None  # e.g. "random(0.25)"
+    cycle_condition: str | None = None  # e.g. "random(0.25)"
     cycle_priority: int = 50
 
     # Prompt injection
-    prompt_formatter: Optional[str] = None
+    prompt_formatter: str | None = None
     prompt_priority: int = 50
     prompt_section: str = "cognitive"  # core, cognitive, analysis, context
 
     # Commands: {command_name: handler_name}
-    commands: Dict[str, str] = field(default_factory=dict)
+    commands: dict[str, str] = field(default_factory=dict)
 
     # Lifecycle
     enabled: bool = True
@@ -108,12 +109,9 @@ class CognitivePlugin:
             return False
         if iteration % self.cycle_frequency != 0:
             return False
-        if self.cycle_condition:
-            if self.cycle_condition.startswith("random("):
-                prob = float(
-                    self.cycle_condition.replace("random(", "").replace(")", "")
-                )
-                return random.random() < prob
+        if self.cycle_condition and self.cycle_condition.startswith("random("):
+            prob = float(self.cycle_condition.replace("random(", "").replace(")", ""))
+            return random.random() < prob
         return True
 
     def run_cycle(self, context: CycleContext):
@@ -186,8 +184,8 @@ class PluginProposal:
     purpose: str = ""
     rationale: str = ""
     status: str = "pending"  # pending, approved, rejected, installed
-    reviewed_at: Optional[str] = None
-    installed_at: Optional[str] = None
+    reviewed_at: str | None = None
+    installed_at: str | None = None
 
 
 class CognitiveArchitecture:
@@ -207,12 +205,12 @@ class CognitiveArchitecture:
         """Reset the singleton. Used primarily in tests."""
         cls._instance = None
 
-    def __init__(self, db_path: Optional[Path] = None):
+    def __init__(self, db_path: Path | None = None):
         if self._initialized:
             return
         self.db_path = str(db_path or ARCHITECTURE_DB)
         self._init_db()
-        self._plugins: Dict[str, CognitivePlugin] = {}
+        self._plugins: dict[str, CognitivePlugin] = {}
         self._load_registry()
         self._initialized = True
 
@@ -384,22 +382,22 @@ class CognitiveArchitecture:
         self._record_event("disabled", name, "Plugin disabled")
         return True
 
-    def list_plugins(self) -> List[str]:
+    def list_plugins(self) -> list[str]:
         return list(self._plugins.keys())
 
-    def get_plugin(self, name: str) -> Optional[CognitivePlugin]:
+    def get_plugin(self, name: str) -> CognitivePlugin | None:
         return self._plugins.get(name)
 
-    def get_enabled_plugins(self) -> List[CognitivePlugin]:
+    def get_enabled_plugins(self) -> list[CognitivePlugin]:
         return [p for p in self._plugins.values() if p.enabled]
 
-    def get_loop_steps(self) -> List[LoopStep]:
+    def get_loop_steps(self) -> list[LoopStep]:
         """Get enabled plugins with cycle handlers as LoopSteps, ordered by priority."""
         plugins = [p for p in self._plugins.values() if p.enabled and p.cycle_handler]
         plugins.sort(key=lambda p: p.cycle_priority)
         return [LoopStep(plugin=p) for p in plugins]
 
-    def get_prompt_plugins(self) -> List[CognitivePlugin]:
+    def get_prompt_plugins(self) -> list[CognitivePlugin]:
         """Get enabled plugins with prompt formatters, ordered by priority."""
         plugins = [
             p for p in self._plugins.values() if p.enabled and p.prompt_formatter
@@ -407,9 +405,9 @@ class CognitiveArchitecture:
         plugins.sort(key=lambda p: p.prompt_priority)
         return plugins
 
-    def get_commands(self) -> Dict[str, tuple]:
+    def get_commands(self) -> dict[str, tuple]:
         """Build unified command dispatch table: {cmd: (plugin_name, handler_name)}."""
-        table: Dict[str, tuple] = {}
+        table: dict[str, tuple] = {}
         for plugin in self._plugins.values():
             if not plugin.enabled:
                 continue
@@ -423,9 +421,9 @@ class CognitiveArchitecture:
             if step.should_run(context.iteration):
                 step.run(context)
 
-    def assemble_prompt_sections(self) -> Dict[str, List[str]]:
+    def assemble_prompt_sections(self) -> dict[str, list[str]]:
         """Assemble prompt snippets from all enabled plugins."""
-        sections: Dict[str, List[str]] = {
+        sections: dict[str, list[str]] = {
             "core": [],
             "cognitive": [],
             "analysis": [],
@@ -470,7 +468,7 @@ class CognitiveArchitecture:
         )
         return proposal
 
-    def get_proposals(self, status: Optional[str] = None) -> List[PluginProposal]:
+    def get_proposals(self, status: str | None = None) -> list[PluginProposal]:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             if status:
@@ -557,9 +555,12 @@ class CognitiveArchitecture:
                 if isinstance(node.func, ast.Name):
                     if node.func.id in ("eval", "exec", "compile"):
                         return False, f"Forbidden function call: {node.func.id}"
-                elif isinstance(node.func, ast.Attribute):
-                    if node.func.attr in ("__import__", "eval", "exec"):
-                        return False, f"Forbidden method call: {node.func.attr}"
+                elif isinstance(node.func, ast.Attribute) and node.func.attr in (
+                    "__import__",
+                    "eval",
+                    "exec",
+                ):
+                    return (False, f"Forbidden method call: {node.func.attr}")
         return True, "OK"
 
     # ---- Reporting ----
@@ -611,9 +612,7 @@ class CognitiveArchitecture:
 
         return "\n".join(lines)
 
-    def _record_event(
-        self, event_type: str, plugin_name: Optional[str], description: str
-    ):
+    def _record_event(self, event_type: str, plugin_name: str | None, description: str):
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
                 "INSERT INTO architecture_events (timestamp, event_type, plugin_name, description) VALUES (?, ?, ?, ?)",

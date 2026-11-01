@@ -1,8 +1,8 @@
 import json
+import logging
 import urllib.error
 import urllib.request
 from datetime import datetime
-
 
 BUG_SCOPE_TEMPLATE = """Bug bounty scope card
 Program:
@@ -89,6 +89,9 @@ def bridge_status(url="http://localhost:11434"):
             f"- detail: {exc.reason}"
         )
     except Exception as exc:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return (
             "Local AI bridge\n"
             f"- url: {url}\n"

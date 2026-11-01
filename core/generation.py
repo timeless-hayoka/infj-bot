@@ -32,26 +32,26 @@ import random
 import re
 import threading
 import time
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
-from typing import Callable, Iterator, Optional
+from typing import Optional
 
 import requests
-
 from drift.core.config import (
     API_KEY,
-    DRIFT_USE_GROQ,
-    GROQ_API_KEY,
     DRIFT_GROQ_MODEL,
-    DRIFT_USE_KIMI,
-    KIMI_API_KEY,
     DRIFT_KIMI_MODEL,
-    KIMI_BASE_URL,
-    DRIFT_USE_HF,
-    DRIFT_USE_GEMINI,
-    OPENAI_API_KEY,
-    DRIFT_OPENAI_MODEL,
     DRIFT_OPENAI_BASE_URL,
+    DRIFT_OPENAI_MODEL,
+    DRIFT_USE_GEMINI,
+    DRIFT_USE_GROQ,
+    DRIFT_USE_HF,
+    DRIFT_USE_KIMI,
     DRIFT_USE_OPENAI,
+    GROQ_API_KEY,
+    KIMI_API_KEY,
+    KIMI_BASE_URL,
+    OPENAI_API_KEY,
 )
 
 log = logging.getLogger("drift.generation")
@@ -73,9 +73,9 @@ class ProviderError(Exception):
         self,
         message: str,
         *,
-        kind: str = "transient",        # "auth" | "client" | "rate_limit" | "transient"
-        status: Optional[int] = None,
-        retry_after: Optional[float] = None,
+        kind: str = "transient",  # "auth" | "client" | "rate_limit" | "transient"
+        status: int | None = None,
+        retry_after: float | None = None,
     ):
         super().__init__(message)
         self.kind = kind
@@ -105,13 +105,13 @@ class RequestDeadlineExceeded(Exception):
 
 @dataclass
 class RequestBudget:
-    deadline: Optional[float] = None
-    cancel_event: Optional[threading.Event] = None
+    deadline: float | None = None
+    cancel_event: threading.Event | None = None
 
     def cancelled(self) -> bool:
         return bool(self.cancel_event and self.cancel_event.is_set())
 
-    def remaining(self) -> Optional[float]:
+    def remaining(self) -> float | None:
         if self.deadline is None:
             return None
         return max(0.0, self.deadline - time.monotonic())
@@ -121,7 +121,6 @@ class RequestBudget:
             raise RequestCancelled("client disconnected")
         if self.deadline is not None and time.monotonic() >= self.deadline:
             raise RequestDeadlineExceeded("request budget exhausted")
-
 
 
 def _classify_http(resp: requests.Response) -> ProviderError:
@@ -178,12 +177,14 @@ class TokenBucket:
         self,
         tokens: float = 1.0,
         timeout: float = 30.0,
-        budget: Optional[RequestBudget] = None,
+        budget: RequestBudget | None = None,
     ) -> bool:
         """Block (cooperatively) up to `timeout` for `tokens`. False on timeout."""
         if tokens > self.capacity:
-            raise ValueError(f"Cannot acquire {tokens} tokens from bucket with capacity {self.capacity}")
-            
+            raise ValueError(
+                f"Cannot acquire {tokens} tokens from bucket with capacity {self.capacity}"
+            )
+
         deadline = time.monotonic() + timeout
         while True:
             if budget is not None:
@@ -215,7 +216,7 @@ class TokenBucket:
 # --------------------------------------------------------------------------- #
 @dataclass
 class ProviderState:
-    cooldown_until: float = 0.0          # monotonic clock
+    cooldown_until: float = 0.0  # monotonic clock
     consecutive_failures: int = 0
 
     def in_cooldown(self) -> bool:
@@ -246,9 +247,11 @@ class Metrics:
 class Provider:
     name: str
     enabled: Callable[[], bool]
-    generate: Callable                  # (system, prompt, timeout, **kwargs) -> text
-    stream: Optional[Callable] = None   # (system, prompt, timeout, **kwargs) -> Iterator[str]
-    limiter: Optional[TokenBucket] = None
+    generate: Callable  # (system, prompt, timeout, **kwargs) -> text
+    stream: Callable | None = (
+        None  # (system, prompt, timeout, **kwargs) -> Iterator[str]
+    )
+    limiter: TokenBucket | None = None
     est_tokens: Callable[[str, str], int] = field(
         default=lambda s, p: max(1, (len(s) + len(p)) // 4)
     )
@@ -264,7 +267,19 @@ _SESSION.mount(
 )
 
 
-def _openai_chat(*, base_url, api_key, model, system, prompt, stream, timeout, temperature=None, top_p=None, max_tokens=None):
+def _openai_chat(
+    *,
+    base_url,
+    api_key,
+    model,
+    system,
+    prompt,
+    stream,
+    timeout,
+    temperature=None,
+    top_p=None,
+    max_tokens=None,
+):
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     payload = {
         "model": model,
@@ -282,18 +297,39 @@ def _openai_chat(*, base_url, api_key, model, system, prompt, stream, timeout, t
         payload["max_tokens"] = max_tokens
     resp = _SESSION.post(
         f"{base_url}/chat/completions",
-        headers=headers, json=payload, stream=stream, timeout=timeout,
+        headers=headers,
+        json=payload,
+        stream=stream,
+        timeout=timeout,
     )
     if resp.status_code >= 400:
         raise _classify_http(resp)
     return resp
 
 
-def openai_generate(*, base_url, api_key, model, system, prompt, timeout=30.0, temperature=None, top_p=None, max_tokens=None) -> str:
+def openai_generate(
+    *,
+    base_url,
+    api_key,
+    model,
+    system,
+    prompt,
+    timeout=30.0,
+    temperature=None,
+    top_p=None,
+    max_tokens=None,
+) -> str:
     resp = _openai_chat(
-        base_url=base_url, api_key=api_key, model=model,
-        system=system, prompt=prompt, stream=False, timeout=timeout,
-        temperature=temperature, top_p=top_p, max_tokens=max_tokens
+        base_url=base_url,
+        api_key=api_key,
+        model=model,
+        system=system,
+        prompt=prompt,
+        stream=False,
+        timeout=timeout,
+        temperature=temperature,
+        top_p=top_p,
+        max_tokens=max_tokens,
     )
     try:
         return resp.json()["choices"][0]["message"]["content"]
@@ -301,11 +337,29 @@ def openai_generate(*, base_url, api_key, model, system, prompt, timeout=30.0, t
         raise ProviderError(f"Malformed response: {e}", kind="transient")
 
 
-def openai_stream(*, base_url, api_key, model, system, prompt, timeout=60.0, temperature=None, top_p=None, max_tokens=None) -> Iterator[str]:
+def openai_stream(
+    *,
+    base_url,
+    api_key,
+    model,
+    system,
+    prompt,
+    timeout=60.0,
+    temperature=None,
+    top_p=None,
+    max_tokens=None,
+) -> Iterator[str]:
     resp = _openai_chat(
-        base_url=base_url, api_key=api_key, model=model,
-        system=system, prompt=prompt, stream=True, timeout=timeout,
-        temperature=temperature, top_p=top_p, max_tokens=max_tokens
+        base_url=base_url,
+        api_key=api_key,
+        model=model,
+        system=system,
+        prompt=prompt,
+        stream=True,
+        timeout=timeout,
+        temperature=temperature,
+        top_p=top_p,
+        max_tokens=max_tokens,
     )
     for line in resp.iter_lines():
         if not line:
@@ -329,8 +383,8 @@ def openai_stream(*, base_url, api_key, model, system, prompt, timeout=60.0, tem
 @dataclass
 class _InflightCall:
     event: threading.Event = field(default_factory=threading.Event)
-    result: Optional[str] = None
-    error: Optional[BaseException] = None
+    result: str | None = None
+    error: BaseException | None = None
 
 
 # --------------------------------------------------------------------------- #
@@ -341,14 +395,14 @@ class RateGovernor:
         self,
         providers: list[Provider],
         *,
-        cache_get: Callable[[str], Optional[str]],
+        cache_get: Callable[[str], str | None],
         cache_set: Callable[[str, str], None],
         max_retries: int = 3,
         backoff_base: float = 1.5,
         backoff_cap: float = 30.0,
-        max_concurrency: int = 4,        # global cap on simultaneous outbound calls
+        max_concurrency: int = 4,  # global cap on simultaneous outbound calls
         gate_timeout: float = 5.0,
-        metrics: Optional[Metrics] = None,
+        metrics: Metrics | None = None,
     ):
         self.providers = providers
         self.cache_get = cache_get
@@ -369,7 +423,9 @@ class RateGovernor:
         self._inflight: dict[str, _InflightCall] = {}
         self._inflight_lock = threading.Lock()
 
-        self._pstate: dict[str, ProviderState] = {p.name: ProviderState() for p in providers}
+        self._pstate: dict[str, ProviderState] = {
+            p.name: ProviderState() for p in providers
+        }
         self._pstate_lock = threading.Lock()
         self._cloud_quota_exhausted = False
 
@@ -392,7 +448,7 @@ class RateGovernor:
         with self._pstate_lock:
             fails = self._pstate[name].consecutive_failures
         # Reduced from 5.0 to 2.0 for faster recovery in "good work" environments
-        return min(self.backoff_cap, 2.0 * (2 ** fails))
+        return min(self.backoff_cap, 2.0 * (2**fails))
 
     def _in_cooldown(self, name: str) -> bool:
         with self._pstate_lock:
@@ -432,11 +488,13 @@ class RateGovernor:
         }
 
     # ---- backoff with jitter; honors server-provided Retry-After --------- #
-    def _sleep_for(self, attempt: int, err: ProviderError, budget: Optional[RequestBudget] = None) -> None:
+    def _sleep_for(
+        self, attempt: int, err: ProviderError, budget: RequestBudget | None = None
+    ) -> None:
         if err.retry_after is not None:
             delay = err.retry_after
         else:
-            delay = min(self.backoff_cap, self.backoff_base ** attempt)
+            delay = min(self.backoff_cap, self.backoff_base**attempt)
         delay += random.uniform(0, delay * 0.25)  # jitter — no synchronized storms
         log.warning("backoff %.2fs (provider=%s kind=%s)", delay, err.status, err.kind)
         end = time.monotonic() + delay
@@ -449,7 +507,7 @@ class RateGovernor:
             time.sleep(min(remaining, 0.25))
 
     # ---- one provider, with cooldown + rate-limit + retry ---------------- #
-    def _acquire_gate(self, name: str, budget: Optional[RequestBudget] = None) -> None:
+    def _acquire_gate(self, name: str, budget: RequestBudget | None = None) -> None:
         """Acquire the global concurrency permit, waiting in slices. Gate
         saturation means the SYSTEM is crowded (internal), not that this provider
         failed — so we wait instead of failing over. If it can't be acquired
@@ -482,7 +540,15 @@ class RateGovernor:
             f"or raise max_concurrency — this is not a provider failure."
         )
 
-    def _call_provider(self, p: Provider, system: str, prompt: str, errors: list | None = None, budget: Optional[RequestBudget] = None, **kwargs) -> Optional[str]:
+    def _call_provider(
+        self,
+        p: Provider,
+        system: str,
+        prompt: str,
+        errors: list | None = None,
+        budget: RequestBudget | None = None,
+        **kwargs,
+    ) -> str | None:
         if not p.enabled():
             if errors is not None:
                 errors.append(f"{p.name}: disabled")
@@ -496,7 +562,9 @@ class RateGovernor:
         for attempt in range(self.max_retries):
             if budget is not None:
                 budget.check()
-            if p.limiter and not p.limiter.acquire(tokens=1, timeout=self.backoff_cap, budget=budget):
+            if p.limiter and not p.limiter.acquire(
+                tokens=1, timeout=self.backoff_cap, budget=budget
+            ):
                 self.metrics.inc(f"{p.name}.limiter_timeout")
                 if errors is not None:
                     errors.append(f"{p.name}: limiter timeout")
@@ -526,14 +594,22 @@ class RateGovernor:
                 raise
             except ProviderError as e:
                 self.metrics.inc(f"{p.name}.err.{e.kind}")
-                log.warning("%s ProviderError: %s (kind=%s, attempt=%d)", p.name, e, e.kind, attempt)
+                log.warning(
+                    "%s ProviderError: %s (kind=%s, attempt=%d)",
+                    p.name,
+                    e,
+                    e.kind,
+                    attempt,
+                )
                 if errors is not None:
                     errors.append(f"{p.name}: {e} (kind={e.kind})")
 
                 if e.kind == "auth":
                     # dead/invalid key — don't retry it every request
                     self._set_cooldown(p.name, AUTH_COOLDOWN)
-                    log.error("%s auth failure, benched %.0fs: %s", p.name, AUTH_COOLDOWN, e)
+                    log.error(
+                        "%s auth failure, benched %.0fs: %s", p.name, AUTH_COOLDOWN, e
+                    )
                     return None
 
                 if e.kind == "quota":
@@ -554,9 +630,18 @@ class RateGovernor:
                     return None
 
                 if e.kind == "rate_limit":
-                    wait = e.retry_after if e.retry_after is not None else self._default_cooldown(p.name)
-                    if wait <= COOLDOWN_FAILOVER_THRESHOLD and attempt < self.max_retries - 1:
-                        self._sleep_for(attempt, e, budget=budget)  # short wait -> retry in place
+                    wait = (
+                        e.retry_after
+                        if e.retry_after is not None
+                        else self._default_cooldown(p.name)
+                    )
+                    if (
+                        wait <= COOLDOWN_FAILOVER_THRESHOLD
+                        and attempt < self.max_retries - 1
+                    ):
+                        self._sleep_for(
+                            attempt, e, budget=budget
+                        )  # short wait -> retry in place
                         continue
                     self._set_cooldown(p.name, wait)  # long wait -> bench + fail over
                     return None
@@ -568,6 +653,9 @@ class RateGovernor:
                 self._sleep_for(attempt, e, budget=budget)
 
             except Exception as e:  # network blip, timeout, etc.
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
                 self.metrics.inc(f"{p.name}.err.unknown")
                 log.warning("%s Exception: %s (attempt=%d)", p.name, e, attempt)
                 if errors is not None:
@@ -580,7 +668,14 @@ class RateGovernor:
         return None
 
     # ---- the actual fallback chain (no coalescing concern here) ----------- #
-    def _run_chain(self, key: str, system: str, prompt: str, budget: Optional[RequestBudget] = None, **kwargs) -> str:
+    def _run_chain(
+        self,
+        key: str,
+        system: str,
+        prompt: str,
+        budget: RequestBudget | None = None,
+        **kwargs,
+    ) -> str:
         errors = []
         for p in self.providers:
             if self._cloud_quota_exhausted and p.name == "local":
@@ -589,9 +684,11 @@ class RateGovernor:
                     "include API billing; add a payment method at platform.openai.com)"
                 )
                 continue
-            out = self._call_provider(p, system, prompt, errors=errors, budget=budget, **kwargs)
+            out = self._call_provider(
+                p, system, prompt, errors=errors, budget=budget, **kwargs
+            )
             if out:
-                self.cache_set(key, out)   # ONE cache path, every provider
+                self.cache_set(key, out)  # ONE cache path, every provider
                 return out
         if self._cloud_quota_exhausted:
             raise RuntimeError(
@@ -607,7 +704,14 @@ class RateGovernor:
         raise RuntimeError(err_msg)
 
     # ---- public: cached + single-flighted ---------------------------------#
-    def generate(self, key: str, system: str, prompt: str, budget: Optional[RequestBudget] = None, **kwargs) -> str:
+    def generate(
+        self,
+        key: str,
+        system: str,
+        prompt: str,
+        budget: RequestBudget | None = None,
+        **kwargs,
+    ) -> str:
         cached = self.cache_get(key)
         if cached is not None:
             self.metrics.inc("cache.hit")
@@ -652,7 +756,7 @@ class RateGovernor:
         # leader path
         try:
             out = self._run_chain(key, system, prompt, budget=budget, **kwargs)
-            call.result = out          # set result BEFORE releasing waiters
+            call.result = out  # set result BEFORE releasing waiters
             return out
         except BaseException as e:
             call.error = e
@@ -660,15 +764,22 @@ class RateGovernor:
         finally:
             with self._inflight_lock:
                 self._inflight.pop(key, None)
-            call.event.set()           # waiters wake AFTER result/error is set
+            call.event.set()  # waiters wake AFTER result/error is set
 
     # ---- public: streaming with cache replay + cache fill + cooldown -------#
-    def generate_stream(self, key: str, system: str, prompt: str, budget: Optional[RequestBudget] = None, **kwargs) -> Iterator[str]:
+    def generate_stream(
+        self,
+        key: str,
+        system: str,
+        prompt: str,
+        budget: RequestBudget | None = None,
+        **kwargs,
+    ) -> Iterator[str]:
         cached = self.cache_get(key)
         if cached is not None:
             self.metrics.inc("cache.hit_stream")
             for i in range(0, len(cached), 16):
-                yield cached[i:i + 16]
+                yield cached[i : i + 16]
             return
 
         if budget is not None:
@@ -679,7 +790,9 @@ class RateGovernor:
                 continue
             if budget is not None:
                 budget.check()
-            if p.limiter and not p.limiter.acquire(timeout=self.backoff_cap, budget=budget):
+            if p.limiter and not p.limiter.acquire(
+                timeout=self.backoff_cap, budget=budget
+            ):
                 continue
             try:
                 self.metrics.inc(f"{p.name}.stream_attempt")
@@ -694,7 +807,7 @@ class RateGovernor:
                     budget.check()
                 full = "".join(buf)
                 if full:
-                    self.cache_set(key, full)   # streaming now fills the cache too
+                    self.cache_set(key, full)  # streaming now fills the cache too
                     self.metrics.inc(f"{p.name}.stream_success")
                     self._mark_success(p.name)
                 return
@@ -705,19 +818,26 @@ class RateGovernor:
             except ProviderError as e:
                 self.metrics.inc(f"{p.name}.stream_err.{e.kind}")
                 if e.kind == "rate_limit":
-                    wait = e.retry_after if e.retry_after is not None else self._default_cooldown(p.name)
+                    wait = (
+                        e.retry_after
+                        if e.retry_after is not None
+                        else self._default_cooldown(p.name)
+                    )
                     self._set_cooldown(p.name, wait)
                 elif e.kind == "auth":
                     self._set_cooldown(p.name, AUTH_COOLDOWN)
                 continue
             except Exception as e:
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
                 self.metrics.inc(f"{p.name}.stream_err.unknown")
                 log.warning("%s stream failed: %s", p.name, e)
                 continue
         # last resort: non-streaming (single-flighted), replayed as chunks
         text = self.generate(key, system, prompt, budget=budget)
         for i in range(0, len(text), 16):
-            yield text[i:i + 16]
+            yield text[i : i + 16]
 
 
 # Cache-key normalization — the #1 lever. This is what makes the cache actually
@@ -812,8 +932,9 @@ class _BrainGenerationMixin:
     plus the module-level config flags from your current brain.py."""
 
     def _build_governor(self) -> RateGovernor:
-        def cache_get(key: str) -> Optional[str]:
+        def cache_get(key: str) -> str | None:
             import os
+
             if os.getenv("DRIFT_BYPASS_CACHE") == "1":
                 return None
             if self._disk_cache is not None:
@@ -842,9 +963,14 @@ class _BrainGenerationMixin:
         local_provider = Provider(
             name="local",
             enabled=lambda: bool(
-                self._use_local_fallback and self.local_bridge.is_available()),
-            generate=lambda s, p, timeout=None, **kwargs: self.local_bridge.generate(prompt=p, system=s, **kwargs),
-            stream=lambda s, p, timeout=None, **kwargs: self.local_bridge.generate_stream(prompt=p, system=s, **kwargs),
+                self._use_local_fallback and self.local_bridge.is_available()
+            ),
+            generate=lambda s, p, timeout=None, **kwargs: self.local_bridge.generate(
+                prompt=p, system=s, **kwargs
+            ),
+            stream=lambda s, p, timeout=None, **kwargs: (
+                self.local_bridge.generate_stream(prompt=p, system=s, **kwargs)
+            ),
             limiter=None,  # local CPU — your hardware is the limit, not an API
         )
 
@@ -852,70 +978,102 @@ class _BrainGenerationMixin:
         if getattr(self, "_prefer_local", False):
             providers.append(local_provider)
 
-        providers.extend([
-            Provider(
-                name="openai",
-                enabled=lambda: bool(DRIFT_USE_OPENAI and OPENAI_API_KEY),
-                generate=lambda s, p, timeout=None, **kwargs: openai_generate(
-                    base_url=DRIFT_OPENAI_BASE_URL,
-                    api_key=OPENAI_API_KEY,
-                    model=getattr(self, "_active_model_name", None) or DRIFT_OPENAI_MODEL,
-                    system=s,
-                    prompt=p,
-                    timeout=timeout if timeout is not None else 60.0,
-                    **kwargs,
+        providers.extend(
+            [
+                Provider(
+                    name="openai",
+                    enabled=lambda: bool(DRIFT_USE_OPENAI and OPENAI_API_KEY),
+                    generate=lambda s, p, timeout=None, **kwargs: openai_generate(
+                        base_url=DRIFT_OPENAI_BASE_URL,
+                        api_key=OPENAI_API_KEY,
+                        model=getattr(self, "_active_model_name", None)
+                        or DRIFT_OPENAI_MODEL,
+                        system=s,
+                        prompt=p,
+                        timeout=timeout if timeout is not None else 60.0,
+                        **kwargs,
+                    ),
+                    stream=lambda s, p, timeout=None, **kwargs: openai_stream(
+                        base_url=DRIFT_OPENAI_BASE_URL,
+                        api_key=OPENAI_API_KEY,
+                        model=getattr(self, "_active_model_name", None)
+                        or DRIFT_OPENAI_MODEL,
+                        system=s,
+                        prompt=p,
+                        timeout=timeout if timeout is not None else 90.0,
+                        **kwargs,
+                    ),
+                    limiter=TokenBucket(capacity=40, refill_per_sec=40 / 60),
                 ),
-                stream=lambda s, p, timeout=None, **kwargs: openai_stream(
-                    base_url=DRIFT_OPENAI_BASE_URL,
-                    api_key=OPENAI_API_KEY,
-                    model=getattr(self, "_active_model_name", None) or DRIFT_OPENAI_MODEL,
-                    system=s,
-                    prompt=p,
-                    timeout=timeout if timeout is not None else 90.0,
-                    **kwargs,
+                Provider(
+                    name="groq",
+                    enabled=lambda: bool(DRIFT_USE_GROQ and GROQ_API_KEY),
+                    generate=lambda s, p, timeout=None, **kwargs: openai_generate(
+                        base_url="https://api.groq.com/openai/v1",
+                        api_key=GROQ_API_KEY,
+                        model=DRIFT_GROQ_MODEL,
+                        system=s,
+                        prompt=p,
+                        timeout=timeout if timeout is not None else 30.0,
+                        **kwargs,
+                    ),
+                    stream=lambda s, p, timeout=None, **kwargs: openai_stream(
+                        base_url="https://api.groq.com/openai/v1",
+                        api_key=GROQ_API_KEY,
+                        model=DRIFT_GROQ_MODEL,
+                        system=s,
+                        prompt=p,
+                        timeout=timeout if timeout is not None else 60.0,
+                        **kwargs,
+                    ),
+                    limiter=TokenBucket(capacity=25, refill_per_sec=25 / 60),
                 ),
-                limiter=TokenBucket(capacity=40, refill_per_sec=40 / 60),
-            ),
-            Provider(
-                name="groq",
-                enabled=lambda: bool(DRIFT_USE_GROQ and GROQ_API_KEY),
-                generate=lambda s, p, timeout=None, **kwargs: openai_generate(
-                    base_url="https://api.groq.com/openai/v1",
-                    api_key=GROQ_API_KEY, model=DRIFT_GROQ_MODEL, system=s, prompt=p,
-                    timeout=timeout if timeout is not None else 30.0, **kwargs),
-                stream=lambda s, p, timeout=None, **kwargs: openai_stream(
-                    base_url="https://api.groq.com/openai/v1",
-                    api_key=GROQ_API_KEY, model=DRIFT_GROQ_MODEL, system=s, prompt=p,
-                    timeout=timeout if timeout is not None else 60.0, **kwargs),
-                limiter=TokenBucket(capacity=25, refill_per_sec=25 / 60),
-            ),
-            Provider(
-                name="kimi",
-                enabled=lambda: bool(DRIFT_USE_KIMI and KIMI_API_KEY),
-                generate=lambda s, p, timeout=None, **kwargs: openai_generate(
-                    base_url=KIMI_BASE_URL, api_key=KIMI_API_KEY,
-                    model=DRIFT_KIMI_MODEL, system=s, prompt=p,
-                    timeout=timeout if timeout is not None else 60.0, **kwargs),
-                stream=lambda s, p, timeout=None, **kwargs: openai_stream(
-                    base_url=KIMI_BASE_URL, api_key=KIMI_API_KEY,
-                    model=DRIFT_KIMI_MODEL, system=s, prompt=p,
-                    timeout=timeout if timeout is not None else 60.0, **kwargs),
-                limiter=TokenBucket(capacity=15, refill_per_sec=15 / 60),
-            ),
-            Provider(
-                name="hf",
-                enabled=lambda: bool(DRIFT_USE_HF and self.hf_bridge.is_available()),
-                generate=lambda s, p, timeout=None, **kwargs: self._hf_generate(s, p, **kwargs),
-                limiter=TokenBucket(capacity=10, refill_per_sec=10 / 60),
-            ),
-            Provider(
-                name="gemini",
-                enabled=lambda: bool(DRIFT_USE_GEMINI and API_KEY),
-                generate=lambda s, p, timeout=None, **kwargs: self._gemini_generate(s, p, **kwargs),
-                stream=lambda s, p, timeout=None, **kwargs: self._gemini_stream(s, p, **kwargs),
-                limiter=TokenBucket(capacity=12, refill_per_sec=12 / 60),
-            ),
-        ])
+                Provider(
+                    name="kimi",
+                    enabled=lambda: bool(DRIFT_USE_KIMI and KIMI_API_KEY),
+                    generate=lambda s, p, timeout=None, **kwargs: openai_generate(
+                        base_url=KIMI_BASE_URL,
+                        api_key=KIMI_API_KEY,
+                        model=DRIFT_KIMI_MODEL,
+                        system=s,
+                        prompt=p,
+                        timeout=timeout if timeout is not None else 60.0,
+                        **kwargs,
+                    ),
+                    stream=lambda s, p, timeout=None, **kwargs: openai_stream(
+                        base_url=KIMI_BASE_URL,
+                        api_key=KIMI_API_KEY,
+                        model=DRIFT_KIMI_MODEL,
+                        system=s,
+                        prompt=p,
+                        timeout=timeout if timeout is not None else 60.0,
+                        **kwargs,
+                    ),
+                    limiter=TokenBucket(capacity=15, refill_per_sec=15 / 60),
+                ),
+                Provider(
+                    name="hf",
+                    enabled=lambda: bool(
+                        DRIFT_USE_HF and self.hf_bridge.is_available()
+                    ),
+                    generate=lambda s, p, timeout=None, **kwargs: self._hf_generate(
+                        s, p, **kwargs
+                    ),
+                    limiter=TokenBucket(capacity=10, refill_per_sec=10 / 60),
+                ),
+                Provider(
+                    name="gemini",
+                    enabled=lambda: bool(DRIFT_USE_GEMINI and API_KEY),
+                    generate=lambda s, p, timeout=None, **kwargs: self._gemini_generate(
+                        s, p, **kwargs
+                    ),
+                    stream=lambda s, p, timeout=None, **kwargs: self._gemini_stream(
+                        s, p, **kwargs
+                    ),
+                    limiter=TokenBucket(capacity=12, refill_per_sec=12 / 60),
+                ),
+            ]
+        )
 
         if not getattr(self, "_prefer_local", False):
             providers.append(local_provider)
@@ -941,9 +1099,14 @@ class _BrainGenerationMixin:
             problems.append("DRIFT_USE_OPENAI set but OPENAI_API_KEY missing")
         if DRIFT_USE_KIMI and not KIMI_API_KEY:
             problems.append("DRIFT_USE_KIMI set but KIMI_API_KEY missing")
-        if (DRIFT_USE_KIMI and KIMI_API_KEY
-                and not str(KIMI_BASE_URL or "").startswith("http")):
-            problems.append(f"KIMI_BASE_URL invalid (need http[s]://...): {KIMI_BASE_URL!r}")
+        if (
+            DRIFT_USE_KIMI
+            and KIMI_API_KEY
+            and not str(KIMI_BASE_URL or "").startswith("http")
+        ):
+            problems.append(
+                f"KIMI_BASE_URL invalid (need http[s]://...): {KIMI_BASE_URL!r}"
+            )
         usable = (
             (DRIFT_USE_OPENAI and OPENAI_API_KEY)
             or (DRIFT_USE_GROQ and GROQ_API_KEY)
@@ -954,93 +1117,122 @@ class _BrainGenerationMixin:
         )
         if not usable:
             problems.append(
-                "no usable provider — set an API key or enable local fallback")
+                "no usable provider — set an API key or enable local fallback"
+            )
         if problems:
             if not usable:
                 raise RuntimeError(
-                    "DRIFT provider config invalid:\n  - " + "\n  - ".join(problems))
+                    "DRIFT provider config invalid:\n  - " + "\n  - ".join(problems)
+                )
             log.warning(
                 "DRIFT provider config has optional gaps but a usable backend is available:\n  - %s",
                 "\n  - ".join(problems),
             )
 
     # ---- provider adapters that need self ---------------------------------#
-    def _hf_generate(self, system: str, prompt: str, timeout: Optional[float] = None, history=None, **kwargs) -> str:
+    def _hf_generate(
+        self,
+        system: str,
+        prompt: str,
+        timeout: float | None = None,
+        history=None,
+        **kwargs,
+    ) -> str:
         out = self.hf_bridge.generate(system, prompt, history=history, **kwargs)
         if not out:
             raise ProviderError("HF returned empty", kind="transient")
         return out
 
-    def _gemini_generate(self, system: str, prompt: str, timeout: Optional[float] = None, **kwargs) -> str:
+    def _gemini_generate(
+        self, system: str, prompt: str, timeout: float | None = None, **kwargs
+    ) -> str:
         try:
             if self.sdk == "google.genai":
-                model_name = getattr(self, "_active_model_name", self.primary_model_name)
+                model_name = getattr(
+                    self, "_active_model_name", self.primary_model_name
+                )
                 return self._generate_new_sdk(model_name, system, prompt, **kwargs)
-            
+
             import google.generativeai as legacy_genai
+
             model_name = getattr(self, "_active_model_name", self.primary_model_name)
-            
+
             gen_config = {}
             if "temperature" in kwargs and kwargs["temperature"] is not None:
                 gen_config["temperature"] = kwargs["temperature"]
             if "top_p" in kwargs and kwargs["top_p"] is not None:
                 gen_config["top_p"] = kwargs["top_p"]
-            
+
             max_tokens_val = kwargs.get("max_tokens") or kwargs.get("max_output_tokens")
             if max_tokens_val is not None:
                 gen_config["max_output_tokens"] = max_tokens_val
-                
+
             model = legacy_genai.GenerativeModel(
                 model_name=model_name,
                 system_instruction=system,
-                generation_config=gen_config if gen_config else None
+                generation_config=gen_config if gen_config else None,
             )
-            
+
             request_options = {}
             if timeout is not None:
                 request_options["timeout"] = timeout
-                
+
             return model.generate_content(prompt, request_options=request_options).text
         except Exception as exc:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             if self._is_transient_model_error(exc):
                 raise ProviderError(str(exc), kind="transient")
             raise ProviderError(str(exc), kind="client")
 
-    def _gemini_stream(self, system: str, prompt: str, timeout: Optional[float] = None, **kwargs) -> Iterator[str]:
+    def _gemini_stream(
+        self, system: str, prompt: str, timeout: float | None = None, **kwargs
+    ) -> Iterator[str]:
         try:
             if self.sdk == "google.genai":
-                model_name = getattr(self, "_active_model_name", self.primary_model_name)
-                yield from self._generate_new_sdk_stream(model_name, system, prompt, **kwargs)
+                model_name = getattr(
+                    self, "_active_model_name", self.primary_model_name
+                )
+                yield from self._generate_new_sdk_stream(
+                    model_name, system, prompt, **kwargs
+                )
                 return
-            
+
             import google.generativeai as legacy_genai
+
             model_name = getattr(self, "_active_model_name", self.primary_model_name)
-            
+
             gen_config = {}
             if "temperature" in kwargs and kwargs["temperature"] is not None:
                 gen_config["temperature"] = kwargs["temperature"]
             if "top_p" in kwargs and kwargs["top_p"] is not None:
                 gen_config["top_p"] = kwargs["top_p"]
-            
+
             max_tokens_val = kwargs.get("max_tokens") or kwargs.get("max_output_tokens")
             if max_tokens_val is not None:
                 gen_config["max_output_tokens"] = max_tokens_val
-                
+
             model = legacy_genai.GenerativeModel(
                 model_name=model_name,
                 system_instruction=system,
-                generation_config=gen_config if gen_config else None
+                generation_config=gen_config if gen_config else None,
             )
-            
+
             request_options = {}
             if timeout is not None:
                 request_options["timeout"] = timeout
-                
-            for chunk in model.generate_content(prompt, stream=True, request_options=request_options):
+
+            for chunk in model.generate_content(
+                prompt, stream=True, request_options=request_options
+            ):
                 text = chunk.text or ""
                 if text:
                     yield text
         except Exception as exc:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             if self._is_transient_model_error(exc):
                 raise ProviderError(str(exc), kind="transient")
             raise ProviderError(str(exc), kind="client")
@@ -1050,7 +1242,7 @@ class _BrainGenerationMixin:
     # e.g. _state_sections = [("[STATE]", "[/STATE]"), ("[META]", "[/META]")].
     # When set, only those blocks are stripped; the user's question is untouched.
     # When None, falls back to the broader regex stripper (riskier — verify it).
-    _state_sections: Optional[list[tuple[str, str]]] = None
+    _state_sections: list[tuple[str, str]] | None = None
 
     def _normalized_cache_key(self, model_name, system_instruction, prompt) -> str:
         """
@@ -1071,7 +1263,9 @@ class _BrainGenerationMixin:
         """
         if self._state_sections:
             stable_prompt = strip_state_sections(prompt, self._state_sections)
-            stable_system = strip_state_sections(system_instruction, self._state_sections)
+            stable_system = strip_state_sections(
+                system_instruction, self._state_sections
+            )
         else:
             stable_prompt = strip_volatile_state(prompt, strip_floats=False)
             stable_system = strip_volatile_state(system_instruction, strip_floats=False)
@@ -1087,9 +1281,10 @@ class _BrainGenerationMixin:
         request_budget_local = getattr(self, "_request_budget_local", None)
         if request_budget_local is not None:
             request_budget = getattr(request_budget_local, "budget", None)
-        
+
         # Pull dynamic generation parameters from context variable if not explicitly passed
         from drift.core.causal_wiring import generation_params_var
+
         gp = generation_params_var.get()
         if gp:
             if "temperature" not in kwargs and gp.get("temperature") is not None:
@@ -1097,7 +1292,9 @@ class _BrainGenerationMixin:
             if "top_p" not in kwargs and gp.get("top_p") is not None:
                 kwargs["top_p"] = gp["top_p"]
 
-        return self._governor.generate(key, system_instruction, prompt, budget=request_budget, **kwargs)
+        return self._governor.generate(
+            key, system_instruction, prompt, budget=request_budget, **kwargs
+        )
 
     def _generate_stream(self, model_name, system_instruction, prompt, **kwargs):
         if not hasattr(self, "_governor"):
@@ -1111,6 +1308,7 @@ class _BrainGenerationMixin:
 
         # Pull dynamic generation parameters from context variable if not explicitly passed
         from drift.core.causal_wiring import generation_params_var
+
         gp = generation_params_var.get()
         if gp:
             if "temperature" not in kwargs and gp.get("temperature") is not None:
@@ -1118,4 +1316,6 @@ class _BrainGenerationMixin:
             if "top_p" not in kwargs and gp.get("top_p") is not None:
                 kwargs["top_p"] = gp["top_p"]
 
-        yield from self._governor.generate_stream(key, system_instruction, prompt, budget=request_budget, **kwargs)
+        yield from self._governor.generate_stream(
+            key, system_instruction, prompt, budget=request_budget, **kwargs
+        )

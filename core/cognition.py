@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, List
+from typing import Any
 
 
-def detect_dissonance(text: str) -> Dict[str, Any]:
+def detect_dissonance(text: str) -> dict[str, Any]:
     """Score inner tension from contrast markers (e.g. want vs need, 'but', split self)."""
     t = text.lower()
     score = 0.0
-    markers: List[str] = []
+    markers: list[str] = []
 
     if re.search(r"\bbut\b", t):
         score += 0.35
@@ -33,7 +33,7 @@ def detect_dissonance(text: str) -> Dict[str, Any]:
 
     score = min(score, 1.0)
 
-    values: List[str] = []
+    values: list[str] = []
     if "quit" in t and ("money" in t or "need" in t):
         values.append("autonomy")
 
@@ -48,7 +48,7 @@ def detect_dissonance(text: str) -> Dict[str, Any]:
     return {"score": score, "markers": uniq, "values": values}
 
 
-def dissonance_prompt_hint(dissonance: Dict[str, Any]) -> str:
+def dissonance_prompt_hint(dissonance: dict[str, Any]) -> str:
     s = float(dissonance.get("score", 0.0))
     if s < 0.2:
         return "No strong tension detected; respond with open curiosity."

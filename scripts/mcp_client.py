@@ -8,17 +8,20 @@ Usage examples:
 
 import argparse
 import json
+import logging
 import os
 import sys
-from typing import Any, Dict
+from typing import Any
 
 import requests
 
 
 def invoke(
     host: str, port: int, tool: str, args=None, kwargs=None, token: str | None = None
-) -> Dict[str, Any]:
-    protocol = "https" if not host.startswith("127.") and host != "localhost" else "http"
+) -> dict[str, Any]:
+    protocol = (
+        "https" if not host.startswith("127.") and host != "localhost" else "http"
+    )
     url = f"{protocol}://{host}:{port}/invoke/{tool}"
     payload = {"args": args or [], "kwargs": kwargs or {}}
     headers = {}
@@ -81,6 +84,9 @@ def main() -> int:
         print(json.dumps(resp, indent=2, ensure_ascii=False))
         return 0
     except Exception as exc:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         print("Error:", exc, file=sys.stderr)
         return 1
 

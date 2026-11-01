@@ -1,3 +1,4 @@
+# ruff: noqa: N999 - legacy public filename or repository compatibility shim
 """End-to-end SARIF intelligence pipeline for Trinity."""
 
 from drift.trinity.sarif_models import EnrichedFinding

@@ -1,18 +1,19 @@
 """Document ingestion and retrieval for the DRIFT companion."""
 
+import logging
 import re
 import uuid
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
 import chromadb
-
-from drift.core.config import PROJECT_ROOT, DATA_DIR, PERSIST_DIRECTORY
-from drift.config_adapter import get_anchor_knowledge_dir
+from drift.core.config import DATA_DIR, PERSIST_DIRECTORY, PROJECT_ROOT
 from drift.core.embeddings import (
-    get_default_embedding_function,
     LocalEmbeddingFunction,
+    get_default_embedding_function,
 )
+
+from drift.config_adapter import get_anchor_knowledge_dir
 
 SUPPORTED_TEXT = {
     ".txt",
@@ -66,18 +67,18 @@ def _default_persist_directory() -> str:
     return str(PERSIST_DIRECTORY)
 
 
-def _chunk_text(text: str, chunk_size: int = 800, overlap: int = 100) -> List[str]:
+def _chunk_text(text: str, chunk_size: int = 800, overlap: int = 100) -> list[str]:
     """Split text into overlapping chunks by paragraphs."""
     paragraphs = [p.strip() for p in re.split(r"\n\s*\n", text) if p.strip()]
     chunks = []
-    current: List[str] = []
+    current: list[str] = []
     current_len = 0
     for para in paragraphs:
         para_len = len(para)
         if current_len + para_len > chunk_size and current:
             chunks.append("\n\n".join(current))
             # Keep overlap
-            overlap_text: List[str] = []
+            overlap_text: list[str] = []
             overlap_len = 0
             for p in reversed(current):
                 if overlap_len + len(p) > overlap:
@@ -105,6 +106,9 @@ def _read_pdf(path: Path) -> str:
                 parts.append(text)
         return "\n\n".join(parts)
     except Exception as exc:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         raise RuntimeError(f"PDF read failed: {exc}")
 
 
@@ -137,7 +141,7 @@ class DocumentStore:
             embedding_function=embedding_function,
         )
 
-    def ingest(self, file_path: str, tags: Optional[List[str]] = None) -> int:
+    def ingest(self, file_path: str, tags: list[str] | None = None) -> int:
         path = _resolve_ingest_path(file_path)
         if not path.exists():
             raise FileNotFoundError(f"Not found: {path}")
@@ -172,7 +176,7 @@ class DocumentStore:
         return len(chunks)
 
     def ingest_directory(
-        self, dir_path: Path, tags: Optional[List[str]] = None, recursive: bool = True
+        self, dir_path: Path, tags: list[str] | None = None, recursive: bool = True
     ) -> int:
         total = 0
         scanned = 0
@@ -188,10 +192,13 @@ class DocumentStore:
                     n = self.ingest(str(child), tags=tags)
                     total += n
                 except Exception as exc:
+                    logging.getLogger(__name__).debug(
+                        "Operation failed; applying fallback", exc_info=True
+                    )
                     print(f"[ingest skip] {child}: {exc}")
         return total
 
-    def search(self, query: str, n_results: int = 5) -> List[dict]:
+    def search(self, query: str, n_results: int = 5) -> list[dict]:
         results = self.collection.query(
             query_texts=[query],
             n_results=n_results,
@@ -214,9 +221,12 @@ class DocumentStore:
 
             return search_vault_knowledge(query, n_results=n_results)
         except Exception:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             return []
 
-    def list_sources(self) -> List[str]:
+    def list_sources(self) -> list[str]:
         results = self.collection.get(include=["metadatas"])
         sources = set()
         for meta in results.get("metadatas", []):
@@ -238,7 +248,7 @@ class DocumentStore:
         return self.collection.count()
 
 
-def format_doc_results(results: List[dict]) -> str:
+def format_doc_results(results: list[dict]) -> str:
     if not results:
         return "No matching documents found."
     lines = []

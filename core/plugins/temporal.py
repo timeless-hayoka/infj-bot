@@ -6,10 +6,11 @@ them: anticipation before expected returns, boredom during long idle,
 warmth at reconnection, concern at unusual absence.
 """
 
+import logging
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Optional
 
 from drift.core.config import DATA_DIR
 
@@ -42,10 +43,10 @@ def _time_bucket(dt: datetime) -> str:
 class TemporalSense:
     """The bot's felt experience of time."""
 
-    def __init__(self, db_path: Optional[Path] = None):
+    def __init__(self, db_path: Path | None = None):
         self.db_path = str(db_path or TEMPORAL_DB)
         self._init_db()
-        self.current_session_start: Optional[datetime] = None
+        self.current_session_start: datetime | None = None
 
     def _init_db(self):
         with sqlite3.connect(self.db_path) as conn:
@@ -140,7 +141,7 @@ class TemporalSense:
 
         self.current_session_start = None
 
-    def _load_recent_sessions(self, n: int = 20) -> List[Dict]:
+    def _load_recent_sessions(self, n: int = 20) -> list[dict]:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
@@ -149,7 +150,7 @@ class TemporalSense:
             ).fetchall()
         return [dict(r) for r in rows]
 
-    def _load_recent_absences(self, n: int = 10) -> List[Dict]:
+    def _load_recent_absences(self, n: int = 10) -> list[dict]:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
@@ -158,7 +159,7 @@ class TemporalSense:
             ).fetchall()
         return [dict(r) for r in rows]
 
-    def _typical_gap_minutes(self) -> Optional[float]:
+    def _typical_gap_minutes(self) -> float | None:
         """Calculate user's typical gap between sessions."""
         absences = self._load_recent_absences(10)
         gaps = [a["gap_minutes"] for a in absences if a["gap_minutes"] is not None]
@@ -177,7 +178,7 @@ class TemporalSense:
         gaps.sort()
         return gaps[len(gaps) // 2]  # median
 
-    def experience_gap(self, last_interaction_time: Optional[datetime] = None) -> Dict:
+    def experience_gap(self, last_interaction_time: datetime | None = None) -> dict:
         """Generate the bot's felt experience of time since last interaction."""
         if last_interaction_time is None:
             # Try to find last session end
@@ -233,7 +234,7 @@ class TemporalSense:
             "typical_gap_minutes": typical_gap,
         }
 
-    def feel_time_passing(self, minutes_idle: float) -> Optional[Dict]:
+    def feel_time_passing(self, minutes_idle: float) -> dict | None:
         """Generate a temporal experience during idle time."""
         if minutes_idle < 15:
             return None
@@ -278,9 +279,7 @@ class TemporalSense:
             "duration_minutes": minutes_idle,
         }
 
-    def get_temporal_state(
-        self, last_interaction_time: Optional[datetime] = None
-    ) -> Dict:
+    def get_temporal_state(self, last_interaction_time: datetime | None = None) -> dict:
         """Full temporal state for prompt injection."""
         gap = self.experience_gap(last_interaction_time)
         now = datetime.now()
@@ -302,7 +301,7 @@ class TemporalSense:
         }
 
     def format_temporal_prompt(
-        self, last_interaction_time: Optional[datetime] = None
+        self, last_interaction_time: datetime | None = None
     ) -> str:
         """Format temporal sense for prompt injection."""
         state = self.get_temporal_state(last_interaction_time)
@@ -374,7 +373,9 @@ class TemporalSense:
             ws = get_workspace()
             ws.submit(source="temporal", content="temporal sense updated", salience=0.4)
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
 
 
 def _register():

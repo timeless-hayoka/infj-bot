@@ -10,9 +10,9 @@ Scans for the most critical security vulnerabilities:
 """
 
 import glob
+import logging
 import os
 import re
-from typing import Dict, List, Tuple
 
 OWASP_PATTERNS = {
     "SQL Injection (A03)": r"(SELECT\s+.*FROM\s+.*WHERE\s+.*%.*|execute\(\s*f[\"'].*\{.*\})",
@@ -21,7 +21,7 @@ OWASP_PATTERNS = {
     "Insecure Deserialization (A08)": r"(pickle\.loads|yaml\.load)\(",
     "Weak Crypto": r"(md5|md4|sha1)\(",
     "Path Traversal": r"open\(.*(?:\+|%s).*\)",
-    "XSS Vulnerability": r"(innerHTML|document\.write)\s*=\s*.*"
+    "XSS Vulnerability": r"(innerHTML|document\.write)\s*=\s*.*",
 }
 
 SKIP_DIRS = {
@@ -35,12 +35,15 @@ SKIP_DIRS = {
     "build",
 }
 
-def scan_owasp(root: str = ".") -> Tuple[List[Dict], Dict[str, int]]:
-    findings: List[Dict] = []
-    summary: Dict[str, int] = {name: 0 for name in OWASP_PATTERNS}
+
+def scan_owasp(root: str = ".") -> tuple[list[dict], dict[str, int]]:
+    findings: list[dict] = []
+    summary: dict[str, int] = {name: 0 for name in OWASP_PATTERNS}
     files_scanned = 0
 
-    for pattern in glob.glob(os.path.join(root, "**/*.py"), recursive=True) + glob.glob(os.path.join(root, "**/*.js"), recursive=True):
+    for pattern in glob.glob(os.path.join(root, "**/*.py"), recursive=True) + glob.glob(
+        os.path.join(root, "**/*.js"), recursive=True
+    ):
         if any(skip in pattern for skip in SKIP_DIRS):
             continue
         try:
@@ -61,19 +64,23 @@ def scan_owasp(root: str = ".") -> Tuple[List[Dict], Dict[str, int]]:
                         )
                         summary[name] += 1
         except Exception:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             continue
 
     return findings, summary
 
-def format_owasp_report(findings: List[Dict], summary: Dict[str, int]) -> str:
+
+def format_owasp_report(findings: list[dict], summary: dict[str, int]) -> str:
     lines = ["\n🛡️ **DRIFT OWASP BUG HUNTER SCAN** 🛡️\n"]
     if not findings:
         lines.append("✅ No critical OWASP vulnerabilities found.")
         return "\n".join(lines)
 
     lines.append(f"⚠️ Found **{len(findings)}** potential vulnerabilities:\n")
-    
-    by_pattern: Dict[str, List[Dict]] = {}
+
+    by_pattern: dict[str, list[dict]] = {}
     for f in findings:
         by_pattern.setdefault(f["pattern"], []).append(f)
 
@@ -91,9 +98,11 @@ def format_owasp_report(findings: List[Dict], summary: Dict[str, int]) -> str:
 
     return "\n".join(lines)
 
+
 def run_owasp_scan(root: str = ".") -> str:
     findings, summary = scan_owasp(root)
     return format_owasp_report(findings, summary)
+
 
 if __name__ == "__main__":
     print(run_owasp_scan())
