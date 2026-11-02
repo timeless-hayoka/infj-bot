@@ -1,4 +1,7 @@
 venv/
+.venv/
+.hf_cache/
+logs/
 __pycache__/
 *.pyc
 *.pyo

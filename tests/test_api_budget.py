@@ -55,6 +55,7 @@ def test_streaming_chat():
     print("Streaming chat test passed!\n")
 
 
+@pytest.mark.asyncio
 async def test_client_disconnect_stream():
     _require_live_api()
     print("Testing client disconnect on stream (expecting internal cancellation)...")

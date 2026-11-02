@@ -3,7 +3,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
@@ -18,6 +18,11 @@ from drift.core.homeostasis import HomeostaticRegulator
 
 class TestBetaRecovery(unittest.TestCase):
     def setUp(self):
+        provider = patch(
+            "drift.core.local_llm.OllamaBridge.is_available", return_value=True
+        )
+        provider.start()
+        self.addCleanup(provider.stop)
         self._tmpdir = tempfile.TemporaryDirectory()
         db = Path(self._tmpdir.name) / "being.db"
         self._old_being = being_module._being_instance
@@ -51,6 +56,7 @@ class TestBetaRecovery(unittest.TestCase):
         # 5. Homeostasis should reflect the same direction (synced or decay-adjusted)
         energy_need = self.homeo.needs["energy"]
         self.assertGreaterEqual(energy_need.current, 0.65)
+        self.assertEqual(energy_need.current, self.being.state.energy)
 
     def test_standard_drain_on_long_response(self):
         # 1. Set baseline energy

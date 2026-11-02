@@ -20,24 +20,27 @@ from fastapi.staticfiles import StaticFiles
 from drift.config_adapter import PROJECT_ROOT
 
 try:
-    from core.brain import DriftBrain
-    from core.cognitive_orchestrator import CognitiveOrchestrator, IntentBlockedError
-    from core.commands import BotState, handle_command
-    from core.config import DEFAULT_AUTHORIZED_TARGETS
-    from core.generation import (
+    from drift.core.brain import DriftBrain
+    from drift.core.cognitive_orchestrator import (
+        CognitiveOrchestrator,
+        IntentBlockedError,
+    )
+    from drift.core.commands import BotState, handle_command
+    from drift.core.config import DEFAULT_AUTHORIZED_TARGETS
+    from drift.core.generation import (
         RequestBudget,
         RequestCancelled,
         RequestDeadlineExceeded,
         SystemOverload,
     )
-    from core.history import ChatHistory
-    from core.memory import DriftMemory
-    from core.phi_council import COUNCIL_MAPPING
-    from core.plugins.documents import DocumentStore
-    from core.plugins.goals import GoalsDB
-    from core.plugins.growth import growth_profile
-    from core.prompt_builder import build_chat_prompt
-    from core.tools import format_tool_inventory
+    from drift.core.history import ChatHistory
+    from drift.core.memory import DriftMemory
+    from drift.core.phi_council import COUNCIL_MAPPING
+    from drift.core.plugins.documents import DocumentStore
+    from drift.core.plugins.goals import GoalsDB
+    from drift.core.plugins.growth import growth_profile
+    from drift.core.prompt_builder import build_chat_prompt
+    from drift.core.tools import format_tool_inventory
 except Exception as exc:  # pragma: no cover - optional/degraded runtime path
     logging.getLogger(__name__).debug(
         "Operation failed; applying fallback", exc_info=True
@@ -172,13 +175,14 @@ def _anchor_snapshot(limit: int = 5) -> dict[str, object]:
     import os
     from datetime import datetime, timezone
 
+    from drift.core.being import get_being
+    from drift.core.dii_tracker import get_dii_tracker
+    from drift.core.global_workspace import get_workspace
+    from drift.core.homeostasis import get_homeostasis
+    from drift.core.phi_proxy import PhiProxy
+    from drift.core.shadow import get_shadow
+
     from adapters.cognition_adapter import adapter as cog_adapter
-    from core.being import get_being
-    from core.dii_tracker import get_dii_tracker
-    from core.global_workspace import get_workspace
-    from core.homeostasis import get_homeostasis
-    from core.phi_proxy import PhiProxy
-    from core.shadow import get_shadow
     from drift.trinity.http_api import build_trinity_snapshot
     from drift.trinity.release import get_release_info
 
@@ -281,7 +285,7 @@ def _anchor_snapshot(limit: int = 5) -> dict[str, object]:
 
     analytics = {}
     try:
-        from core.anchor_analytics import build_benchmark_analytics
+        from drift.core.anchor_analytics import build_benchmark_analytics
 
         analytics = build_benchmark_analytics(limit=max(10, limit), top_n=5)
     except Exception:
@@ -337,13 +341,13 @@ def _anchor_snapshot(limit: int = 5) -> dict[str, object]:
 
 async def background_drift_cycle():
     """Background task to run drift cycles and compute aliveness metrics."""
-    from core.being import get_being
-    from core.cognitive_orchestrator import CognitiveOrchestrator
-    from core.config import BACKGROUND_CYCLE_SECONDS, STRONG_CONTINUOUS_MODE
-    from core.dii_tracker import get_dii_tracker
-    from core.global_workspace import get_workspace
-    from core.homeostasis import get_homeostasis
-    from core.shadow import get_shadow
+    from drift.core.being import get_being
+    from drift.core.cognitive_orchestrator import CognitiveOrchestrator
+    from drift.core.config import BACKGROUND_CYCLE_SECONDS, STRONG_CONTINUOUS_MODE
+    from drift.core.dii_tracker import get_dii_tracker
+    from drift.core.global_workspace import get_workspace
+    from drift.core.homeostasis import get_homeostasis
+    from drift.core.shadow import get_shadow
 
     if not STRONG_CONTINUOUS_MODE:
         return
@@ -715,7 +719,7 @@ async def lifespan(_app: FastAPI):
 
 from datetime import UTC
 
-from core.gateway import HardenedGatewayMiddleware
+from drift.core.gateway import HardenedGatewayMiddleware
 
 app = FastAPI(title="ANCHOR // Powered by Trinity", lifespan=lifespan)
 app.add_middleware(HardenedGatewayMiddleware)
@@ -1598,7 +1602,7 @@ async def api_reset():
 
     # 1. Reset ContextVars
     try:
-        from core.causal_wiring import generation_params_var, state_override_var
+        from drift.core.causal_wiring import generation_params_var, state_override_var
 
         state_override_var.set(None)
         generation_params_var.set(None)
@@ -1609,7 +1613,7 @@ async def api_reset():
 
     # 2. Reset singletons/global modules
     try:
-        import core.being as being_mod
+        import drift.core.being as being_mod
 
         being_mod._being_instance = None
     except Exception:
@@ -1618,7 +1622,7 @@ async def api_reset():
         )
 
     try:
-        import core.homeostasis as homeostasis_mod
+        import drift.core.homeostasis as homeostasis_mod
 
         homeostasis_mod._homeostasis_instance = None
     except Exception:
@@ -1627,7 +1631,7 @@ async def api_reset():
         )
 
     try:
-        import core.shadow as shadow_mod
+        import drift.core.shadow as shadow_mod
 
         shadow_mod._shadow_instance = None
     except Exception:
@@ -1636,7 +1640,7 @@ async def api_reset():
         )
 
     try:
-        import core.dii_tracker as dii_mod
+        import drift.core.dii_tracker as dii_mod
 
         dii_mod._dii_instance = None
     except Exception:
@@ -1645,7 +1649,7 @@ async def api_reset():
         )
 
     try:
-        import core.global_workspace as workspace_mod
+        import drift.core.global_workspace as workspace_mod
 
         workspace_mod._workspace_instance = None
     except Exception:
@@ -1665,7 +1669,7 @@ async def api_reset():
     try:
         import sqlite3
 
-        from core.config import HOMEOSTASIS_DB, MEMORY_DB
+        from drift.core.config import HOMEOSTASIS_DB, MEMORY_DB
 
         # Clear Memory
         with sqlite3.connect(MEMORY_DB) as conn:
@@ -1714,7 +1718,7 @@ async def api_chat(request: Request):
         return JSONResponse({"error": "message is required"}, status_code=400)
 
     # Set state override context variable
-    from core.causal_wiring import state_override_var
+    from drift.core.causal_wiring import state_override_var
 
     state_override_var.set(payload.get("state"))
 
@@ -1773,11 +1777,11 @@ async def api_chat(request: Request):
 
         # ── Aliveness Tracking (DII) ──
         try:
-            from core.being import get_being
-            from core.dii_tracker import get_dii_tracker
-            from core.global_workspace import get_workspace
-            from core.homeostasis import get_homeostasis
-            from core.shadow import get_shadow
+            from drift.core.being import get_being
+            from drift.core.dii_tracker import get_dii_tracker
+            from drift.core.global_workspace import get_workspace
+            from drift.core.homeostasis import get_homeostasis
+            from drift.core.shadow import get_shadow
 
             tracker = get_dii_tracker()
             tracker.compute(
@@ -1817,7 +1821,7 @@ async def api_chat_stream(request: Request):
         )
 
     # Set state override context variable
-    from core.causal_wiring import state_override_var
+    from drift.core.causal_wiring import state_override_var
 
     state_override_var.set(payload.get("state"))
 
@@ -1887,11 +1891,11 @@ async def api_chat_stream(request: Request):
 
             # ── Aliveness Tracking (DII) ──
             try:
-                from core.being import get_being
-                from core.dii_tracker import get_dii_tracker
-                from core.global_workspace import get_workspace
-                from core.homeostasis import get_homeostasis
-                from core.shadow import get_shadow
+                from drift.core.being import get_being
+                from drift.core.dii_tracker import get_dii_tracker
+                from drift.core.global_workspace import get_workspace
+                from drift.core.homeostasis import get_homeostasis
+                from drift.core.shadow import get_shadow
 
                 tracker = get_dii_tracker()
                 tracker.compute(
@@ -1960,10 +1964,11 @@ async def api_tools():
 
 @app.get("/api/phi")
 async def api_phi():
+    from drift.core.being import get_being
+    from drift.core.homeostasis import get_homeostasis
+    from drift.core.phi_proxy import PhiProxy
+
     from adapters.cognition_adapter import adapter as cog_adapter
-    from core.being import get_being
-    from core.homeostasis import get_homeostasis
-    from core.phi_proxy import PhiProxy
 
     being = get_being()
     homeo = get_homeostasis()
@@ -2070,7 +2075,7 @@ async def api_identity(key_id: str = "v1", nonce: str | None = None):
 
 @app.get("/api/dii")
 async def api_dii():
-    from core.dii_tracker import get_dii_tracker
+    from drift.core.dii_tracker import get_dii_tracker
 
     tracker = get_dii_tracker()
     return tracker.get_trend(n=20)
@@ -2078,7 +2083,7 @@ async def api_dii():
 
 @app.get("/api/dii/history")
 async def api_dii_history(limit: int = 100):
-    from core.dii_tracker import get_dii_tracker
+    from drift.core.dii_tracker import get_dii_tracker
 
     tracker = get_dii_tracker()
     return {"history": tracker.get_history(limit=limit)}
@@ -2088,11 +2093,11 @@ async def api_dii_history(limit: int = 100):
 async def api_audit(limit: int = 50):
     """Retrieve the unified audit log for monitoring and safety verification."""
     try:
-        from core.unified_audit import get_audit_logger
+        from drift.core.unified_audit import get_audit_logger
 
         audit_logger = get_audit_logger()
         # Use read_any as a static helper or tail
-        from core.jsonl_logger import HardenedJsonlLogger
+        from drift.core.jsonl_logger import HardenedJsonlLogger
 
         return HardenedJsonlLogger.tail(audit_logger.path, n=limit)
     except Exception as e:
@@ -2106,7 +2111,7 @@ async def api_audit(limit: int = 50):
 async def api_hive_deliberations(limit: int = 10):
     """Retrieve history of high-order deliberations from the Elysium engine."""
     try:
-        from core.hive.elysium import get_elysium
+        from drift.core.hive.elysium import get_elysium
 
         elysium = get_elysium()
         return elysium.get_deliberation_history(limit=limit)
@@ -2120,11 +2125,11 @@ async def api_hive_deliberations(limit: int = 10):
 @app.get("/api/observer")
 async def api_observer():
     """Full real-time cognitive state for the observer dashboard."""
-    from core.being import get_being
-    from core.dii_tracker import get_dii_tracker
-    from core.global_workspace import get_workspace
-    from core.homeostasis import get_homeostasis
-    from core.shadow import get_shadow
+    from drift.core.being import get_being
+    from drift.core.dii_tracker import get_dii_tracker
+    from drift.core.global_workspace import get_workspace
+    from drift.core.homeostasis import get_homeostasis
+    from drift.core.shadow import get_shadow
 
     being = get_being()
     homeo = get_homeostasis()
