@@ -127,6 +127,9 @@ class ModeDiscriminator:
         self, modes: list[str], prompts: list[str]
     ) -> dict[str, list[dict]]:
         """Collect responses from each mode for each prompt."""
+        if not prompts:
+            return {mode: [] for mode in modes}
+
         from drift.core.brain import DriftBrain
         from drift.core.commands import BotState
         from drift.core.prompt_builder import build_chat_prompt

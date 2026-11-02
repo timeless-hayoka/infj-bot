@@ -225,4 +225,4 @@ class FindingsDB:
         }
 
     def _row_to_finding(self, row: sqlite3.Row) -> Finding:
-        return Finding(**{k: row[k] for k in row})
+        return Finding(**dict(row))

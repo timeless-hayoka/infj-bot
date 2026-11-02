@@ -1,7 +1,28 @@
 from __future__ import annotations
 
+import atexit
+import os
 import sys
+import tempfile
 from pathlib import Path
+
+import pytest
+
+# Choose the canonical state root before importing any application modules.
+# Tests must never use a developer's persistent companion state.
+_test_state = tempfile.TemporaryDirectory(prefix="drift-pytest-")
+os.environ["DRIFT_OS_ROOT"] = _test_state.name
+atexit.register(_test_state.cleanup)
+os.environ.setdefault("DRIFT_USE_LOCAL_EMBEDDINGS", "true")
+
+
+def pytest_collection_modifyitems(items):
+    if os.environ.get("DRIFT_RUN_ENV_TESTS") == "1":
+        return
+    for item in items:
+        if item.get_closest_marker("env"):
+            item.add_marker(pytest.mark.skip(reason="requires DRIFT_RUN_ENV_TESTS=1"))
+
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:

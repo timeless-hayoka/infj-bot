@@ -3,6 +3,7 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
+py-modules = ["config_adapter"]
 packages = ["drift", "drift.interfaces", "drift.evals", "drift.metrics", "drift.core", "drift.core.plugins", "drift.core.hive", "drift.tools", "drift.automation", "drift.automation.mouse", "drift.hive_mind", "drift.hive_mind.protocol", "drift.trinity", "drift.trinity.adapters", "drift.trinity.council", "drift.trinity.sarif_pipeline", "drift.plugins"]
 
 [tool.setuptools.package-dir]
@@ -83,6 +84,8 @@ dev = [
     "httpx>=0.28",
     "pytest>=9.0",
     "pytest-asyncio>=0.24",
+    "pytest-timeout>=2.4",
+    "trio>=0.30",
 ]
 voice = [
     "piper-tts>=1.4",

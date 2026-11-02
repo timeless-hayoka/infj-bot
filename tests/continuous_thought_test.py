@@ -75,12 +75,17 @@ async def run_simulated_cycles(minutes: int = 5, interval: int = 5):
 
 
 @pytest.mark.asyncio
-async def test_continuity():
+async def test_continuity(monkeypatch):
     """Verify that the bot can recall what it has been thinking about."""
     logger.info("Verifying inner continuity...")
 
-    # Run some cycles
-    await run_simulated_cycles(minutes=1, interval=5)
+    # Exercise all cycles without a wall-clock delay; persistence is the contract.
+    async def no_sleep(_seconds):
+        pass
+
+    monkeypatch.setattr(asyncio, "sleep", no_sleep)
+    get_being().state.energy = 0.8
+    captured = await run_simulated_cycles(minutes=1, interval=5)
 
     being = get_being()
     recent = being.recent_thoughts(limit=5)
@@ -93,11 +98,9 @@ async def test_continuity():
     trend = tracker.get_trend(n=10)
     logger.info(f"DII Trend: {trend}")
 
-    if len(recent) > 0:
-        logger.info("CONTINUITY SUCCESS: Bot has persistent inner thoughts.")
-    else:
-        logger.error("CONTINUITY FAILURE: No thoughts recorded.")
+    assert captured
+    assert any(t.get("content") in captured for t in recent)
 
 
 if __name__ == "__main__":
-    asyncio.run(test_continuity())
+    asyncio.run(run_simulated_cycles(minutes=1, interval=5))

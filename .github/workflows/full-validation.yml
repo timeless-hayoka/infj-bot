@@ -1,0 +1,73 @@
+name: Full validation
+
+on:
+  pull_request:
+    branches: [anchor, main, master]
+  push:
+    branches: [anchor, main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: timeless-hayoka/ANCHOR
+          ref: 138775a495eccb81e3f1d74b38d0085f42e3de6a
+          path: .validation-anchor
+          persist-credentials: false
+      - name: Place pinned ANCHOR provider beside the consumer
+        run: mv .validation-anchor ../ANCHOR && git -C ../ANCHOR rev-parse HEAD
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install native audio library
+        run: sudo apt-get update && sudo apt-get install -y libportaudio2 libsndfile1
+      - name: Install CPU runtime and development dependencies
+        run: |
+          python -m venv .venv
+          .venv/bin/python -m pip install --upgrade pip
+          .venv/bin/python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.11.0
+          .venv/bin/python -m pip install -e '.[dev,sarif-semantic]'
+      - name: Run every test and preserve evidence
+        run: bash run_full_test_suite.sh --output-dir logs/full-validation
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: full-regression-evidence
+          path: logs/full-validation/
+          if-no-files-found: error
+
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build actual application image
+        run: docker build -t drift-validation:ci .
+      - name: Boot default container command and verify API
+        run: bash scripts/docker_smoke.sh drift-validation:ci
+
+  foundry:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: timeless-hayoka/damn-vulnerable-defi
+          ref: 1fceebd31fe097eb00d8b44ad50e5fd62a3606b0
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.8.7
+      - name: Record exact lab and tool revisions
+        run: git rev-parse HEAD && forge --version
+      - name: Run the six implemented challenge proofs
+        run: forge test --match-path 'test/{abi-smuggling,backdoor,naive-receiver,side-entrance,truster,unstoppable}/*.t.sol' -vv

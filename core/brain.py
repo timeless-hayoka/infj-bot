@@ -1185,7 +1185,7 @@ class DriftBrain(_BrainGenerationMixin):
                 delta_energy = turn_record.delta_energy
 
                 # Sync new energy with homeostasis system
-                homeo.update_need("energy", being.state.energy)
+                homeo.update_need("energy", being.state.energy, damping_factor=1.0)
             except Exception:
                 self.logger.exception("Failed to record turn in cognitive governor")
 
@@ -1435,7 +1435,7 @@ class DriftBrain(_BrainGenerationMixin):
                 delta_energy = turn_record.delta_energy
 
                 # Sync new energy with homeostasis system
-                homeo.update_need("energy", being.state.energy)
+                homeo.update_need("energy", being.state.energy, damping_factor=1.0)
             except Exception:
                 self.logger.exception("Failed to record turn in cognitive governor")
 

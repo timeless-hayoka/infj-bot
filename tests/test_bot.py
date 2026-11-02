@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from datetime import datetime, timedelta
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from drift.core.cognition import (
     detect_dissonance,
@@ -60,7 +60,9 @@ class TestEmotion(unittest.TestCase):
     def test_neutral(self):
         result = detect_emotion("The sky is blue.")
         self.assertEqual(result["label"], "neutral")
-        self.assertGreater(result["confidence"], 0.3)
+        # No lexicon match is weak evidence of neutrality, not high confidence.
+        self.assertEqual(result["detector"], "offline_lexicon_v1")
+        self.assertLessEqual(result["confidence"], 0.3)
 
     def test_anxious(self):
         result = detect_emotion("I am so worried about the deadline.")
@@ -465,7 +467,7 @@ class TestGrowth(unittest.TestCase):
         mock_mem.count.return_value = 0
         mock_mem.unified_manager.count_sync.return_value = 0
         profile = growth_profile(mock_mem, turns=0)
-        self.assertEqual(profile["stage"], "Spark")
+        self.assertEqual(profile["stage"], "Dormant Core")
         self.assertEqual(profile["progress"], 0.0)
 
         mock_mem.count.return_value = 100
@@ -606,6 +608,24 @@ class TestHistory(unittest.TestCase):
 
 
 class TestApi(unittest.TestCase):
+    def setUp(self):
+        # Exercise real request/security handling with only generation replaced.
+        from drift.interfaces import api
+
+        provider = patch(
+            "drift.core.local_llm.OllamaBridge.is_available", return_value=True
+        )
+        provider.start()
+        self.addCleanup(provider.stop)
+        generation = patch.object(
+            api.DriftBrain, "_generate", return_value="Test reply."
+        )
+        generation.start()
+        self.addCleanup(generation.stop)
+        previous = api.brain
+        api.brain = None
+        self.addCleanup(setattr, api, "brain", previous)
+
     def test_health_and_tools_endpoints(self):
         from drift.interfaces.api import app
         from fastapi.testclient import TestClient

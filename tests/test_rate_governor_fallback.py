@@ -7,6 +7,13 @@ from drift.core.generation import Provider, ProviderError, RateGovernor
 
 
 class TestRateGovernorFallback(unittest.TestCase):
+    def setUp(self):
+        provider = patch(
+            "drift.core.local_llm.OllamaBridge.is_available", return_value=True
+        )
+        provider.start()
+        self.addCleanup(provider.stop)
+
     def test_run_chain_accumulates_errors(self):
         # Mock providers that raise exceptions
         p1 = Provider(
