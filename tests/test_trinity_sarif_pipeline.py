@@ -182,3 +182,8 @@ def test_semantic_clusterer_assigns_cluster_metadata():
     result = clusterer.cluster(findings)
     clusterer.assign_clusters_to_findings(findings, result)
     assert "semantic_cluster" in findings[0].properties
+    singleton = clusterer.cluster(findings[:1])
+    assert singleton.cluster_labels.tolist() == [-1]
+    assert singleton.noise_points == 1
+    assert singleton.n_clusters == 0
+    assert len(clusterer.cluster([]).cluster_labels) == 0

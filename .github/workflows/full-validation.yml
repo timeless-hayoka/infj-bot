@@ -16,6 +16,14 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: timeless-hayoka/ANCHOR
+          ref: 138775a495eccb81e3f1d74b38d0085f42e3de6a
+          path: .validation-anchor
+          persist-credentials: false
+      - name: Place pinned ANCHOR provider beside the consumer
+        run: mv .validation-anchor ../ANCHOR && git -C ../ANCHOR rev-parse HEAD
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -27,7 +35,7 @@ jobs:
           python -m venv .venv
           .venv/bin/python -m pip install --upgrade pip
           .venv/bin/python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.11.0
-          .venv/bin/python -m pip install -e '.[dev]'
+          .venv/bin/python -m pip install -e '.[dev,sarif-semantic]'
       - name: Run every test and preserve evidence
         run: bash run_full_test_suite.sh --output-dir logs/full-validation
       - uses: actions/upload-artifact@v4

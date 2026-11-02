@@ -86,13 +86,25 @@ class SemanticClusterer:
 
         if not findings:
             return ClusterResult(cluster_labels=np.array([]))
+        if len(findings) < max(2, self.hdbscan_min_cluster_size):
+            return ClusterResult(
+                cluster_labels=np.full(len(findings), -1, dtype=int),
+                noise_points=len(findings),
+            )
 
         texts = [self._embedding_text(f) for f in findings]
         embeddings = self.generate_embeddings(texts)
 
-        if embeddings.shape[1] > self.umap_n_components:
+        # UMAP's spectral initializer needs more samples than dimensions + 1.
+        # Tiny batches (and batches of duplicate vectors) have no useful manifold;
+        # HDBSCAN can operate directly on their original embedding distances.
+        unique_vectors = len(np.unique(embeddings, axis=0))
+        if (
+            embeddings.shape[1] > self.umap_n_components
+            and unique_vectors > self.umap_n_components + 1
+        ):
             reducer = umap.UMAP(
-                n_neighbors=self.umap_n_neighbors,
+                n_neighbors=min(self.umap_n_neighbors, len(findings) - 1),
                 min_dist=self.umap_min_dist,
                 n_components=self.umap_n_components,
                 metric="cosine",
