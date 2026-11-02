@@ -1,65 +1,38 @@
-"""
-core/safe_math.py — Restricted math evaluation for DRIFT.
+"""Bounded exact arithmetic and isolated symbolic math for untrusted text.
 
-WHY THIS EXISTS
-    The LLM must never compute arithmetic "in its head" — that is where small
-    models hallucinate. This module computes the answer; the model only phrases it.
-
-THREAT MODEL
-    Input strings originate from user queries AND model-drafted answers. Both are
-    treated as fully untrusted. The classic escapes we must defeat:
-        __import__('os').system(...)        -> blocked: no Call to non-whitelisted names,
-                                                and '__' substring rejected
-        (1).__class__.__bases__...          -> blocked: ast.Attribute is disallowed
-        eval('...') / exec(...)             -> blocked: not in whitelist, no builtins
-        9**9**9  /  factorial(10**9)         -> blocked: exponent + result-size caps,
-                                                heavy functions excluded from namespace
-        lambda / comprehensions / subscript -> blocked: node-type allowlist
-
-DESIGN (two independent layers)
-    Layer 1  Python `ast` allowlist. We parse the string ourselves and walk it
-             against an explicit whitelist of node types. ANYTHING not on the list
-             raises. This is the real security boundary.
-    Layer 2  Only after Layer 1 passes do we touch sympy, and even then we call
-             parse_expr with global_dict={} (no builtins) and a curated local_dict.
-             We NEVER call sympy.sympify() on raw input — historically it could eval.
-
-EXACTNESS
-    Arithmetic is done in fractions.Fraction (exact rationals). We report the exact
-    value and a rounded decimal approximation.
-
-FORBIDDEN_IMPORTS COMPLIANCE
-    Imports only: ast, math, re, threading, fractions, decimal, sympy.
-    No os / subprocess / socket / pickle / ctypes / urllib.
-
-REQUIRED SYMPY: >= 1.11 (older parse_expr defaults are riskier). Pin it.
+Only the validated Python AST is interpreted. SymPy receives constructor calls,
+never raw text through sympify/parse_expr/eval. Symbolic work runs in a fresh,
+killable POSIX process with CPU, address-space, descriptor and output limits.
+This is resource containment, not an OS sandbox for arbitrary Python code.
 """
 
 from __future__ import annotations
 
 import ast
+import json
 import math
+import os
 import re
+import signal
+import subprocess
+import sys
 import threading
-from decimal import Decimal, getcontext
+from decimal import Decimal, localcontext
 from fractions import Fraction
+from pathlib import Path
 
-# --------------------------------------------------------------------------- #
-# Caps (tune for your droplet; these bound CPU and memory, not correctness)
-# --------------------------------------------------------------------------- #
-MAX_EXPR_LEN = 512  # reject pathologically long inputs outright
-MAX_SYMBOLIC_LEN = 256  # symbolic path is more expensive; tighter cap
-MAX_POW_EXPONENT = 1_000  # blocks 9**9**9-style towers
-MAX_RESULT_BITS = 60_000  # ~18k digits; bounds memory of any single result
-MAX_AST_DEPTH = 60  # bounds nesting / recursion
-SYMBOLIC_TIMEOUT_S = 2.0  # wall-clock budget for sympy work (see honest caveat)
-
+MAX_EXPR_LEN = 512
+MAX_SYMBOLIC_LEN = 256
+MAX_POW_EXPONENT = 1000
+MAX_RESULT_BITS = 60000
+MAX_AST_DEPTH = 60
+MAX_AST_NODES = 256
+SYMBOLIC_TIMEOUT_S = 3.0
+SYMBOLIC_MEMORY_BYTES = 512 * 1024 * 1024
+SYMBOLIC_CPU_SECONDS = 2
+MAX_WORKER_OUTPUT = 65536
+_WORKERS = threading.BoundedSemaphore(4)
 _ALLOWED_BINOPS = (ast.Add, ast.Sub, ast.Mult, ast.Div, ast.FloorDiv, ast.Mod, ast.Pow)
-_ALLOWED_UNARY = (ast.UAdd, ast.USub)
-
-# Functions/constants exposed to the SYMBOLIC path. Deliberately excludes
-# factorial, integrate, summation, product, series, solveset-over-reals, etc.,
-# because those are the open-ended CPU-hang vectors. Keep this list minimal.
 _ALLOWED_FUNCS = {
     "sqrt",
     "sin",
@@ -75,372 +48,288 @@ _ALLOWED_FUNCS = {
     "abs",
 }
 _ALLOWED_CONST_NAMES = {"pi", "e", "E"}
-_VAR_RE = re.compile(r"[a-zA-Z][a-zA-Z0-9]{0,9}")  # variable names: short, alnum
-_BANNED_SUBSTR = ("__", "import", "lambda", "exec", "eval", "lcm", "compile")
+_VAR_RE = re.compile(r"[a-zA-Z][a-zA-Z0-9]{0,9}")
 
 
 class MathError(Exception):
-    """Raised for any input we refuse to evaluate. Never leaks internals."""
+    """A refused or unavailable computation; safe to show to the caller."""
 
 
-# --------------------------------------------------------------------------- #
-# LAYER 1 — pure arithmetic, exact rationals, no sympy
-# --------------------------------------------------------------------------- #
-def _guard_size(v: Fraction) -> Fraction:
+def _guard_size(value: Fraction) -> Fraction:
     if (
-        abs(v.numerator).bit_length() > MAX_RESULT_BITS
-        or abs(v.denominator).bit_length() > MAX_RESULT_BITS
+        max(abs(value.numerator).bit_length(), value.denominator.bit_length())
+        > MAX_RESULT_BITS
     ):
         raise MathError("result too large")
-    return v
+    return value
 
 
-def _safe_pow(base: Fraction, exp: Fraction) -> Fraction:
-    # Pre-flight size check so we never *build* an oversized integer.
-    if exp.denominator == 1:
-        e = exp.numerator
-        if abs(e) > MAX_POW_EXPONENT:
-            raise MathError("exponent too large")
-        base_bits = max(
-            abs(base.numerator).bit_length(), abs(base.denominator).bit_length(), 1
-        )
-        if abs(e) * base_bits > MAX_RESULT_BITS:
-            raise MathError("result too large")
-        if e >= 0:
-            return _guard_size(base**e)
-        if base == 0:
-            raise MathError("division by zero")
-        return _guard_size(Fraction(1) / (base ** (-e)))
-    # Fractional exponent: no exact rational result. Approximate via float, bounded.
-    try:
-        val = float(base) ** float(exp)
-    except (ValueError, OverflowError):
-        raise MathError("undefined or out of range")
-    if not math.isfinite(val):
-        raise MathError("undefined or out of range")
-    return Fraction(val).limit_denominator(10**12)
-
-
-def _const_to_fraction(value) -> Fraction:
+def _number(node: ast.Constant, source: str) -> Fraction:
+    value = node.value
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise MathError("only numeric literals allowed")
     if isinstance(value, int):
-        return Fraction(value)
-    # Use the source text form so 0.1 -> 1/10 exactly, not the binary-float artifact.
-    return Fraction(str(value))
+        return _guard_size(Fraction(value))
+    if not math.isfinite(value):
+        raise MathError("non-finite literal")
+    token = ast.get_source_segment(source, node)
+    if token is None:
+        raise MathError("missing numeric source")
+    decimal = Decimal(token.replace("_", ""))
+    if abs(decimal.as_tuple().exponent) > 1000:
+        raise MathError("numeric exponent too large")
+    return _guard_size(Fraction(decimal))
 
 
-def _eval_arith(node: ast.AST, depth: int = 0) -> Fraction:
+def _safe_pow(base: Fraction, exponent: Fraction) -> Fraction:
+    if exponent.denominator != 1:
+        raise MathError("non-rational power requires symbolic evaluation")
+    e = exponent.numerator
+    if abs(e) > MAX_POW_EXPONENT:
+        raise MathError("exponent too large")
+    bits = max(abs(base.numerator).bit_length(), base.denominator.bit_length(), 1)
+    if abs(e) * bits > MAX_RESULT_BITS:
+        raise MathError("result too large")
+    if base == 0 and e < 0:
+        raise MathError("division by zero")
+    return _guard_size(base**e)
+
+
+def _eval_arith(node: ast.AST, source: str) -> Fraction:
+    if isinstance(node, ast.Expression):
+        return _eval_arith(node.body, source)
+    if isinstance(node, ast.Constant):
+        return _number(node, source)
+    if isinstance(node, ast.UnaryOp):
+        value = _eval_arith(node.operand, source)
+        return value if isinstance(node.op, ast.UAdd) else -value
+    if not isinstance(node, ast.BinOp):
+        raise MathError("not pure arithmetic")
+    a, b = _eval_arith(node.left, source), _eval_arith(node.right, source)
+    try:
+        if isinstance(node.op, ast.Add):
+            value = a + b
+        elif isinstance(node.op, ast.Sub):
+            value = a - b
+        elif isinstance(node.op, ast.Mult):
+            value = a * b
+        elif isinstance(node.op, ast.Div):
+            value = a / b
+        elif isinstance(node.op, ast.FloorDiv):
+            value = Fraction(a // b)
+        elif isinstance(node.op, ast.Mod):
+            value = a % b
+        elif isinstance(node.op, ast.Pow):
+            value = _safe_pow(a, b)
+        else:
+            raise MathError("operator not allowed")
+    except ZeroDivisionError:
+        raise MathError("division by zero") from None
+    return _guard_size(value)
+
+
+def _validate_node(node: ast.AST, source: str, symbolic: bool, depth: int = 0) -> None:
     if depth > MAX_AST_DEPTH:
         raise MathError("expression too deeply nested")
+    child = lambda n: _validate_node(n, source, symbolic, depth + 1)
     if isinstance(node, ast.Expression):
-        return _eval_arith(node.body, depth + 1)
-    if isinstance(node, ast.Constant):
-        return _const_to_fraction(node.value)
-    if isinstance(node, ast.UnaryOp):
-        if not isinstance(node.op, _ALLOWED_UNARY):
-            raise MathError("operator not allowed")
-        v = _eval_arith(node.operand, depth + 1)
-        return +v if isinstance(node.op, ast.UAdd) else -v
-    if isinstance(node, ast.BinOp):
-        if not isinstance(node.op, _ALLOWED_BINOPS):
-            raise MathError("operator not allowed")
-        left = _eval_arith(node.left, depth + 1)
-        right = _eval_arith(node.right, depth + 1)
-        op = node.op
-        if isinstance(op, ast.Add):
-            return _guard_size(left + right)
-        if isinstance(op, ast.Sub):
-            return _guard_size(left - right)
-        if isinstance(op, ast.Mult):
-            return _guard_size(left * right)
-        if isinstance(op, ast.Div):
-            if right == 0:
-                raise MathError("division by zero")
-            return _guard_size(left / right)
-        if isinstance(op, ast.FloorDiv):
-            if right == 0:
-                raise MathError("division by zero")
-            return Fraction(left // right)
-        if isinstance(op, ast.Mod):
-            if right == 0:
-                raise MathError("modulo by zero")
-            return _guard_size(left % right)
-        if isinstance(op, ast.Pow):
-            return _safe_pow(left, right)
-    # ast.Name, ast.Call, ast.Attribute, ast.Subscript, ast.Lambda, comprehensions,
-    # ast.Starred, etc. all fall through to here and are rejected.
-    raise MathError(f"disallowed expression: {type(node).__name__}")
+        child(node.body)
+    elif isinstance(node, ast.Constant):
+        _number(node, source)
+    elif isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.UAdd, ast.USub)):
+        child(node.operand)
+    elif isinstance(node, ast.BinOp) and isinstance(node.op, _ALLOWED_BINOPS):
+        child(node.left)
+        child(node.right)
+        if isinstance(node.op, ast.Pow):
+            # Variable exponents and power towers are intentionally unsupported.
+            exponent = _eval_arith(node.right, source)
+            if abs(exponent) > MAX_POW_EXPONENT:
+                raise MathError("exponent too large")
+            if any(isinstance(n, (ast.Name, ast.Call)) for n in ast.walk(node.left)):
+                return
+            base = _eval_arith(node.left, source)
+            if exponent.denominator == 1:
+                _safe_pow(base, exponent)
+        if (
+            isinstance(node.op, (ast.Div, ast.FloorDiv, ast.Mod))
+            and not any(
+                isinstance(n, (ast.Name, ast.Call)) for n in ast.walk(node.right)
+            )
+            and _eval_arith(node.right, source) == 0
+        ):
+            raise MathError("division by zero")
+    elif symbolic and isinstance(node, ast.Name) and _VAR_RE.fullmatch(node.id):
+        if node.id in {"nan", "oo", "zoo", "inf", "Infinity"}:
+            raise MathError("non-finite name")
+        if node.id in _ALLOWED_FUNCS:
+            raise MathError("function requires arguments")
+    elif (
+        symbolic
+        and isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id in _ALLOWED_FUNCS
+    ):
+        arities = (1, 2) if node.func.id in {"log", "ln"} else (1,)
+        if node.keywords or len(node.args) not in arities:
+            raise MathError("invalid function arguments")
+        for arg in node.args:
+            child(arg)
+    else:
+        raise MathError("disallowed syntax")
+
+
+def _parse_validated(expr: str, *, symbolic: bool) -> tuple[str, ast.Expression]:
+    if (
+        not isinstance(expr, str)
+        or not expr.strip()
+        or len(expr) > (MAX_SYMBOLIC_LEN if symbolic else MAX_EXPR_LEN)
+    ):
+        raise MathError("empty or oversized expression")
+    # Validate exactly the normalized string that is subsequently interpreted.
+    source = expr.strip().replace("^", "**")
+    if len(source) > MAX_EXPR_LEN or not re.fullmatch(
+        r"[0-9a-zA-Z_+\-*/%()., \t]+", source
+    ):
+        raise MathError("disallowed character")
+    try:
+        tree = ast.parse(source, mode="eval")
+    except (SyntaxError, ValueError, RecursionError):
+        raise MathError("could not parse expression") from None
+    if sum(1 for _ in ast.walk(tree)) > MAX_AST_NODES:
+        raise MathError("too many expression nodes")
+    _validate_node(tree, source, symbolic)
+    return source, tree
 
 
 def safe_arithmetic(expr: str) -> Fraction:
-    """Evaluate a pure-number expression exactly. Raises MathError on anything else."""
-    if not isinstance(expr, str) or len(expr) > MAX_EXPR_LEN:
-        raise MathError("expression too long")
-    try:
-        tree = ast.parse(expr, mode="eval")
-    except (SyntaxError, ValueError):
-        raise MathError("could not parse expression")
-    return _eval_arith(tree)
+    source, tree = _parse_validated(expr, symbolic=False)
+    return _eval_arith(tree, source)
 
 
-# --------------------------------------------------------------------------- #
-# LAYER 1 GATE for the symbolic path — validate AST shape BEFORE sympy sees it
-# --------------------------------------------------------------------------- #
-def _validate_symbolic_ast(node: ast.AST, depth: int = 0) -> None:
-    if depth > MAX_AST_DEPTH:
-        raise MathError("expression too deeply nested")
-    if isinstance(node, ast.Expression):
-        return _validate_symbolic_ast(node.body, depth + 1)
-    if isinstance(node, ast.BinOp):
-        if not isinstance(node.op, _ALLOWED_BINOPS):
-            raise MathError("operator not allowed")
-        if isinstance(node.op, (ast.Div, ast.FloorDiv, ast.Mod)) and (
-            isinstance(node.right, ast.Constant) and node.right.value == 0
-        ):
-            raise MathError("division by zero")
-        _validate_symbolic_ast(node.left, depth + 1)
-        _validate_symbolic_ast(node.right, depth + 1)
-        return
-    if isinstance(node, ast.UnaryOp):
-        if not isinstance(node.op, _ALLOWED_UNARY):
-            raise MathError("operator not allowed")
-        _validate_symbolic_ast(node.operand, depth + 1)
-        return
-    if isinstance(node, ast.Constant):
-        if isinstance(node.value, bool) or not isinstance(node.value, (int, float)):
-            raise MathError("only numeric literals allowed")
-        return
-    if isinstance(node, ast.Name):
-        nm = node.id
-        if nm in _ALLOWED_FUNCS or nm in _ALLOWED_CONST_NAMES:
-            return
-        if _VAR_RE.fullmatch(nm):
-            return
-        raise MathError("name not allowed")
-    if isinstance(node, ast.Call):
-        if not isinstance(node.func, ast.Name) or node.func.id not in _ALLOWED_FUNCS:
-            raise MathError("function not allowed")
-        if node.keywords:
-            raise MathError("keyword arguments not allowed")
-        if len(node.args) > 2:
-            raise MathError("too many arguments")
-        for a in node.args:
-            _validate_symbolic_ast(a, depth + 1)
-        return
-    # Attribute, Subscript, Lambda, comprehensions, etc. -> rejected here.
-    raise MathError(f"disallowed syntax: {type(node).__name__}")
-
-
-def _validate_expr_side(side: str) -> None:
-    side = side.strip()
-    if not side:
-        raise MathError("empty expression")
-    try:
-        # '^' is xor in Python ast; map to '**' so power validates correctly.
-        tree = ast.parse(side.replace("^", "**"), mode="eval")
-    except (SyntaxError, ValueError):
-        raise MathError("could not parse expression")
-    _validate_symbolic_ast(tree)
-
-
-def _prevalidate_symbolic(expr: str) -> None:
+def _validated_sides(expr: str, solve_for: str | None = None) -> list[str]:
     if not isinstance(expr, str) or len(expr) > MAX_SYMBOLIC_LEN:
         raise MathError("expression too long")
-    low = expr.lower()
-    if any(b in low for b in _BANNED_SUBSTR):
-        raise MathError("disallowed token")
-    # Charset gate: digits, letters, the operators we allow, parens, dot, comma, =, space.
-    if not re.fullmatch(r"[0-9a-zA-Z_+\-*/^().,= \t]+", expr):
-        raise MathError("disallowed character")
-    # Validate each side of an equation independently — eval-mode ast can't parse '='.
+    if solve_for is not None and (
+        not isinstance(solve_for, str)
+        or not _VAR_RE.fullmatch(solve_for)
+        or solve_for in _ALLOWED_FUNCS | _ALLOWED_CONST_NAMES
+    ):
+        raise MathError("invalid solve variable")
     parts = expr.split("=")
     if len(parts) > 2:
         raise MathError("only one '=' supported")
-    for part in parts:
-        _validate_expr_side(part)
-
-
-def _with_timeout(fn, *args):
-    """Run fn in a daemon thread with a wall-clock budget.
-
-    HONEST CAVEAT: a hung, CPU-bound sympy call holds the GIL and CANNOT be force-
-    killed from another thread. If it overruns we stop *waiting* and return an error,
-    but the thread may still run to completion in the background. The REAL protection
-    against hangs is the input restriction above (length cap + exclusion of integrate/
-    summation/factorial/series), not this timeout. Treat the timeout as a backstop.
-    """
-    result, error = [], []
-
-    def runner():
-        try:
-            result.append(fn(*args))
-        except Exception as e:  # noqa: BLE001 - surface as MathError below
-            error.append(e)
-
-    t = threading.Thread(target=runner, daemon=True)
-    t.start()
-    t.join(SYMBOLIC_TIMEOUT_S)
-    if t.is_alive():
-        raise MathError("computation exceeded time budget")
-    if error:
-        raise MathError("could not evaluate symbolic expression")
-    return result[0]
-
-
-def _symbolic_namespace():
-    import sympy
-
-    return {
-        "sqrt": sympy.sqrt,
-        "sin": sympy.sin,
-        "cos": sympy.cos,
-        "tan": sympy.tan,
-        "asin": sympy.asin,
-        "acos": sympy.acos,
-        "atan": sympy.atan,
-        "log": sympy.log,
-        "ln": sympy.log,
-        "exp": sympy.exp,
-        "Abs": sympy.Abs,
-        "abs": sympy.Abs,
-        "pi": sympy.pi,
-        "e": sympy.E,
-        "E": sympy.E,
-    }
-
-
-def _parse_sym(text: str):
-    import sympy
-    from sympy.parsing.sympy_parser import (
-        convert_xor,
-        implicit_multiplication_application,
-        parse_expr,
-        standard_transformations,
-    )
-
-    transformations = standard_transformations + (
-        implicit_multiplication_application,  # "2x" -> "2*x"
-        convert_xor,  # "^"  -> "**"
-    )
-    ns = _symbolic_namespace()
-    # global_dict supplies ONLY sympy's expression-construction primitives plus our
-    # whitelisted names. '__builtins__': {} is critical — without it, eval() inside
-    # parse_expr auto-injects the real Python builtins. Security still rests on the
-    # Layer-1 AST allowlist that ran before we ever reach this point.
-    gdict = {
-        "Integer": sympy.Integer,
-        "Float": sympy.Float,
-        "Rational": sympy.Rational,
-        "Symbol": sympy.Symbol,
-        "Mul": sympy.Mul,
-        "Add": sympy.Add,
-        "Pow": sympy.Pow,
-        "__builtins__": {},
-    }
-    gdict.update(ns)
-    return parse_expr(
-        text,
-        local_dict=ns,
-        global_dict=gdict,
-        transformations=transformations,
-        evaluate=True,
-    )
+    return [_parse_validated(side, symbolic=True)[0] for side in parts]
 
 
 def safe_symbolic(expr: str, *, solve_for: str | None = None) -> dict:
-    """Simplify an expression or solve an equation (single '=' splits into Eq)."""
-    import sympy
+    sides = _validated_sides(expr, solve_for)
+    if os.name != "posix":
+        raise MathError("resource-limited symbolic worker unavailable")
+    if not _WORKERS.acquire(blocking=False):
+        raise MathError("symbolic worker busy")
+    proc = None
+    try:
+        worker = str(Path(__file__).with_name("_safe_math_worker.py"))
+        proc = subprocess.Popen(
+            [sys.executable, "-I", worker],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            start_new_session=True,
+            env={"PATH": os.defpath, "PYTHONHASHSEED": "0"},
+        )
+        try:
+            output, _ = proc.communicate(
+                json.dumps({"sides": sides, "solve_for": solve_for}),
+                timeout=SYMBOLIC_TIMEOUT_S,
+            )
+        except subprocess.TimeoutExpired:
+            try:
+                os.killpg(proc.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            proc.communicate()
+            raise MathError("computation exceeded time budget") from None
+        if proc.returncode != 0 or len(output) > MAX_WORKER_OUTPUT:
+            raise MathError("symbolic worker failed or exceeded resource budget")
+        payload = json.loads(output)
+        if not payload.get("ok"):
+            raise MathError("could not evaluate symbolic expression")
+        return payload["result"]
+    except (OSError, ValueError, KeyError):
+        raise MathError("symbolic worker unavailable") from None
+    finally:
+        if proc is not None and proc.poll() is None:
+            proc.kill()
+            proc.wait()
+        _WORKERS.release()
 
-    _prevalidate_symbolic(expr)
 
-    if "=" in expr:
-        lhs, _, rhs = expr.partition("=")
-        if "=" in rhs:
-            raise MathError("only one '=' supported")
-
-        def _solve():
-            L, R = _parse_sym(lhs), _parse_sym(rhs)
-            eq = sympy.Eq(L, R)
-            syms = sorted(eq.free_symbols, key=lambda s: s.name)
-            if solve_for:
-                target = sympy.Symbol(solve_for)
-            elif len(syms) == 1:
-                target = syms[0]
-            else:
-                raise MathError("ambiguous: specify which variable to solve for")
-            sols = sympy.solve(eq, target, dict=False)
-            return {
-                "type": "solve",
-                "variable": str(target),
-                "solutions": [str(s) for s in sols],
-            }
-
-        return _with_timeout(_solve)
-
-    def _simplify():
-        e = sympy.simplify(_parse_sym(expr))
-        out = {"type": "expr", "simplified": str(e)}
-        if not e.free_symbols:
-            out["numeric"] = str(e.evalf(15))
-        return out
-
-    return _with_timeout(_simplify)
-
-
-# --------------------------------------------------------------------------- #
-# Public surface: dispatcher + formatting (this is what brain/prompt_builder call)
-# --------------------------------------------------------------------------- #
 _MATH_HINT = re.compile(
-    r"\d\s*[-+*/^]\s*\d|=|\b(solve|simplify|evaluate|compute)\b"
-    r"|\bsqrt\b|\d%|\bpercent\b",
+    r"\d\s*[-+*/^]\s*\d|=|\b(solve|simplify|evaluate|compute|sqrt)\b|\d%|\bpercent\b",
     re.IGNORECASE,
 )
 
 
 def looks_like_math(text: str) -> bool:
-    """Cheap heuristic: should we even try? Keep recall high, precision loose."""
-    return bool(text) and bool(_MATH_HINT.search(text))
+    return isinstance(text, str) and bool(_MATH_HINT.search(text))
 
 
 def format_fraction(frac: Fraction, sig: int = 12) -> dict:
-    if frac.denominator == 1:
-        return {"exact": str(frac.numerator), "approx": str(frac.numerator)}
-    getcontext().prec = sig + 6
-    approx = (Decimal(frac.numerator) / Decimal(frac.denominator)).normalize()
-    return {"exact": f"{frac.numerator}/{frac.denominator}", "approx": str(approx)}
+    try:
+        exact = (
+            str(frac.numerator)
+            if frac.denominator == 1
+            else f"{frac.numerator}/{frac.denominator}"
+        )
+    except ValueError:
+        raise MathError("result too large to display") from None
+    with localcontext() as ctx:
+        ctx.prec = sig
+        approx = str((Decimal(frac.numerator) / Decimal(frac.denominator)).normalize())
+    return {"exact": exact, "approx": exact if frac.denominator == 1 else approx}
 
 
 def compute(text: str) -> dict:
-    """Single entry point. Returns a (value, validity) result, never raises.
-
-    Shape:
-        {"ok": True,  "kind": "arithmetic"|"symbolic", "result": {...}, "input": text}
-        {"ok": False, "reason": "<safe message>", "input": text}
-
-    The caller feeds result back to the model as a GROUNDED FACT to phrase — the
-    model must not re-derive it. On {"ok": False} the model should say it could not
-    compute it, NOT invent a number.
-    """
-    text = (text or "").strip()
-    # Try exact arithmetic first (fast, no sympy).
+    if not isinstance(text, str):
+        return {"ok": False, "reason": "expression must be text", "input": None}
+    text = text.strip()
     try:
-        frac = safe_arithmetic(text)
+        # Validate once before dispatch: an arithmetic resource rejection must not
+        # escape through the symbolic fallback.
+        sides = _validated_sides(text) if len(text) <= MAX_SYMBOLIC_LEN else None
+        if sides is None:
+            frac = safe_arithmetic(text)
+        elif len(sides) == 1 and not any(
+            isinstance(n, (ast.Name, ast.Call))
+            for n in ast.walk(ast.parse(sides[0], mode="eval"))
+        ):
+            try:
+                frac = safe_arithmetic(text)
+            except MathError as exc:
+                if str(exc) != "non-rational power requires symbolic evaluation":
+                    raise
+                return {
+                    "ok": True,
+                    "kind": "symbolic",
+                    "result": safe_symbolic(text),
+                    "input": text,
+                }
+        else:
+            return {
+                "ok": True,
+                "kind": "symbolic",
+                "result": safe_symbolic(text),
+                "input": text,
+            }
         return {
             "ok": True,
             "kind": "arithmetic",
             "result": format_fraction(frac),
             "input": text,
         }
-    except MathError:
-        pass
-    # Fall back to symbolic (slower, guarded).
-    try:
-        return {
-            "ok": True,
-            "kind": "symbolic",
-            "result": safe_symbolic(text),
-            "input": text,
-        }
-    except MathError as e:
-        return {"ok": False, "reason": str(e), "input": text}
+    except (MathError, ArithmeticError, RecursionError) as exc:
+        reason = str(exc) if isinstance(exc, MathError) else "undefined or out of range"
+        return {"ok": False, "reason": reason, "input": text}
