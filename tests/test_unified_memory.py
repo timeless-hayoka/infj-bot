@@ -81,3 +81,44 @@ async def test_memory_manager_ebbinghaus_prune(temp_dirs):
     assert not any(r.unified_id == uid1 for r in res1)
     assert len(res2) > 0
     assert res2[0].unified_id == uid2
+
+
+def test_initialization_without_chromadb_preserves_sqlite_state(monkeypatch, tmp_path):
+    from drift.core import unified_memory
+
+    monkeypatch.setattr(unified_memory, "_CHROMADB_AVAILABLE", False)
+    monkeypatch.setattr(unified_memory, "chromadb", None)
+    db_path = tmp_path / "nested" / "state.db"
+    mm = MemoryManager(db_path=str(db_path), chroma_path=str(tmp_path / "chroma"))
+
+    assert mm.collection is None
+    assert mm.embedding_function is None
+    mm.set_state_sync("mode", "offline")
+    assert mm.get_state_sync("mode") == "offline"
+    assert mm.get_state_sync("missing", default="unknown") == "unknown"
+    assert db_path.is_file()
+
+
+def test_initialization_with_chromadb_uses_default_embedding(monkeypatch, tmp_path):
+    from types import SimpleNamespace
+    from unittest.mock import Mock
+    from drift.core import embeddings, unified_memory
+
+    embedding = object()
+    collection = object()
+    client = Mock()
+    client.get_or_create_collection.return_value = collection
+    persistent_client = Mock(return_value=client)
+    monkeypatch.setattr(unified_memory, "_CHROMADB_AVAILABLE", True)
+    monkeypatch.setattr(unified_memory, "chromadb", SimpleNamespace(PersistentClient=persistent_client))
+    monkeypatch.setattr(embeddings, "get_default_embedding_function", lambda: embedding)
+    chroma_path = str(tmp_path / "chroma")
+
+    mm = MemoryManager(db_path=str(tmp_path / "state.db"), chroma_path=chroma_path)
+
+    persistent_client.assert_called_once_with(path=chroma_path)
+    client.get_or_create_collection.assert_called_once_with(
+        name="infj_unified_memory_v2", embedding_function=embedding
+    )
+    assert mm.embedding_function is embedding
+    assert mm.collection is collection
