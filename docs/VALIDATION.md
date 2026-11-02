@@ -57,8 +57,11 @@ implied by green offline checks.
 - Original broader run: 40 failures, 1 setup error, 344 passed and 7 skipped.
 - Repaired offline suite before installing clustering extras: 387 passed and
   6 skipped; dependency, Ruff lint and format checks passed.
+- Full suite with semantic-clustering extras: 388 passed and 5 external-environment
+  skips; the replacement runner also passed its full regression and Foundry run.
 - Actual MiniLM: deterministic vectors with 384 dimensions.
-- MCP: actual server initialized and registered 17 tools; security tests passed.
+- MCP: a real stdio client initialized the server, listed 17 tools and called
+  `anchor_knowledge_list`; security tests passed.
 - Optional clustering exposed a two-finding UMAP crash; the corrected pipeline
   and MCP security group passed all 8 tests with optional dependencies installed.
 - Six Foundry lab proofs: 12 passed locally and in GitHub Actions.

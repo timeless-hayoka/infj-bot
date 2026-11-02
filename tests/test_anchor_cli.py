@@ -13,8 +13,10 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_build_parser_has_anchor_commands():
+    from drift.interfaces import build_parser as compatibility_parser
     from interfaces.cli import build_parser
 
+    assert compatibility_parser().parse_args(["version"]).command == "version"
     parser = build_parser()
     commands = {action.dest for action in parser._actions if action.dest == "command"}
     assert "command" in commands or parser._subparsers is not None
