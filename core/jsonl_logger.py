@@ -16,11 +16,13 @@ This replaces every ad-hoc ``open(path, "a")`` JSONL write in the repo.
 
 import gzip
 import json
+import logging
 import os
 import shutil
 import threading
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Iterator, Optional
+from typing import Optional
 
 
 class HardenedJsonlLogger:
@@ -46,7 +48,7 @@ class HardenedJsonlLogger:
         path: Path,
         max_bytes: int = 50_000_000,
         max_backups: int = 3,
-        disk_quota_bytes: Optional[int] = 200_000_000,
+        disk_quota_bytes: int | None = 200_000_000,
     ):
         self.path = Path(path)
         self.max_bytes = max_bytes
@@ -68,6 +70,9 @@ class HardenedJsonlLogger:
             line = json.dumps(record, default=str, ensure_ascii=False) + "\n"
             payload = line.encode("utf-8")
         except Exception:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             return False
 
         with self._lock:
@@ -84,6 +89,9 @@ class HardenedJsonlLogger:
                     os.fsync(fh.fileno())
                 return True
             except Exception:
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
                 return False
 
     def _check_quota(self) -> bool:
@@ -98,6 +106,9 @@ class HardenedJsonlLogger:
             )
             return total < self.disk_quota_bytes
         except Exception:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             return True
 
     def _rotate_if_needed(self) -> None:
@@ -107,6 +118,9 @@ class HardenedJsonlLogger:
             if self.path.stat().st_size < self.max_bytes:
                 return
         except Exception:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             return
 
         # Shift backups: .jsonl.2 -> .jsonl.3, .jsonl.1 -> .jsonl.2
@@ -128,7 +142,9 @@ class HardenedJsonlLogger:
                     shutil.copyfileobj(f_in, f_out)
                 oldest.unlink()
             except Exception:
-                pass
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
 
     def _backup_path(self, n: int) -> Path:
         return self.path.with_suffix(f".jsonl.{n}")
@@ -140,7 +156,7 @@ class HardenedJsonlLogger:
     def read_lines(
         self,
         include_backups: bool = False,
-        since: Optional[str] = None,
+        since: str | None = None,
     ) -> Iterator[dict]:
         """Yield decoded JSON objects one at a time.
 
@@ -167,6 +183,9 @@ class HardenedJsonlLogger:
                         try:
                             obj = json.loads(line)
                         except Exception:
+                            logging.getLogger(__name__).debug(
+                                "Operation failed; applying fallback", exc_info=True
+                            )
                             continue
                         if since is not None:
                             ts = obj.get("timestamp") or obj.get("ts") or ""
@@ -174,6 +193,9 @@ class HardenedJsonlLogger:
                                 continue
                         yield obj
             except Exception:
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
                 continue
 
     def write_raw(self, line: str) -> bool:
@@ -197,10 +219,13 @@ class HardenedJsonlLogger:
                     os.fsync(fh.fileno())
                 return True
             except Exception:
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
                 return False
 
     @staticmethod
-    def read_any(path: Path, limit: Optional[int] = None) -> Iterator[dict]:
+    def read_any(path: Path, limit: int | None = None) -> Iterator[dict]:
         """Standalone helper: read *any* JSONL file with per-line fault tolerance.
 
         Does NOT rotate or check quotas — pure read-only safety.
@@ -216,6 +241,9 @@ class HardenedJsonlLogger:
                 try:
                     yield json.loads(raw)
                 except Exception:
+                    logging.getLogger(__name__).debug(
+                        "Operation failed; applying fallback", exc_info=True
+                    )
                     continue
                 count += 1
                 if limit is not None and count >= limit:
@@ -230,6 +258,9 @@ class HardenedJsonlLogger:
             with open(path, "r", encoding="utf-8", errors="replace") as fh:
                 lines = fh.readlines()
         except Exception:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             return []
         results: list[dict] = []
         for line in reversed(lines):
@@ -239,6 +270,9 @@ class HardenedJsonlLogger:
             try:
                 results.append(json.loads(line))
             except Exception:
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
                 continue
             if len(results) >= n:
                 break
@@ -248,6 +282,7 @@ class HardenedJsonlLogger:
 # ---------------------------------------------------------------------- #
 #  Convenience: module-level singletons for the existing logs              #
 # ---------------------------------------------------------------------- #
+
 
 def _logger_for(path: Path) -> HardenedJsonlLogger:
     return HardenedJsonlLogger(path)

@@ -1,0 +1,48 @@
+name: ANCHOR consumer contract
+on:
+  push:
+    branches: [anchor, main, master]
+  pull_request:
+    branches: [anchor, main, master]
+  schedule:
+    - cron: '23 13 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: anchor-contract-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: infj-bot
+      - uses: actions/checkout@v4
+        with:
+          repository: timeless-hayoka/ANCHOR
+          ref: main
+          path: ANCHOR
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install lightweight test runner
+        run: python -m pip install "pytest>=9,<10"
+      - name: Knowledge refresh regression
+        env:
+          DRIFT_OS_ROOT: ${{ runner.temp }}/drift-contract-state
+        run: python -m pytest infj-bot/tests/test_anchor_freshness.py -q
+      - name: Validate current ANCHOR consumer boundary
+        env:
+          DRIFT_OS_ROOT: ${{ runner.temp }}/drift-contract-state
+        run: python infj-bot/scripts/check_anchor_contract.py --anchor-root ANCHOR --output evidence/anchor-contract.json
+      - name: Preserve exact revisions and result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: anchor-consumer-contract
+          path: evidence/anchor-contract.json
+          if-no-files-found: error
+          retention-days: 30

@@ -11,7 +11,10 @@ from drift.trinity.adapters.sarif import parse_sarif_payload
 from drift.trinity.sarif_deduplicator import SarifDeduplicator
 from drift.trinity.sarif_models import SarifFinding
 from drift.trinity.sarif_pipeline.pipeline import SARIFProcessingPipeline
-from drift.trinity.sarif_pipeline.semantic_clusterer import ClusterResult, semantic_clustering_available
+from drift.trinity.sarif_pipeline.semantic_clusterer import (
+    ClusterResult,
+    semantic_clustering_available,
+)
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 
@@ -54,10 +57,15 @@ def test_sarif_pipeline_persists_sqlite_without_clustering(tmp_path: Path):
     )
     assert len(results) == 2
     assert all(row.dedup_key for row in results)
-    assert {row.normalized.category for row in results} == {"SQL Injection", "Code Injection"}
+    assert {row.normalized.category for row in results} == {
+        "SQL Injection",
+        "Code Injection",
+    }
 
     conn = sqlite3.connect(db_path)
-    rows = conn.execute("SELECT dedup_key, normalized_category, tool FROM findings").fetchall()
+    rows = conn.execute(
+        "SELECT dedup_key, normalized_category, tool FROM findings"
+    ).fetchall()
     conn.close()
     assert len(rows) == 2
     categories = {row[1] for row in rows}
@@ -79,7 +87,9 @@ def test_sarif_pipeline_llm_summarizer_hook(tmp_path: Path):
         llm_summarizer=fake_llm,
     )
     pipeline.clusterer = _StubClusterer()
-    enriched = pipeline.process({"codeql": _fixture_path("minimal_codeql.sarif")}, enable_llm_summaries=True)
+    enriched = pipeline.process(
+        {"codeql": _fixture_path("minimal_codeql.sarif")}, enable_llm_summaries=True
+    )
     assert enriched[0].cluster_summary == "Synthetic cluster summary."
     assert calls
     assert "Cluster 0" in calls[0]
@@ -112,7 +122,9 @@ def test_sarif_pipeline_to_trinity_findings(tmp_path: Path):
         enable_chroma=False,
     )
     enriched = pipeline.process({"codeql": _fixture_path("minimal_codeql.sarif")})
-    rows = pipeline.to_trinity_findings(enriched, source_path=_fixture_path("minimal_codeql.sarif"))
+    rows = pipeline.to_trinity_findings(
+        enriched, source_path=_fixture_path("minimal_codeql.sarif")
+    )
     assert rows[0]["kind"] == "sarif:codeql"
     assert rows[0]["normalized"]["cwe"] == "CWE-89"
     assert "cluster_summary" in rows[0]
@@ -148,15 +160,21 @@ def test_deduplicate_cross_tool_helper():
     )
 
 
-@pytest.mark.skipif(not semantic_clustering_available(), reason="semantic clustering deps not installed")
+@pytest.mark.skipif(
+    not semantic_clustering_available(), reason="semantic clustering deps not installed"
+)
 def test_semantic_clusterer_assigns_cluster_metadata():
     from drift.trinity.sarif_pipeline.semantic_clusterer import SemanticClusterer
 
-    payload_a = json.loads(_fixture_path("minimal_codeql.sarif").read_text(encoding="utf-8"))
-    payload_b = json.loads(_fixture_path("minimal_semgrep.sarif").read_text(encoding="utf-8"))
-    findings = parse_sarif_payload(payload_a, source_path="codeql.sarif") + parse_sarif_payload(
-        payload_b, source_path="semgrep.sarif"
+    payload_a = json.loads(
+        _fixture_path("minimal_codeql.sarif").read_text(encoding="utf-8")
     )
+    payload_b = json.loads(
+        _fixture_path("minimal_semgrep.sarif").read_text(encoding="utf-8")
+    )
+    findings = parse_sarif_payload(
+        payload_a, source_path="codeql.sarif"
+    ) + parse_sarif_payload(payload_b, source_path="semgrep.sarif")
     for finding in findings:
         finding.normalized = {"category": finding.rule_id, "cwe": "CWE-000"}
 

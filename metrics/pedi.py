@@ -78,12 +78,13 @@ Architecture
 • A real-time fluidity gauge is exposed for the cognitive orchestrator.
 """
 
+import logging
 import math
 import sqlite3
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Optional
 
 from drift.core.config import DATA_DIR
 
@@ -107,7 +108,7 @@ CRITICAL_FLUIDITY: float = 0.60
 RECOVERY_THRESHOLD: float = 0.75
 
 # Dimensions tracked in the homeostatic state vector.
-NEED_DIMENSIONS: List[str] = [
+NEED_DIMENSIONS: list[str] = [
     "energy",
     "coherence",
     "integration",
@@ -124,8 +125,8 @@ class StateSnapshot:
 
     timestamp: datetime
     turn_id: int
-    needs: Dict[str, float]  # dimension → value in [0, 1]
-    context_tokens_used: Optional[int] = None  # if known
+    needs: dict[str, float]  # dimension → value in [0, 1]
+    context_tokens_used: int | None = None  # if known
 
 
 @dataclass
@@ -149,13 +150,13 @@ class FluidityReport:
     recovered: bool  # True if SFS_k >= RECOVERY_THRESHOLD
     recovery_turns: int  # turns since last jump
     crisis_flag: bool  # True if CF_t < CRITICAL_FLUIDITY
-    dimensions_breakdown: Dict[str, float] = field(default_factory=dict)
+    dimensions_breakdown: dict[str, float] = field(default_factory=dict)
 
 
 class PediIndex:
     """Performance and Efficiency Detection Index — state fluidity tracker."""
 
-    def __init__(self, db_path: Optional[Path] = None):
+    def __init__(self, db_path: Path | None = None):
         self.db_path = str(db_path or PEDI_DB)
         Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
         self._init_db()
@@ -164,7 +165,7 @@ class PediIndex:
         self._cumulative_fluidity: float = 1.0
         # Track last jump for recovery counting
         self._last_jump_turn: int = 0
-        self._last_state: Optional[StateSnapshot] = None
+        self._last_state: StateSnapshot | None = None
 
     def _init_db(self) -> None:
         """Telemetry store for fluidity audits and regression analysis."""
@@ -197,7 +198,7 @@ class PediIndex:
     # ── Core Mathematics ───────────────────────────────────────────────
 
     @staticmethod
-    def _euclidean_jump(prev: Dict[str, float], curr: Dict[str, float]) -> float:
+    def _euclidean_jump(prev: dict[str, float], curr: dict[str, float]) -> float:
         """
         Compute the Euclidean distance between two state vectors.
 
@@ -328,7 +329,7 @@ class PediIndex:
 
         report = FluidityReport(
             turn_id=post_reset.turn_id,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             state_jump=round(jump, 4),
             fluidity_score=round(sfs, 4),
             cumulative_fluidity=round(cf, 4),
@@ -368,7 +369,7 @@ class PediIndex:
 
     # ── Diagnostics ────────────────────────────────────────────────────
 
-    def get_recent_reports(self, limit: int = 50) -> List[Dict]:
+    def get_recent_reports(self, limit: int = 50) -> list[dict]:
         """Return recent PEDI reports for dashboard/audit display."""
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
@@ -378,9 +379,9 @@ class PediIndex:
             ).fetchall()
         return [dict(r) for r in rows]
 
-    def get_crisis_count(self, since: Optional[datetime] = None) -> int:
+    def get_crisis_count(self, since: datetime | None = None) -> int:
         """Count how many crisis events have occurred in the lookback window."""
-        since = since or datetime(1970, 1, 1, tzinfo=timezone.utc)
+        since = since or datetime(1970, 1, 1, tzinfo=UTC)
         with sqlite3.connect(self.db_path) as conn:
             row = conn.execute(
                 "SELECT COUNT(*) FROM pedi_reports WHERE crisis_flag = 1 AND timestamp > ?",
@@ -388,7 +389,7 @@ class PediIndex:
             ).fetchone()
         return row[0] if row else 0
 
-    def get_fluidity_trend(self, window: int = 20) -> List[float]:
+    def get_fluidity_trend(self, window: int = 20) -> list[float]:
         """Return the last N cumulative fluidity values for trend plotting."""
         with sqlite3.connect(self.db_path) as conn:
             rows = conn.execute(
@@ -397,7 +398,7 @@ class PediIndex:
             ).fetchall()
         return [r[0] for r in reversed(rows)]
 
-    def get_last_snapshot(self) -> Optional[StateSnapshot]:
+    def get_last_snapshot(self) -> StateSnapshot | None:
         """Retrieve the last recorded snapshot from the database."""
         try:
             with sqlite3.connect(self.db_path) as conn:
@@ -408,6 +409,7 @@ class PediIndex:
                 if row:
                     needs = json.loads(row["needs_json"])
                     from datetime import datetime
+
                     # Handle possible timezone suffix or simple isoformat strings
                     ts_str = row["timestamp"]
                     # Replace Z with +00:00 for fromisoformat compatibility in python versions before 3.11 if needed
@@ -420,13 +422,15 @@ class PediIndex:
                         context_tokens_used=row["context_tokens_used"],
                     )
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
         return None
 
 
 # ── Convenience factory ──────────────────────────────────────────────
 
-_default_pedi: Optional[PediIndex] = None
+_default_pedi: PediIndex | None = None
 
 
 def get_pedi() -> PediIndex:
@@ -438,4 +442,4 @@ def get_pedi() -> PediIndex:
 
 
 # Re-import json here to avoid NameError in _log_report
-import json  # noqa: E402
+import json

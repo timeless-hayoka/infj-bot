@@ -10,7 +10,11 @@ import pytest
 from drift.trinity.council.council_runner import CouncilRunner
 from drift.trinity.council.evidence_board import EvidenceBoard
 from drift.trinity.council.evidence_packet import TrinityEvidencePacket
-from drift.trinity.council.forge_council_schema import AgentMessage, ClaimStatus, MessageType
+from drift.trinity.council.forge_council_schema import (
+    AgentMessage,
+    ClaimStatus,
+    MessageType,
+)
 
 
 def test_agents_emit_typed_messages_only():
@@ -86,7 +90,6 @@ def test_runner_creates_claim_and_board_summary():
         assert result["board"]["claims"] >= 1
 
 
-
 def test_runner_emits_evidence_packet_bundle():
     with tempfile.TemporaryDirectory() as tmp:
         bundle_root = Path(tmp) / "trinity_case_001"
@@ -110,7 +113,9 @@ def test_runner_emits_evidence_packet_bundle():
         assert (bundle_root / "reasoning_summary.md").exists()
         assert (bundle_root / "export_report.md").exists()
         assert (bundle_root / "evidence" / "tool_outputs").is_dir()
-        assert "# Trinity Evidence Packet" in (bundle_root / "export_report.md").read_text(encoding="utf-8")
+        assert "# Trinity Evidence Packet" in (
+            bundle_root / "export_report.md"
+        ).read_text(encoding="utf-8")
 
 
 def test_reproduced_claim_packet_reports_real_status():
@@ -133,4 +138,3 @@ def test_reproduced_claim_packet_reports_real_status():
     )
 
     assert packet.status() == "REPRODUCED_REAL"
-

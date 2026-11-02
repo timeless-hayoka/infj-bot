@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 core/dmu.py — Decision Memory Unit
 ====================================
@@ -34,7 +35,6 @@ from dataclasses import dataclass
 from typing import Optional
 
 import numpy as np
-
 from drift.core.dmu_score_decomposition import (
     DMUScoreDecomposition,
     attach_ranks,
@@ -46,13 +46,13 @@ logger = logging.getLogger("drift.dmu")
 
 # Decay constants per memory category (tune from being.db history)
 TAU_DEFAULTS = {
-    "episodic":    10.0,   # personal experiences — moderate decay
-    "semantic":    30.0,   # factual knowledge — slow decay
-    "procedural":  20.0,   # skills/patterns — moderate decay
-    "emotional":    5.0,   # emotional memories — fast decay (high weight recent)
-    "bond":        50.0,   # Jude-specific — very slow decay
-    "threat":       3.0,   # security findings — very fast decay (stay current)
-    "untagged":    10.0,   # default
+    "episodic": 10.0,  # personal experiences — moderate decay
+    "semantic": 30.0,  # factual knowledge — slow decay
+    "procedural": 20.0,  # skills/patterns — moderate decay
+    "emotional": 5.0,  # emotional memories — fast decay (high weight recent)
+    "bond": 50.0,  # Jude-specific — very slow decay
+    "threat": 3.0,  # security findings — very fast decay (stay current)
+    "untagged": 10.0,  # default
 }
 
 # Maximum fraction of retrieved memories from any single category
@@ -61,13 +61,13 @@ DMU_DIVERSITY_CAP = 0.40
 
 @dataclass
 class ScoredMemory:
-    memory:           dict
-    base_similarity:  float
-    dmu_score:        float
-    decay_component:  float
-    reinforcement:    float
-    salience:         float
-    category:         str
+    memory: dict
+    base_similarity: float
+    dmu_score: float
+    decay_component: float
+    reinforcement: float
+    salience: float
+    category: str
 
 
 def dmu_score(
@@ -172,9 +172,7 @@ def apply_diversity_floor(
             filtered.append(mem)
             counts[cat] = counts.get(cat, 0) + 1
         else:
-            logger.debug(
-                f"[DMU] '{cat}' capped at {n_max} — diversity floor active"
-            )
+            logger.debug(f"[DMU] '{cat}' capped at {n_max} — diversity floor active")
         if len(filtered) >= top_k:
             break
 
@@ -194,21 +192,21 @@ class DMURetriever:
     def __init__(
         self,
         chroma_collection,
-        psc_engine=None,          # PSCBatchEngine instance — optional
+        psc_engine=None,  # PSCBatchEngine instance — optional
         max_retrieval_count: int = 100,
-        tau_overrides: Optional[dict[str, float]] = None,
+        tau_overrides: dict[str, float] | None = None,
     ):
-        self.collection          = chroma_collection
-        self.psc_engine          = psc_engine
+        self.collection = chroma_collection
+        self.psc_engine = psc_engine
         self.max_retrieval_count = max_retrieval_count
-        self.tau_map             = {**TAU_DEFAULTS, **(tau_overrides or {})}
-        self._retrieval_counts: dict[str, int] = {}   # memory_id → count
+        self.tau_map = {**TAU_DEFAULTS, **(tau_overrides or {})}
+        self._retrieval_counts: dict[str, int] = {}  # memory_id → count
 
     def retrieve(
         self,
         query_embedding: list[float],
         top_k: int = 10,
-        n_candidates: int = 50,    # fetch more candidates, re-rank with DMU
+        n_candidates: int = 50,  # fetch more candidates, re-rank with DMU
         current_cycle: int = 0,
         explain: bool = False,
     ) -> list[dict] | tuple[list[dict], list[DMUScoreDecomposition]]:
@@ -232,13 +230,16 @@ class DMURetriever:
                 include=["documents", "metadatas", "distances"],
             )
         except Exception as e:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             logger.error(f"[DMU] ChromaDB query failed: {e}")
             return []
 
         if not raw or not raw.get("ids"):
             return []
 
-        ids       = raw["ids"][0]
+        ids = raw["ids"][0]
         distances = raw["distances"][0]
         metadatas = raw["metadatas"][0]
         documents = raw["documents"][0]
@@ -250,35 +251,45 @@ class DMURetriever:
             try:
                 result = self.psc_engine.run()
                 if result is not None:
-                    psc_projected   = {
+                    psc_projected = {
                         d: float(result.predicted[i])
                         for i, d in enumerate(result.dimensions)
                     }
-                    psc_alert_dims  = {
-                        d for i, d in enumerate(result.dimensions)
-                        if result.alerted[i]
+                    psc_alert_dims = {
+                        d for i, d in enumerate(result.dimensions) if result.alerted[i]
                     }
             except Exception as e:
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
                 logger.warning(f"[DMU] PSC query failed, using neutral salience: {e}")
 
         # 3. Score each candidate with DMU equation
         scored: list[ScoredMemory] = []
         for mem_id, dist, meta, doc in zip(ids, distances, metadatas, documents):
-            base_sim     = float(1.0 - min(dist, 1.0))   # convert distance to similarity
+            base_sim = float(1.0 - min(dist, 1.0))  # convert distance to similarity
             retrieval_ct = self._retrieval_counts.get(mem_id, 0)
-            reinforcement= float(np.clip(retrieval_ct / self.max_retrieval_count, 0, 1))
-            reinforcement= max(reinforcement, 0.05)       # floor so new memories aren't ignored
+            reinforcement = float(
+                np.clip(retrieval_ct / self.max_retrieval_count, 0, 1)
+            )
+            reinforcement = max(
+                reinforcement, 0.05
+            )  # floor so new memories aren't ignored
 
             formed_cycle = int(meta.get("cycle", 0)) if meta else 0
-            t_elapsed    = max(0, current_cycle - formed_cycle)
-            category     = (meta.get("category") or meta.get("type") or "untagged") if meta else "untagged"
-            tau          = self.tau_map.get(category, self.tau_map["untagged"])
+            t_elapsed = max(0, current_cycle - formed_cycle)
+            category = (
+                (meta.get("category") or meta.get("type") or "untagged")
+                if meta
+                else "untagged"
+            )
+            tau = self.tau_map.get(category, self.tau_map["untagged"])
 
-            memory_dict  = {
-                "id":           mem_id,
-                "document":     doc,
-                "metadata":     meta or {},
-                "tags":         (meta.get("tags") or []) if meta else [],
+            memory_dict = {
+                "id": mem_id,
+                "document": doc,
+                "metadata": meta or {},
+                "tags": (meta.get("tags") or []) if meta else [],
                 "formed_state": (meta.get("formed_state") or {}) if meta else {},
             }
 
@@ -288,11 +299,17 @@ class DMURetriever:
 
             score = dmu_score(base_sim, t_elapsed, reinforcement, salience, tau)
 
-            scored.append(ScoredMemory(
-                memory=memory_dict, base_similarity=base_sim,
-                dmu_score=score, decay_component=math.exp(-t_elapsed / (tau+1e-10)),
-                reinforcement=reinforcement, salience=salience, category=category,
-            ))
+            scored.append(
+                ScoredMemory(
+                    memory=memory_dict,
+                    base_similarity=base_sim,
+                    dmu_score=score,
+                    decay_component=math.exp(-t_elapsed / (tau + 1e-10)),
+                    reinforcement=reinforcement,
+                    salience=salience,
+                    category=category,
+                )
+            )
 
         # 4. Sort by DMU score
         scored.sort(key=lambda x: x.dmu_score, reverse=True)
@@ -310,7 +327,9 @@ class DMURetriever:
                         retention_decay=sm.decay_component,
                         emotional_weight=0.0,
                         state_match=0.0,
-                        trust_level=float(sm.memory.get("metadata", {}).get("source_reliability", 0.0)),
+                        trust_level=float(
+                            sm.memory.get("metadata", {}).get("source_reliability", 0.0)
+                        ),
                         conflict_penalty=0.0,
                         final_dmu_score=sm.dmu_score,
                         memory_metadata=sm.memory,
@@ -321,7 +340,9 @@ class DMURetriever:
             traces = compute_pure_semantic_ranks(traces)
 
         # 5. Apply diversity floor
-        filtered = apply_diversity_floor(scored, max_fraction=DMU_DIVERSITY_CAP, top_k=top_k)
+        filtered = apply_diversity_floor(
+            scored, max_fraction=DMU_DIVERSITY_CAP, top_k=top_k
+        )
 
         # 6. Update retrieval counts for reinforcement learning
         for sm in filtered:

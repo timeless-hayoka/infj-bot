@@ -13,7 +13,7 @@ import shutil
 import time
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any
 
 from drift.core.config import DATA_DIR
 
@@ -24,15 +24,17 @@ EXPERIMENT_ROOT = DATA_DIR / "experiments"
 BASELINE_DIR = EXPERIMENT_ROOT / "baselines"
 RUNS_DIR = EXPERIMENT_ROOT / "runs"
 
+
 @dataclass
 class ExperimentRun:
     run_id: int
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
     input: str = ""
-    variables: Dict[str, Any] = field(default_factory=dict)
-    metrics: Dict[str, Any] = field(default_factory=dict)
+    variables: dict[str, Any] = field(default_factory=dict)
+    metrics: dict[str, Any] = field(default_factory=dict)
     errors: int = 0
     duration_ms: float = 0.0
+
 
 @dataclass
 class ExperimentReport:
@@ -40,8 +42,9 @@ class ExperimentReport:
     baseline_hash: str
     variable_tested: str
     start_time: str = field(default_factory=lambda: datetime.now().isoformat())
-    runs: List[ExperimentRun] = field(default_factory=list)
-    aggregate: Dict[str, Any] = field(default_factory=dict)
+    runs: list[ExperimentRun] = field(default_factory=list)
+    aggregate: dict[str, Any] = field(default_factory=dict)
+
 
 class ExperimentRunner:
     """Orchestrates controlled experiments on the PHI organism."""
@@ -51,7 +54,7 @@ class ExperimentRunner:
         self.report = ExperimentReport(
             experiment_id=experiment_id,
             baseline_hash="pending",
-            variable_tested="unknown"
+            variable_tested="unknown",
         )
         self._ensure_dirs()
 
@@ -86,7 +89,7 @@ class ExperimentRunner:
                     shutil.copytree(src, dst)
                 else:
                     shutil.copy2(src, dst)
-        
+
         logger.info(f"Baseline '{name}' created at {target}")
         return target
 
@@ -126,13 +129,15 @@ class ExperimentRunner:
 
         logger.info(f"Baseline '{name}' restored.")
 
-    def run_trial(self, trial_func: callable, input_text: str, variables: Dict[str, Any]) -> ExperimentRun:
+    def run_trial(
+        self, trial_func: callable, input_text: str, variables: dict[str, Any]
+    ) -> ExperimentRun:
         """Execute a single trial run with isolation."""
         start_time = time.monotonic()
         run_id = len(self.report.runs) + 1
-        
+
         logger.info(f"Starting Trial {run_id} for Experiment {self.experiment_id}")
-        
+
         try:
             # Execute the cognitive turn
             metrics = trial_func(input_text, **variables)
@@ -143,16 +148,16 @@ class ExperimentRunner:
             errors = 1
 
         duration = (time.monotonic() - start_time) * 1000
-        
+
         run = ExperimentRun(
             run_id=run_id,
             input=input_text,
             variables=variables,
             metrics=metrics,
             errors=errors,
-            duration_ms=duration
+            duration_ms=duration,
         )
-        
+
         self.report.runs.append(run)
         return run
 
@@ -174,12 +179,14 @@ class ExperimentRunner:
                 self.report.aggregate[f"avg_{k}"] = sum(vals) / len(vals)
                 # Variance (population)
                 avg = self.report.aggregate[f"avg_{k}"]
-                self.report.aggregate[f"var_{k}"] = sum((x - avg) ** 2 for x in vals) / len(vals)
+                self.report.aggregate[f"var_{k}"] = sum(
+                    (x - avg) ** 2 for x in vals
+                ) / len(vals)
 
         # Save report
         report_path = RUNS_DIR / f"{self.experiment_id}_report.json"
         with open(report_path, "w") as f:
             json.dump(asdict(self.report), f, indent=2)
-        
+
         logger.info(f"Experiment {self.experiment_id} finalized. Report: {report_path}")
         return report_path

@@ -105,11 +105,7 @@ When one node learns something, all nodes can retrieve it.
 
 **Query API**:
 ```python
-memory.retrieve(
-    query_text="shadow module redesign",
-    top_k=5,
-    min_reliability=0.5
-)
+memory.retrieve(query_text="shadow module redesign", top_k=5, min_reliability=0.5)
 ```
 
 ---

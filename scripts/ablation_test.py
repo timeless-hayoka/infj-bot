@@ -9,8 +9,9 @@ Tests the new chill persona vs old behaviors:
 """
 
 import json
-import urllib.request
+import logging
 import os
+import urllib.request
 from datetime import datetime
 
 BASE_URL = "http://127.0.0.1:8765"
@@ -31,18 +32,43 @@ TEST_PROMPTS = [
 
 # Markers of old formal persona
 FORMAL_MARKERS = [
-    "metacognitive", "adversarial kindness", "plan-critic loop",
-    "cognitive dissonance", "feedback loops", "second-order effects",
-    "I am an AI companion", "DRIFT-inspired", "philosophical",
-    "your energy is at", "your curiosity is at", "I notice you're",
-    "my current state", "heartbeat", "temperature", "attachment to user",
+    "metacognitive",
+    "adversarial kindness",
+    "plan-critic loop",
+    "cognitive dissonance",
+    "feedback loops",
+    "second-order effects",
+    "I am an AI companion",
+    "DRIFT-inspired",
+    "philosophical",
+    "your energy is at",
+    "your curiosity is at",
+    "I notice you're",
+    "my current state",
+    "heartbeat",
+    "temperature",
+    "attachment to user",
 ]
 
 # Markers of new chill persona
 CHILL_MARKERS = [
-    "chillin", "vibe", "lowkey", "highkey", "nah", "yep",
-    "kinda", "sorta", "honestly", "real talk", "no stress",
-    "bet", "say less", "aight", "hm", "alright", "ok ok",
+    "chillin",
+    "vibe",
+    "lowkey",
+    "highkey",
+    "nah",
+    "yep",
+    "kinda",
+    "sorta",
+    "honestly",
+    "real talk",
+    "no stress",
+    "bet",
+    "say less",
+    "aight",
+    "hm",
+    "alright",
+    "ok ok",
 ]
 
 
@@ -57,6 +83,9 @@ def api_chat(message: str) -> dict:
         with urllib.request.urlopen(req, timeout=60) as resp:
             return json.loads(resp.read().decode())
     except Exception as e:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return {"error": str(e), "reply": ""}
 
 
@@ -65,16 +94,26 @@ def health_check() -> dict:
         with urllib.request.urlopen(f"{BASE_URL}/api/health", timeout=10) as resp:
             return json.loads(resp.read().decode())
     except Exception as e:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return {"error": str(e)}
 
 
 def score_tone(text: str) -> dict:
     formal_hits = [m for m in FORMAL_MARKERS if m.lower() in text.lower()]
     chill_hits = [m for m in CHILL_MARKERS if m.lower() in text.lower()]
-    state_parrot = any(phrase in text.lower() for phrase in [
-        "energy is at", "curiosity is at", "attachment is at",
-        "mood is", "heartbeat", "my current state",
-    ])
+    state_parrot = any(
+        phrase in text.lower()
+        for phrase in [
+            "energy is at",
+            "curiosity is at",
+            "attachment is at",
+            "mood is",
+            "heartbeat",
+            "my current state",
+        ]
+    )
     return {
         "formal_markers": formal_hits,
         "chill_markers": chill_hits,
@@ -111,18 +150,22 @@ def run_tests():
         print(f"  {display}")
 
         scores = score_tone(reply)
-        print(f"  Formal markers: {scores['formal_score']} | Chill markers: {scores['chill_score']} | State parrot: {scores['state_parrot']}")
+        print(
+            f"  Formal markers: {scores['formal_score']} | Chill markers: {scores['chill_score']} | State parrot: {scores['state_parrot']}"
+        )
 
         total_formal += scores["formal_score"]
         total_chill += scores["chill_score"]
         total_parrot += 1 if scores["state_parrot"] else 0
 
-        results.append({
-            "label": label,
-            "prompt": prompt,
-            "reply": reply,
-            "scores": scores,
-        })
+        results.append(
+            {
+                "label": label,
+                "prompt": prompt,
+                "reply": reply,
+                "scores": scores,
+            }
+        )
 
     summary = {
         "timestamp": datetime.now().isoformat(),
@@ -133,8 +176,12 @@ def run_tests():
         "state_parrot_instances": total_parrot,
         "verdict": {
             "tone": "CHILL ✓" if total_chill > total_formal else "FORMAL ✗",
-            "repetition": "CLEAN ✓" if total_parrot == 0 else f"PARROT ✗ ({total_parrot} times)",
-            "overall": "PASS" if (total_chill > total_formal and total_parrot == 0) else "NEEDS WORK",
+            "repetition": "CLEAN ✓"
+            if total_parrot == 0
+            else f"PARROT ✗ ({total_parrot} times)",
+            "overall": "PASS"
+            if (total_chill > total_formal and total_parrot == 0)
+            else "NEEDS WORK",
         },
         "results": results,
     }
@@ -156,8 +203,7 @@ def run_tests():
         f.write(f"Chill markers found:  {summary['total_chill_markers']}\n")
         f.write(f"State parrot instances: {summary['state_parrot_instances']}\n\n")
         f.write("VERDICT:\n")
-        for k, v in summary["verdict"].items():
-            f.write(f"  {k}: {v}\n")
+        f.writelines(f"  {k}: {v}\n" for k, v in summary["verdict"].items())
         f.write("\n" + "=" * 60 + "\n")
         f.write("DETAILED RESULTS:\n\n")
         for r in results:

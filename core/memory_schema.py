@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field, asdict
-from datetime import datetime, timezone
-from enum import Enum
-from typing import Any
 import hashlib
 import json
+from dataclasses import asdict, dataclass, field
+from datetime import UTC, datetime, timezone
+from enum import Enum
+from typing import Any
 
 
 class MemoryLayer(str, Enum):
@@ -35,12 +35,8 @@ class MemoryRecord:
     confidence: float = 0.5
     tags: list[str] = field(default_factory=list)
     source: str = "user"
-    created_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
-    last_accessed: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
+    last_accessed: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     access_count: int = 0
     metadata: dict[str, Any] = field(default_factory=dict)
     content_hash: str = ""
@@ -57,7 +53,7 @@ class MemoryRecord:
 
     def touch(self) -> None:
         self.access_count += 1
-        self.last_accessed = datetime.now(timezone.utc).isoformat()
+        self.last_accessed = datetime.now(UTC).isoformat()
 
     def reinforce(self, delta: float = 0.05) -> None:
         self.salience = max(0.0, min(1.0, self.salience + delta))
@@ -70,7 +66,7 @@ class MemoryRecord:
         return payload
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "MemoryRecord":
+    def from_dict(cls, data: dict[str, Any]) -> MemoryRecord:
         layer = data.get("layer", MemoryLayer.EPISODIC.value)
         modality = data.get("modality", MemoryModality.TEXT.value)
         if isinstance(layer, MemoryLayer):
@@ -90,8 +86,8 @@ class MemoryRecord:
             confidence=float(data.get("confidence", 0.5)),
             tags=list(data.get("tags") or []),
             source=str(data.get("source", "user")),
-            created_at=str(data.get("created_at", datetime.now(timezone.utc).isoformat())),
-            last_accessed=str(data.get("last_accessed", datetime.now(timezone.utc).isoformat())),
+            created_at=str(data.get("created_at", datetime.now(UTC).isoformat())),
+            last_accessed=str(data.get("last_accessed", datetime.now(UTC).isoformat())),
             access_count=int(data.get("access_count", 0)),
             metadata=dict(data.get("metadata") or {}),
             content_hash=str(data.get("content_hash", "")),
@@ -107,6 +103,10 @@ def merge_records(existing: MemoryRecord, incoming: MemoryRecord) -> MemoryRecor
     winner.salience = max(existing.salience, incoming.salience)
     winner.confidence = max(existing.confidence, incoming.confidence)
     winner.access_count = existing.access_count + incoming.access_count
-    winner.metadata = {**loser.metadata, **winner.metadata, "merged_from": loser.unified_id}
+    winner.metadata = {
+        **loser.metadata,
+        **winner.metadata,
+        "merged_from": loser.unified_id,
+    }
     winner.touch()
     return winner

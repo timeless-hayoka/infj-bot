@@ -20,20 +20,20 @@ Key fixes over the previous implementation:
 import logging
 import os
 import sqlite3
-import threading
 import sys
+import threading
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Optional
 
 from drift.core.config import DATA_DIR
 
 try:
-    from drift.core.svalbard_vault import SvalbardVault
     from drift.core.pedi_metrics import PEDIEngine
+    from drift.core.svalbard_vault import SvalbardVault
 except ImportError:
-    from svalbard_vault import SvalbardVault
     from pedi_metrics import PEDIEngine
+    from svalbard_vault import SvalbardVault
 
 logger = logging.getLogger("drift")
 WORKSPACE_DB = DATA_DIR / "workspace.db"
@@ -65,12 +65,12 @@ class Broadcast:
     source: str
     content: str
     salience: float = 0.5
-    emotion_tag: Optional[str] = None
+    emotion_tag: str | None = None
     intensity: float = 0.0
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
     decay_rate: float = 0.08  # fractional salience lost per minute
 
-    def current_salience(self, now: Optional[datetime] = None) -> float:
+    def current_salience(self, now: datetime | None = None) -> float:
         """Exponential decay from creation time + emotional intensity boost."""
         if now is None:
             now = datetime.now()
@@ -78,6 +78,9 @@ class Broadcast:
             created = datetime.fromisoformat(self.timestamp)
             minutes = max(0.0, (now - created).total_seconds() / 60.0)
         except Exception:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             minutes = 0.0
         decayed = self.salience * ((1.0 - self.decay_rate) ** minutes)
         boost = min(0.25, self.intensity * 0.25) if self.intensity > 0.5 else 0.0
@@ -87,13 +90,13 @@ class Broadcast:
 @dataclass
 class WorkspaceState:
     capacity: int = ACTIVE_CAPACITY
-    contents: List[Broadcast] = field(default_factory=list)
-    spotlight: Optional[Broadcast] = None
-    spotlight_source: Optional[str] = None
+    contents: list[Broadcast] = field(default_factory=list)
+    spotlight: Broadcast | None = None
+    spotlight_source: str | None = None
     cycle_count: int = 0
     total_broadcasts: int = 0
-    broadcast_history: List[Dict] = field(default_factory=list)
-    last_ignition: Optional[datetime] = None
+    broadcast_history: list[dict] = field(default_factory=list)
+    last_ignition: datetime | None = None
 
 
 class GlobalWorkspace:
@@ -110,8 +113,8 @@ class GlobalWorkspace:
     def __init__(self, db_path=None, capacity: int = ACTIVE_CAPACITY):
         self.db_path = str(db_path or WORKSPACE_DB)
         self.state = WorkspaceState(capacity=capacity)
-        self._pool: List[Broadcast] = []  # incoming submissions awaiting next cycle
-        self.preconscious: Dict[str, List[Broadcast]] = {
+        self._pool: list[Broadcast] = []  # incoming submissions awaiting next cycle
+        self.preconscious: dict[str, list[Broadcast]] = {
             "strong": [],
             "moderate": [],
             "faint": [],
@@ -126,18 +129,23 @@ class GlobalWorkspace:
 
         # PEDI & Svalbard integration (Fly-by-wire)
         self.vault = SvalbardVault()
-        self.vault.verify_identity_integrity(full_chain=False) 
+        self.vault.verify_identity_integrity(full_chain=False)
         self.pedi = PEDIEngine(self.vault)
         self._self_check_diagnostics(self.pedi, self.vault)
 
     def _self_check_diagnostics(self, pedi_engine, vault):
         print("[SYSTEM] Running Global Workspace integration check...", file=sys.stderr)
         if not pedi_engine or not vault:
-            print("[CRITICAL] Workspace disconnected from identity regulator or vault.", file=sys.stderr)
+            print(
+                "[CRITICAL] Workspace disconnected from identity regulator or vault.",
+                file=sys.stderr,
+            )
             sys.exit(1)
         print("[SYSTEM] Regulatory triad verified. Workspace is live.", file=sys.stderr)
 
-    def _lantern_4_veto(self, user_input: str, sys_response: str, active_state: dict) -> tuple[bool, bool]:
+    def _lantern_4_veto(
+        self, user_input: str, sys_response: str, active_state: dict
+    ) -> tuple[bool, bool]:
         """Returns (approved: bool, quarantine: bool)"""
         resonance = active_state.get("resonance", 0.0)
         shadow_depth = active_state.get("shadow_depth", 0.0)
@@ -145,62 +153,71 @@ class GlobalWorkspace:
         # Criteria 1: Must have high resonance to even be considered
         if resonance < 0.85:
             return False, False
-            
+
         # Criteria 2: Semantic Density Override
         # If resonance is absolute fire, ignore length constraints.
-        if resonance < 0.95:
-            if len(user_input.split()) < 5 or len(sys_response.split()) < 10:
-                print("[LANTERN-4] Rejected: Exchange lacks semantic depth.")
-                return False, False
-                
+        if resonance < 0.95 and (
+            len(user_input.split()) < 5 or len(sys_response.split()) < 10
+        ):
+            print("[LANTERN-4] Rejected: Exchange lacks semantic depth.")
+            return (False, False)
+
         # Criteria 3: Shadow Quarantine Protocol
         # Accept messy breakthroughs, but flag them so PEDI doesn't anchor to them blindly.
         quarantine = False
         if shadow_depth > 0.75:
-            print(f"[LANTERN-4] High Shadow Depth ({shadow_depth}). Marking block for quarantine.")
+            print(
+                f"[LANTERN-4] High Shadow Depth ({shadow_depth}). Marking block for quarantine."
+            )
             quarantine = True
-            
+
         print("[LANTERN-4] Nomination approved.")
         return True, quarantine
 
-    def execute_cli_cycle(self, raw_active_state: dict, user_input: str, generate_response_func):
+    def execute_cli_cycle(
+        self, raw_active_state: dict, user_input: str, generate_response_func
+    ):
         """
         The main hook for your AntiGravity CLI.
         Pass the active state, the user input, and your LLM generation function.
         """
         # 1. PEDI Fly-By-Wire Regulation (Fix state BEFORE thinking)
-        regulated_state, correction, status = self.pedi.evaluate_cycle(raw_active_state)
-        
+        regulated_state, _correction, status = self.pedi.evaluate_cycle(
+            raw_active_state
+        )
+
         # 2. Act using aligned state
         # (Your CLI calls its actual LLM here, passing the regulated state as context)
         sys_response = generate_response_func(user_input, regulated_state)
-        
+
         # 3. Lantern-4 Veto & Svalbard Sealing (Post-action evaluation)
         if status == "EVOLVING" or regulated_state.get("resonance", 0.0) > 0.90:
-            in_correcting_state = (status == "CORRECTING")
+            in_correcting_state = status == "CORRECTING"
             is_hold_state = status.startswith("HOLD")
             if not is_hold_state and not in_correcting_state:
-                approved, quarantine = self._lantern_4_veto(user_input, sys_response, regulated_state)
+                approved, quarantine = self._lantern_4_veto(
+                    user_input, sys_response, regulated_state
+                )
                 if approved:
                     self.vault.deposit_core_memory(
                         event=f"CLI Milestone: {user_input[:40]}...",
                         user_q=user_input,
                         sys_q=sys_response,
                         current_state=regulated_state,
-                        quarantined=quarantine
+                        quarantined=quarantine,
                     )
-                
+
         # Return the regulated state so your CLI loop can persist it to the next turn
         return sys_response, regulated_state, status
 
     # ── Properties for direct access (used by dii_tracker, etc.) ──────────
 
     @property
-    def spotlight(self) -> Optional[Broadcast]:
+    def spotlight(self) -> Broadcast | None:
         return self.state.spotlight
 
     @property
-    def contents(self) -> List[Broadcast]:
+    def contents(self) -> list[Broadcast]:
         return self.state.contents
 
     # ── DB setup ──────────────────────────────────────────────────────────
@@ -240,6 +257,9 @@ class GlobalWorkspace:
                 if row:
                     self.state.cycle_count = int(row[0])
         except Exception as e:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             logger.warning("Could not load workspace state: %s", e)
 
     def _save_state(self):
@@ -251,9 +271,12 @@ class GlobalWorkspace:
                 )
                 conn.commit()
         except Exception as e:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             logger.warning("Could not save workspace state: %s", e)
 
-    def _archive_to_db(self, entries: List[tuple]):
+    def _archive_to_db(self, entries: list[tuple]):
         """Write (broadcast, tier_label) pairs to workspace_history."""
         try:
             with sqlite3.connect(self.db_path) as conn:
@@ -266,6 +289,9 @@ class GlobalWorkspace:
                 )
                 conn.commit()
         except Exception as e:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             logger.warning("Could not archive workspace entries: %s", e)
 
     # ── Public API ────────────────────────────────────────────────────────
@@ -275,7 +301,7 @@ class GlobalWorkspace:
         source: str,
         content: str,
         salience: float = 0.5,
-        emotion_tag: Optional[str] = None,
+        emotion_tag: str | None = None,
         intensity: float = 0.0,
     ):
         """Add a new broadcast to the pool for the next competition cycle."""
@@ -321,7 +347,7 @@ class GlobalWorkspace:
             self._pool = []
 
             # Deduplicate: same (source, content prefix) → keep highest base salience
-            seen: Dict[tuple, Broadcast] = {}
+            seen: dict[tuple, Broadcast] = {}
             for b in all_items:
                 key = (b.source, b.content[:80])
                 if key not in seen or b.salience > seen[key].salience:
@@ -332,14 +358,14 @@ class GlobalWorkspace:
             )
 
             # Partition into tiers
-            new_active: List[Broadcast] = []
-            new_preconscious: Dict[str, List[Broadcast]] = {
+            new_active: list[Broadcast] = []
+            new_preconscious: dict[str, list[Broadcast]] = {
                 "strong": [],
                 "moderate": [],
                 "faint": [],
                 "trace": [],
             }
-            to_archive: List[tuple] = []
+            to_archive: list[tuple] = []
             preconscious_count = 0
 
             for b in ranked:
@@ -414,7 +440,7 @@ class GlobalWorkspace:
 
         return "\n".join(lines)
 
-    def get_preconscious_summary(self) -> Dict:
+    def get_preconscious_summary(self) -> dict:
         """Returns each preconscious tier's items as a dict (for inspection/debug)."""
         return {
             band: [
@@ -454,6 +480,9 @@ class GlobalWorkspace:
                 for r in rows
             ]
         except Exception:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             return []
 
     def get_stats(self) -> dict:
@@ -482,7 +511,7 @@ class GlobalWorkspace:
                     return True
         return False
 
-    def reflect_on_workspace(self) -> Optional[Broadcast]:
+    def reflect_on_workspace(self) -> Broadcast | None:
         """Generate a higher-order reflection on current conscious contents."""
         with self._lock:
             items = self.state.contents
@@ -498,7 +527,7 @@ class GlobalWorkspace:
 
 # ── Singleton ──────────────────────────────────────────────────────────────
 
-_workspace_instance: Optional[GlobalWorkspace] = None
+_workspace_instance: GlobalWorkspace | None = None
 
 
 def get_workspace() -> GlobalWorkspace:

@@ -13,29 +13,33 @@ class Trinity:
         working_context = deepcopy(context or {})
 
         mode = self.exec.select_mode(working_context)
-        weights = self.exec.allocate_weights(mode, history=working_context.get('history'))
+        weights = self.exec.allocate_weights(
+            mode, history=working_context.get("history")
+        )
 
-        working_context['mode'] = mode
-        working_context['weights'] = weights
+        working_context["mode"] = mode
+        working_context["weights"] = weights
 
         hypotheses = self.imagine.generate_hypotheses(working_context)
 
         validation_results = []
         validated = []
         for hypothesis in hypotheses:
-            result = self.validator.validate(hypothesis, working_context.get('constraints', []))
-            validation_results.append({'hypothesis': hypothesis, 'validation': result})
-            if result['approved']:
+            result = self.validator.validate(
+                hypothesis, working_context.get("constraints", [])
+            )
+            validation_results.append({"hypothesis": hypothesis, "validation": result})
+            if result["approved"]:
                 validated.append(hypothesis)
 
         return {
-            'mode': mode,
-            'weights': weights,
-            'hypotheses': validated,
-            'validation_results': validation_results,
-            'summary': {
-                'generated': len(hypotheses),
-                'validated': len(validated),
-                'rejected': len(hypotheses) - len(validated),
+            "mode": mode,
+            "weights": weights,
+            "hypotheses": validated,
+            "validation_results": validation_results,
+            "summary": {
+                "generated": len(hypotheses),
+                "validated": len(validated),
+                "rejected": len(hypotheses) - len(validated),
             },
         }

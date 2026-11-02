@@ -1,9 +1,10 @@
+# ruff: noqa: N999 - legacy public filename or repository compatibility shim
 """Structured council package for DRIFT / Trinity."""
 
 from .council_runner import (
     BaseCouncilAgent,
-    CouncilRunner,
     ContrarianAgent,
+    CouncilRunner,
     EvidenceAgent,
     FormalEdgeAgent,
     FuzzMutationAgent,
@@ -25,20 +26,20 @@ from .forge_council_schema import (
 __all__ = [
     "AgentMessage",
     "AgentState",
+    "BaseCouncilAgent",
     "ClaimRecord",
     "ClaimStatus",
-    "CouncilRunner",
     "ContrarianAgent",
+    "CouncilRunner",
     "EvidenceAgent",
     "EvidenceBoard",
-    "TrinityEvidencePacket",
-    "build_reasoning_summary",
     "EvidenceItem",
     "FormalEdgeAgent",
     "FuzzMutationAgent",
     "MessageType",
     "StrategyEvolutionAgent",
     "ThreatModelAgent",
-    "BaseCouncilAgent",
+    "TrinityEvidencePacket",
+    "build_reasoning_summary",
     "new_claim_id",
 ]

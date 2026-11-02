@@ -8,7 +8,7 @@ import re
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from drift.core.config import DATA_DIR
 
@@ -16,20 +16,24 @@ EVAL_DB = DATA_DIR / "self_eval.db"
 
 # Hallucination markers — heuristic patterns that suggest uncertain claims
 HALLUCINATION_MARKERS = [
-    re.compile(r"\b(I know|I am certain|definitely|absolutely|certainly)\b", re.I),
-    re.compile(r"\b(always|never|everyone|no one)\b", re.I),
-    re.compile(r"\b(research shows|studies prove|it is well known)\b", re.I),
+    re.compile(
+        r"\b(I know|I am certain|definitely|absolutely|certainly)\b", re.IGNORECASE
+    ),
+    re.compile(r"\b(always|never|everyone|no one)\b", re.IGNORECASE),
+    re.compile(r"\b(research shows|studies prove|it is well known)\b", re.IGNORECASE),
 ]
 
 # Uncertainty markers — these are actually good! They show calibration.
 UNCERTAINTY_MARKERS = [
-    re.compile(r"\b(I think|I believe|probably|likely|maybe|perhaps|it seems)\b", re.I),
-    re.compile(r"\b(not sure|uncertain|could be|might|may)\b", re.I),
+    re.compile(
+        r"\b(I think|I believe|probably|likely|maybe|perhaps|it seems)\b", re.IGNORECASE
+    ),
+    re.compile(r"\b(not sure|uncertain|could be|might|may)\b", re.IGNORECASE),
 ]
 
 
 class SelfEvaluator:
-    def __init__(self, db_path: Optional[Path] = None):
+    def __init__(self, db_path: Path | None = None):
         self.db_path = str(db_path or EVAL_DB)
         self._init_db()
 
@@ -52,7 +56,7 @@ class SelfEvaluator:
             )
             conn.commit()
 
-    def evaluate(self, prompt: str, response: str) -> Dict[str, float]:
+    def evaluate(self, prompt: str, response: str) -> dict[str, float]:
         """Heuristic evaluation of a response. Returns scores."""
         # Count hallucination markers (bad)
         hall_count = sum(1 for p in HALLUCINATION_MARKERS if p.search(response))
@@ -64,10 +68,13 @@ class SelfEvaluator:
 
         # Confidence heuristic: high certainty words minus uncertainty words, clamped
         confidence = 1.0 - hallucination_score + (uncertainty_score * 0.3)
-        
+
         # Dual-channel confidence adjustment: if prompt signals low epistemic / communicative confidence,
         # adjust the confidence score downwards.
-        if "[Communicative Confidence: LOW" in prompt or "Communicative Confidence: LOW" in prompt:
+        if (
+            "[Communicative Confidence: LOW" in prompt
+            or "Communicative Confidence: LOW" in prompt
+        ):
             confidence = min(0.35, confidence - 0.4)
 
         confidence = max(0.1, min(0.95, confidence))
@@ -79,7 +86,7 @@ class SelfEvaluator:
         }
 
     def record(
-        self, prompt: str, response: str, scores: Dict[str, float], correction: str = ""
+        self, prompt: str, response: str, scores: dict[str, float], correction: str = ""
     ) -> int:
         """Store an evaluation record. Returns the record id."""
         with sqlite3.connect(self.db_path) as conn:
@@ -101,7 +108,7 @@ class SelfEvaluator:
             conn.commit()
             return cur.lastrowid or 0
 
-    def recent_stats(self, limit: int = 50) -> Dict[str, Any]:
+    def recent_stats(self, limit: int = 50) -> dict[str, Any]:
         """Return aggregate stats over recent evaluations."""
         with sqlite3.connect(self.db_path) as conn:
             rows = conn.execute(
@@ -130,7 +137,7 @@ class SelfEvaluator:
             "corrections_count": len(corrections),
         }
 
-    def recent_evaluations(self, limit: int = 10) -> List[Dict]:
+    def recent_evaluations(self, limit: int = 10) -> list[dict]:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
@@ -139,7 +146,7 @@ class SelfEvaluator:
             ).fetchall()
         return [dict(r) for r in rows]
 
-    def suggest_uncertainty_labels(self, response: str) -> List[str]:
+    def suggest_uncertainty_labels(self, response: str) -> list[str]:
         """Suggest uncertainty labels to prepend to a response."""
         scores = self.evaluate("", response)
         labels = []

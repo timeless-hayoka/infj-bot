@@ -21,13 +21,13 @@ Workflow:
 """
 
 import json
-import warnings
-import numpy as np
-from pathlib import Path
 import time
+import warnings
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Optional
 
+import numpy as np
 
 # ------------------------------------------------------------------ #
 #  Baseline Storage                                                    #
@@ -298,7 +298,7 @@ class CognitiveContext:
     shadow_influence: float = 0.0
     new_entities_detected: int = 0
     timestamp: float = field(default_factory=time.time)
-    session_id: Optional[str] = None
+    session_id: str | None = None
     active_mode: str = "companion"
 
 
@@ -312,7 +312,7 @@ class ContinuityVector:
     memory: int
     state: int
     novelty: int
-    context: Optional[CognitiveContext] = None
+    context: CognitiveContext | None = None
     cycle: int = 0
 
     def as_list(self) -> list:

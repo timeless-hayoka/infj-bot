@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
-import requests
-import time
+import logging
 import sys
+import time
+
+import requests
 
 API_URL = "http://localhost:8765/api/chat"
 
@@ -14,8 +16,9 @@ PROMPTS = [
     "Generate a detailed technical specification for a microservices architecture handling real-time financial transactions. Include database schemas, API endpoints, and security considerations.",
     "Write a Python script implementing a custom async rate-limiter using Redis.",
     "Explain the complete history of the x86 instruction set architecture, from inception to modern 64-bit extensions.",
-    "Draft a comprehensive essay on the ethical implications of autonomous weapon systems."
+    "Draft a comprehensive essay on the ethical implications of autonomous weapon systems.",
 ]
+
 
 def run_prompts():
     print(f"Starting execution of {len(PROMPTS)} prompts against {API_URL}...")
@@ -33,10 +36,14 @@ def run_prompts():
             print(f"Reply Length: {len(reply)} chars")
             print(f"First 100 chars: {reply[:100]!r}")
         except Exception as e:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             print(f"Status: FAILED (took {time.time() - start_time:.2f}s)")
             print(f"Error: {e}")
             sys.exit(1)
     print("\nAll 9 prompts completed successfully!")
+
 
 if __name__ == "__main__":
     run_prompts()

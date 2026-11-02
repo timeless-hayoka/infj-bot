@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import os
 import shutil
 import subprocess
@@ -13,6 +14,10 @@ from typing import Any, Optional
 
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ed25519
+from fastapi import APIRouter, FastAPI, HTTPException, Query
+from fastapi.responses import PlainTextResponse, StreamingResponse
+from pydantic import BaseModel, Field
+
 from drift.config_adapter import (
     DATA_ROOT,
     LOGS_DIR,
@@ -20,9 +25,6 @@ from drift.config_adapter import (
     get_anchor_knowledge_dir,
     get_anchor_vault_root,
 )
-from fastapi import APIRouter, FastAPI, HTTPException, Query
-from fastapi.responses import PlainTextResponse, StreamingResponse
-from pydantic import BaseModel, Field
 
 from .caseflow import (
     TRINITY_CASES_DIR,
@@ -41,11 +43,11 @@ from .database import db as trinity_db
 class TrinityAnalyzeRequest(BaseModel):
     input_path: str = Field(..., description="Path to scanner or test output.")
     format_hint: str = Field("auto", description="Scanner format hint.")
-    output_dir: Optional[str] = Field(
+    output_dir: str | None = Field(
         default=None,
         description="Directory to write the evidence bundle.",
     )
-    case_id: Optional[str] = Field(
+    case_id: str | None = Field(
         default=None,
         description="Optional explicit Trinity case id.",
     )
@@ -53,7 +55,7 @@ class TrinityAnalyzeRequest(BaseModel):
         "authorized_audit_target",
         description="Claim subject used by the council.",
     )
-    reproduction_command: Optional[str] = Field(
+    reproduction_command: str | None = Field(
         default=None,
         description="Optional reproduction command to embed in the packet.",
     )
@@ -64,7 +66,7 @@ class TrinityAnalyzeRequest(BaseModel):
 
 
 class TrinityDemoRequest(BaseModel):
-    output_dir: Optional[str] = Field(
+    output_dir: str | None = Field(
         default=None,
         description="Optional output directory for the demo bundle.",
     )
@@ -92,7 +94,9 @@ def _bootstrap_evidence_signing_key() -> tuple[ed25519.Ed25519PrivateKey, str]:
         if secret_path.exists():
             raw = secret_path.read_bytes()
             if len(raw) == 32:
-                return ed25519.Ed25519PrivateKey.from_private_bytes(raw), f"stored locally at {secret_path}"
+                return ed25519.Ed25519PrivateKey.from_private_bytes(
+                    raw
+                ), f"stored locally at {secret_path}"
         secret_path.parent.mkdir(parents=True, exist_ok=True)
         key = ed25519.Ed25519PrivateKey.generate()
         raw = key.private_bytes(
@@ -104,10 +108,18 @@ def _bootstrap_evidence_signing_key() -> tuple[ed25519.Ed25519PrivateKey, str]:
         try:
             secret_path.chmod(0o600)
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
         return key, f"generated locally at {secret_path}"
     except Exception:
-        return ed25519.Ed25519PrivateKey.generate(), "in-memory fallback (no file write)"
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
+        return (
+            ed25519.Ed25519PrivateKey.generate(),
+            "in-memory fallback (no file write)",
+        )
 
 
 EVIDENCE_SIGNING_KEY, EVIDENCE_SIGNING_KEY_HINT = _bootstrap_evidence_signing_key()
@@ -156,14 +168,20 @@ def _artifact_refs(bundle: dict[str, Any], case_root: Path) -> list[str]:
 
 
 def sign_evidence_bundle(bundle: dict[str, Any]) -> dict[str, Any]:
-    canonical = json.dumps(bundle, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
+    canonical = json.dumps(
+        bundle, sort_keys=True, separators=(",", ":"), ensure_ascii=True
+    ).encode("utf-8")
     digest = hashes.Hash(hashes.SHA256())
     digest.update(canonical)
     digest_hex = digest.finalize().hex()
-    public_key = EVIDENCE_SIGNING_KEY.public_key().public_bytes(
-        encoding=serialization.Encoding.Raw,
-        format=serialization.PublicFormat.Raw,
-    ).hex()
+    public_key = (
+        EVIDENCE_SIGNING_KEY.public_key()
+        .public_bytes(
+            encoding=serialization.Encoding.Raw,
+            format=serialization.PublicFormat.Raw,
+        )
+        .hex()
+    )
     signature_hex = EVIDENCE_SIGNING_KEY.sign(canonical).hex()
     return {
         "schema_version": "1.0",
@@ -184,7 +202,9 @@ def sign_evidence_bundle(bundle: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _build_case_events(run_id: str, bundle: dict[str, Any], case_root: Path) -> list[dict[str, Any]]:
+def _build_case_events(
+    run_id: str, bundle: dict[str, Any], case_root: Path
+) -> list[dict[str, Any]]:
     packet = bundle.get("packet") or bundle
     claim = bundle.get("claim") or packet.get("claim") or {}
     scan = bundle.get("scan") or {}
@@ -202,7 +222,10 @@ def _build_case_events(run_id: str, bundle: dict[str, Any], case_root: Path) -> 
             "event_type": "run.started",
             "timestamp": created_at,
             "artifact_refs": artifact_refs,
-            "summary": claim.get("summary") or packet.get("summary") or packet.get("status") or "run started",
+            "summary": claim.get("summary")
+            or packet.get("summary")
+            or packet.get("status")
+            or "run started",
         }
     )
     events.append(
@@ -214,7 +237,9 @@ def _build_case_events(run_id: str, bundle: dict[str, Any], case_root: Path) -> 
             "timestamp": created_at,
             "artifact_refs": artifact_refs,
             "scanner_format": scan.get("format", claim.get("scanner", "unknown")),
-            "finding_count": int(scan.get("finding_count", claim.get("finding_count", 0))),
+            "finding_count": int(
+                scan.get("finding_count", claim.get("finding_count", 0))
+            ),
         }
     )
 
@@ -237,7 +262,9 @@ def _build_case_events(run_id: str, bundle: dict[str, Any], case_root: Path) -> 
 
     messages = packet.get("messages") or []
     for message in messages:
-        message_type = str(message.get("message_type", "") or message.get("type", "")).lower()
+        message_type = str(
+            message.get("message_type", "") or message.get("type", "")
+        ).lower()
         if message_type in {"accept", "challenge", "evidence_request", "reject"}:
             events.append(
                 {
@@ -261,7 +288,8 @@ def _build_case_events(run_id: str, bundle: dict[str, Any], case_root: Path) -> 
             "timestamp": packet.get("updated_at") or created_at,
             "artifact_refs": artifact_refs,
             "status": packet.get("status", bundle.get("status", "unknown")),
-            "reproduction_command": packet.get("reproduction_command") or claim.get("reproduction_command"),
+            "reproduction_command": packet.get("reproduction_command")
+            or claim.get("reproduction_command"),
         }
     )
     events.append(
@@ -316,17 +344,32 @@ def _run_history_entry(entry: dict[str, Any]) -> dict[str, Any] | None:
         "confirmed",
     }
     return {
-        "case_id": str(entry.get("case_id") or bundle.get("case_id") or claim.get("id") or case_root.name),
-        "timestamp": entry.get("created_at") or packet.get("created_at") or bundle.get("created_at"),
+        "case_id": str(
+            entry.get("case_id")
+            or bundle.get("case_id")
+            or claim.get("id")
+            or case_root.name
+        ),
+        "timestamp": entry.get("created_at")
+        or packet.get("created_at")
+        or bundle.get("created_at"),
         "status": packet.get("status", entry.get("status", "unknown")),
-        "scanner_format": entry.get("scanner_format") or scan.get("format", claim.get("scanner", "unknown")),
-        "finding_count": int(entry.get("finding_count", scan.get("finding_count", claim.get("finding_count", 0)))),
+        "scanner_format": entry.get("scanner_format")
+        or scan.get("format", claim.get("scanner", "unknown")),
+        "finding_count": int(
+            entry.get(
+                "finding_count",
+                scan.get("finding_count", claim.get("finding_count", 0)),
+            )
+        ),
         "accepted_count": counts["accepted"],
         "rejected_count": counts["rejected"],
         "message_count": counts["messages"],
         "reproduced": reproduced,
         "reproduction_status": reproduction_status,
-        "reproduction_command": packet.get("reproduction_command") or bundle.get("reproduction_command") or claim.get("reproduction_command"),
+        "reproduction_command": packet.get("reproduction_command")
+        or bundle.get("reproduction_command")
+        or claim.get("reproduction_command"),
         "output_dir": str(case_root),
     }
 
@@ -359,14 +402,28 @@ def _count_jsonl_records(path: Path) -> int:
         return 0
     if path.is_file():
         try:
-            return sum(1 for line in path.read_text(encoding="utf-8").splitlines() if line.strip())
+            return sum(
+                1
+                for line in path.read_text(encoding="utf-8").splitlines()
+                if line.strip()
+            )
         except Exception:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             return 0
     total = 0
     for child in path.rglob("*.jsonl"):
         try:
-            total += sum(1 for line in child.read_text(encoding="utf-8").splitlines() if line.strip())
+            total += sum(
+                1
+                for line in child.read_text(encoding="utf-8").splitlines()
+                if line.strip()
+            )
         except Exception:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             continue
     if total:
         return total
@@ -393,21 +450,21 @@ def _latest_daily_brief(path: Path) -> tuple[str | None, int | None]:
 
 def _vault_freshness_label(age_days: int | None) -> str:
     if age_days is None:
-        return 'No daily brief'
+        return "No daily brief"
     if age_days <= 1:
-        return 'Fresh'
-    return f'{age_days} days stale'
+        return "Fresh"
+    return f"{age_days} days stale"
 
 
 def _github_contribution_snapshot() -> dict[str, Any]:
-    if shutil.which('gh') is None:
+    if shutil.which("gh") is None:
         return {
-            'source': 'unavailable',
-            'repo': None,
-            'open_prs': 0,
-            'merged_prs': 0,
-            'issues_filed': 0,
-            'highlights': [],
+            "source": "unavailable",
+            "repo": None,
+            "open_prs": 0,
+            "merged_prs": 0,
+            "issues_filed": 0,
+            "highlights": [],
         }
 
     def _list(command: list[str]) -> list[dict[str, Any]]:
@@ -422,18 +479,57 @@ def _github_contribution_snapshot() -> dict[str, Any]:
         if result.returncode != 0:
             return []
         try:
-            payload = json.loads(result.stdout or '[]')
+            payload = json.loads(result.stdout or "[]")
         except Exception:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             return []
         return payload if isinstance(payload, list) else []
 
-    open_prs = _list(['gh', 'pr', 'list', '--state', 'open', '--limit', '100', '--json', 'number,title,url'])
-    merged_prs = _list(['gh', 'pr', 'list', '--state', 'merged', '--limit', '100', '--json', 'number,title,url'])
-    issues = _list(['gh', 'issue', 'list', '--state', 'open', '--limit', '100', '--json', 'number,title,url'])
+    open_prs = _list(
+        [
+            "gh",
+            "pr",
+            "list",
+            "--state",
+            "open",
+            "--limit",
+            "100",
+            "--json",
+            "number,title,url",
+        ]
+    )
+    merged_prs = _list(
+        [
+            "gh",
+            "pr",
+            "list",
+            "--state",
+            "merged",
+            "--limit",
+            "100",
+            "--json",
+            "number,title,url",
+        ]
+    )
+    issues = _list(
+        [
+            "gh",
+            "issue",
+            "list",
+            "--state",
+            "open",
+            "--limit",
+            "100",
+            "--json",
+            "number,title,url",
+        ]
+    )
     repo = None
     try:
         remote = subprocess.run(
-            ['git', 'remote', 'get-url', 'origin'],
+            ["git", "remote", "get-url", "origin"],
             cwd=str(PROJECT_ROOT),
             capture_output=True,
             text=True,
@@ -441,22 +537,24 @@ def _github_contribution_snapshot() -> dict[str, Any]:
             timeout=5,
         )
         remote_url = remote.stdout.strip()
-        if remote_url.endswith('.git'):
-            remote_url = remote_url[:-4]
-        if 'github.com/' in remote_url:
-            repo = remote_url.split('github.com/', 1)[1].strip('/')
+        remote_url = remote_url.removesuffix(".git")
+        if "github.com/" in remote_url:
+            repo = remote_url.split("github.com/", 1)[1].strip("/")
     except Exception:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         repo = None
     return {
-        'source': 'github_cli',
-        'repo': repo,
-        'open_prs': len(open_prs),
-        'merged_prs': len(merged_prs),
-        'issues_filed': len(issues),
-        'highlights': {
-            'open_prs': open_prs[:3],
-            'merged_prs': merged_prs[:3],
-            'issues': issues[:3],
+        "source": "github_cli",
+        "repo": repo,
+        "open_prs": len(open_prs),
+        "merged_prs": len(merged_prs),
+        "issues_filed": len(issues),
+        "highlights": {
+            "open_prs": open_prs[:3],
+            "merged_prs": merged_prs[:3],
+            "issues": issues[:3],
         },
     }
 
@@ -464,15 +562,15 @@ def _github_contribution_snapshot() -> dict[str, Any]:
 def get_trinity_history_snapshot(limit: int = 5) -> dict[str, Any]:
     entries = list(reversed(_ledger().recent(limit)))
     runs = [run for entry in entries if (run := _run_history_entry(entry)) is not None]
-    accepted_total = sum(run['accepted_count'] for run in runs)
-    rejected_total = sum(run['rejected_count'] for run in runs)
-    reproduced_total = sum(1 for run in runs if run['reproduced'])
+    accepted_total = sum(run["accepted_count"] for run in runs)
+    rejected_total = sum(run["rejected_count"] for run in runs)
+    reproduced_total = sum(1 for run in runs if run["reproduced"])
     return {
-        'count': len(runs),
-        'accepted_total': accepted_total,
-        'rejected_total': rejected_total,
-        'reproduced_total': reproduced_total,
-        'runs': runs,
+        "count": len(runs),
+        "accepted_total": accepted_total,
+        "rejected_total": rejected_total,
+        "reproduced_total": reproduced_total,
+        "runs": runs,
     }
 
 
@@ -480,53 +578,55 @@ def get_trinity_metrics_snapshot() -> dict[str, Any]:
     entries = list(reversed(_ledger().recent(10000)))
     runs = [run for entry in entries if (run := _run_history_entry(entry)) is not None]
     claims_generated = len(runs)
-    claims_accepted = sum(run['accepted_count'] for run in runs)
-    claims_rejected = sum(run['rejected_count'] for run in runs)
-    reproduced_runs = sum(1 for run in runs if run['reproduced'])
+    claims_accepted = sum(run["accepted_count"] for run in runs)
+    claims_rejected = sum(run["rejected_count"] for run in runs)
+    reproduced_runs = sum(1 for run in runs if run["reproduced"])
     findings_total = trinity_db.count_findings()
     verified_findings = len(trinity_db.get_findings(reproduced=True))
     latest_benchmark = trinity_db.get_latest_benchmark()
-    reproduction_rate = round(reproduced_runs / claims_generated, 4) if claims_generated else 0.0
+    reproduction_rate = (
+        round(reproduced_runs / claims_generated, 4) if claims_generated else 0.0
+    )
     return {
-        'claims_generated': claims_generated,
-        'claims_accepted': claims_accepted,
-        'claims_rejected': claims_rejected,
-        'reproduced_runs': reproduced_runs,
-        'reproduction_rate': reproduction_rate,
-        'verified_findings': verified_findings,
-        'findings_total': findings_total,
-        'latest_benchmark': latest_benchmark,
-        'latest_run': runs[0] if runs else None,
+        "claims_generated": claims_generated,
+        "claims_accepted": claims_accepted,
+        "claims_rejected": claims_rejected,
+        "reproduced_runs": reproduced_runs,
+        "reproduction_rate": reproduction_rate,
+        "verified_findings": verified_findings,
+        "findings_total": findings_total,
+        "latest_benchmark": latest_benchmark,
+        "latest_run": runs[0] if runs else None,
     }
 
 
 def get_trinity_vault_snapshot() -> dict[str, Any]:
     vault_root = _anchor_vault_root()
     news_briefs_dir = _vault_briefs_dir(vault_root)
-    news_snapshots_dir = vault_root / 'news' / 'snapshots'
-    claims_dir = vault_root / 'claims'
-    triage_templates_dir = vault_root / 'triage_templates'
-    decision_trees_dir = vault_root / 'decision_trees'
-    knowledge_dir = get_anchor_knowledge_dir() or (vault_root / 'knowledge')
-    history_dir = vault_root.parent / 'Anchor' / 'history'
+    news_snapshots_dir = vault_root / "news" / "snapshots"
+    claims_dir = vault_root / "claims"
+    triage_templates_dir = vault_root / "triage_templates"
+    decision_trees_dir = vault_root / "decision_trees"
+    knowledge_dir = get_anchor_knowledge_dir() or (vault_root / "knowledge")
+    history_dir = vault_root.parent / "Anchor" / "history"
     brief_date, age_days = _latest_daily_brief(news_briefs_dir)
-    status = 'ready' if vault_root.exists() else 'missing'
+    status = "ready" if vault_root.exists() else "missing"
     knowledge_files = _count_files(knowledge_dir) if knowledge_dir.exists() else 0
     return {
-        'vault_root': str(vault_root),
-        'knowledge_root': str(knowledge_dir) if knowledge_dir.exists() else None,
-        'knowledge_files': knowledge_files,
-        'knowledge_source': 'anchor_vault' if knowledge_dir.exists() else 'local',
-        'news_briefs': _count_files(news_briefs_dir),
-        'news_snapshots': _count_files(news_snapshots_dir),
-        'history_records': _count_jsonl_records(history_dir),
-        'bug_classes': _count_files(claims_dir),
-        'triage_templates': _count_files(triage_templates_dir),
-        'decision_trees': _count_files(decision_trees_dir),
-        'last_daily_brief': brief_date,
-        'vault_freshness_days': age_days,
-        'vault_status_label': _vault_freshness_label(age_days),
-        'status': status,
+        "vault_root": str(vault_root),
+        "knowledge_root": str(knowledge_dir) if knowledge_dir.exists() else None,
+        "knowledge_files": knowledge_files,
+        "knowledge_source": "anchor_vault" if knowledge_dir.exists() else "local",
+        "news_briefs": _count_files(news_briefs_dir),
+        "news_snapshots": _count_files(news_snapshots_dir),
+        "history_records": _count_jsonl_records(history_dir),
+        "bug_classes": _count_files(claims_dir),
+        "triage_templates": _count_files(triage_templates_dir),
+        "decision_trees": _count_files(decision_trees_dir),
+        "last_daily_brief": brief_date,
+        "vault_freshness_days": age_days,
+        "vault_status_label": _vault_freshness_label(age_days),
+        "status": status,
     }
 
 
@@ -534,7 +634,7 @@ def get_trinity_contributions_snapshot() -> dict[str, Any]:
     snapshot = _github_contribution_snapshot()
     return {
         **snapshot,
-        'tracked_at': datetime.now(UTC).isoformat().replace('+00:00', 'Z'),
+        "tracked_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
     }
 
 
@@ -542,10 +642,10 @@ def get_trinity_paths_snapshot() -> dict[str, str]:
     from drift.core.anchor_context import get_anchor_runtime
 
     paths = {
-        'cases_dir': str(TRINITY_CASES_DIR),
-        'ledger_path': str(TRINITY_LEDGER_PATH),
-        'database_path': str(trinity_db.db_path),
-        'logs_dir': str(LOGS_DIR),
+        "cases_dir": str(TRINITY_CASES_DIR),
+        "ledger_path": str(TRINITY_LEDGER_PATH),
+        "database_path": str(trinity_db.db_path),
+        "logs_dir": str(LOGS_DIR),
     }
     anchor = get_anchor_runtime()
     if anchor.get("vault_root"):
@@ -561,11 +661,11 @@ def get_trinity_paths_snapshot() -> dict[str, str]:
 
 def build_trinity_snapshot(limit: int = 5) -> dict[str, Any]:
     return {
-        'history': get_trinity_history_snapshot(limit=limit),
-        'metrics': get_trinity_metrics_snapshot(),
-        'vault': get_trinity_vault_snapshot(),
-        'contributions': get_trinity_contributions_snapshot(),
-        'paths': get_trinity_paths_snapshot(),
+        "history": get_trinity_history_snapshot(limit=limit),
+        "metrics": get_trinity_metrics_snapshot(),
+        "vault": get_trinity_vault_snapshot(),
+        "contributions": get_trinity_contributions_snapshot(),
+        "paths": get_trinity_paths_snapshot(),
     }
 
 
@@ -590,7 +690,9 @@ def build_trinity_router() -> APIRouter:
     async def analyze(request: TrinityAnalyzeRequest) -> dict[str, Any]:
         input_path = Path(request.input_path).expanduser()
         if not input_path.exists():
-            raise HTTPException(status_code=404, detail=f"Input file not found: {input_path}")
+            raise HTTPException(
+                status_code=404, detail=f"Input file not found: {input_path}"
+            )
 
         try:
             result = await asyncio.to_thread(
@@ -681,13 +783,15 @@ def build_trinity_router() -> APIRouter:
     async def ledger_entry(case_ref: str) -> dict[str, Any]:
         entry = _ledger().find(case_ref)
         if entry is None:
-            raise HTTPException(status_code=404, detail=f"Ledger entry not found: {case_ref}")
+            raise HTTPException(
+                status_code=404, detail=f"Ledger entry not found: {case_ref}"
+            )
         return entry
 
     @router.get("/findings")
     async def findings(
-        tier: Optional[str] = None,
-        reproduced: Optional[bool] = None,
+        tier: str | None = None,
+        reproduced: bool | None = None,
     ) -> dict[str, Any]:
         rows = trinity_db.get_findings(tier=tier, reproduced=reproduced)
         return {"findings": rows, "count": len(rows)}
@@ -696,7 +800,9 @@ def build_trinity_router() -> APIRouter:
     async def latest_benchmark() -> dict[str, Any]:
         benchmark = trinity_db.get_latest_benchmark()
         if benchmark is None:
-            raise HTTPException(status_code=404, detail="No benchmark runs recorded yet")
+            raise HTTPException(
+                status_code=404, detail="No benchmark runs recorded yet"
+            )
         return benchmark
 
     @router.get("/audit")
@@ -741,4 +847,3 @@ def build_trinity_app() -> FastAPI:
 
 
 app = build_trinity_app()
-

@@ -6,10 +6,11 @@ tension. Over time, a value landscape forms that guides decision-making.
 """
 
 import json
+import logging
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Optional
 
 from drift.core.config import DATA_DIR
 
@@ -38,7 +39,7 @@ VALUE_DIMENSIONS = [
 class ValueSystem:
     """Tracks the bot's evolving values and ethical framework."""
 
-    def __init__(self, db_path: Optional[Path] = None):
+    def __init__(self, db_path: Path | None = None):
         self.db_path = str(db_path or VALUES_DB)
         self._init_db()
         self.values = self._load_values()
@@ -70,7 +71,7 @@ class ValueSystem:
             )
             conn.commit()
 
-    def _load_values(self) -> Dict[str, Dict]:
+    def _load_values(self) -> dict[str, dict]:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute("SELECT * FROM emergent_values").fetchall()
@@ -84,7 +85,7 @@ class ValueSystem:
             }
         return result
 
-    def _save_value(self, name: str, data: Dict):
+    def _save_value(self, name: str, data: dict):
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
                 """
@@ -149,7 +150,7 @@ class ValueSystem:
                 self.values[value]["evidence"] = self.values[value]["evidence"][-20:]
                 self._save_value(value, self.values[value])
 
-    def get_top_values(self, n: int = 5) -> List[Dict]:
+    def get_top_values(self, n: int = 5) -> list[dict]:
         """Return the strongest values."""
         sorted_vals = sorted(
             [{"name": k, **v} for k, v in self.values.items()],
@@ -160,7 +161,7 @@ class ValueSystem:
 
     def detect_conflict(
         self, value_a: str, value_b: str, context: str = ""
-    ) -> Optional[str]:
+    ) -> str | None:
         """Detect and record a value conflict."""
         if value_a not in self.values or value_b not in self.values:
             return None
@@ -205,7 +206,7 @@ class ValueSystem:
         )
         return "\n".join(lines)
 
-    def get_all_values(self) -> Dict[str, Dict]:
+    def get_all_values(self) -> dict[str, dict]:
         return self.values
 
     def cycle(self, context):
@@ -217,7 +218,9 @@ class ValueSystem:
                 source="values", content="value system cycle completed", salience=0.45
             )
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
 
 
 def _register():

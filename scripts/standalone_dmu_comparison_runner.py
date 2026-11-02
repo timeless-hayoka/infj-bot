@@ -16,14 +16,16 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import logging
 import math
 import os
 import statistics
 import sys
 import time
+from collections.abc import Iterable, Sequence
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Any, Optional
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS_DIR = Path(__file__).resolve().parent
@@ -36,14 +38,17 @@ from drift.core.dmu import DMURetriever, compute_contextual_salience
 from drift.core.dmu_score_decomposition import serialize_traces
 
 try:
-    from memory_store_config import get_config, get_chroma_store
+    from memory_store_config import get_chroma_store, get_config
 except Exception:  # pragma: no cover - optional convenience import
+    logging.getLogger(__name__).debug(
+        "Operation failed; applying fallback", exc_info=True
+    )
     get_config = None
     get_chroma_store = None
 
 from dmu_retrieval_benchmark import (
-    BenchmarkCase,
     EMBEDDER,
+    BenchmarkCase,
     FakeCollection,
     FakePSC,
     MemoryRow,
@@ -68,7 +73,9 @@ def _parse_methods(raw: str | None) -> tuple[str, ...]:
         if not name:
             continue
         if name not in ALL_METHODS:
-            raise ValueError(f"Unknown method {token!r}. Choose from: {', '.join(ALL_METHODS)}")
+            raise ValueError(
+                f"Unknown method {token!r}. Choose from: {', '.join(ALL_METHODS)}"
+            )
         if name not in methods:
             methods.append(name)
     return tuple(methods) if methods else ALL_METHODS
@@ -80,7 +87,7 @@ def _case_value(case: Any, key: str, default: Any = None) -> Any:
     return getattr(case, key, default)
 
 
-def load_dataset(dataset_path: str | Path) -> List[Dict[str, Any]]:
+def load_dataset(dataset_path: str | Path) -> list[dict[str, Any]]:
     path = Path(dataset_path).expanduser().resolve()
     if not path.exists():
         raise FileNotFoundError(f"Dataset file not found: {path}")
@@ -93,7 +100,9 @@ def load_dataset(dataset_path: str | Path) -> List[Dict[str, Any]]:
             return data["cases"]
         if "case_id" in data:
             return [data]
-    raise ValueError("Unsupported dataset format. Expected a list of cases or {'cases': [...]}." )
+    raise ValueError(
+        "Unsupported dataset format. Expected a list of cases or {'cases': [...]}."
+    )
 
 
 def _load_chroma_hooks():
@@ -101,30 +110,49 @@ def _load_chroma_hooks():
         ChromaMemoryStore,
         get_candidates_for_case,
         get_query_embedding,
+    )
+    from chromadb_integration_hooks import (
         load_dataset as load_chroma_dataset,
     )
 
-    return ChromaMemoryStore, get_candidates_for_case, get_query_embedding, load_chroma_dataset
+    return (
+        ChromaMemoryStore,
+        get_candidates_for_case,
+        get_query_embedding,
+        load_chroma_dataset,
+    )
 
 
-def _candidate_lookup(candidates: Sequence[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+def _candidate_lookup(
+    candidates: Sequence[dict[str, Any]],
+) -> dict[str, dict[str, Any]]:
     return {str(candidate.get("id")): candidate for candidate in candidates}
 
 
-def _top_k_cosine(candidates: Sequence[Dict[str, Any]], query_embedding: Sequence[float], top_k: int) -> List[Dict[str, Any]]:
+def _top_k_cosine(
+    candidates: Sequence[dict[str, Any]], query_embedding: Sequence[float], top_k: int
+) -> list[dict[str, Any]]:
     scored = sorted(
         candidates,
-        key=lambda cand: cosine_similarity(list(query_embedding), list(cand.get("embedding", []))),
+        key=lambda cand: cosine_similarity(
+            list(query_embedding), list(cand.get("embedding", []))
+        ),
         reverse=True,
     )
     return list(scored[:top_k])
 
 
-def _top_k_recent(candidates: Sequence[Dict[str, Any]], top_k: int) -> List[Dict[str, Any]]:
-    return sorted(candidates, key=lambda cand: float(cand.get("timestamp", 0.0)), reverse=True)[:top_k]
+def _top_k_recent(
+    candidates: Sequence[dict[str, Any]], top_k: int
+) -> list[dict[str, Any]]:
+    return sorted(
+        candidates, key=lambda cand: float(cand.get("timestamp", 0.0)), reverse=True
+    )[:top_k]
 
 
-def _score_selection(selected: Sequence[Dict[str, Any]], gold_id: str) -> Dict[str, Any]:
+def _score_selection(
+    selected: Sequence[dict[str, Any]], gold_id: str
+) -> dict[str, Any]:
     ids = [str(item.get("id")) for item in selected]
     context_chars = sum(len(str(item.get("document", ""))) for item in selected)
     return {
@@ -142,7 +170,9 @@ def _resolve_gold_id(case: Any) -> str:
     raise KeyError("Case is missing a gold memory identifier.")
 
 
-def _build_query_context(case: Any, query_embedding: Sequence[float], current_time: float) -> Dict[str, Any]:
+def _build_query_context(
+    case: Any, query_embedding: Sequence[float], current_time: float
+) -> dict[str, Any]:
     alert_dims = _case_value(case, "psc_alert_dims", ())
     return {
         "query_embedding": list(query_embedding),
@@ -160,7 +190,7 @@ def _evaluate_case_synthetic(
     trace_root: Path,
     run_stamp: str,
     top_k: int,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     rows_by_id = {row.id: row for row in rows}
     query_embedding = EMBEDDER.embed_query(case.query)
     current_cycle = 1000 + case.turn_index
@@ -209,7 +239,9 @@ def _evaluate_case_synthetic(
     dmu_sel, dmu_traces = dmu_out
 
     candidates = [
-        candidate_from_row(row, query_embedding, current_cycle, set(case.psc_alert_dims))
+        candidate_from_row(
+            row, query_embedding, current_cycle, set(case.psc_alert_dims)
+        )
         for row in rows
     ]
 
@@ -247,9 +279,13 @@ def _evaluate_case_synthetic(
                 method=method,
             )
 
-    def _scores(selected: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
+    def _scores(selected: Sequence[dict[str, Any]], case=case) -> dict[str, Any]:
         ids = [str(item.get("id")) for item in selected]
-        context_chars = sum(len(rows_by_id[item_id].document) for item_id in ids if item_id in rows_by_id)
+        context_chars = sum(
+            len(rows_by_id[item_id].document)
+            for item_id in ids
+            if item_id in rows_by_id
+        )
         return {
             "top1_correct": ids[:1] == [case.correct_memory_id],
             "contains_correct": case.correct_memory_id in ids,
@@ -274,7 +310,7 @@ def _evaluate_case_synthetic(
 
 
 def _evaluate_case_chroma(
-    case: Dict[str, Any],
+    case: dict[str, Any],
     *,
     retriever: DMURetriever,
     guarded_ranker,
@@ -286,7 +322,7 @@ def _evaluate_case_chroma(
     apply_metadata_filter: bool,
     get_candidates_for_case,
     get_query_embedding,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     query = case["query"]
     gold_id = _resolve_gold_id(case)
     case_id = str(_case_value(case, "case_id", "case-unknown"))
@@ -362,15 +398,26 @@ def _evaluate_case_chroma(
         "query": query,
         "correct_memory_id": gold_id,
         "expected_answer": _case_value(case, "expected_answer", ""),
-        "cosine": {**_score_selection(cosine_sel, gold_id), "latency_ms": round(cosine_ms, 3)},
-        "recent": {**_score_selection(recent_sel, gold_id), "latency_ms": round(recent_ms, 3)},
+        "cosine": {
+            **_score_selection(cosine_sel, gold_id),
+            "latency_ms": round(cosine_ms, 3),
+        },
+        "recent": {
+            **_score_selection(recent_sel, gold_id),
+            "latency_ms": round(recent_ms, 3),
+        },
         "dmu": {**_score_selection(dmu_sel, gold_id), "latency_ms": round(dmu_ms, 3)},
-        "guarded": {**_score_selection(guarded_sel, gold_id), "latency_ms": round(guarded_ms, 3)},
+        "guarded": {
+            **_score_selection(guarded_sel, gold_id),
+            "latency_ms": round(guarded_ms, 3),
+        },
         "rrf": {**_score_selection(rrf_sel, gold_id), "latency_ms": round(rrf_ms, 3)},
     }
 
 
-def _summarize(results: Sequence[Dict[str, Any]], methods: Sequence[str], dataset_label: str) -> Dict[str, Any]:
+def _summarize(
+    results: Sequence[dict[str, Any]], methods: Sequence[str], dataset_label: str
+) -> dict[str, Any]:
     summary = {
         "cases": len(results),
         "methods": {},
@@ -382,17 +429,30 @@ def _summarize(results: Sequence[Dict[str, Any]], methods: Sequence[str], datase
         summary["methods"][method] = {
             "top1_accuracy": round(top1 / len(results), 4) if results else 0.0,
             "contains_recall": round(recall / len(results), 4) if results else 0.0,
-            "avg_context_chars": round(statistics.mean(row[method]["context_chars"] for row in results), 2) if results else 0.0,
-            "avg_latency_ms": round(statistics.mean(row[method]["latency_ms"] for row in results), 3) if results else 0.0,
+            "avg_context_chars": round(
+                statistics.mean(row[method]["context_chars"] for row in results), 2
+            )
+            if results
+            else 0.0,
+            "avg_latency_ms": round(
+                statistics.mean(row[method]["latency_ms"] for row in results), 3
+            )
+            if results
+            else 0.0,
         }
 
     if "dmu" in summary["methods"] and "cosine" in summary["methods"]:
         summary["dmu_vs_cosine_context_delta_chars"] = round(
-            summary["methods"]["dmu"]["avg_context_chars"] - summary["methods"]["cosine"]["avg_context_chars"],
+            summary["methods"]["dmu"]["avg_context_chars"]
+            - summary["methods"]["cosine"]["avg_context_chars"],
             2,
         )
         summary["dmu_vs_cosine_context_delta_pct"] = round(
-            (summary["dmu_vs_cosine_context_delta_chars"] / summary["methods"]["cosine"]["avg_context_chars"] * 100)
+            (
+                summary["dmu_vs_cosine_context_delta_chars"]
+                / summary["methods"]["cosine"]["avg_context_chars"]
+                * 100
+            )
             if summary["methods"]["cosine"]["avg_context_chars"]
             else 0.0,
             2,
@@ -401,54 +461,63 @@ def _summarize(results: Sequence[Dict[str, Any]], methods: Sequence[str], datase
 
 
 def _write_outputs(
-    results: Sequence[Dict[str, Any]],
-    summary: Dict[str, Any],
+    results: Sequence[dict[str, Any]],
+    summary: dict[str, Any],
     output_dir: Path,
     methods: Sequence[str] = ALL_METHODS,
-) -> Tuple[Path, Path]:
+) -> tuple[Path, Path]:
     output_dir.mkdir(parents=True, exist_ok=True)
     stamp = time.strftime("%Y%m%d_%H%M%S")
     json_path = output_dir / f"standalone_dmu_comparison_results_{stamp}.json"
     csv_path = output_dir / f"standalone_dmu_comparison_results_{stamp}.csv"
-    json_path.write_text(json.dumps({"summary": summary, "results": list(results)}, indent=2), encoding="utf-8")
+    json_path.write_text(
+        json.dumps({"summary": summary, "results": list(results)}, indent=2),
+        encoding="utf-8",
+    )
     with csv_path.open("w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
-        writer.writerow([
-            "case_id",
-            "session_id",
-            "turn_index",
-            "category",
-            "mode",
-            "method",
-            "top1_correct",
-            "contains_correct",
-            "context_chars",
-            "latency_ms",
-        ])
+        writer.writerow(
+            [
+                "case_id",
+                "session_id",
+                "turn_index",
+                "category",
+                "mode",
+                "method",
+                "top1_correct",
+                "contains_correct",
+                "context_chars",
+                "latency_ms",
+            ]
+        )
         for row in results:
             for method in methods:
                 if method not in row:
                     continue
-                writer.writerow([
-                    row["case_id"],
-                    row["session_id"],
-                    row["turn_index"],
-                    row["category"],
-                    row["mode"],
-                    method,
-                    int(row[method]["top1_correct"]),
-                    int(row[method]["contains_correct"]),
-                    row[method]["context_chars"],
-                    row[method]["latency_ms"],
-                ])
+                writer.writerow(
+                    [
+                        row["case_id"],
+                        row["session_id"],
+                        row["turn_index"],
+                        row["category"],
+                        row["mode"],
+                        method,
+                        int(row[method]["top1_correct"]),
+                        int(row[method]["contains_correct"]),
+                        row[method]["context_chars"],
+                        row[method]["latency_ms"],
+                    ]
+                )
     return json_path, csv_path
 
 
-def _print_summary(summary: Dict[str, Any]) -> None:
+def _print_summary(summary: dict[str, Any]) -> None:
     print("\n" + "=" * 80)
     print("STANDALONE DMU COMPARISON SUMMARY")
     print("=" * 80)
-    print(f"{'Method':<14} {'Top-1 Acc':>10} {'Recall@K':>10} {'Avg Latency (ms)':>18} {'Runs':>8}")
+    print(
+        f"{'Method':<14} {'Top-1 Acc':>10} {'Recall@K':>10} {'Avg Latency (ms)':>18} {'Runs':>8}"
+    )
     print("-" * 80)
     for method in sorted(summary["methods"].keys()):
         stats = summary["methods"][method]
@@ -475,13 +544,17 @@ def run_synthetic(
 
     retriever = DMURetriever(
         FakeCollection(memories, EMBEDDER),
-        psc_engine=FakePSC(synthetic_cases[0].psc_alert_dims if synthetic_cases else ()),
+        psc_engine=FakePSC(
+            synthetic_cases[0].psc_alert_dims if synthetic_cases else ()
+        ),
         max_retrieval_count=10,
     )
-    guarded_ranker = get_ranker("guarded", guardrail_threshold=0.08, semantic_weight=0.70)
+    guarded_ranker = get_ranker(
+        "guarded", guardrail_threshold=0.08, semantic_weight=0.70
+    )
     rrf_ranker = get_ranker("rrf")
 
-    results: List[Dict[str, Any]] = []
+    results: list[dict[str, Any]] = []
     for case in synthetic_cases:
         results.append(
             _evaluate_case_synthetic(
@@ -505,7 +578,9 @@ def run_synthetic(
     return 0
 
 
-def _apply_chroma_env(persist_dir: str, collection_name: str, embedding_model: str) -> None:
+def _apply_chroma_env(
+    persist_dir: str, collection_name: str, embedding_model: str
+) -> None:
     os.environ["DRIFT_CHROMA_PERSIST_DIR"] = persist_dir
     os.environ["DRIFT_MEMORY_COLLECTION"] = collection_name
     os.environ["DRIFT_EMBEDDING_MODEL"] = embedding_model
@@ -524,20 +599,26 @@ def run_chroma(
     apply_metadata_filter: bool,
     methods: Sequence[str] = ALL_METHODS,
 ) -> int:
-    _, get_candidates_for_case, get_query_embedding, load_chroma_dataset = _load_chroma_hooks()
+    _, _get_candidates_for_case, _get_query_embedding, load_chroma_dataset = (
+        _load_chroma_hooks()
+    )
     cases = load_chroma_dataset(dataset_path)
     if get_chroma_store is None:
-        raise SystemExit("Chroma backend requires memory_store_config and chromadb_integration_hooks.")
+        raise SystemExit(
+            "Chroma backend requires memory_store_config and chromadb_integration_hooks."
+        )
     store = get_chroma_store()
     retriever = DMURetriever(store.collection, psc_engine=None, max_retrieval_count=10)
-    guarded_ranker = get_ranker("guarded", guardrail_threshold=0.08, semantic_weight=0.70)
+    guarded_ranker = get_ranker(
+        "guarded", guardrail_threshold=0.08, semantic_weight=0.70
+    )
     rrf_ranker = get_ranker("rrf")
     trace_root = output_dir / "score_traces" / "chroma"
     run_stamp = time.strftime("%Y%m%d_%H%M%S")
 
-    results: List[Dict[str, Any]] = []
+    results: list[dict[str, Any]] = []
     for case in cases:
-        where_filter: Optional[Dict[str, Any]] = None
+        where_filter: dict[str, Any] | None = None
         if apply_metadata_filter and case.get("category"):
             where_filter = {"category": {"$eq": case["category"]}}
 
@@ -547,7 +628,7 @@ def run_chroma(
             where=where_filter,
             include=["documents", "metadatas", "embeddings", "distances"],
         )
-        candidates: List[Dict[str, Any]] = []
+        candidates: list[dict[str, Any]] = []
         ids = chroma_results.get("ids", [[]])[0]
         documents = chroma_results.get("documents", [[]])[0]
         metadatas = chroma_results.get("metadatas", [[]])[0]
@@ -565,7 +646,9 @@ def run_chroma(
                     "salience": float(meta.get("salience", 0.5)),
                     "emotional_valence": float(meta.get("emotional_valence", 0.0)),
                     "emotional_intensity": float(meta.get("emotional_intensity", 0.5)),
-                    "retention_score": float(meta.get("retention_score", meta.get("retention_decay", 0.8))),
+                    "retention_score": float(
+                        meta.get("retention_score", meta.get("retention_decay", 0.8))
+                    ),
                     "trust_level": float(meta.get("trust_level", 0.75)),
                     "has_conflict": bool(meta.get("has_conflict", False)),
                     "conflict_status": meta.get("conflict_status", "none"),
@@ -592,7 +675,9 @@ def run_chroma(
         query_embedding = store.embedding_function([case["query"]])[0]
         if hasattr(query_embedding, "tolist"):
             query_embedding = query_embedding.tolist()
-        query_context = _build_query_context(case, query_embedding, float(_case_value(case, "current_time", time.time())))
+        query_context = _build_query_context(
+            case, query_embedding, float(_case_value(case, "current_time", time.time()))
+        )
 
         started = time.perf_counter()
         cosine_sel = _top_k_cosine(candidates, query_embedding, top_k)
@@ -645,7 +730,7 @@ def run_chroma(
                     method=method,
                 )
 
-        def _scores(selected: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
+        def _scores(selected: Sequence[dict[str, Any]], case=case) -> dict[str, Any]:
             ids = [str(item.get("id")) for item in selected]
             context_chars = sum(len(item.get("document", "")) for item in selected)
             return {
@@ -682,10 +767,18 @@ def run_chroma(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Standalone DRIFT memory ranking comparison runner.")
-    parser.add_argument("--backend", "--mode", choices=("synthetic", "chroma"), default="synthetic")
+    parser = argparse.ArgumentParser(
+        description="Standalone DRIFT memory ranking comparison runner."
+    )
+    parser.add_argument(
+        "--backend", "--mode", choices=("synthetic", "chroma"), default="synthetic"
+    )
     parser.add_argument("--cases", type=int, default=100)
-    parser.add_argument("--dataset-version", choices=("v1_label_leakage", "v2_opaque_labels"), default="v2_opaque_labels")
+    parser.add_argument(
+        "--dataset-version",
+        choices=("v1_label_leakage", "v2_opaque_labels"),
+        default="v2_opaque_labels",
+    )
     parser.add_argument("--dataset", type=Path, default=None)
     parser.add_argument("--top-k", "--k", dest="top_k", type=int, default=3)
     parser.add_argument("--candidate-limit", type=int, default=None)
@@ -694,7 +787,9 @@ def main() -> int:
         default="",
         help="Comma-separated rankers to score (default: all). Aliases: guarded_dmu -> guarded",
     )
-    parser.add_argument("--output-dir", type=Path, default=ROOT / "benchmarks" / "comparison_runs")
+    parser.add_argument(
+        "--output-dir", type=Path, default=ROOT / "benchmarks" / "comparison_runs"
+    )
     default_cfg = get_config() if get_config is not None else None
     parser.add_argument(
         "--chroma-persist-dir",
@@ -721,7 +816,13 @@ def main() -> int:
         candidate_limit = default_cfg.default_n_results if default_cfg else 50
 
     if args.backend == "synthetic":
-        return run_synthetic(args.cases, args.dataset_version, args.top_k, args.output_dir, methods=methods)
+        return run_synthetic(
+            args.cases,
+            args.dataset_version,
+            args.top_k,
+            args.output_dir,
+            methods=methods,
+        )
 
     if args.dataset is None:
         raise SystemExit("--dataset is required when --backend chroma is selected.")

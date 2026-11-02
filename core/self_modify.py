@@ -17,11 +17,12 @@ What it actually does:
 This is a journaling and tracking system, not self-modifying code.
 """
 
+import logging
 import random
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from drift.core.config import DATA_DIR
 
@@ -117,7 +118,7 @@ ASSESSMENT_DIMENSIONS = [
 class SelfModification:
     """Recursive self-improvement engine."""
 
-    def __init__(self, db_path: Optional[Path] = None):
+    def __init__(self, db_path: Path | None = None):
         self.db_path = str(db_path or SELF_MODIFY_DB)
         self._init_db()
         self.proposals = self._load_proposals()
@@ -196,7 +197,7 @@ class SelfModification:
             """)
             conn.commit()
 
-    def _load_proposals(self) -> List[Dict]:
+    def _load_proposals(self) -> list[dict]:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
@@ -204,7 +205,7 @@ class SelfModification:
             ).fetchall()
         return [dict(r) for r in rows]
 
-    def _load_recent_assessments(self) -> List[Dict]:
+    def _load_recent_assessments(self) -> list[dict]:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
@@ -212,7 +213,7 @@ class SelfModification:
             ).fetchall()
         return [dict(r) for r in rows]
 
-    def _load_lessons(self) -> List[Dict]:
+    def _load_lessons(self) -> list[dict]:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
@@ -220,7 +221,7 @@ class SelfModification:
             ).fetchall()
         return [dict(r) for r in rows]
 
-    def _load_plans(self) -> List[Dict]:
+    def _load_plans(self) -> list[dict]:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
@@ -228,7 +229,7 @@ class SelfModification:
             ).fetchall()
         return [dict(r) for r in rows]
 
-    def _load_meta_learning(self) -> Dict[str, Dict]:
+    def _load_meta_learning(self) -> dict[str, dict]:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute("SELECT * FROM meta_learning").fetchall()
@@ -243,9 +244,9 @@ class SelfModification:
         self,
         user_input: str,
         bot_output: str,
-        emotion: Optional[Dict] = None,
-        dissonance: Optional[Dict] = None,
-    ) -> Dict[str, float]:
+        emotion: dict | None = None,
+        dissonance: dict | None = None,
+    ) -> dict[str, float]:
         """Score the bot's own response across dimensions."""
         emotion = emotion or {"label": "neutral", "intensity": 0.3}
         dissonance = dissonance or {"score": 0.0}
@@ -403,8 +404,8 @@ class SelfModification:
     # ── Lesson Extraction ──────────────────────────────────────────
 
     def extract_lesson(
-        self, user_input: str, bot_output: str, assessment: Dict
-    ) -> Optional[Dict]:
+        self, user_input: str, bot_output: str, assessment: dict
+    ) -> dict | None:
         """Derive a lesson from an interaction based on assessment scores."""
         scores = assessment.get("scores", {})
         lowest_dim = min(scores, key=scores.get)
@@ -462,7 +463,7 @@ class SelfModification:
 
     # ── Improvement Planning ───────────────────────────────────────
 
-    def form_improvement_plan(self, area: Optional[str] = None) -> Optional[Dict]:
+    def form_improvement_plan(self, area: str | None = None) -> dict | None:
         """Create a concrete plan to improve in a specific area."""
         if not self.lessons:
             return None
@@ -552,7 +553,7 @@ class SelfModification:
         self.improvement_plans.insert(0, plan)
         return plan
 
-    def validate_plan(self, plan_id: int, recent_assessment: Dict):
+    def validate_plan(self, plan_id: int, recent_assessment: dict):
         """Check if an improvement plan worked."""
         with sqlite3.connect(self.db_path) as conn:
             row = conn.execute(
@@ -614,8 +615,8 @@ class SelfModification:
     # ── Original proposal methods ──────────────────────────────────
 
     def propose_improvement(
-        self, area: Optional[str] = None, observed_need: str = ""
-    ) -> Optional[Dict]:
+        self, area: str | None = None, observed_need: str = ""
+    ) -> dict | None:
         if self._count_pending() >= MAX_PENDING_PROPOSALS:
             return None
         area = area or random.choice(IMPROVEMENT_AREAS)
@@ -626,7 +627,7 @@ class SelfModification:
             observed_need = (
                 f"I have noticed a limitation in {area} during our conversations."
             )
-        proposal: Dict[str, Any] = {
+        proposal: dict[str, Any] = {
             "timestamp": datetime.now().isoformat(),
             "area": area,
             "description": description,
@@ -667,7 +668,7 @@ class SelfModification:
             )
             conn.commit()
 
-    def get_pending_proposals(self) -> List[Dict]:
+    def get_pending_proposals(self) -> list[dict]:
         return [p for p in self.proposals if p.get("status") == "pending"]
 
     # ── Prompt formatting ──────────────────────────────────────────
@@ -764,7 +765,9 @@ class SelfModification:
                 intensity=0.5,
             )
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
 
 
 def _register():

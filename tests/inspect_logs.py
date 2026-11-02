@@ -1,3 +1,5 @@
+import sys
+
 """
 inspect_logs.py
 DRIFT Log Inspector
@@ -14,11 +16,10 @@ Usage:
     python inspect_logs.py --summary          # summary stats only
 """
 
-import sqlite3
-import json
 import argparse
+import json
+import sqlite3
 from pathlib import Path
-
 
 DB_PATH = "experiment_log.db"
 
@@ -182,7 +183,7 @@ if __name__ == "__main__":
 
     conn = connect()
     if conn is None:
-        exit(1)
+        sys.exit(1)
 
     if args.summary:
         summary(conn)

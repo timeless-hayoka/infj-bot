@@ -10,7 +10,7 @@ from core.forge_gate import _ensure_import_path
 
 _ensure_import_path()
 
-from forge_v5_gatekeeper import (  # noqa: E402
+from forge_v5_gatekeeper import (
     ForgeValidator,
     generate_scope_hash,
     verify_scope_lock,

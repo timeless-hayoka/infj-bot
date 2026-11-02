@@ -10,10 +10,11 @@ Finds bugs through:
 """
 
 import json
-import threading
-import time
+import logging
 import random
 import string
+import threading
+import time
 
 import pytest
 
@@ -24,11 +25,10 @@ from drift.core.cognitive_architecture import CycleContext
 from drift.core.cognitive_orchestrator import CognitiveOrchestrator
 from drift.core.embeddings import SemanticEmbeddingFunction
 from drift.core.memory import DriftMemory
-from drift.core.plugins.physics import PhysicsEngine
 from drift.core.plugins.humanity import HumanityEngine
+from drift.core.plugins.physics import PhysicsEngine
 from drift.core.prompt_budget import PromptBudget
 from drift.core.resilience import CircuitBreaker, ResilienceManager
-
 
 # ── Helpers ───────────────────────────────────────────────────────
 
@@ -227,6 +227,9 @@ class TestConcurrency:
                         emotion={"label": "neutral"},
                     )
             except Exception as exc:
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
                 errors.append(exc)
 
         threads = [threading.Thread(target=writer, args=(i,)) for i in range(5)]
@@ -247,6 +250,9 @@ class TestConcurrency:
                 for _ in range(50):
                     being.evolve(interaction_happened=True)
             except Exception as exc:
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
                 errors.append(exc)
 
         threads = [threading.Thread(target=evolver) for _ in range(3)]
@@ -269,6 +275,9 @@ class TestConcurrency:
                     time.sleep(0.001)
                     cb.record_success()
             except Exception as exc:
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
                 errors.append(exc)
 
         threads = [threading.Thread(target=flapper) for _ in range(5)]

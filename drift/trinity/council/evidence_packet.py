@@ -8,21 +8,22 @@ an exportable markdown report.
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Optional
 
 from .forge_council_schema import ClaimRecord, ClaimStatus, utc_stamp
 
 
 @dataclass
 class TrinityEvidencePacket:
-    claim: Dict[str, Any]
-    messages: List[Dict[str, Any]]
-    board: Dict[str, Any]
-    rejected_hypotheses: List[Dict[str, Any]] = field(default_factory=list)
+    claim: dict[str, Any]
+    messages: list[dict[str, Any]]
+    board: dict[str, Any]
+    rejected_hypotheses: list[dict[str, Any]] = field(default_factory=list)
     reasoning_summary: str = ""
-    reproduction_command: Optional[str] = None
+    reproduction_command: str | None = None
     created_at: str = field(default_factory=utc_stamp)
 
     def status(self) -> str:
@@ -46,7 +47,7 @@ class TrinityEvidencePacket:
             return "NEEDS_HUMAN_REVIEW"
         return "INSUFFICIENT_EVIDENCE"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "claim": self.claim,
             "messages": self.messages,
@@ -66,7 +67,7 @@ class TrinityEvidencePacket:
             f"- Status: `{self.status()}`",
             f"- Claim confidence: `{self.claim.get('confidence', 0.0)}`",
             f"- Reproduction status: `{self.claim.get('reproduction_status', 'unattempted')}`",
-            f"- Evidence refs: {', ' .join(self.claim.get('evidence_refs', []) or ['none'])}",
+            f"- Evidence refs: {', '.join(self.claim.get('evidence_refs', []) or ['none'])}",
             "",
             "## Reasoning Summary",
             self.reasoning_summary or "No summary available.",
@@ -101,7 +102,7 @@ class TrinityEvidencePacket:
             )
         return "\n".join(lines)
 
-    def write_bundle(self, root_dir: str | Path) -> Dict[str, str]:
+    def write_bundle(self, root_dir: str | Path) -> dict[str, str]:
         root = Path(root_dir)
         evidence_root = root / "evidence"
         tool_outputs = evidence_root / "tool_outputs"
@@ -154,15 +155,17 @@ class TrinityEvidencePacket:
             self.reasoning_summary.strip() + "\n",
             encoding="utf-8",
         )
-        files["export_report.md"].write_text(self.render_markdown() + "\n", encoding="utf-8")
+        files["export_report.md"].write_text(
+            self.render_markdown() + "\n", encoding="utf-8"
+        )
 
         return {key: str(path) for key, path in files.items()}
 
 
 def build_reasoning_summary(
     claim: ClaimRecord,
-    messages: Iterable[Dict[str, Any]],
-    board: Dict[str, Any],
+    messages: Iterable[dict[str, Any]],
+    board: dict[str, Any],
 ) -> str:
     message_list = list(messages)
     decision_notes = []
@@ -170,12 +173,17 @@ def build_reasoning_summary(
         message_type = message.get("message_type", "unknown")
         sender = message.get("sender", "unknown")
         if message_type in {"challenge", "evidence_request", "reject"}:
-            reason = message.get("content", {}).get("reason") or message.get("content", {}).get(
-                "attack_mode"
-            ) or message.get("content", {}).get("request") or "needs review"
+            reason = (
+                message.get("content", {}).get("reason")
+                or message.get("content", {}).get("attack_mode")
+                or message.get("content", {}).get("request")
+                or "needs review"
+            )
             decision_notes.append(f"- {sender} issued `{message_type}`: {reason}")
         elif message_type == "accept":
-            reason = message.get("content", {}).get("reason", "accepted after evidence review")
+            reason = message.get("content", {}).get(
+                "reason", "accepted after evidence review"
+            )
             decision_notes.append(f"- {sender} accepted the claim: {reason}")
 
     board_claims = board.get("claims", 0)
@@ -190,6 +198,8 @@ def build_reasoning_summary(
         summary_lines.append("Key decision notes:")
         summary_lines.extend(decision_notes)
     else:
-        summary_lines.append("No challenge or acceptance notes were recorded in this round.")
+        summary_lines.append(
+            "No challenge or acceptance notes were recorded in this round."
+        )
 
     return "\n".join(summary_lines)

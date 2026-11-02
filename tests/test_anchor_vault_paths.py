@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from drift.trinity.caseflow import run_case_from_scan, TrinityCaseLedger
+from drift.trinity.caseflow import TrinityCaseLedger, run_case_from_scan
 
 
 def _write_slither_payload(path: Path) -> None:
@@ -49,7 +49,7 @@ def anchor_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     ):
         (tmp_path / sub).mkdir(parents=True)
     monkeypatch.setenv("ANCHOR_DATA_ROOT", str(tmp_path))
-    import drift.trinity.release as release
+    from drift.trinity import release
 
     importlib.reload(release)
     return tmp_path
@@ -89,9 +89,15 @@ def test_create_archive_lands_in_vault(anchor_root: Path, tmp_path: Path) -> Non
     assert str(archive_dir).startswith(str(anchor_root / "Anchor" / "archives"))
     assert (archive_dir / "archive_manifest.json").is_file()
 
-    ledger_path_on_disk = anchor_root / "Anchor" / "history" / "trinity_archive_ledger.jsonl"
+    ledger_path_on_disk = (
+        anchor_root / "Anchor" / "history" / "trinity_archive_ledger.jsonl"
+    )
     assert ledger_path_on_disk.is_file()
-    lines = [ln for ln in ledger_path_on_disk.read_text(encoding="utf-8").splitlines() if ln.strip()]
+    lines = [
+        ln
+        for ln in ledger_path_on_disk.read_text(encoding="utf-8").splitlines()
+        if ln.strip()
+    ]
     assert len(lines) >= 1
     entry = json.loads(lines[-1])
     assert entry["archive_dir"] == str(archive_dir)

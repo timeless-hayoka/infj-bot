@@ -10,10 +10,10 @@ from drift.trinity.sarif_models import SarifFinding
 
 _SEMANTIC_DEPS: str | None = None
 try:
-    import hdbscan  # noqa: F401
-    import numpy as np  # noqa: F401
-    import umap  # noqa: F401
-    from sentence_transformers import SentenceTransformer  # noqa: F401
+    import hdbscan
+    import numpy as np
+    import umap
+    from sentence_transformers import SentenceTransformer
 except ImportError as exc:
     _SEMANTIC_DEPS = str(exc)
 
@@ -143,7 +143,9 @@ class SemanticClusterer:
                     categories.append(str(category))
             if categories:
                 most_common = Counter(categories).most_common(1)[0][0]
-                summaries[label] = f"Cluster {label}: {most_common} ({len(indices)} findings)"
+                summaries[label] = (
+                    f"Cluster {label}: {most_common} ({len(indices)} findings)"
+                )
             else:
                 summaries[label] = f"Cluster {label}: {texts[int(indices[0])][:80]}..."
         return summaries

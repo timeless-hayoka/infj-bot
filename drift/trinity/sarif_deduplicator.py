@@ -34,7 +34,9 @@ class SarifDeduplicator:
         content = f"{finding.rule_id}|{finding.message[:200]}|{finding.snippet or ''}"
         return hashlib.sha256(content.encode("utf-8", errors="ignore")).hexdigest()[:24]
 
-    def key_strategy(self, finding: SarifFinding, *, strategy: str = "normalized") -> str:
+    def key_strategy(
+        self, finding: SarifFinding, *, strategy: str = "normalized"
+    ) -> str:
         if strategy == "location":
             return self.location_key(finding)
         if strategy == "content_hash":

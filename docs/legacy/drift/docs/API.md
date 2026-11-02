@@ -312,7 +312,9 @@ Implementation: [`drift/sdk/client.py`](../drift/sdk/client.py). It mirrors the 
 ```python
 from drift import DriftClient
 
-client = DriftClient(api_key="your_key_or_empty_string_locally", base_url="http://127.0.0.1:8080")
+client = DriftClient(
+    api_key="your_key_or_empty_string_locally", base_url="http://127.0.0.1:8080"
+)
 result = client.cycle(agent_id="my-agent", input="Hello")
 print(result["phi"])
 print(client.health())

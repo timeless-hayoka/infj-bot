@@ -1,9 +1,11 @@
 """Tests for the security defense scanner."""
 
+import logging
+
 from drift.core.security_defense import (
+    PROMPT_INJECTION_PATTERNS,
     SecurityScanner,
     _score_text,
-    PROMPT_INJECTION_PATTERNS,
 )
 
 
@@ -195,6 +197,9 @@ if __name__ == "__main__":
                     print(f"  PASS {cls.__name__}.{name}")
                     passed += 1
                 except Exception as exc:
+                    logging.getLogger(__name__).debug(
+                        "Operation failed; applying fallback", exc_info=True
+                    )
                     print(f"  FAIL {cls.__name__}.{name}: {exc}")
                     traceback.print_exc()
                     failed += 1

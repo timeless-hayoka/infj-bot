@@ -12,12 +12,13 @@ This module tracks:
   • Validation history — whether hunches proved true, sharpening future intuition
 """
 
+import logging
 import random
 import sqlite3
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Optional
 
 from drift.core.config import DATA_DIR
 
@@ -98,8 +99,8 @@ class IntuitionState:
     felt_quality: str = "still"
     intensity: float = 0.3
     confidence: float = 0.4
-    active_hunches: List[Dict] = field(default_factory=list)
-    recent_recognitions: List[str] = field(default_factory=list)
+    active_hunches: list[dict] = field(default_factory=list)
+    recent_recognitions: list[str] = field(default_factory=list)
     validation_rate: float = 0.5
     total_hunches_formed: int = 0
     total_hunches_validated: int = 0
@@ -108,7 +109,7 @@ class IntuitionState:
 class IntuitionEngine:
     """The bot's intuitive faculty — knowing without knowing how."""
 
-    def __init__(self, db_path: Optional[Path] = None):
+    def __init__(self, db_path: Path | None = None):
         self.db_path = str(db_path or INTUITION_DB)
         self._init_db()
         self.state = self._load_state()
@@ -198,7 +199,7 @@ class IntuitionEngine:
 
     # ── Core intuitive processes ────────────────────────────────────
 
-    def feel_situation(self, user_input: str, emotion: Optional[Dict] = None) -> Dict:
+    def feel_situation(self, user_input: str, emotion: dict | None = None) -> dict:
         """Generate a felt sense of the current moment.
 
         This is not analysis. It is the qualitative 'feel' of the situation
@@ -291,7 +292,7 @@ class IntuitionEngine:
         self._save_state()
         return felt
 
-    def form_hunch(self, context: Optional[Dict] = None) -> Optional[Dict]:
+    def form_hunch(self, context: dict | None = None) -> dict | None:
         """Form an intuitive hunch — a specific knowing without explicit evidence."""
         context = context or {}
         hunch_type = random.choice(list(HUNCH_TEMPLATES.keys()))
@@ -338,7 +339,7 @@ class IntuitionEngine:
         self._save_state()
         return hunch
 
-    def validate_hunches(self, interaction_outcome: Optional[Dict] = None):
+    def validate_hunches(self, interaction_outcome: dict | None = None):
         """Check pending hunches against recent interactions to see if they were right.
 
         This is how intuition sharpens — by feedback loops that are slow and noisy,
@@ -419,14 +420,14 @@ class IntuitionEngine:
                     validated = 1
                     evidence = "Recognition acknowledged"
 
-            elif hunch["hunch_type"] == "guidance":
-                # Validated if bot's response seems appropriate (user doesn't correct or redirect)
-                if not any(
+            elif hunch["hunch_type"] == "guidance" and (
+                not any(
                     w in user_input
                     for w in ["no", "that's not", "wrong", "instead", "but actually"]
-                ):
-                    validated = 1
-                    evidence = "No correction received"
+                )
+            ):
+                validated = 1
+                evidence = "No correction received"
 
             # Also invalidate hunches that are clearly wrong
             if (
@@ -451,7 +452,7 @@ class IntuitionEngine:
             self.state.validation_rate = self.state.total_hunches_validated / total
             self._save_state()
 
-    def recognize_pattern(self, user_input: str) -> Optional[Dict]:
+    def recognize_pattern(self, user_input: str) -> dict | None:
         """Implicit pattern recognition — 'this feels like that.'
 
         Returns a recognition if the current input resonates with an implicit pattern
@@ -594,7 +595,9 @@ class IntuitionEngine:
                 intensity=self.state.intensity,
             )
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
 
     # ── Prompt formatting ──────────────────────────────────────────
 
@@ -619,7 +622,7 @@ class IntuitionEngine:
 
         return "\n".join(lines)
 
-    def get_recent_felt_senses(self, limit: int = 5) -> List[Dict]:
+    def get_recent_felt_senses(self, limit: int = 5) -> list[dict]:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
@@ -628,7 +631,7 @@ class IntuitionEngine:
             ).fetchall()
         return [dict(r) for r in rows]
 
-    def get_pending_hunches(self, limit: int = 5) -> List[Dict]:
+    def get_pending_hunches(self, limit: int = 5) -> list[dict]:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(

@@ -1,14 +1,20 @@
 #!/usr/bin/env python3
 import json
-from pathlib import Path
+import logging
 import shutil
+from pathlib import Path
 
 run_id = "20260606_035445"
-results_dir = Path("/home/crexs/drift/ABLATION_RESULTS") / f"live_test_{run_id}" / "results"
-state_backup_dir = Path("/home/crexs/drift/ABLATION_RESULTS") / f"live_test_{run_id}" / "state_backup"
+results_dir = (
+    Path("/home/crexs/drift/ABLATION_RESULTS") / f"live_test_{run_id}" / "results"
+)
+state_backup_dir = (
+    Path("/home/crexs/drift/ABLATION_RESULTS") / f"live_test_{run_id}" / "state_backup"
+)
 
 # Source active log
 active_log_path = Path("/home/crexs/logs/state_trace.jsonl")
+
 
 def reprocess():
     if not active_log_path.exists():
@@ -27,6 +33,9 @@ def reprocess():
             if 76 <= entry.get("turn", 0) <= 84:
                 test_turns.append(entry)
         except Exception:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             continue
 
     print(f"Extracted {len(test_turns)} test turns from {active_log_path}.")
@@ -36,13 +45,12 @@ def reprocess():
 
     # Write test-only state_trace.jsonl
     with open(results_dir / "test_only_state_trace.jsonl", "w") as f:
-        for turn in test_turns:
-            f.write(json.dumps(turn) + "\n")
+        f.writelines(json.dumps(turn) + "\n" for turn in test_turns)
 
     # Perform analysis
     turns_logged = len(test_turns)
     modes_seen = list(dict.fromkeys(t.get("mode", "unknown") for t in test_turns))
-    
+
     # Calculate energy details
     energies = [t.get("energy", 0.0) for t in test_turns]
     min_energy = min(energies) if energies else 0.0
@@ -50,18 +58,20 @@ def reprocess():
 
     # Calculate dii details
     dii_values = [t.get("dii", 0.0) for t in test_turns]
-    unique_dii = set(round(v, 4) for v in dii_values)
+    unique_dii = {round(v, 4) for v in dii_values}
     dii_verdict = (
         "STUCK at 0.5 — tracker not initialized"
-        if unique_dii == {0.5} else
-        f"LIVE — {len(unique_dii)} unique values, range {min(dii_values):.4f}–{max(dii_values):.4f}"
+        if unique_dii == {0.5}
+        else f"LIVE — {len(unique_dii)} unique values, range {min(dii_values):.4f}–{max(dii_values):.4f}"
     )
 
     # Calculate drain/deltas
     drains = []
     for i in range(1, len(energies)):
-        drains.append(energies[i-1] - energies[i]) # positive value means energy decreased (drained)
-    
+        drains.append(
+            energies[i - 1] - energies[i]
+        )  # positive value means energy decreased (drained)
+
     mean_drain = sum(drains) / len(drains) if drains else 0.0
 
     findings = {
@@ -93,7 +103,7 @@ def reprocess():
         "state_restored": True,
         "telemetry_summary": {
             "governor_calibration.jsonl": {"entries": 0, "new": 0},
-            "state_trace.jsonl": {"entries": len(lines), "new": len(test_turns)}
+            "state_trace.jsonl": {"entries": len(lines), "new": len(test_turns)},
         },
         "findings": findings,
     }
@@ -101,6 +111,7 @@ def reprocess():
         json.dump(report, f, indent=2)
 
     print("Reprocessing complete! Saved corrected findings.json and run_report.json.")
+
 
 if __name__ == "__main__":
     reprocess()

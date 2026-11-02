@@ -3,16 +3,23 @@
 from __future__ import annotations
 
 import itertools
+import logging
 from typing import Any
 
 from drift.trinity.sarif_models import SarifFinding
-from drift.trinity.sarif_pipeline.semantic_clusterer import ClusterResult, SemanticClusterer, semantic_clustering_available
+from drift.trinity.sarif_pipeline.semantic_clusterer import (
+    ClusterResult,
+    SemanticClusterer,
+    semantic_clustering_available,
+)
 
 
 class ClusterHyperparameterTuner:
     def __init__(self, clusterer: SemanticClusterer) -> None:
         if not semantic_clustering_available():
-            raise RuntimeError("ClusterHyperparameterTuner requires semantic clustering dependencies")
+            raise RuntimeError(
+                "ClusterHyperparameterTuner requires semantic clustering dependencies"
+            )
         self.clusterer = clusterer
 
     def tune(
@@ -23,7 +30,9 @@ class ClusterHyperparameterTuner:
         try:
             from sklearn.metrics import silhouette_score
         except ImportError as exc:  # pragma: no cover
-            raise RuntimeError("scikit-learn is required for ClusterHyperparameterTuner") from exc
+            raise RuntimeError(
+                "scikit-learn is required for ClusterHyperparameterTuner"
+            ) from exc
 
         if param_grid is None:
             param_grid = {
@@ -41,9 +50,11 @@ class ClusterHyperparameterTuner:
             for key, value in param_dict.items():
                 setattr(self.clusterer, key, value)
 
-            cluster_result = self.clusterer.cluster(findings, return_cluster_summaries=False)
+            cluster_result = self.clusterer.cluster(
+                findings, return_cluster_summaries=False
+            )
             labels = cluster_result.cluster_labels
-            label_set = set(int(label) for label in labels)
+            label_set = {int(label) for label in labels}
 
             score = -1.0
             if len(label_set) > 1 and label_set != {-1}:
@@ -53,6 +64,9 @@ class ClusterHyperparameterTuner:
                 try:
                     score = float(silhouette_score(embeddings, labels))
                 except Exception:
+                    logging.getLogger(__name__).debug(
+                        "Operation failed; applying fallback", exc_info=True
+                    )
                     score = -1.0
 
             row = {
@@ -66,4 +80,8 @@ class ClusterHyperparameterTuner:
                 best_score = score
                 best_params = param_dict
 
-        return {"best_params": best_params, "best_score": best_score, "all_results": results}
+        return {
+            "best_params": best_params,
+            "best_score": best_score,
+            "all_results": results,
+        }

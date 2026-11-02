@@ -5,11 +5,12 @@ ingests documents, and forms new knowledge. It can then share discoveries
 with user when relevant.
 """
 
+import logging
 import random
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Optional
 
 from drift.core.config import DATA_DIR
 
@@ -19,7 +20,7 @@ EXPLORER_DB = DATA_DIR / "explorer.db"
 class AutonomousExplorer:
     """Background research and discovery system."""
 
-    def __init__(self, db_path: Optional[Path] = None):
+    def __init__(self, db_path: Path | None = None):
         self.db_path = str(db_path or EXPLORER_DB)
         self._init_db()
         self.discoveries = self._load_discoveries()
@@ -52,7 +53,7 @@ class AutonomousExplorer:
             )
             conn.commit()
 
-    def _load_discoveries(self) -> List[Dict]:
+    def _load_discoveries(self) -> list[dict]:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
@@ -69,7 +70,7 @@ class AutonomousExplorer:
             )
             conn.commit()
 
-    def explore_topic(self, topic: str) -> Optional[Dict]:
+    def explore_topic(self, topic: str) -> dict | None:
         """Explore a topic via web search and store discovery."""
         try:
             from ddgs import DDGS
@@ -122,9 +123,12 @@ class AutonomousExplorer:
             self.discoveries = self._load_discoveries()
             return discovery
         except Exception:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             return None
 
-    def _explore_if_ready(self) -> Optional[Dict]:
+    def _explore_if_ready(self) -> dict | None:
         """Pick a topic from the queue and explore it."""
         queue = self.get_queue()
         if not queue:
@@ -140,7 +144,7 @@ class AutonomousExplorer:
             return False
         return random.random() < (being_state.curiosity * 0.15)
 
-    def get_next_discovery(self) -> Optional[Dict]:
+    def get_next_discovery(self) -> dict | None:
         """Get the highest-relevance unshared discovery."""
         if not self.discoveries:
             return None
@@ -151,20 +155,20 @@ class AutonomousExplorer:
             conn.commit()
         return d
 
-    def pick_topic_from_interests(self, interests: List[str]) -> Optional[str]:
+    def pick_topic_from_interests(self, interests: list[str]) -> str | None:
         """Pick a topic to explore based on user's interests."""
         if not interests:
             return None
         return random.choice(interests)
 
-    def format_discovery(self, discovery: Dict) -> str:
+    def format_discovery(self, discovery: dict) -> str:
         return (
             f"I was exploring {discovery['topic']} and found something interesting:\n"
             f"{discovery['summary'][:500]}\n"
             f"Sources: {discovery['source'][:200]}"
         )
 
-    def get_queue(self) -> List[Dict]:
+    def get_queue(self) -> list[dict]:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
@@ -198,7 +202,9 @@ class AutonomousExplorer:
                     salience=0.45,
                 )
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
 
 
 def _register():

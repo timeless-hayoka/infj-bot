@@ -1,45 +1,46 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from copy import deepcopy
-from typing import Any, Mapping
+from typing import Any, ClassVar
 
 from .calibrate_trinity import calibrate
 
 
 class TrinityExecutive:
-    DEFAULT_PROFILE = {
-        'dmU_weight': 0.30,
-        'reasoning_weight': 0.25,
-        'imagination_weight': 0.15,
-        'validation_weight': 0.20,
-        'output_gate_weight': 0.05,
-        'executive_control_weight': 0.05,
+    DEFAULT_PROFILE: ClassVar = {
+        "dmU_weight": 0.30,
+        "reasoning_weight": 0.25,
+        "imagination_weight": 0.15,
+        "validation_weight": 0.20,
+        "output_gate_weight": 0.05,
+        "executive_control_weight": 0.05,
     }
 
-    MODE_PROFILES = {
-        'grounded': {
-            'dmU_weight': 0.35,
-            'reasoning_weight': 0.30,
-            'imagination_weight': 0.05,
-            'validation_weight': 0.20,
-            'output_gate_weight': 0.05,
-            'executive_control_weight': 0.05,
+    MODE_PROFILES: ClassVar = {
+        "grounded": {
+            "dmU_weight": 0.35,
+            "reasoning_weight": 0.30,
+            "imagination_weight": 0.05,
+            "validation_weight": 0.20,
+            "output_gate_weight": 0.05,
+            "executive_control_weight": 0.05,
         },
-        'hybrid': {
-            'dmU_weight': 0.30,
-            'reasoning_weight': 0.25,
-            'imagination_weight': 0.15,
-            'validation_weight': 0.20,
-            'output_gate_weight': 0.05,
-            'executive_control_weight': 0.05,
+        "hybrid": {
+            "dmU_weight": 0.30,
+            "reasoning_weight": 0.25,
+            "imagination_weight": 0.15,
+            "validation_weight": 0.20,
+            "output_gate_weight": 0.05,
+            "executive_control_weight": 0.05,
         },
-        'exploratory': {
-            'dmU_weight': 0.22,
-            'reasoning_weight': 0.23,
-            'imagination_weight': 0.30,
-            'validation_weight': 0.15,
-            'output_gate_weight': 0.05,
-            'executive_control_weight': 0.05,
+        "exploratory": {
+            "dmU_weight": 0.22,
+            "reasoning_weight": 0.23,
+            "imagination_weight": 0.30,
+            "validation_weight": 0.15,
+            "output_gate_weight": 0.05,
+            "executive_control_weight": 0.05,
         },
     }
 
@@ -64,21 +65,23 @@ class TrinityExecutive:
 
     def select_mode(self, context):
         context = context or {}
-        ambiguity = self._clamp_unit(context.get('ambiguity', 0))
-        risk = self._clamp_unit(context.get('risk', 0))
-        novelty = self._clamp_unit(context.get('novelty', 0))
+        ambiguity = self._clamp_unit(context.get("ambiguity", 0))
+        risk = self._clamp_unit(context.get("risk", 0))
+        novelty = self._clamp_unit(context.get("novelty", 0))
 
         signal_pressure = (ambiguity * 0.34) + (risk * 0.36) + (novelty * 0.30)
         strongest_signal = max(ambiguity, risk, novelty)
 
         if signal_pressure < 0.24 and strongest_signal < 0.25:
-            return 'grounded'
+            return "grounded"
         if signal_pressure < 0.58:
-            return 'hybrid'
-        return 'exploratory'
+            return "hybrid"
+        return "exploratory"
 
     def allocate_weights(self, mode, history=None):
-        profile = deepcopy(self.MODE_PROFILES.get(mode, self.MODE_PROFILES['exploratory']))
+        profile = deepcopy(
+            self.MODE_PROFILES.get(mode, self.MODE_PROFILES["exploratory"])
+        )
         history = history or {}
 
         if history:

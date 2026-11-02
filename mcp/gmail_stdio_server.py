@@ -17,12 +17,13 @@ Usage (Claude Desktop config):
 """
 
 import json
+import logging
 import sys
 from pathlib import Path
 
 import httpx
-from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
 
 CREDS_PATH = Path.home() / ".config" / "drift" / "gmail_credentials.json"
 GMAIL_MCP_URL = "https://gmailmcp.googleapis.com/mcp/v1"
@@ -71,6 +72,9 @@ def _proxy(request_data: dict) -> dict:
             },
         }
     except Exception as exc:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return {
             "jsonrpc": "2.0",
             "id": request_data.get("id"),

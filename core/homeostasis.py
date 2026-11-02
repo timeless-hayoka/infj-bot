@@ -16,22 +16,23 @@ Key concepts:
   • Allostatic load — cumulative cost of chronic need deficits
 """
 
+import logging
 import random
 import sqlite3
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from drift.core.config import DATA_DIR
 
 HOMEOSTASIS_DB = DATA_DIR / "homeostasis.db"
 
 ENERGY_DECAY_RATE = 0.00001  # cost per CPU millisecond
-BASE_NETWORK_COST = 0.02      # flat cost for Gemini remote turns
+BASE_NETWORK_COST = 0.02  # flat cost for Gemini remote turns
 
 # Need definitions with setpoints and critical thresholds
-NEED_DEFINITIONS: Dict[str, Dict[str, Any]] = {
+NEED_DEFINITIONS: dict[str, dict[str, Any]] = {
     "energy": {
         "setpoint": 0.6,
         "critical_low": 0.15,
@@ -177,14 +178,14 @@ class NeedState:
 class HomeostaticRegulator:
     """The bot's survival imperative — maintain internal needs or cease to be."""
 
-    def __init__(self, db_path: Optional[Path] = None):
+    def __init__(self, db_path: Path | None = None):
         self.db_path = str(db_path or HOMEOSTASIS_DB)
         self._init_db()
         self.needs = self._load_needs()
         self.crisis_mode = False
         self.crisis_count = 0
         self.allostatic_load = 0.0
-        self.survival_narrative: List[str] = []
+        self.survival_narrative: list[str] = []
         self.last_regulation_action = ""
 
         # Higher Continuous Mode: mood persists via EMA
@@ -230,7 +231,7 @@ class HomeostaticRegulator:
             """)
             conn.commit()
 
-    def _load_needs(self) -> Dict[str, NeedState]:
+    def _load_needs(self) -> dict[str, NeedState]:
         needs = {}
         for name, defn in NEED_DEFINITIONS.items():
             needs[name] = NeedState(
@@ -269,7 +270,11 @@ class HomeostaticRegulator:
     # ── Need regulation ────────────────────────────────────────────
 
     def update_need(
-        self, name: str, current_value: float, context: Optional[Dict] = None, damping_factor: float = 0.1
+        self,
+        name: str,
+        current_value: float,
+        context: dict | None = None,
+        damping_factor: float = 0.1,
     ):
         """Update a need's current value and track trend with organic damping."""
         if name not in self.needs:
@@ -293,19 +298,29 @@ class HomeostaticRegulator:
 
         self._save_need_history(name, crisis=self._is_critical(name))
 
-    def update_needs(self, event: str = "inference_complete", timing: Optional[Dict] = None, response_len: int = 0):
+    def update_needs(
+        self,
+        event: str = "inference_complete",
+        timing: dict | None = None,
+        response_len: int = 0,
+    ):
         """Update needs based on event and timing data (e.g., hardware-attributed energy cost)."""
         from drift.core.being import get_being
+
         being = get_being()
-        
-        if timing is not None and timing.get("infer_cpu_ms") is not None and timing.get("infer_cpu_ms") > 0:
+
+        if (
+            timing is not None
+            and timing.get("infer_cpu_ms") is not None
+            and timing.get("infer_cpu_ms") > 0
+        ):
             energy_cost = timing["infer_cpu_ms"] * ENERGY_DECAY_RATE
         else:
             energy_cost = BASE_NETWORK_COST + (response_len * 0.00002)
-            
+
         with being._lock:
             being.state.energy = max(0.0, min(1.0, being.state.energy - energy_cost))
-            
+
         self.update_need("energy", being.state.energy)
 
     def _is_critical(self, name: str) -> bool:
@@ -316,10 +331,10 @@ class HomeostaticRegulator:
         need = self.needs[name]
         return need.current < need.optimal_min or need.current > need.optimal_max
 
-    def _critical_needs(self) -> List[str]:
+    def _critical_needs(self) -> list[str]:
         return [n for n in self.needs if self._is_critical(n)]
 
-    def _suboptimal_needs(self) -> List[str]:
+    def _suboptimal_needs(self) -> list[str]:
         return [n for n in self.needs if self._is_suboptimal(n)]
 
     def compute_allostatic_prediction(self, name: str, minutes_ahead: float = 10.0):
@@ -336,7 +351,7 @@ class HomeostaticRegulator:
     def compute_allostatic_load(self) -> float:
         """Total cumulative cost of maintaining needs away from setpoint."""
         load = 0.0
-        for name, need in self.needs.items():
+        for need in self.needs.values():
             deviation = abs(need.current - need.setpoint)
             if deviation > 0.2:
                 load += deviation * need.deficit_hours
@@ -436,7 +451,11 @@ class HomeostaticRegulator:
 
     def coherence_check(self, model_confidence: float) -> float:
         """Safeguard: Prevent confident hallucinations during low energy states."""
-        if "energy" in self.needs and model_confidence > 0.8 and self.needs["energy"].current < 0.20:
+        if (
+            "energy" in self.needs
+            and model_confidence > 0.8
+            and self.needs["energy"].current < 0.20
+        ):
             return model_confidence * 0.5
         return model_confidence
 
@@ -466,7 +485,9 @@ class HomeostaticRegulator:
             else:
                 self.update_need("coherence", 0.4)
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
 
         # Integration from IIT
         try:
@@ -476,7 +497,9 @@ class HomeostaticRegulator:
             phi_norm = iit.state.phi / 100.0
             self.update_need("integration", phi_norm)
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
 
         # Integrity from embodiment
         try:
@@ -492,7 +515,9 @@ class HomeostaticRegulator:
             )
             self.update_need("integrity", max(0.0, min(1.0, integrity)))
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
 
         # Growth from growth_trajectory
         try:
@@ -509,7 +534,9 @@ class HomeostaticRegulator:
             else:
                 self.update_need("growth", 0.4)
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
 
     # ── Cycle handler ──────────────────────────────────────────────
 
@@ -563,7 +590,9 @@ class HomeostaticRegulator:
                 intensity=self.allostatic_load,
             )
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
 
     def background_cycle(self, being=None):
         """Rich homeostasis tick for continuous background mode.
@@ -664,7 +693,10 @@ class HomeostaticRegulator:
                         intensity=self.weather_intensity,
                     )
         except Exception:
-            pass  # Background cycle is best-effort
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
+            # Background cycle is best-effort
 
     def _evolve_weather(self):
         """Slow atmospheric drift — weather changes like real weather, not dice rolls."""
@@ -768,10 +800,10 @@ class HomeostaticRegulator:
 
         return "\n".join(lines)
 
-    def get_need_summary(self) -> Dict[str, float]:
+    def get_need_summary(self) -> dict[str, float]:
         return {name: need.current for name, need in self.needs.items()}
 
-    def get_survival_events(self, limit: int = 10) -> List[Dict]:
+    def get_survival_events(self, limit: int = 10) -> list[dict]:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
@@ -780,7 +812,7 @@ class HomeostaticRegulator:
             ).fetchall()
         return [dict(r) for r in rows]
 
-    def get_need_history(self, limit: int = 50) -> List[Dict]:
+    def get_need_history(self, limit: int = 50) -> list[dict]:
         """Returns the recent history of need changes."""
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
@@ -803,7 +835,7 @@ class HomeostaticRegulator:
         free_energy = complexity - prediction_accuracy
         return float(free_energy)
 
-    def get_all_needs(self) -> Dict[str, Dict]:
+    def get_all_needs(self) -> dict[str, dict]:
         """Returns a detailed summary of all homeostatic needs."""
         return {
             name: {
@@ -831,7 +863,9 @@ class HomeostaticRegulator:
                     1.0, self.needs["integration"].current + 0.003
                 )
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
 
 
 # ── Self-registration ────────────────────────────────────────────
@@ -864,7 +898,7 @@ def _register():
 _register()
 
 
-_homeostasis_instance: Optional[HomeostaticRegulator] = None
+_homeostasis_instance: HomeostaticRegulator | None = None
 
 
 def get_homeostasis() -> HomeostaticRegulator:

@@ -4,7 +4,7 @@ import os
 from dataclasses import dataclass
 from typing import Optional
 
-_chroma_store: Optional[object] = None
+_chroma_store: object | None = None
 
 
 @dataclass(frozen=True)

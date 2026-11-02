@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from .forge_council_schema import (
     AgentMessage,
@@ -23,9 +23,9 @@ from .forge_council_schema import (
 class EvidenceBoard:
     def __init__(self, storage_path: str | Path | None = None):
         self.storage_path = Path(storage_path) if storage_path else None
-        self.claims: Dict[str, ClaimRecord] = {}
-        self.evidence_items: Dict[str, EvidenceItem] = {}
-        self.messages: List[AgentMessage] = []
+        self.claims: dict[str, ClaimRecord] = {}
+        self.evidence_items: dict[str, EvidenceItem] = {}
+        self.messages: list[AgentMessage] = []
 
         if self.storage_path:
             self.storage_path.parent.mkdir(parents=True, exist_ok=True)
@@ -49,7 +49,7 @@ class EvidenceBoard:
         except FileNotFoundError:
             return
 
-    def _append_record(self, kind: str, payload: Dict[str, Any]) -> None:
+    def _append_record(self, kind: str, payload: dict[str, Any]) -> None:
         if not self.storage_path:
             return
         with self.storage_path.open("a", encoding="utf-8") as handle:
@@ -59,7 +59,7 @@ class EvidenceBoard:
         self,
         proposer: str,
         subject: str,
-        content: Dict[str, Any],
+        content: dict[str, Any],
         confidence: float = 0.0,
         claim_id: str | None = None,
     ) -> ClaimRecord:
@@ -74,7 +74,7 @@ class EvidenceBoard:
         self._append_record("claim", claim.to_dict())
         return claim
 
-    def get_claim(self, claim_id: str) -> Optional[ClaimRecord]:
+    def get_claim(self, claim_id: str) -> ClaimRecord | None:
         return self.claims.get(claim_id)
 
     def add_message(self, message: AgentMessage) -> None:
@@ -95,27 +95,33 @@ class EvidenceBoard:
         self._append_record("evidence", item.to_dict())
         return item
 
-    def accept_claim(self, claim_id: str, actor: str, note: str | None = None) -> ClaimRecord:
+    def accept_claim(
+        self, claim_id: str, actor: str, note: str | None = None
+    ) -> ClaimRecord:
         claim = self._require_claim(claim_id)
         claim.transition(ClaimStatus.ACCEPTED, actor=actor, note=note)
         claim.accepted_by = actor
         self._append_record("claim", claim.to_dict())
         return claim
 
-    def reject_claim(self, claim_id: str, actor: str, note: str | None = None) -> ClaimRecord:
+    def reject_claim(
+        self, claim_id: str, actor: str, note: str | None = None
+    ) -> ClaimRecord:
         claim = self._require_claim(claim_id)
         claim.transition(ClaimStatus.REJECTED, actor=actor, note=note)
         self._append_record("claim", claim.to_dict())
         return claim
 
-    def mark_memory_updated(self, claim_id: str, actor: str, note: str | None = None) -> ClaimRecord:
+    def mark_memory_updated(
+        self, claim_id: str, actor: str, note: str | None = None
+    ) -> ClaimRecord:
         claim = self._require_claim(claim_id)
         claim.transition(ClaimStatus.MEMORY_UPDATED, actor=actor, note=note)
         claim.memory_updated = True
         self._append_record("claim", claim.to_dict())
         return claim
 
-    def summary(self) -> Dict[str, Any]:
+    def summary(self) -> dict[str, Any]:
         counts = {status.value: 0 for status in ClaimStatus}
         for claim in self.claims.values():
             counts[claim.status.value] += 1

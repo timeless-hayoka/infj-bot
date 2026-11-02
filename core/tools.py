@@ -1,15 +1,17 @@
 """Tool registry for the DRIFT agent. Safe, sandboxed, and declarative."""
 
 import json
+import logging
 import re
 import shutil
 import subprocess
 import sys
 import tempfile
+from collections.abc import Callable
 from datetime import datetime
 from ipaddress import ip_address
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Optional
 from urllib.parse import urlparse
 
 from drift.core.config import DATA_DIR, PROJECT_ROOT
@@ -123,7 +125,7 @@ def _coerce_timeout(
     return max(1, min(timeout, maximum))
 
 
-def _redact_audit_arguments(arguments: Dict[str, Any]) -> Dict[str, Any]:
+def _redact_audit_arguments(arguments: dict[str, Any]) -> dict[str, Any]:
     redacted = {}
     for key, value in (arguments or {}).items():
         if key in {"content", "code"}:
@@ -136,7 +138,7 @@ def _redact_audit_arguments(arguments: Dict[str, Any]) -> Dict[str, Any]:
     return redacted
 
 
-def _audit_tool_call(name: str, arguments: Dict[str, Any], result: str) -> None:
+def _audit_tool_call(name: str, arguments: dict[str, Any], result: str) -> None:
     try:
         record = {
             "timestamp": datetime.now().isoformat(timespec="seconds"),
@@ -146,19 +148,20 @@ def _audit_tool_call(name: str, arguments: Dict[str, Any], result: str) -> None:
             "result_preview": str(result).replace("\n", " ")[:500],
         }
         _TOOL_AUDIT_LOGGER.append(record)
-        
+
         # Phase 6: Sync to Unified Audit
         try:
             from drift.core.unified_audit import audit_log
-            audit_log(
-                event_type="tool_execution",
-                source="tools",
-                payload=record
-            )
+
+            audit_log(event_type="tool_execution", source="tools", payload=record)
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
     except Exception:
-        pass
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
 
 
 def recent_tool_audit(limit: int = 10) -> str:
@@ -232,6 +235,9 @@ def tool_read_file(path: str, offset: int = 0, max_lines: int = 200) -> str:
             lines = lines[:max_lines]
         return "\n".join(lines)
     except Exception as exc:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return f"[error reading file: {exc}]"
 
 
@@ -245,6 +251,9 @@ def tool_write_file(path: str, content: str) -> str:
         target.write_text(content, encoding="utf-8")
         return f"[ok: wrote {len(content)} chars to {path}]"
     except Exception as exc:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return f"[error writing file: {exc}]"
 
 
@@ -269,6 +278,7 @@ def tool_shell(command: str, timeout: int = SHELL_TIMEOUT) -> str:
             capture_output=True,
             text=True,
             timeout=timeout,
+            check=False,
         )
         output = result.stdout
         if result.stderr:
@@ -282,6 +292,9 @@ def tool_shell(command: str, timeout: int = SHELL_TIMEOUT) -> str:
     except subprocess.TimeoutExpired:
         return f"[error: command timed out after {timeout}s]"
     except Exception as exc:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return f"[error: {exc}]"
 
 
@@ -304,10 +317,13 @@ def tool_write_to_cold_storage(file_name: str, content: str) -> str:
         relative = target.relative_to(COLD_STORAGE_DIR.resolve())
         return f"[ok: wrote {len(content)} chars to {relative}]"
     except Exception as exc:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return f"[error writing cold storage file: {exc}]"
 
 
-def _ensure_wordlist(wordlist: str) -> Optional[str]:
+def _ensure_wordlist(wordlist: str) -> str | None:
     if not wordlist or not wordlist.strip():
         wordlist = "/usr/share/wordlists/dirb/common.txt"
     if Path(wordlist).exists():
@@ -380,6 +396,9 @@ def tool_fuzz_directories(
         timeout = _coerce_timeout(timeout, FFUF_TIMEOUT, FFUF_TIMEOUT)
         result = tool_shell(command, timeout=timeout)
     except Exception as exc:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return f"[error: ffuf failed: {exc}]"
 
     domain = urlparse(target_url).hostname or "unknown"
@@ -434,6 +453,9 @@ def tool_enumerate_subdomains(
         timeout = _coerce_timeout(timeout, SUBFINDER_TIMEOUT, SUBFINDER_TIMEOUT)
         result = tool_shell(command, timeout=timeout)
     except Exception as exc:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return f"[error: subfinder failed: {exc}]"
 
     scope = _target_scope_hint(f"http://{clean}")
@@ -459,9 +481,9 @@ def tool_enumerate_subdomains(
 
 
 def tool_computer_use(
-    actions: List[Dict[str, Any]],
+    actions: list[dict[str, Any]],
     authorization_confirmed: bool = False,
-    authorized_domains: Optional[List[str]] = None,
+    authorized_domains: list[str] | None = None,
 ) -> str:
     """Run a batch of browser UI actions (navigate, click, type, scroll, screenshot, etc.).
     Requires authorization. Screenshots are returned as base64 in the JSON report."""
@@ -476,6 +498,9 @@ def tool_computer_use(
         domains = set(authorized_domains) if authorized_domains else set()
         return run_computer_actions(actions, authorized_domains=domains)
     except Exception as exc:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return f"[error: computer use failed: {exc}]"
 
 
@@ -486,6 +511,9 @@ def tool_computer_session_status() -> str:
 
         return get_computer_session_status()
     except Exception as exc:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return f"[error: {exc}]"
 
 
@@ -496,6 +524,9 @@ def tool_close_computer_session() -> str:
 
         return close_computer_session()
     except Exception as exc:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return f"[error: {exc}]"
 
 
@@ -545,6 +576,7 @@ def tool_run_nuclei_scan(
             capture_output=True,
             text=True,
             timeout=timeout,
+            check=False,
         )
         if not output_path.exists():
             stderr = result.stderr.strip() or "scan did not create an output file"
@@ -574,12 +606,17 @@ def tool_run_nuclei_scan(
     except subprocess.TimeoutExpired:
         return f"[error: nuclei scan timed out after {timeout}s]"
     except Exception as exc:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return f"[error during nuclei scan: {exc}]"
     finally:
         try:
             output_path.unlink(missing_ok=True)
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
 
 
 def tool_web_search(query: str, max_results: int = 5) -> str:
@@ -599,6 +636,9 @@ def tool_web_search(query: str, max_results: int = 5) -> str:
             lines.append(f"{i}. {title}\n   {href}\n   {body}")
         return "\n\n".join(lines)
     except Exception as exc:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return f"[error searching: {exc}]"
 
 
@@ -655,7 +695,7 @@ safe_builtins = {{
 }}
 sandbox_globals = {{"__name__": "__main__", "__builtins__": safe_builtins, "plt": plt}}
 try:
-    exec({repr(code)}, sandbox_globals)
+    exec({code!r}, sandbox_globals)
 except Exception as e:
     print("[runtime error]", e, file=sys.stderr)
     traceback.print_exc()
@@ -686,6 +726,7 @@ print(json.dumps(result))
             capture_output=True,
             text=True,
             timeout=timeout,
+            check=False,
         )
         # Parse the JSON result from the script
         try:
@@ -716,14 +757,17 @@ print(json.dumps(result))
     except subprocess.TimeoutExpired:
         return f"[error: python execution timed out after {timeout}s]"
     except Exception as exc:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return f"[error: {exc}]"
 
 
 def tool_call_api(
     url: str,
     method: str = "GET",
-    headers: Optional[Dict[str, str]] = None,
-    body: Optional[str] = None,
+    headers: dict[str, str] | None = None,
+    body: str | None = None,
     authorization_confirmed: bool = False,
     timeout: int = 30,
 ) -> str:
@@ -788,6 +832,9 @@ def tool_call_api(
         status_line = f"Status: {resp.status_code}\nHeaders: {dict(resp.headers)}"
         return f"{status_line}\n\n{content}"
     except Exception as exc:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return f"[error: API call failed: {exc}]"
 
 
@@ -811,6 +858,9 @@ def tool_list_directory(path: str = ".") -> str:
             items.append(f"[{prefix}] {entry.name:40s} {size}")
         return "\n".join(sorted(items))
     except Exception as exc:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return f"[error: {exc}]"
 
 
@@ -834,6 +884,9 @@ def tool_snapshot_state(label: str) -> str:
             tar.add(str(STATE_ROOT), arcname=".drift_os")
         return f"[ok: snapshot created at {target_path}]"
     except Exception as exc:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return f"[error creating snapshot: {exc}]"
 
 
@@ -872,6 +925,9 @@ def tool_rollback_state(snapshot_name: str) -> str:
 
         return f"[ok: state rolled back to {snapshot_name}. Refreshing session recommended.]"
     except Exception as exc:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return f"[error rolling back: {exc}]"
 
 
@@ -904,7 +960,7 @@ HIGH_RISK_TOOLS = {
 }
 
 
-TOOL_REGISTRY: Dict[str, Callable] = {
+TOOL_REGISTRY: dict[str, Callable] = {
     "read_file": tool_read_file,
     "write_file": tool_write_file,
     "shell": tool_shell,
@@ -1239,15 +1295,18 @@ def execute_tool_call(raw_json: str) -> str:
         _audit_tool_call(name, arguments, result)
         return result
     except Exception as exc:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         result = f"[error executing {name}: {exc}]"
         _audit_tool_call(name, arguments, result)
         return result
 
 
-def extract_tool_calls(text: str) -> List[Dict[str, Any]]:
+def extract_tool_calls(text: str) -> list[dict[str, Any]]:
     """Extract tool call JSON blocks from model output."""
     calls = []
-    pattern = re.compile(r"```tool\s*\n(.*?)\n```", re.S)
+    pattern = re.compile(r"```tool\s*\n(.*?)\n```", re.DOTALL)
     for match in pattern.finditer(text):
         raw = match.group(1).strip()
         try:

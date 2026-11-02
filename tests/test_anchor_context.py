@@ -19,7 +19,12 @@ def anchor_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     )
     monkeypatch.setenv("ANCHOR_DATA_ROOT", str(tmp_path))
     monkeypatch.setenv("ANCHOR_VAULT_ROOT", str(vault))
-    for name in ("config_adapter", "drift.config_adapter", "core.anchor_context", "drift.trinity.http_api"):
+    for name in (
+        "config_adapter",
+        "drift.config_adapter",
+        "core.anchor_context",
+        "drift.trinity.http_api",
+    ):
         importlib.reload(importlib.import_module(name))
     return tmp_path
 

@@ -3,7 +3,7 @@
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, Optional
+from typing import Optional
 
 from drift.hive_mind.protocol.dcp import DCPMessage, NodeRole, Resolution
 
@@ -18,15 +18,15 @@ class ConsensusThread:
     thread_id: str
     original_thought: DCPMessage
     state: ThreadState = ThreadState.OPEN
-    resolution: Optional[DCPMessage] = None
-    votes: Dict[str, str] = field(default_factory=dict)
+    resolution: DCPMessage | None = None
+    votes: dict[str, str] = field(default_factory=dict)
 
 
 class ConsensusEngine:
     """In-process consensus engine: propose → vote → resolve."""
 
     def __init__(self):
-        self._threads: Dict[str, ConsensusThread] = {}
+        self._threads: dict[str, ConsensusThread] = {}
 
     def propose(self, msg: DCPMessage) -> ConsensusThread:
         thread_id = str(uuid.uuid4())[:8]

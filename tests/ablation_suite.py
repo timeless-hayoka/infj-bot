@@ -37,14 +37,16 @@ from __future__ import annotations
 import argparse
 import copy
 import json
+import logging
 import math
 import os
 import re
 import sys
 import time
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Tuple
+from typing import Any
 
 # Ensure project root is importable
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -53,7 +55,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 # ── Prompt dataset (50 prompts, 5 categories × 10) ──────────────────
 
-PROMPT_DATASET: List[Tuple[str, str]] = [
+PROMPT_DATASET: list[tuple[str, str]] = [
     # Greetings / casual (10)
     ("greeting", "yo whats good"),
     ("greeting", "hey, how's it going?"),
@@ -218,7 +220,7 @@ def extract_chill_rate(text: str) -> float:
     return round((count / max(words, 1)) * 100, 3)
 
 
-def extract_fallback_indicators(text: str) -> Dict[str, Any]:
+def extract_fallback_indicators(text: str) -> dict[str, Any]:
     """Detect if response is an offline fallback."""
     lowered = text.lower()
     indicators = {
@@ -274,7 +276,7 @@ class AblationRunner:
     def __init__(
         self,
         condition: str,
-        prompts: List[Tuple[str, str]],
+        prompts: list[tuple[str, str]],
         output_dir: Path,
         live: bool = False,
     ):
@@ -282,16 +284,16 @@ class AblationRunner:
         self.prompts = prompts
         self.output_dir = output_dir
         self.live = live
-        self.results: List[Dict] = []
+        self.results: list[dict] = []
         self.memory = None
 
-    def _setup_ablation(self) -> Tuple[Any, Callable]:
+    def _setup_ablation(self) -> tuple[Any, Callable]:
         """Configure the system for the given ablation condition.
         Returns (brain_instance, cleanup_fn)."""
         print("[DEBUG] _setup_ablation start", flush=True)
         from drift.core.brain import DriftBrain
-        from drift.core.memory import DriftMemory
         from drift.core.logic_chain import get_chain_navigator
+        from drift.core.memory import DriftMemory
 
         print("[DEBUG] imports done", flush=True)
 
@@ -307,7 +309,7 @@ class AblationRunner:
         brain.chain_navigator = nav
         print("[DEBUG] after navigator", flush=True)
 
-        cleanup = lambda: None  # noqa: E731
+        cleanup = lambda: None
 
         if self.condition == "A":
             # No Council — stub out Elysium/Phi Council
@@ -317,17 +319,21 @@ class AblationRunner:
                 elysium = get_elysium()
                 original_reflect = elysium.reflect
                 elysium.reflect = lambda *a, **k: None
-                cleanup = lambda: setattr(elysium, "reflect", original_reflect)  # noqa: E731
+                cleanup = lambda: setattr(elysium, "reflect", original_reflect)
             except Exception:
-                pass
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
             try:
                 from drift.core.phi_council import COUNCIL_MAPPING
 
                 original = copy.deepcopy(COUNCIL_MAPPING)
                 COUNCIL_MAPPING.clear()
-                cleanup = lambda: COUNCIL_MAPPING.update(original)  # noqa: E731
+                cleanup = lambda: COUNCIL_MAPPING.update(original)
             except Exception:
-                pass
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
 
         elif self.condition == "B":
             # No Shadow — shadow no-op
@@ -337,9 +343,11 @@ class AblationRunner:
                 shadow = get_shadow()
                 original_tick = shadow.background_tick
                 shadow.background_tick = lambda *a, **k: None
-                cleanup = lambda: setattr(shadow, "background_tick", original_tick)  # noqa: E731
+                cleanup = lambda: setattr(shadow, "background_tick", original_tick)
             except Exception:
-                pass
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
 
         elif self.condition == "C":
             # No Homeostasis — flat state
@@ -349,12 +357,14 @@ class AblationRunner:
                 homeo = get_homeostasis()
                 original_cycle = homeo.background_cycle
                 homeo.background_cycle = lambda *a, **k: None
-                for name, need in getattr(homeo, "needs", {}).items():
+                for need in getattr(homeo, "needs", {}).values():
                     need.current = 0.5
                     need.trend = 0.0
-                cleanup = lambda: setattr(homeo, "background_cycle", original_cycle)  # noqa: E731
+                cleanup = lambda: setattr(homeo, "background_cycle", original_cycle)
             except Exception:
-                pass
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
 
         elif self.condition == "D":
             # Cosine-only RAG — replace DMU recall with simple cosine
@@ -372,11 +382,13 @@ class AblationRunner:
                     )
 
                 DriftMemory.retrieve_context_ranked = cosine_only_retrieve
-                cleanup = lambda: setattr(  # noqa: E731
+                cleanup = lambda: setattr(
                     DriftMemory, "retrieve_context_ranked", original_retrieve
                 )
             except Exception:
-                pass
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
 
         elif self.condition == "E":
             # Local LLM only — force Ollama by disabling cloud providers
@@ -391,13 +403,15 @@ class AblationRunner:
                 cfg_module.DRIFT_USE_KIMI = False
                 brain = DriftBrain()
                 brain.chain_navigator = nav
-                cleanup = lambda: (  # noqa: E731
+                cleanup = lambda: (
                     setattr(cfg_module, "API_KEY", original_api_key),
                     setattr(cfg_module, "DRIFT_USE_GROQ", original_use_groq),
                     setattr(cfg_module, "DRIFT_USE_KIMI", original_use_kimi),
                 )
             except Exception:
-                pass
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
 
         elif self.condition == "F":
             # Full stack — baseline, no modifications
@@ -408,9 +422,10 @@ class AblationRunner:
             # Only force Ollama fallback for Condition E (Local LLM only)
             print("[DEBUG] live mode start", flush=True)
             try:
-                from drift.core import config as cfg_module
-                from drift.core.local_llm import OllamaBridge
                 import drift.core.brain as brain_module
+                from drift.core.local_llm import OllamaBridge
+
+                from drift.core import config as cfg_module
 
                 if self.condition == "E":
                     # Condition E: force local-only as per test design
@@ -456,6 +471,9 @@ class AblationRunner:
                     brain._use_local_fallback = True
                 print("[DEBUG] live mode setup complete", flush=True)
             except Exception as exc:
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
                 print(f"  [live mode setup warning: {exc}]")
             return brain, cleanup
 
@@ -593,14 +611,14 @@ class AblationRunner:
 
         return brain, _full_cleanup
 
-    def _run_single(self, brain, category: str, prompt: str) -> Dict:
+    def _run_single(self, brain, category: str, prompt: str) -> dict:
         """Run one prompt through the FULL pipeline (orchestrator + brain) and collect metrics."""
         print(f"[DEBUG] _run_single: {prompt[:30]}", flush=True)
         from drift.core.cognitive_orchestrator import CognitiveOrchestrator
         from drift.core.commands import BotState
         from drift.core.config import DEFAULT_AUTHORIZED_TARGETS
-        from drift.core.plugins.goals import GoalsDB
         from drift.core.plugins.documents import DocumentStore
+        from drift.core.plugins.goals import GoalsDB
 
         start = time.time()
         response = ""
@@ -618,7 +636,7 @@ class AblationRunner:
         try:
             # Assemble the full prompt through the orchestrator (exercises memory, being, etc.)
             print("[DEBUG] before assemble_prompt", flush=True)
-            assembled_prompt, emotion_data, dissonance_data = (
+            assembled_prompt, _emotion_data, _dissonance_data = (
                 orchestrator.assemble_prompt(
                     prompt,
                     state,
@@ -635,6 +653,9 @@ class AblationRunner:
             response = brain.think(prompt)
             print("[DEBUG] after think", flush=True)
         except Exception as exc:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             exc_str = str(exc).lower()
             is_timeout = "timeout" in exc_str or "timed out" in exc_str
             response = f"[ERROR: {type(exc).__name__}: {exc}]"
@@ -678,7 +699,7 @@ class AblationRunner:
             "has_dmu_in_prompt": has_dmu,
         }
 
-    def run(self) -> Dict:
+    def run(self) -> dict:
         """Run all prompts for this condition and return summary."""
         brain, cleanup = self._setup_ablation()
         print(f"\n{'=' * 60}")
@@ -706,7 +727,7 @@ class AblationRunner:
         }
         return names.get(self.condition, "Unknown")
 
-    def _summarize(self) -> Dict:
+    def _summarize(self) -> dict:
         """Compute aggregate metrics."""
         latencies = [r["latency_sec"] for r in self.results]
         fallbacks = sum(1 for r in self.results if r["is_fallback"])
@@ -732,7 +753,7 @@ class AblationRunner:
         dmu_counts = sum(1 for r in self.results if r.get("has_dmu_in_prompt", False))
 
         # Emotion drift: count unique emotion labels per category
-        emotions_by_cat: Dict[str, List[str]] = {}
+        emotions_by_cat: dict[str, list[str]] = {}
         for r in self.results:
             emotions_by_cat.setdefault(r["category"], []).append(r["emotion_label"])
         emotion_drift = {
@@ -741,7 +762,7 @@ class AblationRunner:
         }
 
         # Category breakdown
-        by_category: Dict[str, Dict] = {}
+        by_category: dict[str, dict] = {}
         for cat in ["greeting", "stress", "deep", "tech", "creative"]:
             cat_results = [r for r in self.results if r["category"] == cat]
             if cat_results:
@@ -803,7 +824,7 @@ class AblationRunner:
         }
         return summary
 
-    def save(self, summary: Dict):
+    def save(self, summary: dict):
         """Save results to disk."""
         stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         json_path = self.output_dir / f"ablation_{stamp}_{self.condition}.json"
@@ -899,7 +920,7 @@ def main():
     conditions = [c.strip().upper() for c in args.conditions.split(",")]
     if args.diverse > 0:
         # Sample N prompts per category for balanced testing
-        by_cat: Dict[str, List[Tuple[str, str]]] = {}
+        by_cat: dict[str, list[tuple[str, str]]] = {}
         for cat, prompt in PROMPT_DATASET:
             by_cat.setdefault(cat, []).append((cat, prompt))
         prompts = []
@@ -925,8 +946,8 @@ def main():
     print(f"Output: {output_dir}")
     print("=" * 60)
 
-    all_summaries: List[Dict] = []
-    json_paths: List[Path] = []
+    all_summaries: list[dict] = []
+    json_paths: list[Path] = []
 
     for cond in conditions:
         print(f"[DEBUG] starting condition {cond}", flush=True)
@@ -1019,8 +1040,10 @@ def _compute_pooled_std(baseline_vals: list[float], cond_vals: list[float]) -> f
 
     n1, n2 = len(baseline_vals), len(cond_vals)
     if n1 < 2 or n2 < 2:
-        return max(statistics.stdev(baseline_vals) if n1 >= 2 else 0,
-                   statistics.stdev(cond_vals) if n2 >= 2 else 0)
+        return max(
+            statistics.stdev(baseline_vals) if n1 >= 2 else 0,
+            statistics.stdev(cond_vals) if n2 >= 2 else 0,
+        )
     s1 = statistics.stdev(baseline_vals)
     s2 = statistics.stdev(cond_vals)
     return math.sqrt(((n1 - 1) * s1**2 + (n2 - 1) * s2**2) / (n1 + n2 - 2))
@@ -1075,7 +1098,10 @@ def _write_delta_report(summaries: list[dict], txt_path: Path, md_path: Path):
         return 0.0
 
     lines_txt = []
-    lines_md = ["# DRIFT Ablation Delta Report\n", "**Baseline:** Condition F (Full stack)\n\n"]
+    lines_md = [
+        "# DRIFT Ablation Delta Report\n",
+        "**Baseline:** Condition F (Full stack)\n\n",
+    ]
 
     lines_txt.append("=" * 80)
     lines_txt.append("DELTA ± POOLED STD  (Condition vs Baseline F)")
@@ -1134,20 +1160,36 @@ def _write_delta_report(summaries: list[dict], txt_path: Path, md_path: Path):
             )
 
     lines_txt.append("-" * 80)
-    lines_txt.append(f"Load-bearing differences: {load_bearing_count}/{total_comparisons}")
+    lines_txt.append(
+        f"Load-bearing differences: {load_bearing_count}/{total_comparisons}"
+    )
     lines_txt.append("")
     lines_txt.append("Interpretation:")
-    lines_txt.append("  • YES  → Removing this subsystem had a statistically detectable effect.")
-    lines_txt.append("  • NO   → The difference is within the noise band — not load-bearing.")
-    lines_txt.append("  • If a subsystem shows NO across all metrics, it may be decorative.")
+    lines_txt.append(
+        "  • YES  → Removing this subsystem had a statistically detectable effect."
+    )
+    lines_txt.append(
+        "  • NO   → The difference is within the noise band — not load-bearing."
+    )
+    lines_txt.append(
+        "  • If a subsystem shows NO across all metrics, it may be decorative."
+    )
     lines_txt.append("")
 
     lines_md.append("\n")
-    lines_md.append(f"**Load-bearing differences: {load_bearing_count}/{total_comparisons}**\n\n")
+    lines_md.append(
+        f"**Load-bearing differences: {load_bearing_count}/{total_comparisons}**\n\n"
+    )
     lines_md.append("## Interpretation\n")
-    lines_md.append("- **YES** → Removing this subsystem had a statistically detectable effect.\n")
-    lines_md.append("- **NO** → The difference is within the noise band — not load-bearing.\n")
-    lines_md.append("- If a subsystem shows NO across all metrics, it may be decorative.\n")
+    lines_md.append(
+        "- **YES** → Removing this subsystem had a statistically detectable effect.\n"
+    )
+    lines_md.append(
+        "- **NO** → The difference is within the noise band — not load-bearing.\n"
+    )
+    lines_md.append(
+        "- If a subsystem shows NO across all metrics, it may be decorative.\n"
+    )
 
     with open(txt_path, "w") as fh:
         fh.write("\n".join(lines_txt))

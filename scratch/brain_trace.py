@@ -1,5 +1,7 @@
-import sys
+import logging
 import os
+import sys
+
 from google.genai import types as genai_types
 
 # Ensure project root is in path
@@ -29,7 +31,7 @@ sys_instruction = brain.get_system_instruction(prompt)
 print(f"[TRACE] System instruction length: {len(sys_instruction)}")
 
 print("[TRACE] Formatting full prompt...")
-tool_prompt = "Format your tool call exactly as..." # mocked tool prompt
+tool_prompt = "Format your tool call exactly as..."  # mocked tool prompt
 chain_block = ""
 history_context = ""
 full_prompt = (
@@ -48,4 +50,7 @@ try:
     )
     print(f"[TRACE] Response text: {response.text}")
 except Exception as e:
+    logging.getLogger(__name__).debug(
+        "Operation failed; applying fallback", exc_info=True
+    )
     print(f"[TRACE] Error: {e}")

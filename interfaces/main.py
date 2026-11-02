@@ -1,51 +1,58 @@
 import asyncio
 import logging
 import random
+import sys
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
-from typing import Dict, Optional
-from drift.core.brain import DriftBrain
-from drift.core.commands import BotState, handle_command, is_command, parse_command
-from drift.core.cognitive_orchestrator import CognitiveOrchestrator
-from drift.core.logic_chain import get_chain_navigator
-from drift.core.global_workspace import get_workspace
-from drift.core.resilience import get_resilience, HealthCheck
-from drift.core.history import ChatHistory
-from drift.core.memory import DriftMemory
-from drift.core.plugins.goals import GoalsDB
-from drift.core.plugins.proactive import ProactiveState
-from drift.core.plugins.documents import DocumentStore
-from drift.core.plugins.aspirations import AspirationalSelf
+from typing import Optional
+
 from drift.core.being import get_being
+from drift.core.brain import DriftBrain
+from drift.core.cognitive_architecture import CognitiveArchitecture, CycleContext
+from drift.core.cognitive_ops import pedi_regulation_step, state_conditioned_llm
+from drift.core.cognitive_orchestrator import CognitiveOrchestrator
+from drift.core.commands import BotState, handle_command, is_command, parse_command
 from drift.core.config import DEFAULT_AUTHORIZED_TARGETS, REFLECTION_INTERVAL
-from drift.core.plugins.creativity import CreativeEngine
-from drift.core.plugins.dreamer import Dreamer
+from drift.core.context_engine import (
+    CognitivePayload,
+    CognitiveState,
+    Context,
+    ContextWorker,
+)
+from drift.core.dii_tracker import get_dii_tracker
+from drift.core.embodiment import EmbodiedSelf
 from drift.core.emotional_field import EmotionalField
-from drift.core.plugins.explorer import AutonomousExplorer
-from drift.core.plugins.growth_trajectory import GrowthTrajectory
-from drift.core.plugins.inner_voice import InnerVoice
+from drift.core.global_workspace import get_workspace
+from drift.core.history import ChatHistory
+from drift.core.hive.elysium import get_elysium
+from drift.core.homeostasis import HomeostaticRegulator
+from drift.core.intuition import IntuitionEngine
+from drift.core.logic_chain import get_chain_navigator
+from drift.core.memory import DriftMemory
 from drift.core.metacognition import MetacognitionEngine
+from drift.core.phi_proxy import PhiProxy
+from drift.core.plugins.aspirations import AspirationalSelf
+from drift.core.plugins.creativity import CreativeEngine
+from drift.core.plugins.documents import DocumentStore
+from drift.core.plugins.dreamer import Dreamer
+from drift.core.plugins.explorer import AutonomousExplorer
+from drift.core.plugins.goals import GoalsDB
+from drift.core.plugins.growth_trajectory import GrowthTrajectory
+from drift.core.plugins.humanity import HumanityEngine
+from drift.core.plugins.inner_voice import InnerVoice
+from drift.core.plugins.physics import PhysicsEngine
 from drift.core.plugins.predictor import PredictiveNeeds
+from drift.core.plugins.proactive import ProactiveState
 from drift.core.plugins.relationship import RelationshipModel
-from drift.core.self_modify import SelfModification
 from drift.core.plugins.temporal import TemporalSense
 from drift.core.plugins.values import ValueSystem
-from drift.core.plugins.physics import PhysicsEngine
-from drift.core.plugins.humanity import HumanityEngine
-from drift.core.intuition import IntuitionEngine
-from drift.core.embodiment import EmbodiedSelf
-from drift.core.phi_proxy import PhiProxy
-from drift.core.homeostasis import HomeostaticRegulator
+from drift.core.resilience import HealthCheck, get_resilience
+from drift.core.self_modify import SelfModification
 from drift.core.shadow import get_shadow
-from drift.core.cognitive_architecture import CognitiveArchitecture, CycleContext
-from drift.core.hive.elysium import get_elysium
-from drift.core.dii_tracker import get_dii_tracker
-import sys
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
-from drift.core.context_engine import CognitiveState, Context, ContextWorker, CognitivePayload
-from drift.core.cognitive_ops import pedi_regulation_step, state_conditioned_llm
+
 from drift.interfaces.comonad_cli import calculate_state_diff
 
 logger = logging.getLogger("drift")
@@ -56,10 +63,12 @@ brain = DriftBrain()
 memory = DriftMemory()
 history = ChatHistory()
 
+
 # Phase 5: Wire deliberation bridge
 def deliberation_bridge(goal: str):
     """Synchronous bridge to the async Elysium deliberation, avoiding deadlocks."""
     import asyncio
+
     from drift.core.hive.elysium import DeliberationResult
 
     def run_in_new_loop():
@@ -73,7 +82,7 @@ def deliberation_bridge(goal: str):
     try:
         try:
             loop = asyncio.get_running_loop()
-            # If we're here, we're in an async context. 
+            # If we're here, we're in an async context.
             # We can't block the loop, so we MUST run in a separate thread.
             with ThreadPoolExecutor() as executor:
                 future = executor.submit(run_in_new_loop)
@@ -81,10 +90,21 @@ def deliberation_bridge(goal: str):
         except RuntimeError:
             # No loop running, we can just use asyncio.run
             return asyncio.run(_orchestrator.deliberate(goal))
-            
+
     except Exception as e:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         logger.error("Deliberation bridge failed: %s", e)
-        return DeliberationResult(goal=goal, resolution=f"BLOCK: deliberation engine error ({e})", council_votes={}, winning_role="none", moral_weight=0.0, narrative_weight=0.0)
+        return DeliberationResult(
+            goal=goal,
+            resolution=f"BLOCK: deliberation engine error ({e})",
+            council_votes={},
+            winning_role="none",
+            moral_weight=0.0,
+            narrative_weight=0.0,
+        )
+
 
 brain.deliberation_callback = deliberation_bridge
 get_being().deliberation_callback = deliberation_bridge
@@ -120,9 +140,9 @@ _embodiment = EmbodiedSelf()
 _iit = PhiProxy()
 _homeostasis = HomeostaticRegulator()
 _shadow = get_shadow()
-_last_interaction_time: Optional[datetime] = None
+_last_interaction_time: datetime | None = None
 _last_user_input: str = ""
-_last_interaction_data: Optional[Dict] = None
+_last_interaction_data: dict | None = None
 
 
 def _wire_singletons():
@@ -167,6 +187,7 @@ _orchestrator.brain = brain
 
 # Phase 6: Unified Audit
 from drift.core.unified_audit import wire_orchestrator_audit
+
 wire_orchestrator_audit(_orchestrator)
 
 # Global Workspace — the bot's conscious mind
@@ -186,6 +207,9 @@ def _check_memory_health():
         count = memory.count()
         return HealthCheck("memory", True, 0, f"{count} items stored")
     except Exception as exc:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return HealthCheck("memory", False, 0, str(exc))
 
 
@@ -197,6 +221,9 @@ def _check_brain_health():
         )
         return HealthCheck("brain", True, 0, f"{len(models)} local models available")
     except Exception as exc:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return HealthCheck("brain", False, 0, str(exc))
 
 
@@ -211,6 +238,9 @@ def _check_elysium_health():
             f"coherence={nexus.get('coherence_score', 0):.2f} decisions={nexus.get('decision_count', 0)}",
         )
     except Exception as exc:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return HealthCheck("elysium", False, 0, str(exc))
 
 
@@ -329,7 +359,7 @@ async def consciousness_loop():
             logger.exception("background memory prune failed")
 
         # Build shared cycle context
-        global _last_interaction_time
+
         minutes_idle = 0.0
         if _last_interaction_time is not None:
             minutes_idle = (
@@ -426,9 +456,7 @@ async def consciousness_loop():
             if iteration % 18 == 0 and random.random() < 0.12:
                 pending = _self_modify._load_proposals()
                 if pending:
-                    print(
-                        f"\n\n[DRIFT]: (Considering) {pending[0]['description']}"
-                    )
+                    print(f"\n\n[DRIFT]: (Considering) {pending[0]['description']}")
                     print("\n[USER]> ", end="", flush=True)
         except Exception:
             logger.exception("self-modify sharing failed")
@@ -467,12 +495,14 @@ async def _read_user_line(prompt: str) -> str | None:
 
 async def chat_loop():
     """Main interactive chat loop."""
-    console.print(Panel(
-        "[italic cyan]'A mind that listens, remembers, and wonders.'[/italic cyan]\n"
-        "[dim](Type 'exit' to power down)[/dim]",
-        title="[bold magenta]DRIFT // CHROMATIC CORE ONLINE[/bold magenta]",
-        border_style="magenta"
-    ))
+    console.print(
+        Panel(
+            "[italic cyan]'A mind that listens, remembers, and wonders.'[/italic cyan]\n"
+            "[dim](Type 'exit' to power down)[/dim]",
+            title="[bold magenta]DRIFT // CHROMATIC CORE ONLINE[/bold magenta]",
+            border_style="magenta",
+        )
+    )
 
     _temporal.record_session_start()
 
@@ -487,7 +517,9 @@ async def chat_loop():
             break
 
         if user_input.lower() in ["exit", "quit"]:
-            console.print("[dim italic]* I'll be here in the quiet if you need me again. Goodbye, Jude.[/dim italic]")
+            console.print(
+                "[dim italic]* I'll be here in the quiet if you need me again. Goodbye, Jude.[/dim italic]"
+            )
             _temporal.record_session_end()
             break
 
@@ -504,7 +536,13 @@ async def chat_loop():
                 goals_db,
                 doc_store,
             )
-            console.print(Panel(Markdown(output), title="[bold cyan]DRIFT[/bold cyan]", border_style="cyan"))
+            console.print(
+                Panel(
+                    Markdown(output),
+                    title="[bold cyan]DRIFT[/bold cyan]",
+                    border_style="cyan",
+                )
+            )
             continue
 
         # Extract atomic raw active state snapshot before GWT/PEDI smoothing
@@ -512,25 +550,33 @@ async def chat_loop():
             "coherence": 0.8,
             "resonance": 0.8,
             "tension": 0.2,
-            "shadow_depth": 0.2
+            "shadow_depth": 0.2,
         }
         try:
             physics_state = _physics.get_state()
             raw_active_state["resonance"] = physics_state.get("resonance", 0.8)
             raw_active_state["tension"] = physics_state.get("tension", 0.2)
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
 
         try:
             raw_active_state["shadow_depth"] = _shadow.get_state().depth
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
 
         try:
             elysium_status = _elysium.council_status()
-            raw_active_state["coherence"] = elysium_status.get("nexus", {}).get("coherence_score", 0.8)
+            raw_active_state["coherence"] = elysium_status.get("nexus", {}).get(
+                "coherence_score", 0.8
+            )
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
 
         def generate_response_func(u_input, regulated_state):
             # Align subsystems with regulated state before prompt assembly
@@ -539,13 +585,17 @@ async def chat_loop():
                 _physics.state.tension = regulated_state.get("tension", 0.2)
                 _physics._save_state()
             except Exception:
-                pass
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
 
             try:
                 _shadow._state.depth = regulated_state.get("shadow_depth", 0.2)
                 _shadow._save_state()
             except Exception:
-                pass
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
 
             try:
                 # Assemble prompt with regulated states in place
@@ -559,19 +609,21 @@ async def chat_loop():
                 )
             except Exception as exc:
                 from drift.core.cognitive_orchestrator import IntentBlockedError
+
                 if isinstance(exc, IntentBlockedError):
                     generate_response_func.is_blocked = True
                     return str(exc)
-                raise exc
-
+                raise
             # Generate LLM response
-            output = brain.agent_turn(prompt, tools_enabled=True, raw_user_input=u_input, mode=state.mode)
-            
+            output = brain.agent_turn(
+                prompt, tools_enabled=True, raw_user_input=u_input, mode=state.mode
+            )
+
             # Save prompt/emotion/dissonance to closure scope
             generate_response_func.prompt = prompt
             generate_response_func.emotion = emotion
             generate_response_func.dissonance = dissonance
-            
+
             return output
 
         if "--comonadic" in sys.argv:
@@ -580,7 +632,7 @@ async def chat_loop():
                 coherence=raw_active_state.get("coherence", 0.8),
                 resonance=raw_active_state.get("resonance", 0.8),
                 tension=raw_active_state.get("tension", 0.2),
-                shadow_depth=raw_active_state.get("shadow_depth", 0.2)
+                shadow_depth=raw_active_state.get("shadow_depth", 0.2),
             )
             payload = CognitivePayload(user_input=user_input)
             ctx = Context[CognitivePayload](state=cogn_state, value=payload)
@@ -596,12 +648,16 @@ async def chat_loop():
                 _physics.state.tension = worker.state.tension
                 _physics._save_state()
             except Exception:
-                pass
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
             try:
                 _shadow._state.depth = worker.state.shadow_depth
                 _shadow._save_state()
             except Exception:
-                pass
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
 
             try:
                 prompt, emotion, dissonance = _orchestrator.assemble_prompt(
@@ -614,14 +670,17 @@ async def chat_loop():
                 )
             except Exception as exc:
                 from drift.core.cognitive_orchestrator import IntentBlockedError
+
                 if isinstance(exc, IntentBlockedError):
                     print(f"\n[DRIFT]: {exc}")
                     continue
-                raise exc
+                raise
             prompt = f"[System Direction: {worker.current().response}]\n{prompt}"
 
             # Generate LLM response
-            output = brain.agent_turn(prompt, tools_enabled=True, raw_user_input=user_input, mode=state.mode)
+            output = brain.agent_turn(
+                prompt, tools_enabled=True, raw_user_input=user_input, mode=state.mode
+            )
 
             # Log drift and vault deposit
             initial_state = worker.history[0]
@@ -638,29 +697,41 @@ async def chat_loop():
                     user_q=user_input,
                     sys_q=output,
                     current_state=final_state.model_dump(),
-                    quarantined=(final_state.shadow_depth > 0.75)
+                    quarantined=(final_state.shadow_depth > 0.75),
                 )
             except Exception:
-                pass
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
 
             _ = final_state.model_dump()
             status = "STABLE"
         else:
             # Run regulated CLI cycle
-            output, regulated_state, status = await asyncio.to_thread(
+            output, _regulated_state, status = await asyncio.to_thread(
                 _workspace.execute_cli_cycle,
                 raw_active_state,
                 user_input,
-                generate_response_func
+                generate_response_func,
             )
 
             # Retrieve prompt, emotion, and dissonance from the call
             prompt = getattr(generate_response_func, "prompt", "")
-            emotion = getattr(generate_response_func, "emotion", {"label": "neutral", "intensity": 0.5})
+            emotion = getattr(
+                generate_response_func,
+                "emotion",
+                {"label": "neutral", "intensity": 0.5},
+            )
             dissonance = getattr(generate_response_func, "dissonance", {"score": 0.0})
 
         if getattr(generate_response_func, "is_blocked", False):
-            console.print(Panel(Markdown(output), title="[bold cyan]DRIFT[/bold cyan]", border_style="cyan"))
+            console.print(
+                Panel(
+                    Markdown(output),
+                    title="[bold cyan]DRIFT[/bold cyan]",
+                    border_style="cyan",
+                )
+            )
             continue
 
         if status != "STABLE":
@@ -795,9 +866,17 @@ async def chat_loop():
                 memory.save_reflection(reflection_title, reflection, tags=["periodic"])
             except Exception:
                 # Reflection is best-effort; do not break the chat loop
-                pass
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
 
-        console.print(Panel(Markdown(output), title="[bold cyan]DRIFT[/bold cyan]", border_style="cyan"))
+        console.print(
+            Panel(
+                Markdown(output),
+                title="[bold cyan]DRIFT[/bold cyan]",
+                border_style="cyan",
+            )
+        )
 
 
 async def main():
@@ -822,4 +901,6 @@ if __name__ == "__main__":
         try:
             _temporal.record_session_end()
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )

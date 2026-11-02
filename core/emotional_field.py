@@ -6,12 +6,13 @@ counter the emotional state.
 """
 
 import json
+import logging
 import random
 import sqlite3
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import ClassVar, Optional
 
 from drift.core.config import DATA_DIR
 
@@ -28,14 +29,14 @@ class EmotionalState:
     stance: str = "mirror"  # mirror, complement, counter, hold_space
     last_user_emotion: str = "neutral"
     last_user_intensity: float = 0.0
-    emotional_history: List[Dict] = field(default_factory=list)
+    emotional_history: list[dict] = field(default_factory=list)
 
 
 class EmotionalField:
     """Manages emotional contagion and the bot's emotional responses."""
 
     # Emotional transitions: how the bot's mood shifts when resonating
-    RESONANCE_MAP = {
+    RESONANCE_MAP: ClassVar = {
         "anxious": {
             "mirror": "concerned",
             "complement": "peaceful",
@@ -80,7 +81,7 @@ class EmotionalField:
         },
     }
 
-    def __init__(self, db_path: Optional[Path] = None):
+    def __init__(self, db_path: Path | None = None):
         self.db_path = str(db_path or FIELD_DB)
         self._init_db()
         self.state = self._load_state()
@@ -126,7 +127,9 @@ class EmotionalField:
                     }
                 )
             except Exception:
-                pass
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
         return EmotionalState()
 
     def _save_state(self):
@@ -214,7 +217,7 @@ class EmotionalField:
             )
         return "\n".join(lines)
 
-    def get_recent_events(self, limit: int = 10) -> List[Dict]:
+    def get_recent_events(self, limit: int = 10) -> list[dict]:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
@@ -235,7 +238,9 @@ class EmotionalField:
                 salience=0.5,
             )
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
 
 
 def _register():

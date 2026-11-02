@@ -3,7 +3,7 @@ Phase 1 Adapter: Cognition (Compatibility Spine)
 Routes drift cognition calls to the canonical DRIFT core.
 """
 
-from drift.core import being, homeostasis, cognition, global_workspace
+from drift.core import being, cognition, global_workspace, homeostasis
 
 
 class CognitionAdapter:

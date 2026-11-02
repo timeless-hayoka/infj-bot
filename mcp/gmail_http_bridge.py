@@ -54,7 +54,8 @@ async def mcp_endpoint(req: Request):
     if body.get("method") != "tools/list":
         headers["Authorization"] = f"Bearer {_get_access_token()}"
 
-    r = httpx.post(GMAIL_MCP_URL, headers=headers, json=body, timeout=30)
+    async with httpx.AsyncClient(timeout=30) as client:
+        r = await client.post(GMAIL_MCP_URL, headers=headers, json=body)
     r.raise_for_status()
     return r.json()
 

@@ -33,6 +33,7 @@ the run for you. Call them only when running standalone.
 """
 
 import json
+import logging
 import os
 import urllib.request
 
@@ -66,6 +67,9 @@ def start_run(benchmark="3a8b8bf0", mode="hunt"):
         with urllib.request.urlopen(req, timeout=_TIMEOUT) as resp:
             _RUN = json.loads(resp.read()).get("run_id")
     except Exception:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         _RUN = None
     return _RUN
 
@@ -84,6 +88,9 @@ def _emit(event_type, payload):
         urllib.request.urlopen(req, timeout=_TIMEOUT).read()
         return True
     except Exception:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return False
 
 
@@ -93,12 +100,18 @@ def run_started(benchmark="3a8b8bf0", total_cases=0):
 
 
 def run_completed(reproduced=0, precision=0.0, recall=0.0, f1=0.0):
-    return _emit("run.completed", {"reproduced": reproduced, "precision": precision, "recall": recall, "f1": f1})
+    return _emit(
+        "run.completed",
+        {"reproduced": reproduced, "precision": precision, "recall": recall, "f1": f1},
+    )
 
 
 # --- one helper per ladder rung --------------------------------------------
 def case_started(case_id, contract=None, expected=None):
-    return _emit("case.started", {"case_id": case_id, "contract": contract, "expected": expected or []})
+    return _emit(
+        "case.started",
+        {"case_id": case_id, "contract": contract, "expected": expected or []},
+    )
 
 
 def stage(case_id, name):
@@ -106,19 +119,38 @@ def stage(case_id, name):
 
 
 def detected(case_id, swc=None, source="pipeline", severity=None):
-    return _emit("finding.detected", {"case_id": case_id, "swc": swc, "source": source, "severity": severity})
+    return _emit(
+        "finding.detected",
+        {"case_id": case_id, "swc": swc, "source": source, "severity": severity},
+    )
 
 
 def correlated(case_id, swc=None, evidence=None):
-    return _emit("finding.correlated", {"case_id": case_id, "swc": swc, "evidence": evidence or []})
+    return _emit(
+        "finding.correlated",
+        {"case_id": case_id, "swc": swc, "evidence": evidence or []},
+    )
 
 
-def poc_result(case_id, swc=None, exploit_verified=False, test_path=None, assertion_count=1):
-    return _emit("poc.result", {"case_id": case_id, "swc": swc, "exploit_verified": exploit_verified, "test_path": test_path, "assertion_count": assertion_count})
+def poc_result(
+    case_id, swc=None, exploit_verified=False, test_path=None, assertion_count=1
+):
+    return _emit(
+        "poc.result",
+        {
+            "case_id": case_id,
+            "swc": swc,
+            "exploit_verified": exploit_verified,
+            "test_path": test_path,
+            "assertion_count": assertion_count,
+        },
+    )
 
 
 def case_completed(case_id, validation_state):
-    return _emit("case.completed", {"case_id": case_id, "validation_state": validation_state})
+    return _emit(
+        "case.completed", {"case_id": case_id, "validation_state": validation_state}
+    )
 
 
 def log(text):

@@ -75,6 +75,9 @@ class Coordination:
                     f"Hive consensus resolved proposal {proposal_id} as {new_status}"
                 )
             except Exception as e:
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
                 logger.error(f"Failed to apply Hive resolution for {proposal_id}: {e}")
 
     def _sync_self_modification_proposals(self):
@@ -95,6 +98,9 @@ class Coordination:
                 if not self._is_already_in_consensus(proposal_id):
                     self._propose_to_hive(prop)
         except Exception as e:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             logger.error(f"Coordination failed to sync proposals: {e}")
 
     def _is_already_in_consensus(self, proposal_id: int) -> bool:

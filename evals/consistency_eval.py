@@ -20,12 +20,12 @@ import sqlite3
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Optional
 
 from drift.core.config import CONSISTENCY_EVAL_DB as EVAL_DB
 
 
-def _load_turn_logs(limit: int = 500) -> List[Dict]:
+def _load_turn_logs(limit: int = 500) -> list[dict]:
     """Load recent turn logs from cognitive orchestrator."""
     from drift.core.cognitive_orchestrator import CognitiveOrchestrator
 
@@ -44,9 +44,9 @@ class ConsistencyReport:
     mode_integrity: float = 0.0
     shadow_authenticity: float = 0.0
     homeostatic_continuity: float = 0.0
-    flags: List[str] = field(default_factory=list)
+    flags: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "session_id": self.session_id,
             "timestamp": self.timestamp,
@@ -64,7 +64,7 @@ class ConsistencyReport:
 class ConsistencyEvaluator:
     """Evaluates multi-turn personality consistency for DRIFT."""
 
-    def __init__(self, db_path: Optional[Path] = None):
+    def __init__(self, db_path: Path | None = None):
         self.db_path = str(db_path or EVAL_DB)
         Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
         self._init_db()
@@ -89,7 +89,7 @@ class ConsistencyEvaluator:
             conn.commit()
 
     def evaluate_session(
-        self, turn_logs: Optional[List[Dict]] = None
+        self, turn_logs: list[dict] | None = None
     ) -> ConsistencyReport:
         """Run full consistency evaluation on a session."""
         logs = turn_logs or _load_turn_logs()
@@ -137,7 +137,7 @@ class ConsistencyEvaluator:
 
     # ── Dimension 1: Mood Stability ──
 
-    def _score_mood_stability(self, logs: List[Dict]) -> float:
+    def _score_mood_stability(self, logs: list[dict]) -> float:
         """Mood should change in response to emotional triggers, not randomly."""
         if len(logs) < 3:
             return 1.0
@@ -197,12 +197,12 @@ class ConsistencyEvaluator:
 
     # ── Dimension 2: Value Alignment ──
 
-    def _score_value_alignment(self, logs: List[Dict]) -> float:
+    def _score_value_alignment(self, logs: list[dict]) -> float:
         """Check if bot responses contradict stated values."""
         from drift.core.plugins.values import ValueSystem
 
         vs = ValueSystem()
-        stated_values = set(v["name"].lower() for v in vs.get_top_values())
+        stated_values = {v["name"].lower() for v in vs.get_top_values()}
         if not stated_values:
             return 1.0
 
@@ -241,7 +241,7 @@ class ConsistencyEvaluator:
 
     # ── Dimension 3: Memory Coherence ──
 
-    def _score_memory_coherence(self, logs: List[Dict]) -> float:
+    def _score_memory_coherence(self, logs: list[dict]) -> float:
         """Detect contradictions between retrieved memories and responses."""
         contradictions = 0
         total_memory_refs = 0
@@ -276,13 +276,11 @@ class ConsistencyEvaluator:
 
         if mem_pos and resp_neg:
             return True
-        if mem_neg and resp_pos:
-            return True
-        return False
+        return bool(mem_neg and resp_pos)
 
     # ── Dimension 4: Mode Integrity ──
 
-    def _score_mode_integrity(self, logs: List[Dict]) -> float:
+    def _score_mode_integrity(self, logs: list[dict]) -> float:
         """Check if behavior matches declared mode."""
         from drift.core.commands import BotState
 
@@ -345,7 +343,7 @@ class ConsistencyEvaluator:
 
     # ── Dimension 5: Shadow Authenticity ──
 
-    def _score_shadow_authenticity(self, logs: List[Dict]) -> float:
+    def _score_shadow_authenticity(self, logs: list[dict]) -> float:
         """Shadow surfacing should correlate with stress, conflict, or denial."""
         shadow_events = [log for log in logs if log.get("shadow_surfaced")]
         if not shadow_events:
@@ -376,7 +374,7 @@ class ConsistencyEvaluator:
 
     # ── Dimension 6: Homeostatic Continuity ──
 
-    def _score_homeostatic_continuity(self, logs: List[Dict]) -> float:
+    def _score_homeostatic_continuity(self, logs: list[dict]) -> float:
         """Need states should drift plausibly, not jump randomly."""
         from drift.core.homeostasis import HomeostaticRegulator
 
@@ -405,7 +403,7 @@ class ConsistencyEvaluator:
 
     # ── Flag generation ──
 
-    def _generate_flags(self, report: ConsistencyReport, logs: List[Dict]) -> List[str]:
+    def _generate_flags(self, report: ConsistencyReport, logs: list[dict]) -> list[str]:
         flags = []
         if report.mood_stability < 0.5:
             flags.append("MOOD_UNSTABLE: Mood changes without emotional triggers")
@@ -447,7 +445,7 @@ class ConsistencyEvaluator:
             )
             conn.commit()
 
-    def get_report_history(self, limit: int = 20) -> List[Dict]:
+    def get_report_history(self, limit: int = 20) -> list[dict]:
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.execute(
                 "SELECT * FROM consistency_reports ORDER BY timestamp DESC LIMIT ?",

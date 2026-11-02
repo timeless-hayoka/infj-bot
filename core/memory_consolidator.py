@@ -5,9 +5,9 @@ from __future__ import annotations
 import json
 import logging
 import sqlite3
-from datetime import datetime, timezone, timedelta
+from collections.abc import Iterable
+from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
-from typing import Iterable
 
 from drift.core.config import PERSIST_DIRECTORY
 from drift.core.unified_memory import Event, MemoryManager
@@ -32,7 +32,9 @@ class MemoryConsolidator:
         stale_days: int = DEFAULT_STALE_DAYS,
     ):
         self.manager = manager or MemoryManager()
-        self.registry_path = registry_path or Path(PERSIST_DIRECTORY) / "memory_registry.jsonl"
+        self.registry_path = (
+            registry_path or Path(PERSIST_DIRECTORY) / "memory_registry.jsonl"
+        )
         self.registry_path.parent.mkdir(parents=True, exist_ok=True)
         self.prune_salience_floor = prune_salience_floor
         self.stale_days = stale_days
@@ -120,14 +122,14 @@ class MemoryConsolidator:
             else:
                 by_hash[record.content_hash] = record
 
-        cutoff = datetime.now(timezone.utc) - timedelta(days=self.stale_days)
+        cutoff = datetime.now(UTC) - timedelta(days=self.stale_days)
         for record in list(self._index.values()):
             if record.layer != MemoryLayer.EPISODIC:
                 stats["retained"] += 1
                 continue
-            last = datetime.fromisoformat(record.last_accessed.replace("Z", "+00:00"))
+            last = datetime.fromisoformat(record.last_accessed)
             if last.tzinfo is None:
-                last = last.replace(tzinfo=timezone.utc)
+                last = last.replace(tzinfo=UTC)
             if record.salience < self.prune_salience_floor and last < cutoff:
                 await self._prune_record(record.unified_id)
                 stats["pruned"] += 1
@@ -141,6 +143,9 @@ class MemoryConsolidator:
         try:
             await self.manager.prune(threshold=self.prune_salience_floor)
         except Exception as exc:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             logger.warning("[memory_consolidator] prune fallback: %s", exc)
 
     async def run_scheduled_maintenance(self) -> dict[str, int]:

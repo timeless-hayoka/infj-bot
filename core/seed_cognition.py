@@ -1,6 +1,5 @@
 from drift.core.memory import DriftMemory
 
-
 COGNITIVE_CONCEPTS = [
     (
         "Metacognitive Pause",

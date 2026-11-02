@@ -69,6 +69,7 @@ scripts/install_drift_hook.sh
 .obsidian/
 *.html
 !interfaces/templates/*.html
+!interfaces/static/*.html
 !index.html
 ablation_results/
 
@@ -82,3 +83,6 @@ node_modules/
 
 # Archived local cleanup artifacts
 archive/
+
+# Generated retrieval benchmark reports and trace bundles
+benchmarks/comparison_runs/

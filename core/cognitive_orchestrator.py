@@ -10,9 +10,10 @@ when and in what order they run.
 
 import logging
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import ClassVar, Optional
 
 from drift.core.cognitive_architecture import CognitiveArchitecture, CycleContext
 from drift.core.global_workspace import get_workspace
@@ -27,8 +28,8 @@ class CognitiveEventBus:
     """Lightweight pub/sub for cognitive module communication."""
 
     def __init__(self):
-        self._subscribers: Dict[str, List[Callable]] = {}
-        self._history: List[Dict] = []
+        self._subscribers: dict[str, list[Callable]] = {}
+        self._history: list[dict] = []
         self._max_history = 1000
 
     def subscribe(self, event_type: str, handler: Callable):
@@ -40,8 +41,8 @@ class CognitiveEventBus:
     def publish(
         self,
         event_type: str,
-        payload: Optional[Dict] = None,
-        source: Optional[str] = None,
+        payload: dict | None = None,
+        source: str | None = None,
     ):
         """Publish an event to all subscribers."""
         event = {
@@ -61,9 +62,7 @@ class CognitiveEventBus:
             except Exception:
                 logger.exception("Event handler failed for %s", event_type)
 
-    def get_recent(
-        self, event_type: Optional[str] = None, limit: int = 20
-    ) -> List[Dict]:
+    def get_recent(self, event_type: str | None = None, limit: int = 20) -> list[dict]:
         """Get recent events, optionally filtered by type."""
         events = self._history
         if event_type:
@@ -88,7 +87,7 @@ class PromptConflict:
 class ConflictDetector:
     """Detects contradictions and redundancies in assembled prompt sections."""
 
-    CONTRADICTION_PATTERNS: List[Tuple[str, str, str]] = [
+    CONTRADICTION_PATTERNS: ClassVar[list[tuple[str, str, str]]] = [
         ("be direct", "be gentle", "contradiction: directness vs gentleness"),
         ("challenge", "comfort", "contradiction: challenge vs comfort"),
         ("push", "hold space", "contradiction: push vs hold"),
@@ -96,7 +95,7 @@ class ConflictDetector:
         ("fix", "witness", "contradiction: fixing vs witnessing"),
     ]
 
-    def detect(self, sections: Dict[str, List[str]]) -> List[PromptConflict]:
+    def detect(self, sections: dict[str, list[str]]) -> list[PromptConflict]:
         conflicts = []
         all_snippets = []
         for snippets in sections.values():
@@ -127,10 +126,10 @@ class ConflictDetector:
 
     def resolve(
         self,
-        conflicts: List[PromptConflict],
-        sections: Dict[str, List[str]],
-        priorities: Dict[str, int],
-    ) -> Dict[str, List[str]]:
+        conflicts: list[PromptConflict],
+        sections: dict[str, list[str]],
+        priorities: dict[str, int],
+    ) -> dict[str, list[str]]:
         """Apply simple resolution: lower-priority section gets trimmed."""
         for conflict in conflicts:
             # For now, just mark resolution as "noted"
@@ -147,15 +146,16 @@ class TurnLog:
 
     turn_number: int
     timestamp: str
-    phases: Dict[str, List[str]] = field(default_factory=dict)
+    phases: dict[str, list[str]] = field(default_factory=dict)
     events_published: int = 0
-    prompt_conflicts: List[PromptConflict] = field(default_factory=list)
+    prompt_conflicts: list[PromptConflict] = field(default_factory=list)
     prompt_chars: int = 0
     prompt_tokens: int = 0
 
 
 class IntentBlockedError(Exception):
     """Raised when the Shadow Intent Enforcement blocks a request."""
+
     def __init__(self, scan_result):
         self.scan_result = scan_result
         super().__init__(scan_result.refusal_message)
@@ -171,7 +171,7 @@ class CognitiveOrchestrator:
     """
 
     # Execution phases: perception → reflection → integration → aspiration → expression
-    PHASES: Dict[str, List[str]] = {
+    PHASES: ClassVar[dict[str, list[str]]] = {
         "perception": [
             "temporal",  # feel time passing
             "predictor",  # sense what user might need
@@ -204,14 +204,19 @@ class CognitiveOrchestrator:
     }
 
     # Core modules that should always have prompt space
-    CORE_PROMPT_MODULES = {"being", "emotional_field", "values", "relationship"}
+    CORE_PROMPT_MODULES: ClassVar = {
+        "being",
+        "emotional_field",
+        "values",
+        "relationship",
+    }
 
     def __init__(self):
         self.arch = CognitiveArchitecture()
         self.workspace = get_workspace()
         self.bus = CognitiveEventBus()
         self.conflict_detector = ConflictDetector()
-        self.turn_logs: List[TurnLog] = []
+        self.turn_logs: list[TurnLog] = []
         self.last_state = {}
         self._wire_event_handlers()
 
@@ -283,7 +288,10 @@ class CognitiveOrchestrator:
                                         salience=plugin.prompt_priority / 100.0,
                                     )
                             except Exception:
-                                pass  # Prompt formatting is best-effort
+                                logging.getLogger(__name__).debug(
+                                    "Operation failed; applying fallback", exc_info=True
+                                )
+                                # Prompt formatting is best-effort
                         self.bus.publish(
                             "cycle_completed",
                             {
@@ -324,14 +332,17 @@ class CognitiveOrchestrator:
         tools_enabled=True,
         prefs=None,
         debug_dump=False,
-    ) -> Tuple[str, Dict, Dict]:
+    ) -> tuple[str, dict, dict]:
         """Assemble the full prompt with budget tracking and conflict resolution."""
         # ── Shadow Intent Enforcement ──
         try:
             from drift.core.shadow import get_shadow
+
             shadow = get_shadow()
             if hasattr(shadow, "evaluate_intent"):
-                scan_result = shadow.evaluate_intent(message, mode=getattr(state, "mode", None))
+                scan_result = shadow.evaluate_intent(
+                    message, mode=getattr(state, "mode", None)
+                )
                 if scan_result.blocked:
                     # Raise intent block to be handled by the interface layer (api.py, cli.py)
                     raise IntentBlockedError(scan_result)
@@ -343,23 +354,27 @@ class CognitiveOrchestrator:
         except IntentBlockedError:
             raise
         except Exception as exc:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             logger.error(f"Shadow Intent Enforcement failed: {exc}")
 
-        from drift.core.prompt_budget import PromptBudget
+        from drift.core.being import get_being
         from drift.core.cognition import detect_dissonance
-        from drift.core.plugins.emotion import detect_emotion
         from drift.core.guardrails import (
             cyber_context_hint,
             memory_context_block,
             mode_scope_rail,
         )
+        from drift.core.plugins.emotion import detect_emotion
+        from drift.core.prompt_budget import PromptBudget
         from drift.core.tools import build_tool_prompt
-        from drift.core.being import get_being
 
         emotion = detect_emotion(message)
         dissonance = detect_dissonance(message)
 
         import os
+
         FAST_MODE = os.environ.get("DRIFT_FAST_MODE", "true").lower() == "true"
         memory_k = 3 if FAST_MODE else 10
 
@@ -388,7 +403,7 @@ class CognitiveOrchestrator:
             if "corrupted_block" in context:
                 conflict_detected = True
                 epistemic_confidence = min(epistemic_confidence, 0.2)
-            
+
             # Incorporate salience score into epistemic confidence
             saliences = re.findall(r"salience:\s*([0-9.]+)", context)
             if saliences:
@@ -396,7 +411,9 @@ class CognitiveOrchestrator:
                     max_salience = max(float(s) for s in saliences)
                     epistemic_confidence = min(epistemic_confidence, max_salience)
                 except Exception:
-                    pass
+                    logging.getLogger(__name__).debug(
+                        "Operation failed; applying fallback", exc_info=True
+                    )
 
         # Calculate Communicative Confidence (tone)
         if missing_data or epistemic_confidence < 0.4:
@@ -435,8 +452,8 @@ class CognitiveOrchestrator:
         # ── PEDI: capture pre-assembly homeostatic snapshot ──
         pre_snapshot = None
         try:
-            from drift.metrics.pedi import StateSnapshot
             from drift.core.homeostasis import get_homeostasis
+            from drift.metrics.pedi import StateSnapshot
 
             pre_needs = get_homeostasis().get_need_summary()
             pre_snapshot = StateSnapshot(
@@ -446,18 +463,20 @@ class CognitiveOrchestrator:
                 context_tokens_used=budget.total_tokens(),
             )
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
 
         # Core tier (always included, protected)
         being = get_being()
 
         # --- CAUSAL WIRING INTEGRATION ---
         from drift.core.causal_wiring import (
-            pedi_to_weights,
             dii_to_generation_params,
-            homeostasis_gate,
-            state_override_var,
             generation_params_var,
+            homeostasis_gate,
+            pedi_to_weights,
+            state_override_var,
         )
 
         current_pedi_state = None
@@ -478,7 +497,11 @@ class CognitiveOrchestrator:
                 else:
                     current_pedi_state = pedi_vec
             else:
-                current_pedi_state = {"coherence": 0.5, "resonance": 0.5, "tension": 0.1}
+                current_pedi_state = {
+                    "coherence": 0.5,
+                    "resonance": 0.5,
+                    "tension": 0.1,
+                }
 
             # 2. DII from override
             current_dii_state = state_override.get("DII_SCORE", 0.5)
@@ -490,7 +513,7 @@ class CognitiveOrchestrator:
                 stress_val = override_homeo.get("stress")
                 if stress_val is None:
                     stress_val = crisis_val
-                
+
                 energy_val = override_homeo.get("energy")
                 if energy_val is None:
                     needs_val = override_homeo.get("needs")
@@ -500,7 +523,7 @@ class CognitiveOrchestrator:
                         energy_val = needs_val
                     else:
                         energy_val = 0.5
-                
+
                 fatigue_val = override_homeo.get("fatigue")
                 if fatigue_val is None:
                     fatigue_val = 1.0 - energy_val
@@ -512,36 +535,56 @@ class CognitiveOrchestrator:
                     "fatigue": fatigue_val,
                 }
             else:
-                current_homeostasis = {"crisis": 0.0, "stress": 0.5, "energy": 0.5, "fatigue": 0.5}
+                current_homeostasis = {
+                    "crisis": 0.0,
+                    "stress": 0.5,
+                    "energy": 0.5,
+                    "fatigue": 0.5,
+                }
         else:
             # Live states from modules
             # PEDI
             try:
                 from drift.metrics.pedi import get_pedi
+
                 pedi_snap = get_pedi().get_last_snapshot()
                 if pedi_snap:
                     current_pedi_state = pedi_snap.needs
             except Exception:
-                pass
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
             if not current_pedi_state:
-                current_pedi_state = {"coherence": 0.85, "resonance": 0.82, "tension": 0.12}
+                current_pedi_state = {
+                    "coherence": 0.85,
+                    "resonance": 0.82,
+                    "tension": 0.12,
+                }
 
             # DII
             try:
                 from drift.core.dii_tracker import get_dii_tracker
+
                 dii_snap = get_dii_tracker().get_current()
                 if dii_snap:
                     current_dii_state = dii_snap.dii
             except Exception:
-                pass
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
             if current_dii_state is None:
                 current_dii_state = 0.5
 
             # Homeostasis
             try:
                 from drift.core.homeostasis import get_homeostasis
+
                 homeo_inst = get_homeostasis()
-                energy_val = homeo_inst.needs.get("energy").current if homeo_inst.needs.get("energy") else 0.5
+                energy_val = (
+                    homeo_inst.needs.get("energy").current
+                    if homeo_inst.needs.get("energy")
+                    else 0.5
+                )
                 current_homeostasis = {
                     "crisis": 1.0 if homeo_inst.crisis_mode else 0.0,
                     "stress": homeo_inst.allostatic_load,
@@ -549,7 +592,15 @@ class CognitiveOrchestrator:
                     "fatigue": 1.0 - energy_val,
                 }
             except Exception:
-                current_homeostasis = {"crisis": 0.0, "stress": 0.5, "energy": 0.5, "fatigue": 0.5}
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
+                current_homeostasis = {
+                    "crisis": 0.0,
+                    "stress": 0.5,
+                    "energy": 0.5,
+                    "fatigue": 0.5,
+                }
 
         # Calculate Control Vectors
         pedi_w = pedi_to_weights(current_pedi_state)
@@ -564,7 +615,11 @@ class CognitiveOrchestrator:
             f"Current mode: {state.mode}\n{mode_scope_rail(state.mode)}",
             label="mode",
         )
-        budget.add("core", f"Tone / Communicative Guidance:\n{tone_instruction}", label="confidence_tone")
+        budget.add(
+            "core",
+            f"Tone / Communicative Guidance:\n{tone_instruction}",
+            label="confidence_tone",
+        )
         budget.add("core", being.format_being_prompt(), label="being")
 
         try:
@@ -574,7 +629,9 @@ class CognitiveOrchestrator:
             if anchor_block:
                 budget.add("core", anchor_block, label="anchor_vault")
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
 
         # System prompt constraints injection
         causal_constraints = (
@@ -647,7 +704,11 @@ Use this to clarify inner conflict without pathologizing it.
         if homeo.get("memory_access", True):
             budget.add("context", memory_context_block(context), label="memory")
         else:
-            budget.add("context", "[Memory access restricted due to high cognitive fatigue]", label="memory")
+            budget.add(
+                "context",
+                "[Memory access restricted due to high cognitive fatigue]",
+                label="memory",
+            )
         if goals_db is not None:
             summary = goals_db.active_summary()
             if summary and summary != "No active goals.":
@@ -681,7 +742,9 @@ Use this to clarify inner conflict without pathologizing it.
                             label="vault_docs",
                         )
                 except Exception:
-                    pass
+                    logging.getLogger(__name__).debug(
+                        "Operation failed; applying fallback", exc_info=True
+                    )
         if tools_enabled:
             budget.add("context", build_tool_prompt(), label="tools")
 
@@ -701,7 +764,9 @@ Use this to clarify inner conflict without pathologizing it.
 
                 _homeo_snip = get_homeostasis().format_prompt_snippet()
             except Exception:
-                pass
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
             _mem_lines = [
                 ln.strip() for ln in (context or "").splitlines() if ln.strip()
             ][:5]
@@ -727,8 +792,12 @@ Use this to clarify inner conflict without pathologizing it.
                 memory_lines=_mem_lines,
                 energy_mode=_emode,
                 max_tokens_hint=_mtok,
-                crisis_mode=bool(current_homeostasis.get("crisis")) if isinstance(current_homeostasis, dict) else False,
-                allostatic_load=float(current_homeostasis.get("stress", 0.0)) if isinstance(current_homeostasis, dict) else 0.0,
+                crisis_mode=bool(current_homeostasis.get("crisis"))
+                if isinstance(current_homeostasis, dict)
+                else False,
+                allostatic_load=float(current_homeostasis.get("stress", 0.0))
+                if isinstance(current_homeostasis, dict)
+                else 0.0,
                 epistemic_confidence=float(epistemic_confidence),
             )
             if _unified:
@@ -754,8 +823,8 @@ Use this to clarify inner conflict without pathologizing it.
 
         # ── PEDI: evaluate state fluidity across context-window reset ──
         try:
-            from drift.metrics.pedi import get_pedi, StateSnapshot, ResetEvent
             from drift.core.homeostasis import get_homeostasis
+            from drift.metrics.pedi import ResetEvent, StateSnapshot, get_pedi
 
             post_needs = get_homeostasis().get_need_summary()
             post_snapshot = StateSnapshot(
@@ -792,7 +861,9 @@ Use this to clarify inner conflict without pathologizing it.
                 )
                 pedi.evaluate_reset(prev_snapshot, post_snapshot, reset_event)
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
 
         if debug_dump:
             budget.dump()
@@ -813,15 +884,17 @@ Use this to clarify inner conflict without pathologizing it.
         Used for high-risk actions, planning, and multi-node consensus.
         """
         from drift.core.hive.elysium import get_elysium
-        
-        logger.info("[orchestrator] Initiating first-class deliberation for goal: %s", goal)
-        
+
+        logger.info(
+            "[orchestrator] Initiating first-class deliberation for goal: %s", goal
+        )
+
         # We pass self.memory and self.brain to Elysium so it uses the canonical spine
         elysium = get_elysium(memory=self.memory, brain=self.brain)
-        
+
         # This triggers the full [Ignite -> Propose -> Critique -> Integrate -> Resolve] loop
         result = await elysium.decide(goal)
-        
+
         return result
 
     def get_system_report(self) -> str:
@@ -862,9 +935,9 @@ Use this to clarify inner conflict without pathologizing it.
 
         return "\n".join(lines)
 
-    def get_phase_status(self) -> Dict[str, List[str]]:
+    def get_phase_status(self) -> dict[str, list[str]]:
         """Return which plugins are active in each phase."""
-        status: Dict[str, List[str]] = {}
+        status: dict[str, list[str]] = {}
         for phase_name, plugin_names in self.PHASES.items():
             status[phase_name] = []
             for name in plugin_names:
@@ -876,20 +949,21 @@ Use this to clarify inner conflict without pathologizing it.
     def get_full_observatory_state(self):
         """Single source of truth for the cognitive state."""
         import time
-        from drift.core.environment.sanctuary import sanctuary
+
         from drift.core.being import get_being
+        from drift.core.environment.sanctuary import sanctuary
 
         being = get_being()
-        
+
         embodiment_plugin = self.arch.get_plugin("embodiment")
         embodiment = embodiment_plugin.instance if embodiment_plugin else None
-        
+
         iit_plugin = self.arch.get_plugin("phi_proxy")
         iit = iit_plugin.instance if iit_plugin else None
-        
+
         homeostasis_plugin = self.arch.get_plugin("homeostasis")
         homeostasis = homeostasis_plugin.instance if homeostasis_plugin else None
-        
+
         shadow_plugin = self.arch.get_plugin("shadow")
         shadow = shadow_plugin.instance if shadow_plugin else None
 
@@ -1005,14 +1079,14 @@ Use this to clarify inner conflict without pathologizing it.
         return delta
 
 
-def emotion_prompt_hint(emotion: Dict) -> str:
+def emotion_prompt_hint(emotion: dict) -> str:
     """Imported from emotion module to avoid circular import."""
     from drift.core.plugins.emotion import emotion_prompt_hint as _hint
 
     return _hint(emotion)
 
 
-def dissonance_prompt_hint(dissonance: Dict) -> str:
+def dissonance_prompt_hint(dissonance: dict) -> str:
     """Imported from cognition module to avoid circular import."""
     from drift.core.cognition import dissonance_prompt_hint as _hint
 

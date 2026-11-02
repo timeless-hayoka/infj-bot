@@ -6,6 +6,7 @@ Runs consistency, mode discrimination, self-modify audit, and stress tests.
 Generates a consolidated report and exits with non-zero code on failure thresholds.
 """
 
+import logging
 import subprocess
 import sys
 from datetime import datetime
@@ -25,6 +26,7 @@ def run_eval(script: str, name: str) -> dict:
             text=True,
             timeout=120,
             cwd=PROJECT_ROOT,
+            check=False,
         )
         status = (
             "PASS"
@@ -36,6 +38,9 @@ def run_eval(script: str, name: str) -> dict:
             print("STDERR:", result.stderr[-500:])
         return {"name": name, "status": status, "returncode": result.returncode}
     except Exception as e:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return {"name": name, "status": "ERROR", "error": str(e)}
 
 
@@ -63,10 +68,14 @@ def main():
             text=True,
             timeout=60,
             cwd=PROJECT_ROOT,
+            check=False,
         )
         stress_status = "PASS" if stress.returncode == 0 else "FAIL"
         print(stress.stdout)
     except Exception as e:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         stress_status = "ERROR"
         print(f"Stress test error: {e}")
 

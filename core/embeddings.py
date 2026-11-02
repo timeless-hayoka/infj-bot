@@ -3,20 +3,20 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import math
-from typing import Any, List
-
+import os
 import threading
+from typing import Any
 
 import numpy as np
-import os
 
 # Force CPU device via environment variable
 os.environ["TORCH_DEVICE"] = "cpu"
 from chromadb.api.types import Documents, Embeddings
 
 
-def _as_document_batch(input: str | list[str] | None) -> List[str]:
+def _as_document_batch(input: str | list[str] | None) -> list[str]:
     """Normalize Chroma embed_query input to a list of document strings."""
     if input is None:
         raise TypeError("embed_query requires a text input")
@@ -52,7 +52,7 @@ class SemanticEmbeddingFunction:
     def name(self) -> str:
         return "semantic_minilm"
 
-    def embed_one(self, text: str) -> List[float]:
+    def embed_one(self, text: str) -> list[float]:
         """Single-vector helper for non-Chroma callers."""
         enc = self._encoder()
         v = enc.encode(text, convert_to_numpy=True)
@@ -65,7 +65,7 @@ class SemanticEmbeddingFunction:
         """Chroma query path — returns one embedding per input string."""
         return self.embed_documents(_as_document_batch(input))
 
-    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
         if not texts:
             return []
         enc = self._encoder()
@@ -92,19 +92,19 @@ class LocalEmbeddingFunction:
     def name() -> str:
         return "local_hash_embedding"
 
-    def embed_one(self, text: str) -> List[float]:
+    def embed_one(self, text: str) -> list[float]:
         return self._vec(text)
 
     def embed_query(self, input: str | list[str] | None = None) -> Embeddings:
         return self.embed_documents(_as_document_batch(input))
 
-    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
         return [self._vec(t) for t in texts]
 
     def __call__(self, input: Documents) -> Embeddings:
         return self.embed_documents(list(input))
 
-    def _vec(self, text: str) -> List[float]:
+    def _vec(self, text: str) -> list[float]:
         h = hashlib.sha256(text.encode("utf-8")).digest()
         # Stretch 32 bytes to 64 floats in [-1, 1]
         raw = (h * 2)[: self._dim]
@@ -133,5 +133,7 @@ def get_default_embedding_function():
     try:
         _global_embedding_function._encoder()
     except Exception:
-        pass
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
     return _global_embedding_function

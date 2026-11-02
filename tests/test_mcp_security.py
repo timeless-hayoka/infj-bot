@@ -26,6 +26,7 @@ def test_mcp_security_guard_auth_and_rate_limit():
 
 def test_http_bridge_status_and_metrics(monkeypatch):
     from fastapi.testclient import TestClient
+
     from core.mcp_server import create_http_app
 
     app = create_http_app(token=None)

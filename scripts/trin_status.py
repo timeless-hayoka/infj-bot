@@ -9,16 +9,17 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
-def _doctor_command() -> Tuple[List[str], Path | None]:
+def _doctor_command() -> tuple[list[str], Path | None]:
     for candidate in ("trin", "drift"):
         launcher = shutil.which(candidate)
         if launcher:
@@ -26,16 +27,19 @@ def _doctor_command() -> Tuple[List[str], Path | None]:
     return [sys.executable, "-m", "interfaces.cli", "doctor", "--json"], PROJECT_ROOT
 
 
-def _release_info() -> Dict[str, Any]:
+def _release_info() -> dict[str, Any]:
     try:
         from drift.trinity.release import get_release_info
 
         return get_release_info()
     except Exception:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return {}
 
 
-def _run_doctor() -> Dict[str, Any]:
+def _run_doctor() -> dict[str, Any]:
     command, cwd = _doctor_command()
     proc = subprocess.run(
         command,
@@ -73,7 +77,9 @@ def _run_doctor() -> Dict[str, Any]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Emit a compact Trinity status summary.")
+    parser = argparse.ArgumentParser(
+        description="Emit a compact Trinity status summary."
+    )
     parser.add_argument(
         "--json",
         action="store_true",
@@ -84,6 +90,9 @@ def main(argv: list[str] | None = None) -> int:
     try:
         summary = _run_doctor()
     except Exception as exc:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         error_payload = {
             "healthy": False,
             "status": "error",
@@ -110,7 +119,9 @@ def main(argv: list[str] | None = None) -> int:
                 f"({release.get('commit', 'unknown')})"
             )
         print(f"Healthy: {'yes' if summary['healthy'] else 'no'}")
-        print(f"Critical missing modules: {', '.join(critical) if critical else 'none'}")
+        print(
+            f"Critical missing modules: {', '.join(critical) if critical else 'none'}"
+        )
         print(f"Warning missing modules: {', '.join(warnings) if warnings else 'none'}")
         if summary["fixes"]:
             print("Suggested fixes:")

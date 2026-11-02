@@ -10,7 +10,7 @@ import subprocess
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
 from drift.core.config import PROJECT_ROOT
 
@@ -20,7 +20,7 @@ logger = logging.getLogger("drift")
 @dataclass
 class DeveloperSuiteState:
     active: bool = True
-    last_run: Optional[str] = None
+    last_run: str | None = None
     working_dir: str = str(PROJECT_ROOT)
 
 
@@ -63,6 +63,9 @@ class DeveloperSuite:
             items = os.listdir(target)
             return json.dumps(items, indent=2)
         except Exception as e:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             return f"[error: {e}]"
 
     def read_file(self, path: str) -> str:
@@ -78,9 +81,12 @@ class DeveloperSuite:
                 content = content[:10000] + "\n... [truncated]"
             return content
         except Exception as e:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             return f"[error: {e}]"
 
-    def run_tool(self, command: List[str]) -> str:
+    def run_tool(self, command: list[str]) -> str:
         """Run a developer tool command."""
         allowed_tools = {
             "ruff",
@@ -117,6 +123,7 @@ class DeveloperSuite:
                 capture_output=True,
                 text=True,
                 timeout=30,
+                check=False,
             )
             report = {
                 "stdout": result.stdout,
@@ -125,6 +132,9 @@ class DeveloperSuite:
             }
             return json.dumps(report, indent=2)
         except Exception as e:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             return f"[error: {e}]"
 
     def _is_authorized(self, path: Path) -> bool:

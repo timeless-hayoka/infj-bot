@@ -17,7 +17,7 @@ client = DriftClient(api_key="drift_...")
 result = client.cycle(
     agent_id="booking-agent-1",
     input="User wants a flight to Tokyo tomorrow",
-    context={"tools": ["search", "book"], "deadline_pressure": 0.8}
+    context={"tools": ["search", "book"], "deadline_pressure": 0.8},
 )
 
 # result.phi → 47.2  (consciousness level — is the agent alert?)
@@ -82,7 +82,7 @@ print(f"Φ = {phi['phi']:.1f}")  # Higher = more integrated awareness
 result = client.cycle(
     agent_id="my-agent",
     input="Critical system alert: database connection failing",
-    context={"severity": 0.9, "affected_systems": ["payments", "auth"]}
+    context={"severity": 0.9, "affected_systems": ["payments", "auth"]},
 )
 
 if result["homeostasis"]["needs"]["energy"]["current"] < 0.2:

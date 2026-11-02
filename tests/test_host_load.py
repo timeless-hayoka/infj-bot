@@ -2,7 +2,7 @@
 
 import os
 
-from drift.core.host_load import stress_from_cpu_mem, sample_host_load
+from drift.core.host_load import sample_host_load, stress_from_cpu_mem
 
 
 def test_stress_mapping():

@@ -3,8 +3,8 @@
 import sqlite3
 import uuid
 from datetime import datetime, timedelta
-from typing import List, Optional
 from pathlib import Path
+from typing import Optional
 
 from drift.core.config import DATA_DIR
 
@@ -70,8 +70,9 @@ class Goal:
 
 
 class GoalsDB:
-    def __init__(self, db_path: Optional[str | Path] = None):
+    def __init__(self, db_path: str | Path | None = None):
         from pathlib import Path
+
         if db_path is None:
             self.db_path = str(DB_PATH)
         else:
@@ -118,7 +119,7 @@ class GoalsDB:
         title: str,
         description: str = "",
         priority: int = 1,
-        due_at: Optional[str] = None,
+        due_at: str | None = None,
         tags: str = "",
     ) -> str:
         gid = str(uuid.uuid4())[:8]
@@ -138,7 +139,7 @@ class GoalsDB:
             )
         return gid
 
-    def list_goals(self, status: str = "active", limit: int = 20) -> List[Goal]:
+    def list_goals(self, status: str = "active", limit: int = 20) -> list[Goal]:
         with self._get_db() as conn:
             rows = conn.execute(
                 "SELECT * FROM goals WHERE status = ? ORDER BY priority DESC, created_at DESC LIMIT ?",
@@ -159,7 +160,7 @@ class GoalsDB:
             cur = conn.execute("DELETE FROM goals WHERE id = ?", (gid,))
             return cur.rowcount > 0
 
-    def get_goal(self, gid: str) -> Optional[Goal]:
+    def get_goal(self, gid: str) -> Goal | None:
         with self._get_db() as conn:
             row = conn.execute("SELECT * FROM goals WHERE id = ?", (gid,)).fetchone()
         return Goal(row) if row else None
@@ -187,7 +188,7 @@ class GoalsDB:
             )
         return rid
 
-    def pending_reminders(self, within_minutes: int = 60) -> List[sqlite3.Row]:
+    def pending_reminders(self, within_minutes: int = 60) -> list[sqlite3.Row]:
         cutoff = (datetime.now() + timedelta(minutes=within_minutes)).isoformat()
         now = datetime.now().isoformat()
         with self._get_db() as conn:
@@ -204,7 +205,7 @@ class GoalsDB:
             )
             return cur.rowcount > 0
 
-    def all_reminders(self, limit: int = 20) -> List[sqlite3.Row]:
+    def all_reminders(self, limit: int = 20) -> list[sqlite3.Row]:
         with self._get_db() as conn:
             return conn.execute(
                 "SELECT * FROM reminders ORDER BY remind_at DESC LIMIT ?", (limit,)
@@ -216,4 +217,3 @@ if __name__ == "__main__":
     gid = db.add_goal("Build the DRIFT agent layer", priority=2, tags="dev")
     print(f"Added goal {gid}")
     print(db.active_summary())
-

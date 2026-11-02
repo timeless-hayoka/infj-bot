@@ -2,9 +2,9 @@ name: Quality
 
 on:
   push:
-    branches: [main, master]
+    branches: [anchor, main, master]
   pull_request:
-    branches: [main, master]
+    branches: [anchor, main, master]
 
 jobs:
   lint:
@@ -23,7 +23,7 @@ jobs:
       - name: Install linting tools
         run: |
           python -m pip install --upgrade pip
-          python -m pip install ruff bandit detect-secrets
+          python -m pip install ruff==0.17.3 bandit detect-secrets
 
       - name: Ruff check
         run: ruff check . --exclude venv --exclude .venv --exclude chroma_db --ignore E701,E402
@@ -64,5 +64,5 @@ jobs:
 
       - name: Type check core modules
         run: |
-          mypy config.py brain.py memory.py rate_limit.py maintenance.py \
+          mypy core/config.py core/brain.py core/memory.py core/rate_limit.py core/maintenance.py \
             --ignore-missing-imports --warn-redundant-casts || true

@@ -1,7 +1,7 @@
 def generate(ces):
 
     print("\nFINAL CAUSALITY REPORT")
-    print("="*40)
+    print("=" * 40)
 
     for k, v in ces.items():
         if v < 0.1:

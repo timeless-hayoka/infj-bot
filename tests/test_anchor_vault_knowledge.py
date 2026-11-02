@@ -19,7 +19,9 @@ def anchor_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
         encoding="utf-8",
     )
     (vault / "hunt_briefs").mkdir()
-    (vault / "hunt_briefs" / "2026-06-26.md").write_text("daily brief", encoding="utf-8")
+    (vault / "hunt_briefs" / "2026-06-26.md").write_text(
+        "daily brief", encoding="utf-8"
+    )
     (vault / "claims").mkdir()
     monkeypatch.setenv("ANCHOR_DATA_ROOT", str(tmp_path))
     monkeypatch.setenv("ANCHOR_VAULT_ROOT", str(vault))
@@ -36,14 +38,14 @@ def anchor_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 
 def test_anchor_vault_root_from_data_root(anchor_env: Path) -> None:
-    from drift.config_adapter import get_anchor_vault_root, get_anchor_knowledge_dir
+    from drift.config_adapter import get_anchor_knowledge_dir, get_anchor_vault_root
 
     assert get_anchor_vault_root() == anchor_env / "AnchorVault"
     assert get_anchor_knowledge_dir() == anchor_env / "AnchorVault" / "knowledge"
 
 
 def test_chroma_persist_under_vault_knowledge(anchor_env: Path) -> None:
-    from drift.config_adapter import get_anchor_knowledge_chroma_dir, PERSIST_DIRECTORY
+    from drift.config_adapter import PERSIST_DIRECTORY, get_anchor_knowledge_chroma_dir
 
     chroma = get_anchor_knowledge_chroma_dir()
     assert chroma is not None

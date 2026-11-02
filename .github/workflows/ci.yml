@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [anchor, main, master]
   pull_request:
-    branches: [main, master]
+    branches: [anchor, main, master]
 
 jobs:
   test:
@@ -47,5 +47,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: dmu-benchmark-results
-          path: .benchmarks
+          path: benchmarks/comparison_runs
           if-no-files-found: warn

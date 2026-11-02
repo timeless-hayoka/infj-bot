@@ -1,6 +1,7 @@
 import math
 import time
 
+
 def score_memory(mem):
     age = time.time() - mem["timestamp"]
     decay = math.exp(-age / mem.get("tau", 1000))

@@ -24,6 +24,9 @@ async def memory_maintenance_loop(memory, interval_hours: int = 24):
                 f"Maintenance: Pruned {removed} old memories via Ebbinghaus curve"
             )
         except Exception as e:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             logger.error(f"Memory maintenance failed: {e}")
 
 

@@ -13,24 +13,29 @@ Exit codes:
 
 import argparse
 import json
+import logging
 import os
 import sqlite3
 import sys
 import time
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 # ── Lazy imports for drift subsystems ─────────────────────────────────────────
 # We import lazily so a missing dependency doesn't crash the whole check suite.
 
 
-def _import_config() -> Tuple[Any, Any]:
+def _import_config() -> tuple[Any, Any]:
     try:
-        from drift.core.config import DATA_DIR, SQLITE_DIR, CHROMA_DIR
+        from drift.core.config import CHROMA_DIR, DATA_DIR, SQLITE_DIR
 
         return DATA_DIR, SQLITE_DIR, CHROMA_DIR
     except Exception:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return None, None, None
 
 
@@ -40,6 +45,9 @@ def _import_resilience() -> Any:
 
         return HealthCheck, HealthMonitor
     except Exception:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return None, None
 
 
@@ -49,6 +57,9 @@ def _import_architecture() -> Any:
 
         return CognitiveArchitecture
     except Exception:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return None
 
 
@@ -58,6 +69,9 @@ def _import_being() -> Any:
 
         return get_being
     except Exception:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return None
 
 
@@ -67,6 +81,9 @@ def _import_shadow() -> Any:
 
         return get_shadow
     except Exception:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return None
 
 
@@ -76,6 +93,9 @@ def _import_homeostasis() -> Any:
 
         return get_homeostasis
     except Exception:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return None
 
 
@@ -88,15 +108,15 @@ class SelfCheckRunner:
     """Runs a suite of health checks and aggregates results."""
 
     def __init__(self):
-        self._checks: Dict[str, CheckFn] = {}
-        self._results: List[Any] = []
+        self._checks: dict[str, CheckFn] = {}
+        self._results: list[Any] = []
 
     def register(self, name: str, fn: CheckFn):
         self._checks[name] = fn
 
     def run(
-        self, names: Optional[List[str]] = None, verbose: bool = False
-    ) -> Tuple[List[Any], int]:
+        self, names: list[str] | None = None, verbose: bool = False
+    ) -> tuple[list[Any], int]:
         """Run checks and return (results, max_severity).
 
         Severity: 0 = healthy, 1 = warning, 2 = critical
@@ -110,6 +130,9 @@ class SelfCheckRunner:
             try:
                 result = fn()
             except Exception as exc:
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
                 result = self._make_check(name, False, f"Check crashed: {exc}", start)
                 max_severity = max(max_severity, 2)
             else:
@@ -228,7 +251,7 @@ def check_data_directories() -> Any:
 def check_sqlite_databases() -> Any:
     """Verify all SQLite databases in the sqlite directory are responsive."""
     start = time.time()
-    DATA_DIR, SQLITE_DIR, _ = _import_config()
+    _DATA_DIR, SQLITE_DIR, _ = _import_config()
     if SQLITE_DIR is None:
         return _quick_check("sqlite_databases", False, "SQLITE_DIR unknown", start)
 
@@ -260,6 +283,9 @@ def check_sqlite_databases() -> Any:
             if result is None or result[0] != "ok":
                 failures.append(f"{db_path.name}: integrity_check={result}")
         except Exception as e:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             failures.append(f"{db_path.name}: {e}")
 
     if failures:
@@ -278,7 +304,7 @@ def check_sqlite_databases() -> Any:
 def check_required_tables() -> Any:
     """Verify key subsystem databases have their required schema tables."""
     start = time.time()
-    DATA_DIR, SQLITE_DIR, _ = _import_config()
+    _DATA_DIR, SQLITE_DIR, _ = _import_config()
     if SQLITE_DIR is None:
         return _quick_check("required_tables", False, "SQLITE_DIR unknown", start)
 
@@ -317,6 +343,9 @@ def check_required_tables() -> Any:
             if missing:
                 failures.append(f"{db_name}: missing tables {missing}")
         except Exception as e:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             failures.append(f"{db_name}: {e}")
 
     if failures:
@@ -350,6 +379,9 @@ def check_plugin_registry() -> Any:
             if p in registered and not arch.get_plugin(p).enabled
         }
     except Exception as e:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return _quick_check(
             "plugin_registry", False, f"Registry load failed: {e}", start
         )
@@ -396,6 +428,9 @@ def check_being_state() -> Any:
         healthy = len(issues) == 0
         return _quick_check("being_state", healthy, msg, start)
     except Exception as e:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return _quick_check("being_state", False, f"Being check failed: {e}", start)
 
 
@@ -433,6 +468,9 @@ def check_shadow_state() -> Any:
         healthy = len(issues) == 0
         return _quick_check("shadow_state", healthy, msg, start)
     except Exception as e:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return _quick_check("shadow_state", False, f"Shadow check failed: {e}", start)
 
 
@@ -460,6 +498,9 @@ def check_homeostasis_state() -> Any:
         healthy = len(issues) == 0
         return _quick_check("homeostasis_state", healthy, msg, start)
     except Exception as e:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return _quick_check(
             "homeostasis_state", False, f"Homeostasis check failed: {e}", start
         )
@@ -468,7 +509,7 @@ def check_homeostasis_state() -> Any:
 def check_chroma_health() -> Any:
     """Verify ChromaDB directory exists and is accessible."""
     start = time.time()
-    DATA_DIR, _, CHROMA_DIR = _import_config()
+    _DATA_DIR, _, CHROMA_DIR = _import_config()
     if CHROMA_DIR is None:
         return _quick_check(
             "chroma_health", True, "CHROMA_DIR not configured (optional)", start
@@ -502,6 +543,9 @@ def check_chroma_health() -> Any:
             "chroma_health", True, "Directory OK (chromadb not installed)", start
         )
     except Exception as e:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return _quick_check(
             "chroma_health", False, f"ChromaDB connection failed: {e}", start
         )
@@ -532,6 +576,9 @@ def check_disk_space() -> Any:
             "disk_space", True, f"{free_gb:.1f} GB free ({pct_free:.0f}%)", start
         )
     except Exception as e:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return _quick_check("disk_space", False, f"Cannot check disk: {e}", start)
 
 
@@ -560,7 +607,7 @@ def check_environment() -> Any:
 # ── MOUSE Vanguard checks ─────────────────────────────────────────────────────
 
 
-def _mouse_home() -> Optional[Path]:
+def _mouse_home() -> Path | None:
     script_dir = Path(__file__).resolve().parent
     mouse_home = script_dir / ".mouse_vanguard"
     return mouse_home if mouse_home.exists() else None
@@ -594,6 +641,9 @@ def check_mouse_config() -> Any:
             )
         return _quick_check("mouse_config", True, f"api_url={api_url}", start)
     except Exception as e:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return _quick_check("mouse_config", False, f"Config unreadable: {e}", start)
 
 
@@ -613,7 +663,9 @@ def check_mouse_ollama() -> Any:
             with open(config_path, "r", encoding="utf-8") as f:
                 url = json.load(f).get("api_url", url)
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
 
     try:
         from urllib import request
@@ -628,6 +680,9 @@ def check_mouse_ollama() -> Any:
         )
         return _quick_check("mouse_ollama", True, msg, start)
     except Exception as e:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return _quick_check("mouse_ollama", False, f"Not reachable ({url}): {e}", start)
 
 
@@ -654,7 +709,9 @@ def check_mouse_memory() -> Any:
                 with open(f, "r", encoding="utf-8") as fh:
                     total_entries += len(json.load(fh))
             except Exception:
-                pass
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
         return _quick_check(
             "mouse_memory",
             True,
@@ -662,6 +719,9 @@ def check_mouse_memory() -> Any:
             start,
         )
     except Exception as e:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return _quick_check("mouse_memory", False, f"Memory check failed: {e}", start)
 
 
@@ -691,7 +751,7 @@ def _quick_check(name: str, healthy: bool, message: str, start: float):
 # ── Fix helpers ───────────────────────────────────────────────────────────────
 
 
-def _fix_missing_dirs() -> List[str]:
+def _fix_missing_dirs() -> list[str]:
     """Create missing data directories."""
     DATA_DIR, SQLITE_DIR, CHROMA_DIR = _import_config()
     fixes = []
@@ -708,11 +768,14 @@ def _fix_missing_dirs() -> List[str]:
                 p.mkdir(parents=True, exist_ok=True)
                 fixes.append(f"Created {label} dir: {p}")
             except Exception as e:
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
                 fixes.append(f"Failed to create {label} dir: {e}")
     return fixes
 
 
-def _fix_missing_tables() -> List[str]:
+def _fix_missing_tables() -> list[str]:
     """Trigger subsystem initialization to create missing tables."""
     fixes = []
     try:
@@ -721,6 +784,9 @@ def _fix_missing_tables() -> List[str]:
         CognitiveArchitecture()
         fixes.append("Initialized cognitive_architecture schema")
     except Exception as e:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         fixes.append(f"cognitive_architecture init failed: {e}")
     try:
         from drift.core.being import get_being
@@ -728,6 +794,9 @@ def _fix_missing_tables() -> List[str]:
         get_being()
         fixes.append("Initialized being schema")
     except Exception as e:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         fixes.append(f"being init failed: {e}")
     try:
         from drift.core.shadow import get_shadow
@@ -735,6 +804,9 @@ def _fix_missing_tables() -> List[str]:
         get_shadow()
         fixes.append("Initialized shadow schema")
     except Exception as e:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         fixes.append(f"shadow init failed: {e}")
     try:
         from drift.core.homeostasis import get_homeostasis
@@ -742,6 +814,9 @@ def _fix_missing_tables() -> List[str]:
         get_homeostasis()
         fixes.append("Initialized homeostasis schema")
     except Exception as e:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         fixes.append(f"homeostasis init failed: {e}")
     return fixes
 
@@ -802,10 +877,10 @@ def main():
         fixes.extend(_fix_missing_tables())
         for f in fixes:
             print(f"  {f}")
-        print("")
+        print()
 
     runner = build_runner()
-    results, severity = runner.run(names=args.checks, verbose=args.verbose)
+    _results, severity = runner.run(names=args.checks, verbose=args.verbose)
 
     fmt = "json" if args.json else args.format
     if fmt == "json":

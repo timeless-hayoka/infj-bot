@@ -13,6 +13,7 @@ Integration:
     - Re-rank candidates by returned score, select top K.
 """
 
+import logging
 import math
 import time
 
@@ -62,7 +63,7 @@ def compute_mps(
     memory,
     current_state: dict,
     current_mode: str = "relational",
-    recent_memory_usage: list = None,  # list of (memory_id, turn_delta) tuples
+    recent_memory_usage: list | None = None,  # list of (memory_id, turn_delta) tuples
     experiment_control=None,
     tau: float = DEFAULT_TAU,
 ) -> float:
@@ -223,7 +224,7 @@ def retrieve_and_rank(
     chromadb_collection,
     experiment_control=None,
     current_mode: str = "relational",
-    recent_memory_usage: list = None,
+    recent_memory_usage: list | None = None,
     wide_k: int = 40,
     final_k: int = 10,
 ) -> tuple:
@@ -274,8 +275,9 @@ def _is_hard_gated(memory) -> bool:
     MIN_REINFORCEMENT = 0.2
 
     age = time.time() - memory.timestamp
-    if age > MAX_AGE_SECONDS and memory.reinforcement_score < MIN_REINFORCEMENT:
-        return True  # gate out
+    return bool(
+        age > MAX_AGE_SECONDS and memory.reinforcement_score < MIN_REINFORCEMENT
+    )  # gate out
     return False
 
 
@@ -289,8 +291,8 @@ class _DMUMemory:
         timestamp: float = 0.0,
         reinforcement_score: float = 0.5,
         novelty_score: float = 0.5,
-        tags: list = None,
-        extra_flags: dict = None,
+        tags: list | None = None,
+        extra_flags: dict | None = None,
         provenance: str = "user_explicit",
         source_reliability: float = 1.0,
     ):
@@ -325,6 +327,9 @@ def _chromadb_results_to_memories(chromadb_results):
 
                 ts = datetime.fromisoformat(ts).timestamp()
             except Exception:
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
                 ts = 0.0
         memories.append(
             _DMUMemory(

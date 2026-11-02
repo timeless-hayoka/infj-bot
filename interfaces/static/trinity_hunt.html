@@ -1,0 +1,693 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TRINITY // HUNT · Operator Console</title>
+  <style>
+    :root{
+      --bg:#060a07;--bg2:#0b110c;--panel:#0b110c;--panel2:#0d150e;--line:rgba(54,226,122,.16);
+      --phos:#36e27a;--lime:#b6ff3a;--amber:#ffb020;--red:#ff5d5d;--cyan:#3fd9e6;
+      --text:#cfeede;--muted:#5f7e69;--faint:#3c5547;--shadow:0 20px 60px rgba(0,0,0,.35);
+      --radius:18px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,sans-serif;color:var(--text);background:radial-gradient(circle at 10% 10%, rgba(54,226,122,.08), transparent 24%),radial-gradient(circle at 90% 10%, rgba(63,217,230,.09), transparent 26%),linear-gradient(160deg,#04060a 0%,#08111b 100%)}
+    a{color:inherit;text-decoration:none}
+    button,input,select,textarea{font:inherit}
+    .shell{min-height:100vh;display:grid;grid-template-rows:auto 1fr;position:relative;overflow:hidden}
+    .gridbg,.scan{position:fixed;inset:0;pointer-events:none;z-index:1}
+    .gridbg{background-image:linear-gradient(rgba(54,226,122,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(54,226,122,.05) 1px,transparent 1px);background-size:44px 44px;opacity:.85}
+    .scan{opacity:.3;background:repeating-linear-gradient(0deg,rgba(0,0,0,0) 0px,rgba(0,0,0,0) 2px,rgba(0,0,0,.22) 3px)}
+    .topbar{position:relative;z-index:3;display:flex;justify-content:space-between;gap:16px;align-items:center;padding:14px 20px;border-bottom:1px solid var(--line);background:rgba(4,8,15,.78);backdrop-filter:blur(12px);flex-wrap:wrap}
+    .brand h1{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:20px;letter-spacing:.18em;text-transform:uppercase;color:var(--phos)}
+    .brand .sub{margin-top:4px;color:var(--muted);font-size:12px;letter-spacing:.08em}
+    .brand .tag{margin-top:4px;color:var(--cyan);font-size:10px;letter-spacing:.2em;text-transform:uppercase}
+    .pills{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:flex-end}
+    .pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.02);font:600 11px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.04em;color:var(--text)}
+    .dot{width:7px;height:7px;border-radius:50%}
+    .dot.phos{background:var(--phos);box-shadow:0 0 8px var(--phos)}
+    .dot.amber{background:var(--amber);box-shadow:0 0 8px var(--amber)}
+    .dot.red{background:var(--red);box-shadow:0 0 8px var(--red)}
+    .dot.cyan{background:var(--cyan);box-shadow:0 0 8px var(--cyan)}
+    .main{position:relative;z-index:3;display:flex;min-height:calc(100vh - 62px)}
+    .nav{width:230px;border-right:1px solid var(--line);padding:14px;background:rgba(11,17,12,.5);display:flex;flex-direction:column;gap:8px}
+    .nav button{appearance:none;border:1px solid transparent;background:transparent;color:var(--muted);padding:11px 12px;border-radius:8px;display:flex;align-items:center;gap:10px;cursor:pointer;text-align:left;transition:.15s;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px}
+    .nav button.active,.nav button:hover{color:var(--phos);background:rgba(54,226,122,.08);border-color:rgba(54,226,122,.22)}
+    .nav .foot{margin-top:auto;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--panel)}
+    .nav .foot .mini{font:10px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--muted);line-height:1.5}
+    .content{flex:1;padding:20px;overflow:auto}
+    .title{margin:0 0 16px;font:700 22px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.06em}
+    .panel{background:rgba(13,19,31,.92);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+    .hero{display:grid;grid-template-columns:1.3fr .9fr;gap:12px;padding:18px;border-bottom:1px solid var(--line)}
+    .hero .lead{padding:18px;border-radius:16px;background:linear-gradient(180deg, rgba(54,226,122,.08), rgba(54,226,122,.03));border:1px solid rgba(54,226,122,.2)}
+    .hero .lead h2{margin:0;font:800 28px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.06em}
+    .hero .lead p{margin:10px 0 0;color:var(--muted);line-height:1.7}
+    .hero .metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .card{padding:14px;border-radius:14px;background:rgba(255,255,255,.02);border:1px solid var(--line)}
+    .card .label{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
+    .card .value{margin-top:8px;font:800 34px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;line-height:1.05}
+    .card .desc{margin-top:6px;font-size:12px;color:var(--muted)}
+    .section{padding:18px;border-bottom:1px solid var(--line)}
+    .section:last-child{border-bottom:0}
+    .section h2{margin:0 0 12px;font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:var(--amber);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+    .section .sub{color:var(--muted);font-size:12px;line-height:1.6;margin-top:-4px;margin-bottom:12px}
+    .grid{display:grid;gap:12px}
+    .grid.cards{grid-template-columns:repeat(auto-fill,minmax(230px,1fr))}
+    .grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .case{padding:14px;border-radius:12px;background:rgba(255,255,255,.02);border:1px solid var(--line);cursor:pointer;transition:.15s}
+    .case:hover{transform:translateY(-1px);border-color:rgba(54,226,122,.45);box-shadow:0 0 18px rgba(54,226,122,.12)}
+    .case .top{display:flex;justify-content:space-between;gap:10px;align-items:center}
+    .case .id{font:700 13px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+    .case .meta{margin-top:8px;font-size:11px;color:var(--muted)}
+    .badge{display:inline-flex;align-items:center;gap:6px;font:600 11px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;padding:3px 8px;border-radius:999px;border:1px solid var(--line);margin-right:6px}
+    .badge.phos{color:var(--phos);border-color:rgba(54,226,122,.35);background:rgba(54,226,122,.08)}
+    .badge.amber{color:var(--amber);border-color:rgba(255,176,32,.35);background:rgba(255,176,32,.08)}
+    .badge.red{color:var(--red);border-color:rgba(255,93,93,.35);background:rgba(255,93,93,.08)}
+    .badge.cyan{color:var(--cyan);border-color:rgba(63,217,230,.35);background:rgba(63,217,230,.08)}
+    .controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+    .controls input,.controls select,.controls textarea{background:#0a0f0b;border:1px solid var(--line);border-radius:8px;color:var(--text);padding:9px 11px}
+    .controls input{min-width:220px;flex:1}
+    .table{border:1px solid var(--line);border-radius:12px;overflow:hidden}
+    .thead,.row{display:grid;grid-template-columns:1.45fr .8fr 1fr .8fr .6fr;gap:10px;align-items:center;padding:10px 14px}
+    .thead{background:var(--panel2);border-bottom:1px solid var(--line);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+    .row{border-bottom:1px solid var(--line);background:rgba(255,255,255,.01);cursor:pointer}
+    .row:hover{background:rgba(54,226,122,.08)}
+    .row:last-child{border-bottom:0}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+    .small{font-size:12px}
+    .muted{color:var(--muted)}
+    .drawer{position:fixed;inset:0;background:rgba(0,0,0,.56);display:none;justify-content:flex-end;z-index:20}
+    .drawer.open{display:flex}
+    .drawer .panel{width:min(540px,94vw);height:100%;border-radius:0;border-left:1px solid var(--line);overflow:auto;padding:22px}
+    .drawer-top{display:flex;justify-content:space-between;align-items:center;gap:12px}
+    .x{background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:6px;padding:6px 8px;cursor:pointer}
+    .source{margin-top:16px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#070b08}
+    .source .head{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line);background:var(--panel2)}
+    .source pre{margin:0;padding:12px;overflow:auto;white-space:pre-wrap;font-size:11px;line-height:1.5}
+    .timeline{position:relative;padding-left:16px}
+    .timeline::before{content:"";position:absolute;left:5px;top:4px;bottom:4px;width:1px;background:var(--line)}
+    .timeline .item{position:relative;margin:0 0 12px;padding-left:2px}
+    .timeline .item::before{content:"";position:absolute;left:-16px;top:5px;width:9px;height:9px;border-radius:999px;background:var(--faint);box-shadow:0 0 6px rgba(0,0,0,.2)}
+    .timeline .item.last::before{background:var(--phos);box-shadow:0 0 8px var(--phos)}
+    .formgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .formgrid .full{grid-column:1/-1}
+    .formgrid label{display:block}
+    .formgrid span{display:block;font:10px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-bottom:5px}
+    .preview{background:#070b08;border:1px solid var(--line);border-radius:12px;padding:14px;white-space:pre-wrap;line-height:1.55;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;min-height:420px}
+    .btn{appearance:none;border:1px solid var(--line);background:rgba(255,255,255,.03);color:var(--text);padding:9px 13px;border-radius:999px;cursor:pointer;text-decoration:none;transition:.15s}
+    .btn:hover{border-color:rgba(242,204,96,.35);transform:translateY(-1px)}
+    .log{display:flex;flex-direction:column;gap:10px}
+    .log-item{padding:12px 13px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.02)}
+    .log-item .t{font:10px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--cyan)}
+    .log-item .m{margin-top:6px;color:var(--text);line-height:1.55}
+    .split{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .chat{display:flex;flex-direction:column;height:520px;border:1px solid var(--line);border-radius:16px;overflow:hidden;background:rgba(255,255,255,.02)}
+    .chat .head{padding:12px 14px;border-bottom:1px solid var(--line);background:var(--panel2);display:flex;justify-content:space-between;gap:10px;align-items:center}
+    .chat .body{flex:1;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
+    .bubble{max-width:84%;border:1px solid var(--line);border-radius:14px;padding:10px 12px;background:rgba(255,255,255,.02)}
+    .bubble.me{align-self:flex-end;border-color:rgba(63,217,230,.4);background:rgba(63,217,230,.08)}
+    .bubble.bot{align-self:flex-start;border-color:rgba(54,226,122,.4);background:rgba(54,226,122,.06)}
+    .bubble .role{font:10px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.16em;text-transform:uppercase;margin-bottom:5px;color:inherit}
+    .chat .foot{display:flex;gap:10px;padding:12px 14px;border-top:1px solid var(--line);background:var(--panel2)}
+    .chat textarea{flex:1;resize:none;min-height:46px;max-height:120px;background:#0a0f0b;border:1px solid var(--line);border-radius:12px;color:var(--text);padding:10px 12px;outline:none}
+    .chat .send{align-self:flex-end}
+    .score{font:800 42px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;line-height:1}
+    .bar{height:8px;border-radius:999px;background:#10180f;border:1px solid var(--line);overflow:hidden}
+    .bar > div{height:100%;background:var(--phos);box-shadow:0 0 8px var(--phos)}
+    .grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+    .footer{padding:14px 18px;color:var(--muted);font-size:12px;line-height:1.6}
+    .section-head{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
+    .status{font:11px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--cyan);letter-spacing:.12em;text-transform:uppercase}
+    @media (max-width:1100px){.main{flex-direction:column}.nav{width:auto;flex-direction:row;flex-wrap:wrap;border-right:0;border-bottom:1px solid var(--line)}.nav .foot{margin-top:0;flex:1 1 100%}.hero,.split,.grid.two,.grid-3{grid-template-columns:1fr}.formgrid{grid-template-columns:1fr}.formgrid .full{grid-column:auto}.thead,.row{grid-template-columns:1.2fr .75fr 1fr .65fr .5fr}}
+    @media (max-width:720px){.hero{grid-template-columns:1fr}.hero .metrics{grid-template-columns:1fr}.thead{display:none}.row{grid-template-columns:1fr;gap:6px}.row span:nth-child(n+2){font-size:11px}.chat{height:440px}}
+  </style>
+</head>
+<body>
+  <div class="gridbg"></div><div class="scan"></div>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <h1>TRINITY // HUNT</h1>
+        <div class="tag">OPERATOR CONSOLE · READ ONLY · LAB SCOPE</div>
+        <div class="sub">{{ANCHOR_RELEASE}} · smart-contract vulnerability pipeline</div>
+      </div>
+      <div class="pills" id="pills"></div>
+    </header>
+    <div class="main">
+      <aside class="nav" id="nav"></aside>
+      <main class="content">
+        <h1 class="title" id="pageTitle"></h1>
+        <div class="panel" id="panel"></div>
+      </main>
+    </div>
+  </div>
+  <div class="drawer" id="drawer"><div class="panel" id="drawerPanel"></div></div>
+  <script>
+    const C = { bg:'#060a07', panel:'#0b110c', panel2:'#0d150e', line:'rgba(54,226,122,.16)', phos:'#36e27a', lime:'#b6ff3a', amber:'#ffb020', red:'#ff5d5d', cyan:'#3fd9e6', text:'#cfeede', muted:'#5f7e69', faint:'#3c5547' };
+    const TOOL = { slither:'available', forge:'available', myth:'unavailable', 'echidna-test':'available', medusa:'available' };
+    const LADDER = ['DETECTED','CORRELATED','REPRODUCED_REAL'];
+    const LABEL = { DETECTED:'DETECT', CORRELATED:'CORRELATE', REPRODUCED_REAL:'REPRODUCE' };
+    const BOOT_STEPS = [
+      {name:'load release banner', detail:'hydrate the current ANCHOR build identity and label the hunt session.', state:'done'},
+      {name:'pull snapshot', detail:'fetch /api/health, /api/anchor/snapshot, and /api/trinity/paths.', state:'done'},
+      {name:'prime recon feed', detail:'stage the latest findings, cases, and evidence metadata for review.', state:'warm'},
+      {name:'arm live reducer', detail:'merge demo events or SSE events into a single operator timeline.', state:'warm'},
+      {name:'unlock Trinity chat', detail:'send prompts through the server instead of the browser.', state:'locked'},
+    ];
+    const RECON_FEED = [
+      {time:'run.started', title:'ANCHOR snapshot hydrated', note:'The local FastAPI backend is live and serving the hunt console.'},
+      {time:'case.started', title:'Current evidence set loaded', note:'Dashboard panels expose history, vault visibility, and contribution tracking.'},
+      {time:'finding.detected', title:'Trinity chat routed through server', note:'The browser no longer calls provider APIs directly.'},
+      {time:'finding.correlated', title:'Login gate enabled', note:'The hunt page is hidden behind a local passphrase and cookie session.'},
+      {time:'poc.result', title:'CVSS calculator active', note:'You can score a finding and copy the vector into a report.'},
+      {time:'case.completed', title:'Evidence bundle ready', note:'Signed bundle, provenance, and run history are visible from the console.'},
+    ];
+    const PROVENANCE = {
+      product:'ANCHOR',
+      channel:'local-first operator console',
+      stream:'SSE-ready live run reducer',
+      signing:'Ed25519 evidence signing',
+      safety:'HttpOnly cookie login gate',
+      mode:'localhost only',
+    };
+    const BOUNTY = [
+      {label:'release', value:'{{ANCHOR_RELEASE}}', desc:'Current local build banner'},
+      {label:'evidence', value:'signed', desc:'Tamper-evident bundle output'},
+      {label:'scope', value:'authorized', desc:'Lab-only interaction model'},
+      {label:'chat', value:'server-side', desc:'Browser never sees model keys'},
+    ];
+    const CASES = [
+      mk('TinyReentrancy','SWC-107','REPRODUCED_REAL',{contract:'TinyReentrancy', ts:'2026-06-18T23:16:58Z'}),
+      mk('TinyReentrancyEvents','SWC-107','REPRODUCED_REAL',{contract:'TinyReentrancyEvents', ts:'2026-06-18T23:17:00Z'}),
+      mk('TinyReentrancyHelper','SWC-107','REPRODUCED_REAL',{contract:'TinyReentrancyHelper', ts:'2026-06-18T23:17:02Z'}),
+      mk('TinyUnprotectedSelfdestruct','SWC-106','REPRODUCED_REAL',{contract:'TinyUnprotectedSelfdestruct', ts:'2026-06-18T23:17:04Z'}),
+      mk('TinyUnprotectedWithdrawal','SWC-105','REPRODUCED_REAL',{contract:'TinyUnprotectedWithdrawal', ts:'2026-06-18T23:17:06Z'}),
+      mk('TinyIntegerOverflow','SWC-101','REPRODUCED_REAL',{contract:'TinyIntegerOverflow', ts:'2026-06-18T23:17:08Z'}),
+      mk('TinyIntegerUnderflow','SWC-101','REPRODUCED_REAL',{contract:'TinyIntegerUnderflow', ts:'2026-06-18T23:17:10Z'}),
+      mk('TinyTxOrigin','SWC-115','REPRODUCED_REAL',{contract:'TinyTxOrigin', ts:'2026-06-18T23:17:12Z'}),
+      mk('TinyUncheckedTransfer','SWC-104','REPRODUCED_REAL',{contract:'TinyUncheckedTransfer', assertions:2, ts:'2026-06-18T23:17:14Z'}),
+      mk('TinySafeReentrancy',null,'UNAVAILABLE',{contract:'TinySafeReentrancy', ts:'2026-06-18T23:17:16Z'}),
+    ];
+    const ARCHIVE = [
+      mk('TinyReentrancy','SWC-107','REPRODUCED_REAL',{contract:'TinyReentrancy', benchmark:'b2f19c4e', archived:true, ts:'2026-05-30T09:12:04Z'}),
+      mk('TinyIntegerOverflow','SWC-101','REPRODUCED_REAL',{contract:'TinyIntegerOverflow', benchmark:'b2f19c4e', archived:true, ts:'2026-05-30T09:12:31Z'}),
+      mk('TinyTxOrigin','SWC-115','CORRELATED',{contract:'TinyTxOrigin', benchmark:'b2f19c4e', archived:true, ts:'2026-05-30T09:12:58Z'}),
+      mk('TinyUnprotectedSelfdestruct','SWC-106','DETECTED',{contract:'TinyUnprotectedSelfdestruct', benchmark:'b2f19c4e', archived:true, ts:'2026-05-30T09:13:20Z'}),
+      mk('TinySafeReentrancy',null,'UNAVAILABLE',{contract:'TinySafeReentrancy', benchmark:'b2f19c4e', archived:true, ts:'2026-05-30T09:13:44Z'}),
+      mk('TinyTxOrigin','SWC-115','REPRODUCED_REAL',{contract:'TinyTxOrigin', benchmark:'7a0d5e11', archived:true, ts:'2026-04-22T16:03:05Z'}),
+    ];
+    const DVD = [
+      { challenge:'shards', test_path:'test/shards/Shards.t.sol', requires_fork:false, skipped:false, success:false, returncode:1, duration_sec:0.306, reason:'Marketplace still has tokens: 0 <= 75000000000000000' },
+      { challenge:'wallet-mining', test_path:'test/wallet-mining/WalletMining.t.sol', requires_fork:false, skipped:false, success:false, returncode:1, duration_sec:0.384, reason:'No code at user's deposit address: 0 == 0' },
+      { challenge:'withdrawal', test_path:'test/withdrawal/Withdrawal.t.sol', requires_fork:true, skipped:true, success:false, returncode:0, duration_sec:0.0, reason:'Skipped: requires RPC/.env, none present' },
+    ];
+    const DOSSIERS = [
+      {case_id:'case_20260621T120000Z_12ab34cd56ef', scope_id:'authorized-lab', environment:'lab', validation_state:'OBSERVATION', normal_tool_attempts:3, logic_flaw_attempts:0, logic_flaw_no_progress_streak:0, logic_flaw_enabled_for_case:false, logic_flaw_exhausted:false, next_action:'normal_analysis', event_history:[{event:'CASE_CREATED',t:'12:00:00Z'},{event:'NORMAL_ANALYSIS',t:'12:01:12Z'},{event:'NORMAL_ANALYSIS',t:'12:02:40Z'},{event:'NORMAL_ANALYSIS',t:'12:04:05Z'}]},
+      {case_id:'case_20260621T131500Z_77de90ab12cd', scope_id:'authorized-lab', environment:'lab', validation_state:'LOGIC_FLAW_ACTIVE', normal_tool_attempts:5, logic_flaw_attempts:2, logic_flaw_no_progress_streak:1, logic_flaw_enabled_for_case:true, logic_flaw_exhausted:false, next_action:'logic_flaw_probe', event_history:[{event:'CASE_CREATED',t:'13:15:00Z'},{event:'NORMAL_ANALYSIS x5',t:'13:18:22Z'},{event:'LOGIC_FLAW_ELIGIBLE',t:'13:18:23Z'},{event:'LOGIC_FLAW_PROBE — new_evidence',t:'13:19:10Z'},{event:'LOGIC_FLAW_PROBE — no_new_evidence',t:'13:20:31Z'}]},
+      {case_id:'case_20260621T140230Z_aa11bb22cc33', scope_id:'authorized-lab', environment:'lab', validation_state:'LOGIC_FLAW_EXHAUSTED', normal_tool_attempts:5, logic_flaw_attempts:7, logic_flaw_no_progress_streak:2, logic_flaw_enabled_for_case:false, logic_flaw_exhausted:true, logic_flaw_exhaustion_reason:'attempt_limit_7', next_action:'select_alternate_tool', event_history:[{event:'CASE_CREATED',t:'14:02:30Z'},{event:'LOGIC_FLAW_PROBE x7',t:'14:09:54Z'},{event:'LOGIC_FLAW_EXHAUSTED — attempt_limit_7',t:'14:09:55Z'},{event:'REFRAME_HYPOTHESIS',t:'14:10:02Z'}]},
+    ];
+    const SOURCE = {
+      TinyReentrancy:{vulnLine:9, code:`// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+contract TinyReentrancy {
+    mapping(address => uint256) public balances;
+    function deposit() public payable { balances[msg.sender] += msg.value; }
+    function withdraw() public {
+        uint256 bal = balances[msg.sender];
+        require(bal > 0);
+        (bool success, ) = msg.sender.call{value: bal}("");
+        require(success);
+        balances[msg.sender] = 0;
+    }
+}`},
+      TinyIntegerOverflow:{vulnLine:6, code:`// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+contract TinyIntegerOverflow {
+    uint256 public count = type(uint256).max - 5;
+    function increment(uint256 x) public {
+        unchecked { count += x; }
+    }
+}`},
+      TinyTxOrigin:{vulnLine:7, code:`// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+contract TinyTxOrigin {
+    address public owner;
+    constructor() { owner = msg.sender; }
+    function withdrawAll() public {
+        require(tx.origin == owner);
+        payable(owner).transfer(address(this).balance);
+    }
+}`},
+      TinyUnprotectedSelfdestruct:{vulnLine:4, code:`// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+contract TinyUnprotectedSelfdestruct {
+    function kill() public { selfdestruct(payable(msg.sender)); }
+}`},
+      TinyUnprotectedWithdrawal:{vulnLine:5, code:`// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+contract TinyUnprotectedWithdrawal {
+    function withdraw() public {
+        payable(msg.sender).transfer(address(this).balance);
+    }
+}`},
+      TinySafeReentrancy:{vulnLine:null, safeLine:8, code:`// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+contract TinySafeReentrancy {
+    mapping(address => uint256) public balances;
+    function deposit() public payable { balances[msg.sender] += msg.value; }
+    function withdraw() public {
+        uint256 amount = balances[msg.sender];
+        balances[msg.sender] = 0;
+        (bool success, ) = msg.sender.call{value: amount}("");
+        require(success);
+    }
+}`},
+      TinyReentrancyEvents:{vulnLine:10, code:`// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+contract TinyReentrancyEvents {
+    mapping(address => uint256) public balances;
+    event Withdrawal(address indexed user, uint256 amount);
+    function deposit() public payable { balances[msg.sender] += msg.value; }
+    function withdraw() public {
+        uint256 bal = balances[msg.sender];
+        require(bal > 0);
+        (bool success, ) = msg.sender.call{value: bal}("");
+        require(success);
+        emit Withdrawal(msg.sender, bal);
+        balances[msg.sender] = 0;
+    }
+}`},
+      TinyReentrancyHelper:{vulnLine:9, code:`// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+contract TinyReentrancyHelper {
+    mapping(address => uint256) public balances;
+    function deposit() public payable { balances[msg.sender] += msg.value; }
+    function withdraw() public {
+        uint256 bal = balances[msg.sender];
+        require(bal > 0);
+        _send(msg.sender, bal);
+        balances[msg.sender] = 0;
+    }
+    function _send(address to, uint256 amount) internal {
+        (bool success, ) = to.call{value: amount}("");
+        require(success);
+    }
+}`},
+      TinyIntegerUnderflow:{vulnLine:6, code:`// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+contract TinyIntegerUnderflow {
+    uint256 public count = 5;
+    function decrement(uint256 x) public {
+        unchecked { count -= x; }
+    }
+}`},
+      TinyUncheckedTransfer:{vulnLine:5, code:`// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+contract TinyUncheckedTransfer {
+    function pay(address payable to) public payable {
+        to.send(msg.value);
+    }
+}`},
+    };
+    const nav = [
+      ['mission','Mission Control'],['gate','Proof Gate'],['boot','Boot Sequence'],['recon','Recon Feed'],['history','History'],['dossiers','Dossiers'],['arena','DVD Arena'],['cvss','CVSS'],['report','Evidence'],['trinity','Trinity Chat'],
+    ];
+    let view = 'mission'; let selected = null;
+    let runEvents = [...RECON_FEED];
+    let chatMessages = [
+      {role:'assistant', text:'Trinity online. Ask for a summary, a severity call, a remediation plan, or a report draft.'},
+    ];
+    let gateStep = 3;
+    let gateRunning = false;
+    let gateTimer = null;
+    const stateColor = s => s==='REPRODUCED_REAL'?C.phos:s==='CORRELATED'?C.amber:s==='DETECTED'?C.cyan:C.faint;
+    const ladderIndex = s => s==='REPRODUCED_REAL'?2:s==='CORRELATED'?1:s==='DETECTED'?0:-1;
+    const el = id => document.getElementById(id);
+    function mk(id, swc, state, opts={}) {
+      const expected = opts.expected ?? (swc ? [swc] : []);
+      const detected = opts.detected ?? (state === 'UNAVAILABLE' ? [] : (swc ? [swc] : []));
+      const reproduced = state === 'REPRODUCED_REAL' && swc ? [swc] : [];
+      const correlated = (state === 'CORRELATED' || state === 'REPRODUCED_REAL') && swc ? [swc] : [];
+      return { case_id:id, validation_state:state, reproduction_status: state === 'REPRODUCED_REAL' ? 'REPRODUCED_REAL' : (state === 'UNAVAILABLE' ? 'NOT_TESTED' : 'FAILED'), expected, detected, correlated, reproduced_real:reproduced, swc, true_positive: reproduced.length ? 1 : 0, false_positive:0, false_negative:0, true_negative: state === 'UNAVAILABLE' && expected.length === 0 ? 1 : 0, execution_artifacts: state === 'REPRODUCED_REAL' ? [{ swc, success:true, exploit_verified:true, assertion_count: opts.assertions ?? 1, unavailable:false, test_path:`/home/crexs/trinity_v5_val/tiny_contracts/test/Test_${id}.t.sol`, stderr:'', failure_reason:'' }] : [], contract: opts.contract ?? null, benchmark_id: opts.benchmark ?? '3a8b8bf0', archived: opts.archived ?? false, timestamp: opts.ts ?? '2026-06-18T23:17:00Z' };
+    }
+    function escapeHtml(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+    function stateLabel(state){ return state === 'UNAVAILABLE' ? 'TOOL UNAVAILABLE / NOT TESTED' : state; }
+    function gateRungs(reached, step, proven){
+      return ['DETECT','CORRELATE','REPRODUCE'].map((label, idx) => {
+        const lit = proven || step > idx;
+        const blocked = !proven && step > reached && idx === reached;
+        const col = lit ? C.phos : blocked ? C.red : C.faint;
+        const bg = lit ? C.phos + '1c' : blocked ? C.red + '1c' : 'transparent';
+        const icon = lit ? '✓' : blocked ? '✕' : '·';
+        return `<span style="flex:1;display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:5px 4px;border-radius:5px;border:1px solid ${col}55;background:${bg}"><span class="mono small" style="color:${col}">${icon}</span><span class="mono" style="font-size:9.5px;letter-spacing:.5px;color:${col}">${label}</span></span>`;
+      }).join('');
+    }
+    function buildEvidenceBundle(){
+      const primary = CASES.find(c => c.validation_state === 'REPRODUCED_REAL') || CASES[0];
+      const fixture = CASES.filter(c => c.validation_state === 'REPRODUCED_REAL').map(c => ({
+        case_id: c.case_id,
+        swc: c.swc,
+        contract: c.contract,
+        timestamp: c.timestamp,
+      }));
+      const source = primary && primary.contract ? SOURCE[primary.contract] : null;
+      return {
+        schema_version: '1.0',
+        kind: 'anchor.evidence_bundle',
+        thesis: 'AI says there may be a bug. ANCHOR asks for evidence.',
+        gate: {
+          fake_side: 'seeded false claim',
+          fake_verdict: 'REJECTED — INSUFFICIENT EVIDENCE',
+          real_side: 'FIXTURE CORPUS — REAL TOOL EXECUTION',
+          real_verdict: 'PROVEN',
+        },
+        run_id: window.__ANCHOR_LATEST_RUN_ID__ || 'demo_reentrancy',
+        case_id: primary ? primary.case_id : 'demo_reentrancy',
+        provenance: PROVENANCE,
+        fixture_corpus: fixture,
+        case: primary ? {
+          case_id: primary.case_id,
+          swc: primary.swc,
+          contract: primary.contract,
+          validation_state: primary.validation_state,
+          reproduction_status: primary.reproduction_status,
+          execution_artifacts: primary.execution_artifacts,
+          source: source ? source.code : null,
+          cvss: primary.swc ? CVSS[primary.swc] : null,
+        } : null,
+        note: 'The bad claim fails the gate; the real claim reproduces; the proof is signed and preserved.',
+        captured_at: new Date().toISOString(),
+      };
+    }
+    async function signEvidenceBundle(){
+      const status = document.getElementById('evidenceStatusMsg');
+      const button = document.getElementById('signEvidence');
+      const prev = button ? button.textContent : '';
+      if (button) { button.disabled = true; button.textContent = 'Signing...'; }
+      if (status) status.textContent = 'Posting bundle to the local signing endpoint...';
+      try {
+        const payload = buildEvidenceBundle();
+        const signed = await fetchJSON('/api/trinity/evidence/sign', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({bundle: payload})});
+        const bundle = signed.signed_bundle || signed.bundle || signed;
+        const blob = new Blob([JSON.stringify(bundle, null, 2)], {type:'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${bundle.case_id || payload.case_id || 'anchor-evidence'}.signed.json`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1200);
+        if (status) status.textContent = `Signed bundle received from server (${bundle.signature?.status || 'SIGNED'}).`;
+      } catch (err) {
+        if (status) status.textContent = 'Signing failed. Make sure the hunt console is unlocked and the local server is running.';
+      } finally {
+        if (button) { button.disabled = false; button.textContent = prev || 'Export signed evidence bundle'; }
+      }
+    }
+    function runGateAnimation(){
+      if (gateTimer) { clearInterval(gateTimer); gateTimer = null; }
+      gateRunning = true;
+      gateStep = 0;
+      renderView();
+      gateTimer = setInterval(() => {
+        gateStep += 1;
+        if (gateStep >= 3) {
+          clearInterval(gateTimer);
+          gateTimer = null;
+          gateRunning = false;
+        }
+        renderView();
+      }, 650);
+    }
+    function ladder(state, compact=false){
+      const idx = ladderIndex(state);
+      return LADDER.map((lvl,i)=>`<span style="display:inline-flex;flex-direction:column;align-items:center;gap:4px"><span style="width:${compact?26:54}px;height:${compact?5:7}px;border-radius:2px;background:${i<=idx?stateColor(state):'#10180f'};border:1px solid ${i<=idx?stateColor(state):C.line};box-shadow:${i<=idx?`0 0 8px ${stateColor(state)}aa`:'none'}"></span>${compact?'':`<span style="font-size:9px;letter-spacing:1px;color:${i<=idx?stateColor(state):C.faint};font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">${LABEL[lvl]}</span>`}</span>`).join('<span style="width:6px"></span>');
+    }
+    function renderPills(){
+      const items = [['slither',true],['forge',true],['myth',false],['echidna-test',true],['medusa',true]];
+      el('pills').innerHTML = items.map(([k,on])=>`<span class="pill"><span class="dot ${on?'phos':'amber'}"></span>${k}</span>`).join('') + `<span class="pill"><span class="dot cyan"></span><span id="clock"></span></span>`;
+    }
+    function stats(){
+      let tp=0,fp=0,fn=0,tn=0,det=0,corr=0,repro=0;
+      CASES.forEach(c=>{tp+=c.true_positive;fp+=c.false_positive;fn+=c.false_negative;tn+=c.true_negative; const i=ladderIndex(c.validation_state); if(i>=0)det++; if(i>=1)corr++; if(i>=2)repro++;});
+      const precision = tp+fp ? tp/(tp+fp) : 0; const recall = tp+fn ? tp/(tp+fn) : 0; const f1 = precision+recall ? (2*precision*recall)/(precision+recall) : 0;
+      return {tp,fp,fn,tn,det,corr,repro,precision,recall,f1};
+    }
+    function snapshotCards(){
+      const s = stats();
+      return `<div class="hero"><div class="lead"><h2>Evidence-gated local console</h2><p>Boot the run snapshot, inspect the recon feed, score findings with the CVSS calculator, and keep Trinity chat behind a local login. The browser no longer touches provider credentials.</p><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px"><span class="badge phos">signed evidence</span><span class="badge cyan">server-side chat</span><span class="badge amber">SSE-ready</span><span class="badge">localhost only</span></div></div><div class="metrics">${[['Memory count',window.__ANCHOR_SNAPSHOT__?.health?.memory_count ?? 0,'current memory bank'],['Turns',window.__ANCHOR_SNAPSHOT__?.health?.turns ?? 0,'active conversation turns'],['Top cases',CASES.length,'current specimen set'],['Reproduced',s.repro,'confirmed kills'],].map((x,i)=>`<div class="card"><div class="label">${x[0]}</div><div class="value" style="color:${[C.phos,C.lime,C.cyan,C.amber][i]}">${x[1]}</div><div class="desc">${x[2]}</div></div>`).join('')}</div></div>`;
+    }
+    function renderMission(){
+      const s = stats();
+      return `${snapshotCards()}<div class="section"><div class="section-head"><h2>Mission Control</h2><span class="status">release ${window.__ANCHOR_RELEASE__ || '{{ANCHOR_RELEASE}}'}</span></div><div class="grid-3" style="margin-top:12px">${[['Precision',s.precision.toFixed(2),'TP / (TP+FP)',C.phos],['Recall',s.recall.toFixed(2),'TP / (TP+FN)',C.lime],['F1 Score',s.f1.toFixed(2),'harmonic mean',C.cyan]].map(([l,v,d,col])=>`<div class="card"><div class="label">${l}</div><div class="value" style="color:${col}">${v}</div><div class="desc">${d}</div></div>`).join('')}</div></div><div class="section"><h2>Specimen grid</h2><div class="sub">Tap a card to open the source, remediation, and execution evidence.</div><div class="grid cards">${CASES.map(c=>{ const col=stateColor(c.validation_state); const meta=c.swc?SWC[c.swc]:null; const match = c.expected.length && c.detected.length && c.expected[0]===c.detected[0]; return `<div class="case" data-case="${c.case_id}"><div class="top"><div class="id">${c.case_id}</div><div>${c.validation_state==='REPRODUCED_REAL'?'☠':c.validation_state==='UNAVAILABLE'?'−':'⚑'}</div></div><div class="meta">${c.swc?`<span class="badge ${meta.sev==='critical'?'red':meta.sev==='high'?'amber':'cyan'}">${c.swc}</span><span class="small muted">${meta.name}</span>`:`<span class="small muted">no expected vuln</span>`}</div><div style="margin-top:12px">${ladder(c.validation_state,true)}</div><div class="small" style="margin-top:10px;color:${col}">${stateLabel(c.validation_state)}${match?' · MATCH':''}</div></div>`}).join('')}</div></div>`;
+    }
+    function renderGate(){
+      const rejected = [
+        { id: 'slop-01', title: 'seeded false claim: Reentrancy in withdrawAll()', swc: 'SWC-107', reached: 0, reason: 'missing scope evidence · no corroboration · PoC does not compile' },
+        { id: 'slop-02', title: 'seeded false claim: Integer overflow in tally()', swc: 'SWC-101', reached: 1, reason: 'missing scope evidence · independent tools disagree · checked math prevents overflow' },
+        { id: 'slop-03', title: 'seeded false claim: Unprotected selfdestruct via kill()', swc: 'SWC-106', reached: 2, reason: 'missing scope evidence · no corroboration · PoC does not compile because kill() is fabricated', catch: true },
+      ];
+      const proven = CASES.filter(c => c.validation_state === 'REPRODUCED_REAL').slice(0, 3).map(c => ({ case_id: c.case_id, swc: c.swc, label: 'FIXTURE CORPUS — REAL TOOL EXECUTION' }));
+      const currentStep = gateStep;
+      return `<div class="section"><div class="section-head"><h2>Proof Gate</h2><span class="status">Phase 0</span></div><div class="sub">One screen, two outcomes: seeded false claims hit the gate and are rejected, while fixture-corpus runs reproduce and export signed evidence. The gate only promotes claims that earn the proof.</div><div class="controls"><button class="btn" id="runGate" ${gateRunning ? 'disabled' : ''}>${gateRunning ? 'running gate...' : 'Run gate'}</button><span class="badge phos">AI says there may be a bug</span><span class="badge cyan">ANCHOR asks for evidence</span><span class="badge amber">REJECTED — INSUFFICIENT EVIDENCE</span></div><div class="grid two" style="align-items:start"><div><div class="section-head" style="padding:0;border:0"><h2 style="margin:0">Seeded false claims</h2></div><div class="sub">These are intentionally seeded false claims, not valid findings.</div>${rejected.map(item=>`<div class="card" style="margin-top:10px;border-color:${item.catch ? C.red : C.line}66"><div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><div><div class="mono" style="font-size:13px;color:${C.text}">${item.title}</div><div class="small muted" style="margin-top:4px">${item.swc}</div></div><span class="badge red">${item.catch ? 'REPRO-GATE CATCH' : 'REJECTED'}</span></div><div style="margin-top:10px">${gateRungs(item.reached, currentStep, false)}</div><div class="small" style="margin-top:10px;line-height:1.5;color:${C.muted}">${item.reason}</div><div class="small" style="margin-top:8px;color:${C.red};font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">gate outcome: REJECTED — INSUFFICIENT EVIDENCE</div></div>`).join('')}</div><div><div class="section-head" style="padding:0;border:0"><h2 style="margin:0">Fixture corpus</h2></div><div class="sub">These are real tool executions from the fixture corpus. They are not public targets.</div>${proven.map(item=>`<div class="card" style="margin-top:10px;border-color:${C.phos}66"><div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><div><div class="mono" style="font-size:13px;color:${C.text}">${item.case_id}</div><div class="small muted" style="margin-top:4px">${item.swc}</div><div class="small" style="margin-top:6px;color:${C.cyan}">${item.label}</div></div><span class="badge phos">PROVEN</span></div><div style="margin-top:10px">${gateRungs(3, currentStep, true)}</div><div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><span class="badge phos">signed evidence bundle</span><span class="badge cyan">reproduced</span></div></div>`).join('')}</div></div><div class="card" style="margin-top:12px"><div class="label">camera note</div><div class="desc">The third false claim is the important one: it passes detection and correlation, but the reproduction gate catches the fabricated PoC because it does not compile. That is the cleanest proof-gate contrast on the page.</div></div></div>`;
+    }
+    function renderBoot(){
+      return `<div class="section"><div class="section-head"><h2>Boot Sequence</h2><span class="status">initialize</span></div><div class="sub">The operator console now has a visible startup path, so the demo feels like a real product instead of a static mockup.</div><div class="log">${BOOT_STEPS.map((step,i)=>`<div class="log-item"><div class="t">${String(i+1).padStart(2,'0')} · ${step.state}</div><div class="m"><strong>${step.name}</strong><br>${step.detail}</div></div>`).join('')}</div></div>`;
+    }
+    function renderRecon(){
+      return `<div class="section"><div class="section-head"><h2>Recon Feed</h2><span class="status">live summary</span></div><div class="sub">A readable event stream that mirrors the run lifecycle: run.started → case.started → finding.detected → finding.correlated → poc.result → case.completed.</div><div class="split">${RECON_FEED.map(item=>`<div class="card"><div class="label">${item.time}</div><div class="value" style="font-size:18px;line-height:1.2;color:${item.time==='case.completed'?C.phos:C.cyan}">${item.title}</div><div class="desc">${item.note}</div></div>`).join('')}</div></div>`;
+    }
+    function renderHistory(){
+      const groups = {}; ARCHIVE.forEach(c => { (groups[c.benchmark_id] ||= []).push(c); });
+      const blocks = Object.entries(groups).sort((a,b)=>b[1][0].timestamp.localeCompare(a[1][0].timestamp));
+      return `<div class="section"><div class="section-head"><h2>Live Run Reducer</h2><span class="status">demo or stream</span></div><div class="sub">This timeline accepts demo events or server events and folds them into one visible run history.</div><div class="timeline">${runEvents.map((e,i)=>`<div class="item ${i===runEvents.length-1?'last':''}"><span class="mono small muted" style="display:inline-block;width:86px">${e.time || e.type || 'event'}</span><span class="mono small">${e.title}</span><div class="small muted" style="margin-top:4px">${e.note}</div></div>`).join('')}</div><div style="margin-top:16px" class="card"><div class="label">archive</div><div class="desc">Recent runs are still available for comparison and regression checks.</div></div>${blocks.map(([bid,rows])=>`<div class="panel" style="margin-top:14px"><div class="section" style="border-bottom:1px solid var(--line)"><div class="mono" style="display:flex;justify-content:space-between;align-items:center;gap:10px"><span>benchmark ${bid}</span><span style="color:var(--phos)">${rows.filter(r=>r.validation_state==='REPRODUCED_REAL').length}/${rows.length} reproduced</span></div></div>${rows.map(c=>`<div class="row" data-case="${c.case_id}" style="grid-template-columns:150px 1.4fr .7fr auto .9fr"><div class="mono small muted">${c.timestamp.slice(0,16).replace('T',' ')}Z</div><div class="mono">${c.case_id}</div><div class="mono small">${c.swc || '—'}</div><div>${ladder(c.validation_state,true)}</div><div class="mono small" style="text-align:right;color:${stateColor(c.validation_state)}">${stateLabel(c.validation_state)}</div></div>`).join('')}</div>`).join('')}</div>`;
+    }
+    function renderDossiers(){
+      const d = DOSSIERS[window.dossierIndex || 0];
+      const col = d.validation_state === 'LOGIC_FLAW_EXHAUSTED' ? C.red : d.validation_state === 'LOGIC_FLAW_ACTIVE' ? C.amber : C.phos;
+      return `<div class="section"><div class="section-head"><h2>Case Dossiers</h2><span class="status">gated escalation</span></div><div class="sub">The UI keeps the case state readable and distinguishes detected, correlated, reproduced, and not-tested states.</div><div class="controls">${DOSSIERS.map((x,i)=>`<button class="btn" data-dossier="${i}" style="border-color:${window.dossierIndex===i?col:'var(--line)'};color:${window.dossierIndex===i?col:'var(--muted)'};background:${window.dossierIndex===i?col+'16':'transparent'}">${x.validation_state}</button>`).join('')}</div><div class="card"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><div><div class="mono" style="font-size:14px">${d.case_id}</div><div style="margin-top:8px">${['environment','scope_id','validation_state'].map(k=>`<span class="badge" style="color:${k==='validation_state'?col:C.cyan};border-color:${k==='validation_state'?col+'55':C.line};margin-right:8px">${k==='environment'?'lab':d[k]}</span>`).join('')}</div></div><div style="text-align:right"><div class="section-head small" style="padding:0;border:0;justify-content:flex-end"><h2 style="margin:0">next action</h2></div><div class="mono" style="color:${col}">${d.next_action}</div></div></div><div class="grid-3" style="margin-top:18px">${[['NORMAL ATTEMPTS → GATE',d.normal_tool_attempts,5,d.normal_tool_attempts>=5?C.amber:C.cyan],['LOGIC-FLAW ATTEMPTS',d.logic_flaw_attempts,7,d.logic_flaw_attempts>=7?C.red:C.amber],['NO-PROGRESS STREAK',d.logic_flaw_no_progress_streak,3,d.logic_flaw_no_progress_streak>=3?C.red:C.amber]].map(([lab,val,max,col2])=>`<div><div class="small muted mono">${lab}</div><div class="bar" style="margin-top:5px"><div style="width:${Math.min(100,(val/max)*100)}%;background:${col2};box-shadow:0 0 8px ${col2}"></div></div><div class="mono small" style="margin-top:6px;color:${col2}">${val} / ${max}</div></div>`).join('')}</div><div class="section" style="padding:16px 0 0;border:0"><h2>Event history</h2><div class="timeline">${d.event_history.map((e,i)=>`<div class="item ${i===d.event_history.length-1?'last':''}"><span class="mono small muted" style="display:inline-block;width:64px">${e.t}</span><span class="mono small">${e.event}</span></div>`).join('')}</div></div></div></div>`;
+    }
+    function cvssVector(state){
+      const scope = state.scope;
+      const parts = [
+        `AV:${state.av}`,
+        `AC:${state.ac}`,
+        `PR:${state.pr}`,
+        `UI:${state.ui}`,
+        `S:${scope}`,
+        `C:${state.c}`,
+        `I:${state.i}`,
+        `A:${state.a}`,
+      ];
+      return 'CVSS:3.1/' + parts.join('/');
+    }
+    function cvssWeights(state){
+      const av = {N:0.85,A:0.62,L:0.55,P:0.2}[state.av] || 0.85;
+      const ac = {L:0.77,H:0.44}[state.ac] || 0.77;
+      const ui = {N:0.85,R:0.62}[state.ui] || 0.85;
+      const prU = {N:0.85,L:0.62,H:0.27};
+      const prC = {N:0.85,L:0.68,H:0.5};
+      const pr = (state.scope === 'C' ? prC : prU)[state.pr] || 0.85;
+      const c = {H:0.56,L:0.22,N:0}[state.c] || 0;
+      const i = {H:0.56,L:0.22,N:0}[state.i] || 0;
+      const a = {H:0.56,L:0.22,N:0}[state.a] || 0;
+      return {av,ac,ui,pr,c,i,a};
+    }
+    function roundUp1(v){ return Math.ceil(v * 10) / 10; }
+    function calcCvss(state){
+      const w = cvssWeights(state);
+      const impactSub = 1 - ((1 - w.c) * (1 - w.i) * (1 - w.a));
+      const exploitability = 8.22 * w.av * w.ac * w.pr * w.ui;
+      let impact = 0;
+      let base = 0;
+      if (state.scope === 'U') {
+        impact = 6.42 * impactSub;
+        base = Math.min(impact + exploitability, 10);
+      } else {
+        impact = 7.52 * (impactSub - 0.029) - 3.25 * Math.pow(impactSub - 0.02, 15);
+        base = Math.min(1.08 * (impact + exploitability), 10);
+      }
+      return {score: roundUp1(Math.max(base, 0)), impact, exploitability};
+    }
+    const cvssState = {av:'N', ac:'L', pr:'N', ui:'N', scope:'U', c:'H', i:'H', a:'H'};
+    function renderCvss(){
+      const result = calcCvss(cvssState);
+      const severity = result.score >= 9 ? 'critical' : result.score >= 7 ? 'high' : result.score >= 4 ? 'medium' : 'low';
+      return `<div class="section"><div class="section-head"><h2>CVSS Calculator</h2><span class="status">live score</span></div><div class="sub">A dedicated calculator for translating a finding into a base score and a reviewable vector string.</div><div class="split"><div class="card"><div class="label">vector</div><div class="score" style="margin-top:8px;color:${severity==='critical'?C.red:severity==='high'?C.amber:severity==='medium'?C.cyan:C.phos}">${result.score.toFixed(1)}</div><div class="desc" style="margin-top:8px;word-break:break-all">${cvssVector(cvssState)}</div><div class="bar" style="margin-top:12px"><div style="width:${Math.min(100,(result.score/10)*100)}%;background:${severity==='critical'?C.red:severity==='high'?C.amber:severity==='medium'?C.cyan:C.phos};box-shadow:0 0 8px ${severity==='critical'?C.red:severity==='high'?C.amber:severity==='medium'?C.cyan:C.phos}"></div></div><div class="desc" style="margin-top:8px">Impact ${result.impact.toFixed(2)} · Exploitability ${result.exploitability.toFixed(2)}</div></div><div class="card"><div class="label">controls</div><div class="grid" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-top:8px">${[
+        ['Attack Vector','av',{N:'Network',A:'Adjacent',L:'Local',P:'Physical'}],['Attack Complexity','ac',{L:'Low',H:'High'}],['Privileges Required','pr',{N:'None',L:'Low',H:'High'}],['User Interaction','ui',{N:'None',R:'Required'}],['Scope','scope',{U:'Unchanged',C:'Changed'}],['Confidentiality','c',{H:'High',L:'Low',N:'None'}],['Integrity','i',{H:'High',L:'Low',N:'None'}],['Availability','a',{H:'High',L:'Low',N:'None'}],
+      ].map(([label,key,opts])=>`<label><span>${label}</span><select data-cvss="${key}">${Object.entries(opts).map(([k,v])=>`<option value="${k}" ${cvssState[key]===k?'selected':''}>${v}</option>`).join('')}</select></label>`).join('')}</div></div></div></div>`;
+    }
+    function renderEvidence(){
+      return `<div class="section"><div class="section-head"><h2>Evidence & Provenance</h2><span class="status">signed bundle</span></div><div class="sub">This panel mirrors the product story from the zip: versioned events, evidence signing, and a tamper-evident local workflow.</div><div class="grid two">${Object.entries(PROVENANCE).map(([k,v])=>`<div class="card"><div class="label">${k}</div><div class="value" style="font-size:18px;color:${C.cyan}">${v}</div></div>`).join('')}</div><div class="grid two" style="margin-top:12px">${BOUNTY.map((b,i)=>`<div class="card"><div class="label">${b.label}</div><div class="value" style="font-size:28px;color:${[C.phos,C.cyan,C.amber,C.lime][i]}">${b.value}</div><div class="desc">${b.desc}</div></div>`).join('')}</div><div class="card" style="margin-top:12px"><div class="label">updated info</div><div class="desc">FastAPI backend with SSE live-run support, stop/cancel endpoints, registry and case routes, Ed25519 evidence signing, demo-mode labeling, and a login gate for localhost use.</div><div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="signEvidence">Export signed evidence bundle</button><span class="badge cyan">/api/trinity/evidence/sign</span></div><div class="desc" id="evidenceStatusMsg" style="margin-top:10px">Click the button to ask the local server to sign the current fixture bundle.</div></div></div>`;
+    }
+    function renderArena(){
+      return `<div class="section"><div class="section-head"><h2>DVD Arena</h2><span class="status">field deployment</span></div><div class="sub">A compact mirror of the challenge results and their execution artifacts.</div><div class="controls"><span class="badge cyan">0 SOLVED</span><span class="badge amber">2 FAILED</span><span class="badge">1 SKIPPED</span></div><div class="grid cards">${DVD.map(d=>{ const col = d.skipped ? C.faint : d.success ? C.phos : C.red; const status = d.skipped ? 'SKIPPED' : d.success ? 'SOLVED' : 'FAILED'; return `<div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><div class="mono" style="font-size:15px">${d.challenge}</div><div style="color:${col}">${d.skipped?'−':d.success?'✓':'✕'}</div></div><div class="mono small muted" style="margin-top:6px">${d.test_path}</div><div style="margin-top:12px"><span class="badge" style="color:${col};border-color:${col}55">${status}</span><span class="badge">rc ${d.returncode}</span><span class="badge">${d.duration_sec.toFixed(2)}s</span>${d.requires_fork?'<span class="badge cyan">FORK</span>':''}</div><div style="margin-top:12px;padding:10px;border-radius:8px;background:#0a0f0b;border:1px solid var(--line)"><div class="small muted mono">assertion</div><div class="small" style="margin-top:5px;line-height:1.5;color:${d.skipped?C.muted:C.red}">${d.reason}</div></div></div>`}).join('')}</div></div>`;
+    }
+    function renderReport(){
+      return `<div class="section"><div class="section-head"><h2>Evidence Builder</h2><span class="status">report.md</span></div><div class="sub">This is the part of the product that turns the run into a reviewable artifact with source, impact, steps, and remediation.</div><div class="controls"><select id="loadCase"><option value="">Load from finding...</option>${CASES.filter(c=>c.validation_state==='REPRODUCED_REAL').map(c=>`<option value="${c.case_id}">${c.case_id}</option>`).join('')}</select><button class="btn" id="clearReport">Clear</button><button class="btn" id="copyReport">Copy report</button></div><div class="formgrid">${[
+        ['Title','title'],['Severity','severity'],['Classification','swc'],['Target','target'],['Network','network'],['Commit / version','commit'],['Summary','summary','full'],['Impact','impact','full'],['Affected code (file:line)','affected'],['Vulnerable snippet','code','full'],['Steps to reproduce','steps','full'],['Proof of concept','poc','full'],['Recommended remediation','fix','full'],['Reporter','reporter'],['References','refs','full'],
+      ].map(([label,key,mode])=>`<label class="${mode==='full'?'full':''}"><span>${label}</span>${['summary','impact','code','steps','poc','fix','refs'].includes(key) ? `<textarea data-field="${key}" rows="${key==='code'?6:key==='steps'?4:key==='poc'?3:key==='refs'?2:3}"></textarea>` : key==='severity' ? `<select data-field="${key}">${['Critical','High','Medium','Low'].map(v=>`<option>${v}</option>`).join('')}</select>` : `<input data-field="${key}">`}</label>`).join('')}<div class="full"><div class="section-head" style="padding:0 0 8px;border:0"><h2 style="margin:0">report.md preview</h2></div><pre class="preview" id="reportPreview"></pre></div></div></div>`;
+    }
+    function renderTrinity(){
+      return `<div class="section"><div class="section-head"><h2>Trinity Chat</h2><span class="status">server-side</span></div><div class="sub">Prompt the local server, not the browser. This keeps the console safe while still feeling conversational.</div><div class="chat"><div class="head"><div class="mono" style="color:${C.phos}">TRINITY</div><div class="badge cyan">ANCHOR analysis agent</div></div><div class="body" id="chatBody">${chatMessages.map(m=>`<div class="bubble ${m.role==='user'?'me':'bot'}"><div class="role">${m.role==='user'?'YOU':'TRINITY'}</div><div>${escapeHtml(m.text)}</div></div>`).join('')}</div><div class="foot"><textarea id="chatInput" placeholder="Ask Trinity about the run, a finding, a severity call, or a report..."></textarea><button class="btn send" id="chatSend">Send</button></div></div></div>`;
+    }
+    function render(){
+      renderPills();
+      el('nav').innerHTML = nav.map(([id,label]) => `<button class="${view===id?'active':''}" data-view="${id}"><span>${label}</span></button>`).join('') + `<div class="foot"><div class="mono" style="display:flex;align-items:center;gap:8px;color:var(--cyan)">◌ OBSERVATION MODE</div><div class="mini">lab scope · read-only · authorized-lab · local passphrase required for the hunt console.</div></div>`;
+      document.querySelectorAll('#nav button[data-view]').forEach(b => b.addEventListener('click', () => { view = b.dataset.view; renderView(); }));
+      renderView();
+    }
+    function renderView(){
+      el('pageTitle').textContent = nav.find(n => n[0] === view)[1];
+      let body = '';
+      if (view === 'mission') body = renderMission();
+      if (view === 'gate') body = renderGate();
+      if (view === 'boot') body = renderBoot();
+      if (view === 'recon') body = renderRecon();
+      if (view === 'history') body = renderHistory();
+      if (view === 'dossiers') body = renderDossiers();
+      if (view === 'arena') body = renderArena();
+      if (view === 'cvss') body = renderCvss();
+      if (view === 'report') body = renderReport();
+      if (view === 'trinity') body = renderTrinity();
+      el('panel').innerHTML = body;
+      document.querySelectorAll('.nav button').forEach(b => b.classList.toggle('active', b.dataset.view === view));
+      document.querySelectorAll('[data-case]').forEach(node => node.addEventListener('click', e => { e.stopPropagation(); loadCase(node.dataset.case); }));
+      document.querySelectorAll('[data-dossier]').forEach(node => node.addEventListener('click', () => { window.dossierIndex = Number(node.dataset.dossier); renderView(); }));
+      document.querySelectorAll('[data-cvss]').forEach(node => node.addEventListener('change', () => { cvssState[node.dataset.cvss] = node.value; renderView(); }));
+      const q = document.getElementById('filterQ'); if (q) q.addEventListener('input', renderView);
+      const fs = document.getElementById('filterState'); if (fs) fs.addEventListener('change', renderView);
+      const lc = document.getElementById('loadCase'); if (lc) lc.addEventListener('change', () => { if (lc.value) loadCase(lc.value); });
+      const cr = document.getElementById('clearReport'); if (cr) cr.addEventListener('click', () => { renderView(); });
+      const copy = document.getElementById('copyReport'); if (copy) copy.addEventListener('click', async () => { try { await navigator.clipboard.writeText(buildReportFromState()); copy.textContent = 'Copied'; setTimeout(() => copy.textContent = 'Copy report', 1200); } catch {} });
+      const signEvidence = document.getElementById('signEvidence'); if (signEvidence) signEvidence.addEventListener('click', signEvidenceBundle);
+      const runGate = document.getElementById('runGate'); if (runGate) runGate.addEventListener('click', runGateAnimation);
+      document.querySelectorAll('[data-field]').forEach(elm => elm.addEventListener('input', () => { reportState[elm.dataset.field] = elm.value; document.getElementById('reportPreview').textContent = buildReportFromState(); }));
+      if (document.getElementById('reportPreview')) document.getElementById('reportPreview').textContent = buildReportFromState();
+      const chatSend = document.getElementById('chatSend');
+      if (chatSend) chatSend.addEventListener('click', sendChat);
+      const chatInput = document.getElementById('chatInput');
+      if (chatInput) chatInput.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); } });
+      bindDrawer();
+    }
+    const reportState = { title:'', severity:'High', swc:'', target:'', network:'Authorized lab (Foundry)', commit:'', reporter:'', summary:'', impact:'', affected:'', code:'', steps:'', poc:'', fix:'', refs:'' };
+    function buildReportFromState(){
+      const f = reportState;
+      return [`# [${(f.severity||'').toUpperCase()}] ${f.title || 'Untitled finding'}`,'','## Summary',f.summary || '_Two or three sentences: what the bug is and why it matters._','','## Target',`- Contract: ${f.target || '_contract / address_'}`,`- Network: ${f.network || '_network_'}`,f.commit ? `- Commit / version: ${f.commit}` : null,`- Classification: ${f.swc || '_SWC-XXX_'}`,'','## Impact',f.impact || '_What an attacker gains. Funds at risk and who is affected._','',f.affected || f.code ? ['## Affected code', f.affected ? `\`${f.affected}\`` : null, f.code ? ['```solidity', f.code, '```'].join('
+') : null, ''].filter(Boolean).join('
+') : '', '## Steps to reproduce',f.steps || '1. _..._','','## Proof of concept',f.poc ? `\`\`\`
+${f.poc}
+\`\`\`` : '_Command or test that demonstrates the exploit._','','## Recommended remediation',f.fix || '_The fix._',f.refs ? ['', '## References', f.refs].join('
+') : '', '', '---', `Reported by: ${f.reporter || '_handle_'}`, `Date: ${new Date().toISOString().slice(0,10)}`].filter(v=>v!==null).join('
+');
+    }
+    function loadCase(caseId){
+      const c = [...CASES, ...ARCHIVE].find(x => x.case_id === caseId); if(!c) return; const meta = c.swc ? SWC[c.swc] : null; const src = c.contract ? SOURCE[c.contract] : null; const ex = c.execution_artifacts[0];
+      reportState.title = meta ? `${meta.name} in ${c.contract || c.case_id}` : `Finding in ${c.case_id}`;
+      reportState.severity = meta ? (meta.sev.charAt(0).toUpperCase() + meta.sev.slice(1)) : 'High';
+      reportState.swc = c.swc ? `${c.swc} (${meta.name})` : '';
+      reportState.target = c.contract ? `${c.contract}.sol` : c.case_id;
+      reportState.network = 'Authorized lab (Foundry)';
+      reportState.summary = meta ? `${meta.name}. Correlated across tools and reproduced with a real proof-of-concept (validation state ${c.validation_state}).` : '';
+      reportState.impact = meta ? `An attacker can exploit the ${meta.name.toLowerCase()} to compromise contract funds or control. Reproduced with ${c.execution_artifacts[0]?.assertion_count || 1} passing assertion(s).` : '';
+      reportState.affected = src && src.vulnLine ? `${c.contract}.sol:${src.vulnLine}` : (c.contract ? `${c.contract}.sol` : '');
+      reportState.code = src ? src.code : '';
+      reportState.steps = ex ? '1. Compile the target with Foundry.
+2. Run the generated proof-of-concept test.
+3. Observe the exploit assertion pass.' : '';
+      reportState.poc = ex ? `forge test --match-path ${ex.test_path} -vvv` : '';
+      reportState.fix = meta ? meta.fix : '';
+      reportState.refs = c.swc ? `- SWC registry: ${c.swc}` : '';
+      view = 'report'; renderView();
+    }
+    function bindDrawer(){
+      const drawer = document.getElementById('drawer'); const panel = document.getElementById('drawerPanel');
+      const close = () => drawer.classList.remove('open');
+      drawer.onclick = e => { if (e.target === drawer) close(); };
+      window.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+      window.openCase = (caseId) => {
+        const c = [...CASES, ...ARCHIVE].find(x => x.case_id === caseId); if (!c) return;
+        const meta = c.swc ? SWC[c.swc] : null; const ex = c.execution_artifacts[0];
+        const source = c.contract && SOURCE[c.contract] ? `<div class="source"><div class="head"><div class="mono">${c.contract}.sol</div><div class="mono" style="color:${c.swc ? (meta.sev === 'critical' ? C.red : meta.sev === 'high' ? C.amber : C.cyan) : C.phos}">${c.swc ? 'VULN @ L' + SOURCE[c.contract].vulnLine : 'NEGATIVE CONTROL'}</div></div><pre>${escapeHtml(SOURCE[c.contract].code)}</pre></div>` : '';
+        panel.innerHTML = `<div class="drawer-top"><div><div class="mono small muted">specimen file</div><div class="mono" style="font-size:20px;margin-top:6px">${c.case_id}</div></div><button class="x" id="closeDrawer">✕</button></div><div style="margin-top:14px"><span class="badge ${c.validation_state==='REPRODUCED_REAL'?'phos':c.validation_state==='UNAVAILABLE'?'cyan':'amber'}">${c.validation_state==='REPRODUCED_REAL'?'CONFIRMED KILL':c.validation_state==='UNAVAILABLE'?'TOOL UNAVAILABLE / NOT TESTED':'CONTAINED'}</span></div><div style="margin-top:18px">${ladder(c.validation_state,false)}</div>${meta?`<div class="card" style="margin-top:18px;border-color:${meta.sev==='critical'?C.red:meta.sev==='high'?C.amber:C.cyan}40"><div style="display:flex;justify-content:space-between;align-items:center"><div class="mono" style="color:${meta.sev==='critical'?C.red:meta.sev==='high'?C.amber:C.cyan}">${c.swc}</div><div class="badge ${meta.sev==='critical'?'red':meta.sev==='high'?'amber':'cyan'}">${meta.sev.toUpperCase()}</div></div><div style="margin-top:6px;font-size:14px">${meta.name}</div><div style="margin-top:12px"><div class="section-head" style="padding:0;border:0"><h2 style="margin:0">remediation</h2></div><div class="small muted" style="margin-top:5px;line-height:1.55">${meta.fix}</div></div></div>`:''}<div style="display:flex;gap:10px;margin-top:18px"><div class="card" style="flex:1"><div class="label">expected</div><div class="mono">${c.expected.join(', ') || 'none'}</div></div><div class="card" style="flex:1"><div class="label">detected</div><div class="mono" style="color:${c.detected.length?C.phos:C.muted}">${c.detected.join(', ') || 'none'}</div></div></div>${source}${ex?`<div class="card" style="margin-top:18px"><div class="label" style="color:${C.phos}">proof-of-concept execution</div><div class="small" style="display:grid;gap:8px;margin-top:10px"><div style="display:flex;justify-content:space-between;gap:12px"><span class="muted">exploit_verified</span><span>${String(ex.exploit_verified)}</span></div><div style="display:flex;justify-content:space-between;gap:12px"><span class="muted">assertion_count</span><span>${String(ex.assertion_count)}</span></div><div style="display:flex;justify-content:space-between;gap:12px"><span class="muted">test_path</span><span class="mono" style="text-align:right;word-break:break-all">${ex.test_path}</span></div></div></div>`:''}<div class="mono small muted" style="margin-top:18px">captured ${c.timestamp}</div>`;
+        drawer.classList.add('open');
+        document.getElementById('closeDrawer').onclick = close;
+      };
+    }
+    function renderClock(){ const c = document.getElementById('clock'); if(c) c.textContent = new Date().toISOString().slice(11,19) + 'Z'; }
+    async function fetchJSON(url, opts){ const res = await fetch(url, opts); const data = await res.json().catch(() => ({})); if (!res.ok) throw new Error(data.detail || data.error || res.statusText); return data; }
+    async function bootstrap(){
+      try {
+        const [session, health, snapshot, paths] = await Promise.all([
+          fetchJSON('/api/anchor/session'),
+          fetchJSON('/api/health'),
+          fetchJSON('/api/anchor/snapshot?limit=8'),
+          fetchJSON('/api/trinity/paths').catch(() => ({})),
+        ]);
+        window.__ANCHOR_SNAPSHOT__ = snapshot;
+        window.__ANCHOR_RELEASE__ = snapshot?.identity?.version || session.release || '{{ANCHOR_RELEASE}}';
+        window.__ANCHOR_LATEST_RUN_ID__ = snapshot?.history?.runs?.[0]?.case_id || snapshot?.history?.runs?.[0]?.run_id || 'demo_reentrancy';
+        const pills = [
+          ['slither',true],['forge',true],['myth',false],['echidna-test',true],['medusa',true],
+        ];
+        el('pills').innerHTML = pills.map(([k,on])=>`<span class="pill"><span class="dot ${on?'phos':'amber'}"></span>${k}</span>`).join('') + `<span class="pill"><span class="dot cyan"></span><span id="clock"></span></span><span class="pill"><span class="dot ${session.authenticated ? 'phos' : 'amber'}"></span>${session.authenticated ? 'authenticated' : 'login required'}</span>`;
+        const existing = runEvents.slice();
+        if (snapshot && snapshot.history && Array.isArray(snapshot.history.runs) && snapshot.history.runs.length) {
+          runEvents = snapshot.history.runs.slice(0, 6).map((run, idx) => ({ time: `run.${idx + 1}`, title: run.title || run.id || 'Run event', note: run.summary || 'Loaded from /api/anchor/snapshot' }));
+        } else {
+          runEvents = existing;
+        }
+        render();
+        maybeAttachStream();
+      } catch (e) {
+        el('pills').innerHTML = `<span class="pill"><span class="dot amber"></span>offline fallback</span>`;
+        render();
+      }
+    }
+    function maybeAttachStream(){
+      const runId = window.__ANCHOR_LATEST_RUN_ID__ || 'demo_reentrancy';
+      const url = `/api/trinity/runs/${encodeURIComponent(runId)}/events`;
+      try {
+        const es = new EventSource(url);
+        es.onmessage = evt => {
+          try {
+            const data = JSON.parse(evt.data);
+            const title = data.event_type || data.event || data.type || 'event';
+            const note = data.summary || data.note || data.message || data.detail || '';
+            runEvents = [...runEvents.slice(-18), { time: data.timestamp || data.time || data.ts || 'event', title, note }];
+            if (view === 'history') renderView();
+          } catch (err) {}
+        };
+        es.onerror = () => es.close();
+      } catch (err) {}
+    }
+    async function sendChat(){
+      const input = document.getElementById('chatInput');
+      if (!input) return;
+      const value = input.value.trim();
+      if (!value) return;
+      chatMessages.push({role:'user', text:value});
+      input.value = '';
+      renderView();
+      try {
+        const data = await fetchJSON('/api/trinity/chat', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({message:value})});
+        chatMessages.push({role:'assistant', text:data.reply || 'No reply returned.'});
+      } catch (e) {
+        chatMessages.push({role:'assistant', text:'Trinity could not reach the server chat route. Check login and try again.'});
+      }
+      renderView();
+      const body = document.getElementById('chatBody');
+      if (body) body.scrollTop = body.scrollHeight;
+    }
+    document.addEventListener('click', e => {
+      const target = e.target.closest('[data-case]'); if (target) { window.openCase(target.dataset.case); }
+    });
+    bootstrap();
+    setInterval(renderClock, 1000);
+    function buildReport(){ return buildReportFromState(); }
+  </script>
+</body>
+</html>

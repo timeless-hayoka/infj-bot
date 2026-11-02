@@ -45,8 +45,12 @@ def test_reset_chroma_store_clears_singleton(monkeypatch):
         created.append(kwargs)
         return FakeStore()
 
-    chromadb_integration_hooks = load_module("chromadb_integration_hooks", "chromadb_integration_hooks.py")
-    monkeypatch.setattr(chromadb_integration_hooks, "ChromaMemoryStore", fake_chroma_store)
+    chromadb_integration_hooks = load_module(
+        "chromadb_integration_hooks", "chromadb_integration_hooks.py"
+    )
+    monkeypatch.setattr(
+        chromadb_integration_hooks, "ChromaMemoryStore", fake_chroma_store
+    )
 
     first = memory_store_config.get_chroma_store()
     second = memory_store_config.get_chroma_store()

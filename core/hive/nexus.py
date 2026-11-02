@@ -12,7 +12,7 @@ import threading
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from ..config import DATA_DIR
 
@@ -37,7 +37,7 @@ class NarrativeArc:
 
     chapter: str = "awakening"
     summary: str = ""
-    turning_points: List[str] = field(default_factory=list)
+    turning_points: list[str] = field(default_factory=list)
     projected_next: str = ""
     last_updated: str = field(default_factory=lambda: datetime.now().isoformat())
 
@@ -47,7 +47,7 @@ class ActiveTension:
     """An unresolved dynamic pulling the self in different directions."""
 
     name: str = ""
-    poles: List[str] = field(default_factory=list)  # e.g., ["safety", "growth"]
+    poles: list[str] = field(default_factory=list)  # e.g., ["safety", "growth"]
     intensity: float = 0.5
     resolution_path: str = ""
 
@@ -56,21 +56,21 @@ class ActiveTension:
 class NexusState:
     """Snapshot of the Nexus self-model."""
 
-    current_goals: List[str] = field(default_factory=list)
-    moral_stances: Dict[str, MoralStance] = field(default_factory=dict)
+    current_goals: list[str] = field(default_factory=list)
+    moral_stances: dict[str, MoralStance] = field(default_factory=dict)
     narrative_arc: NarrativeArc = field(default_factory=NarrativeArc)
-    active_tensions: List[ActiveTension] = field(default_factory=list)
-    last_integration_time: Optional[str] = None
+    active_tensions: list[ActiveTension] = field(default_factory=list)
+    last_integration_time: str | None = None
     decision_count: int = 0
     reflection_count: int = 0
     coherence_score: float = 0.5  # how internally consistent the self-model is
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         d = asdict(self)
         return d
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "NexusState":
+    def from_dict(cls, d: dict[str, Any]) -> "NexusState":
         d = dict(d)
         d["moral_stances"] = {
             k: MoralStance(**v) for k, v in d.get("moral_stances", {}).items()
@@ -85,7 +85,7 @@ class NexusState:
 class NexusSelfModel:
     """Persistent self-model that integrates council decisions into identity."""
 
-    def __init__(self, db_path: Optional[Path] = None):
+    def __init__(self, db_path: Path | None = None):
         self.db_path = str(db_path or NEXUS_DB)
         self._lock = threading.RLock()
         self._init_db()
@@ -156,8 +156,8 @@ class NexusSelfModel:
         resolution: str,
         moral_weight: float,
         narrative_weight: float,
-        council_votes: Dict[str, float],
-        nexus_override: Optional[str] = None,
+        council_votes: dict[str, float],
+        nexus_override: str | None = None,
     ) -> None:
         """Integrate a completed Nexus Loop decision into the self-model."""
         with self._lock:
@@ -254,10 +254,10 @@ class NexusSelfModel:
             )
             self._save_state()
 
-    def get_state(self) -> Dict[str, Any]:
+    def get_state(self) -> dict[str, Any]:
         return self._state.to_dict()
 
-    def get_decision_history(self, limit: int = 20) -> List[Dict[str, Any]]:
+    def get_decision_history(self, limit: int = 20) -> list[dict[str, Any]]:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
@@ -266,7 +266,7 @@ class NexusSelfModel:
             ).fetchall()
             return [dict(r) for r in rows]
 
-    def get_reflection_history(self, limit: int = 20) -> List[Dict[str, Any]]:
+    def get_reflection_history(self, limit: int = 20) -> list[dict[str, Any]]:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
@@ -276,7 +276,7 @@ class NexusSelfModel:
             return [dict(r) for r in rows]
 
     @staticmethod
-    def _compute_vote_variance(votes: Dict[str, float]) -> float:
+    def _compute_vote_variance(votes: dict[str, float]) -> float:
         if not votes:
             return 0.0
         values = list(votes.values())
@@ -285,7 +285,7 @@ class NexusSelfModel:
         return variance
 
 
-_nexus_instance: Optional[NexusSelfModel] = None
+_nexus_instance: NexusSelfModel | None = None
 
 
 def get_nexus() -> NexusSelfModel:

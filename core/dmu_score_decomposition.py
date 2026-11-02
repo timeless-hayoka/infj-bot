@@ -11,9 +11,9 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 
 @dataclass
@@ -31,12 +31,12 @@ class DMUScoreDecomposition:
     conflict_penalty: float
     final_dmu_score: float
     rank: int = 0
-    semantic_rank: Optional[int] = None
-    memory_metadata: Dict[str, Any] = field(default_factory=dict)
+    semantic_rank: int | None = None
+    memory_metadata: dict[str, Any] = field(default_factory=dict)
     notes: str = ""
-    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         payload = asdict(self)
         if not isinstance(payload.get("memory_metadata"), dict):
             payload["memory_metadata"] = {}
@@ -55,7 +55,7 @@ def build_decomposition(
     trust_level: float,
     conflict_penalty: float,
     final_dmu_score: float,
-    memory_metadata: Optional[Dict[str, Any]] = None,
+    memory_metadata: dict[str, Any] | None = None,
     notes: str = "",
 ) -> DMUScoreDecomposition:
     """Create a validated decomposition record."""
@@ -76,39 +76,43 @@ def build_decomposition(
 
 
 def attach_ranks(
-    decompositions: List[DMUScoreDecomposition],
+    decompositions: list[DMUScoreDecomposition],
     *,
     sort_key: str = "final_dmu_score",
     descending: bool = True,
-) -> List[DMUScoreDecomposition]:
+) -> list[DMUScoreDecomposition]:
     """Assign DMU ranks based on the chosen score key."""
-    sorted_decomps = sorted(decompositions, key=lambda d: getattr(d, sort_key), reverse=descending)
+    sorted_decomps = sorted(
+        decompositions, key=lambda d: getattr(d, sort_key), reverse=descending
+    )
     for idx, decomp in enumerate(sorted_decomps, start=1):
         decomp.rank = idx
     return sorted_decomps
 
 
 def compute_pure_semantic_ranks(
-    decompositions: List[DMUScoreDecomposition],
-) -> List[DMUScoreDecomposition]:
+    decompositions: list[DMUScoreDecomposition],
+) -> list[DMUScoreDecomposition]:
     """Annotate each decomposition with its pure cosine rank."""
-    sorted_by_cosine = sorted(decompositions, key=lambda d: d.cosine_similarity, reverse=True)
+    sorted_by_cosine = sorted(
+        decompositions, key=lambda d: d.cosine_similarity, reverse=True
+    )
     for idx, decomp in enumerate(sorted_by_cosine, start=1):
         decomp.semantic_rank = idx
     return decompositions
 
 
 def serialize_traces(
-    traces: List[DMUScoreDecomposition],
+    traces: list[DMUScoreDecomposition],
     *,
     case_id: str,
     output_dir: str | Path,
-    timestamp: Optional[str] = None,
+    timestamp: str | None = None,
     method: str = "dmu",
 ) -> Path:
     """Write one per-case trace bundle to disk."""
     if timestamp is None:
-        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
 
     out_dir = Path(output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -127,13 +131,21 @@ def serialize_traces(
         "summary": {
             "top_dmu_candidate": traces[0].candidate_id if traces else None,
             "top_dmu_score": traces[0].final_dmu_score if traces else None,
-            "top_semantic_candidate": next((d.candidate_id for d in traces if d.semantic_rank == 1), None),
-            "top_semantic_score": next((d.cosine_similarity for d in traces if d.semantic_rank == 1), None),
-            "rank_disagreement": any(d.rank != d.semantic_rank for d in traces if d.semantic_rank is not None),
+            "top_semantic_candidate": next(
+                (d.candidate_id for d in traces if d.semantic_rank == 1), None
+            ),
+            "top_semantic_score": next(
+                (d.cosine_similarity for d in traces if d.semantic_rank == 1), None
+            ),
+            "rank_disagreement": any(
+                d.rank != d.semantic_rank for d in traces if d.semantic_rank is not None
+            ),
         },
     }
 
-    filepath.write_text(json.dumps(payload, indent=2, ensure_ascii=False, default=str), encoding="utf-8")
+    filepath.write_text(
+        json.dumps(payload, indent=2, ensure_ascii=False, default=str), encoding="utf-8"
+    )
     return filepath
 
 

@@ -71,6 +71,7 @@ Current `AgencyState` has: `volition, self_awareness, architecture_awareness, au
 # Add at top of being.py:
 try:
     from drift.core.being_snapshot import snapshot_cognitive_state
+
     _SNAPSHOT_ENABLED = True
 except ImportError:
     _SNAPSHOT_ENABLED = False
@@ -85,6 +86,7 @@ if _SNAPSHOT_ENABLED:
     # Pull homeostasis fields if available
     try:
         from drift.core.homeostasis import HomeostaticRegulator
+
         reg = HomeostaticRegulator()
         for need_name, need in reg.needs.items():
             merged[need_name] = need.current
@@ -92,8 +94,9 @@ if _SNAPSHOT_ENABLED:
         pass
     snapshot_cognitive_state(
         merged,
-        session_id=getattr(self, 'session_id', ''),
-        cycle=getattr(self, 'state', None) and getattr(self.state, 'total_interactions', 0),
+        session_id=getattr(self, "session_id", ""),
+        cycle=getattr(self, "state", None)
+        and getattr(self.state, "total_interactions", 0),
     )
 ```
 
@@ -107,7 +110,10 @@ Add to `GlobalWorkspace.__init__`:
 ```python
 try:
     from drift.core.psc_scaled import PSCBatchEngine, DIMENSION_POLARITY
-    self._psc_engine = PSCBatchEngine(list(DIMENSION_POLARITY.keys()), policy="BALANCED")
+
+    self._psc_engine = PSCBatchEngine(
+        list(DIMENSION_POLARITY.keys()), policy="BALANCED"
+    )
     self._psc_cycle_count = 0
 except ImportError:
     self._psc_engine = None
@@ -177,8 +183,8 @@ else:
 
 **Wire PSC:** In `global_workspace.py` after initializing both:
 ```python
-if hasattr(self, '_psc_engine') and self._psc_engine is not None:
-    if hasattr(being.memory, '_dmu') and being.memory._dmu is not None:
+if hasattr(self, "_psc_engine") and self._psc_engine is not None:
+    if hasattr(being.memory, "_dmu") and being.memory._dmu is not None:
         being.memory._dmu.psc_engine = self._psc_engine
 ```
 

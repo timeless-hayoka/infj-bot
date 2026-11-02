@@ -13,10 +13,10 @@ Usage:
     logger.close()
 """
 
-import sqlite3
 import json
-import time
+import sqlite3
 import threading
+import time
 import warnings
 
 

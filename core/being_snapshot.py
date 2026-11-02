@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 core/being_snapshot.py — Cognitive State Snapshot Writer
 =========================================================
@@ -23,12 +24,12 @@ Usage:
 
 from __future__ import annotations
 
+import json
+import logging
 import os
 import sqlite3
-import logging
-import json
-from datetime import datetime, timezone
 from dataclasses import asdict
+from datetime import UTC, datetime, timezone
 from typing import Union
 
 logger = logging.getLogger("drift.being_snapshot")
@@ -36,8 +37,12 @@ logger = logging.getLogger("drift.being_snapshot")
 # Match the DB path being.py uses — override via env var
 try:
     from drift.core.config import BEING_DB
+
     _DEFAULT_BEING_DB = str(BEING_DB)
 except Exception:
+    logging.getLogger(__name__).debug(
+        "Operation failed; applying fallback", exc_info=True
+    )
     _DEFAULT_BEING_DB = "being.db"
 BEING_DB_PATH = os.environ.get("DRIFT_BEING_DB", _DEFAULT_BEING_DB)
 
@@ -46,24 +51,24 @@ BEING_DB_PATH = os.environ.get("DRIFT_BEING_DB", _DEFAULT_BEING_DB)
 FIELD_MAP = {
     # CognitiveState fields → PSC dimension names
     # Adjust these mappings to match your actual CognitiveState dataclass fields
-    "mood":              "alignment",
-    "energy":            "energy",
-    "curiosity":         "situational_awareness",
-    "attachment":        "memory_coherence",
-    "focus":             "focus",
-    "insights_formed":   "task_progress",
-    "shadow_depth":      "threat_pressure",  # high shadow = high threat
+    "mood": "alignment",
+    "energy": "energy",
+    "curiosity": "situational_awareness",
+    "attachment": "memory_coherence",
+    "focus": "focus",
+    "insights_formed": "task_progress",
+    "shadow_depth": "threat_pressure",  # high shadow = high threat
     # AgencyState fields
-    "volition":          "confidence",
-    "autonomy_drive":    "resilience",
+    "volition": "confidence",
+    "autonomy_drive": "resilience",
     "purpose_alignment": "alignment",
     # Homeostasis fields
-    "coherence":         "coherence",
-    "integration":       "context_integrity",
-    "connection":        "clarity",
-    "growth":            "stability",
-    "autonomy":          "resilience",
-    "integrity":         "memory_coherence",
+    "coherence": "coherence",
+    "integration": "context_integrity",
+    "connection": "clarity",
+    "growth": "stability",
+    "autonomy": "resilience",
+    "integrity": "memory_coherence",
 }
 
 
@@ -116,7 +121,7 @@ class CognitiveSnapshotWriter:
 
     def write(
         self,
-        cognitive_state: Union[dict, object],
+        cognitive_state: dict | object,
         session_id: str = "",
         cycle: int = 0,
         error_pressure: float = 0.0,
@@ -163,7 +168,8 @@ class CognitiveSnapshotWriter:
             dims["threat_pressure"] = _norm(state_dict["shadow_depth"])
 
         conn = sqlite3.connect(self.db_path)
-        conn.execute("""
+        conn.execute(
+            """
             INSERT INTO cognitive_snapshots (
                 timestamp, session_id, cycle,
                 focus, coherence, stability, clarity, energy, alignment,
@@ -172,28 +178,30 @@ class CognitiveSnapshotWriter:
                 threat_pressure, error_pressure, latency_pressure, resource_pressure,
                 raw_json
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            datetime.now(timezone.utc).isoformat(),
-            session_id,
-            cycle,
-            dims.get("focus",                0.5),
-            dims.get("coherence",            0.5),
-            dims.get("stability",            0.5),
-            dims.get("clarity",              0.5),
-            dims.get("energy",               0.5),
-            dims.get("alignment",            0.5),
-            dims.get("confidence",           0.5),
-            dims.get("resilience",           0.5),
-            dims.get("situational_awareness",0.5),
-            dims.get("task_progress",        0.5),
-            dims.get("context_integrity",    0.5),
-            dims.get("memory_coherence",     0.5),
-            dims.get("threat_pressure",      0.0),
-            float(error_pressure),
-            float(latency_pressure),
-            float(resource_pressure),
-            json.dumps(state_dict, default=str),
-        ))
+        """,
+            (
+                datetime.now(UTC).isoformat(),
+                session_id,
+                cycle,
+                dims.get("focus", 0.5),
+                dims.get("coherence", 0.5),
+                dims.get("stability", 0.5),
+                dims.get("clarity", 0.5),
+                dims.get("energy", 0.5),
+                dims.get("alignment", 0.5),
+                dims.get("confidence", 0.5),
+                dims.get("resilience", 0.5),
+                dims.get("situational_awareness", 0.5),
+                dims.get("task_progress", 0.5),
+                dims.get("context_integrity", 0.5),
+                dims.get("memory_coherence", 0.5),
+                dims.get("threat_pressure", 0.0),
+                float(error_pressure),
+                float(latency_pressure),
+                float(resource_pressure),
+                json.dumps(state_dict, default=str),
+            ),
+        )
         conn.commit()
         conn.close()
         logger.debug(f"[snapshot] Wrote cycle={cycle} session={session_id}")
@@ -204,7 +212,7 @@ class CognitiveSnapshotWriter:
         conn.row_factory = sqlite3.Row
         cur = conn.execute(
             "SELECT * FROM cognitive_snapshots ORDER BY timestamp DESC LIMIT ?",
-            (limit,)
+            (limit,),
         )
         rows = [dict(r) for r in cur.fetchall()]
         conn.close()
@@ -213,6 +221,7 @@ class CognitiveSnapshotWriter:
 
 # Convenience singleton — import and call directly
 _writer: CognitiveSnapshotWriter | None = None
+
 
 def snapshot_cognitive_state(
     state,
@@ -240,7 +249,11 @@ def snapshot_cognitive_state(
     global _writer
     if _writer is None:
         _writer = CognitiveSnapshotWriter()
-    _writer.write(state, session_id=session_id, cycle=cycle,
-                  error_pressure=error_pressure,
-                  latency_pressure=latency_pressure,
-                  resource_pressure=resource_pressure)
+    _writer.write(
+        state,
+        session_id=session_id,
+        cycle=cycle,
+        error_pressure=error_pressure,
+        latency_pressure=latency_pressure,
+        resource_pressure=resource_pressure,
+    )

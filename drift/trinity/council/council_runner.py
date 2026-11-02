@@ -6,7 +6,7 @@ those messages and enforces claim lifecycle authority.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from .evidence_board import EvidenceBoard
 from .evidence_packet import TrinityEvidencePacket, build_reasoning_summary
@@ -24,7 +24,7 @@ class BaseCouncilAgent:
 
     def __init__(self) -> None:
         self.state = AgentState(role=self.name)
-        self.memory: List[AgentMessage] = []
+        self.memory: list[AgentMessage] = []
 
     def remember(self, message: AgentMessage) -> None:
         self.memory.append(message)
@@ -37,8 +37,8 @@ class BaseCouncilAgent:
         receiver: str,
         message_type: MessageType,
         claim_id: str | None,
-        content: Dict[str, Any],
-        evidence_refs: Optional[List[str]] = None,
+        content: dict[str, Any],
+        evidence_refs: list[str] | None = None,
         confidence: float = 0.5,
         requires_response: bool = False,
     ) -> AgentMessage:
@@ -53,14 +53,14 @@ class BaseCouncilAgent:
             requires_response=requires_response,
         )
 
-    def act(self, context: Dict[str, Any], board: EvidenceBoard) -> AgentMessage:
+    def act(self, context: dict[str, Any], board: EvidenceBoard) -> AgentMessage:
         raise NotImplementedError
 
 
 class FormalEdgeAgent(BaseCouncilAgent):
     name = "FormalEdgeAgent"
 
-    def act(self, context: Dict[str, Any], board: EvidenceBoard) -> AgentMessage:
+    def act(self, context: dict[str, Any], board: EvidenceBoard) -> AgentMessage:
         claim = _ensure_claim(context, board, proposer=self.name)
         content = {
             "subject": claim.subject,
@@ -81,7 +81,7 @@ class FormalEdgeAgent(BaseCouncilAgent):
 class FuzzMutationAgent(BaseCouncilAgent):
     name = "FuzzMutationAgent"
 
-    def act(self, context: Dict[str, Any], board: EvidenceBoard) -> AgentMessage:
+    def act(self, context: dict[str, Any], board: EvidenceBoard) -> AgentMessage:
         claim = _ensure_claim(context, board, proposer=self.name)
         content = {
             "subject": claim.subject,
@@ -103,11 +103,13 @@ class FuzzMutationAgent(BaseCouncilAgent):
 class ThreatModelAgent(BaseCouncilAgent):
     name = "ThreatModelAgent"
 
-    def act(self, context: Dict[str, Any], board: EvidenceBoard) -> AgentMessage:
+    def act(self, context: dict[str, Any], board: EvidenceBoard) -> AgentMessage:
         claim = _ensure_claim(context, board, proposer=self.name)
         content = {
             "subject": claim.subject,
-            "attacker_capability": context.get("attacker_capability", "authorized_observer"),
+            "attacker_capability": context.get(
+                "attacker_capability", "authorized_observer"
+            ),
             "assumption": context.get("assumption", "external influence exists"),
             "failure_modes": context.get("failure_modes", []),
             "summary": "threat model escalation",
@@ -138,11 +140,12 @@ class ContrarianAgent(BaseCouncilAgent):
         "decimal_or_rounding_mistake",
     )
 
-    def act(self, context: Dict[str, Any], board: EvidenceBoard) -> AgentMessage:
+    def act(self, context: dict[str, Any], board: EvidenceBoard) -> AgentMessage:
         claim = _ensure_claim(context, board, proposer=self.name)
-        attack_mode = context.get("attack_mode") or self.ATTACK_MODES[
-            len(claim.challenge_notes) % len(self.ATTACK_MODES)
-        ]
+        attack_mode = (
+            context.get("attack_mode")
+            or self.ATTACK_MODES[len(claim.challenge_notes) % len(self.ATTACK_MODES)]
+        )
         content = {
             "subject": claim.subject,
             "attack_mode": attack_mode,
@@ -163,7 +166,7 @@ class ContrarianAgent(BaseCouncilAgent):
 class EvidenceAgent(BaseCouncilAgent):
     name = "EvidenceAgent"
 
-    def act(self, context: Dict[str, Any], board: EvidenceBoard) -> AgentMessage:
+    def act(self, context: dict[str, Any], board: EvidenceBoard) -> AgentMessage:
         claim = _ensure_claim(context, board, proposer=self.name)
         has_evidence = bool(claim.evidence_refs or context.get("evidence_refs"))
         repro_ready = claim.reproduction_status in {"reproduced", "confirmed"}
@@ -203,7 +206,7 @@ class EvidenceAgent(BaseCouncilAgent):
 class StrategyEvolutionAgent(BaseCouncilAgent):
     name = "StrategyEvolutionAgent"
 
-    def act(self, context: Dict[str, Any], board: EvidenceBoard) -> AgentMessage:
+    def act(self, context: dict[str, Any], board: EvidenceBoard) -> AgentMessage:
         claim = _ensure_claim(context, board, proposer=self.name)
         content = {
             "subject": claim.subject,
@@ -224,7 +227,7 @@ class StrategyEvolutionAgent(BaseCouncilAgent):
         )
 
 
-def _ensure_claim(context: Dict[str, Any], board: EvidenceBoard, proposer: str):
+def _ensure_claim(context: dict[str, Any], board: EvidenceBoard, proposer: str):
     claim_id = context.get("claim_id")
     subject = context.get("subject", "authorized_audit_target")
     claim_content = context.get("claim", {})
@@ -242,7 +245,9 @@ def _ensure_claim(context: Dict[str, Any], board: EvidenceBoard, proposer: str):
     return board.create_claim(
         proposer=proposer,
         subject=subject,
-        content=claim_content if isinstance(claim_content, dict) else {"raw": claim_content},
+        content=claim_content
+        if isinstance(claim_content, dict)
+        else {"raw": claim_content},
         confidence=float(context.get("confidence", 0.0)),
         claim_id=claim_id,
     )
@@ -260,9 +265,9 @@ class CouncilRunner:
             StrategyEvolutionAgent(),
         ]
 
-    def run_round(self, context: Dict[str, Any]) -> Dict[str, Any]:
+    def run_round(self, context: dict[str, Any]) -> dict[str, Any]:
         round_context = dict(context)
-        messages: List[AgentMessage] = []
+        messages: list[AgentMessage] = []
 
         for agent in self.agents:
             message = agent.act(round_context, self.board)
@@ -307,10 +312,14 @@ class CouncilRunner:
                 messages=message_dicts,
                 board=board_summary,
                 rejected_hypotheses=rejected_hypotheses,
-                reasoning_summary=build_reasoning_summary(claim, message_dicts, board_summary),
+                reasoning_summary=build_reasoning_summary(
+                    claim, message_dicts, board_summary
+                ),
                 reproduction_command=round_context.get("reproduction_command"),
             )
-            output_dir = round_context.get("output_dir") or round_context.get("packet_root")
+            output_dir = round_context.get("output_dir") or round_context.get(
+                "packet_root"
+            )
             if output_dir:
                 bundle_paths = packet.write_bundle(output_dir)
 

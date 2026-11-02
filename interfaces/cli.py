@@ -1,18 +1,20 @@
 #!/usr/bin/env python3
 import argparse
+import asyncio
 import importlib.util
 import json
-import asyncio
+import logging
 import os
 import shutil
+import socket
 import subprocess
+import sys
 import webbrowser
+from pathlib import Path
 from urllib.error import URLError
 from urllib.parse import urlparse
 from urllib.request import urlopen
-from pathlib import Path
-import socket
-import sys
+
 import requests
 
 from drift.config_adapter import PROJECT_ROOT
@@ -83,9 +85,9 @@ def cmd_ask(args):
     from drift.core.commands import BotState
     from drift.core.history import ChatHistory
     from drift.core.memory import DriftMemory
-    from drift.core.prompt_builder import build_chat_prompt
-    from drift.core.plugins.goals import GoalsDB
     from drift.core.plugins.documents import DocumentStore
+    from drift.core.plugins.goals import GoalsDB
+    from drift.core.prompt_builder import build_chat_prompt
 
     prompt = " ".join(args.prompt).strip()
     if not prompt:
@@ -104,43 +106,63 @@ def cmd_ask(args):
     brain = DriftBrain()
     memory = DriftMemory()
     history = ChatHistory()
-    
+
     # Phase 5: Wire deliberation bridge
     from drift.core.cognitive_orchestrator import CognitiveOrchestrator
+
     _orchestrator = CognitiveOrchestrator()
     _orchestrator.memory = memory
     _orchestrator.brain = brain
 
     # Phase 6: Unified Audit
     from drift.core.unified_audit import wire_orchestrator_audit
+
     wire_orchestrator_audit(_orchestrator)
 
     def deliberation_bridge(goal: str):
         """Synchronous bridge for CLI deliberation, avoiding deadlocks."""
         import asyncio
+
         from drift.core.hive.elysium import DeliberationResult
+
         try:
             try:
                 asyncio.get_running_loop()
                 # Run in separate thread if loop exists
                 from concurrent.futures import ThreadPoolExecutor
+
                 with ThreadPoolExecutor() as executor:
+
                     def _run():
                         new_loop = asyncio.new_event_loop()
                         try:
-                            return new_loop.run_until_complete(_orchestrator.deliberate(goal))
+                            return new_loop.run_until_complete(
+                                _orchestrator.deliberate(goal)
+                            )
                         finally:
                             new_loop.close()
+
                     return executor.submit(_run).result()
             except RuntimeError:
                 return asyncio.run(_orchestrator.deliberate(goal))
         except Exception as e:
-            return DeliberationResult(goal=goal, resolution=f"BLOCK: deliberation failure ({e})", council_votes={}, winning_role="none", moral_weight=0.0, narrative_weight=0.0)
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
+            return DeliberationResult(
+                goal=goal,
+                resolution=f"BLOCK: deliberation failure ({e})",
+                council_votes={},
+                winning_role="none",
+                moral_weight=0.0,
+                narrative_weight=0.0,
+            )
 
     brain.deliberation_callback = deliberation_bridge
     from drift.core.being import get_being
+
     get_being().deliberation_callback = deliberation_bridge
-    
+
     goals_db = GoalsDB()
     doc_store = DocumentStore()
     try:
@@ -155,7 +177,11 @@ def cmd_ask(args):
         )
     except Exception as exc:
         # Catch Shadow Intent Enforcement blocks
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         from drift.core.cognitive_orchestrator import IntentBlockedError
+
         if isinstance(exc, IntentBlockedError):
             print(f"\n[SECURITY BLOCK]: {exc}")
             return 1
@@ -163,12 +189,19 @@ def cmd_ask(args):
         return 1
 
     try:
-        output = brain.agent_turn(built_prompt, tools_enabled=not args.no_tools, raw_user_input=prompt)
+        output = brain.agent_turn(
+            built_prompt, tools_enabled=not args.no_tools, raw_user_input=prompt
+        )
         try:
             brain.evaluate_last(built_prompt, output)
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
     except Exception as exc:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         print(f"Error generating response: {exc}")
         return 1
     print(output)
@@ -235,7 +268,7 @@ def cmd_bridge(args):
     """Interface with the SSH bridge proxy."""
     url = "http://127.0.0.1:8000/run"
     subcmd = args.subcmd
-    
+
     if subcmd == "run":
         cmd_text = " ".join(args.cmd_args)
         if not cmd_text:
@@ -251,6 +284,9 @@ def cmd_bridge(args):
                 print(f"STDERR: {data['stderr']}", file=sys.stderr)
             return 0 if data["status"] == "success" else 1
         except Exception as e:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             print(f"Bridge error: {e}")
             return 1
     elif subcmd == "shell":
@@ -273,6 +309,9 @@ def cmd_bridge(args):
                 print()
                 break
             except Exception as e:
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
                 print(f"Bridge error: {e}")
         return 0
     else:
@@ -311,16 +350,13 @@ def cmd_bug(args):
     return 0
 
 
-
-
 def _trinity_ledger(args):
     return _trinity_ledger_entry(args)
 
 
-
 def _trinity_result_to_text(result):
-    scan = result.get('scan') or {}
-    packet = result.get('packet') or {}
+    scan = result.get("scan") or {}
+    packet = result.get("packet") or {}
     lines = [
         f"Case: {result.get('case_id', 'unknown')}",
         f"Scanner format: {scan.get('format', 'unknown')}",
@@ -330,35 +366,37 @@ def _trinity_result_to_text(result):
         f"Report path: {result.get('report_path', 'unknown')}",
         f"Output dir: {result.get('output_dir', 'unknown')}",
     ]
-    reproduction = packet.get('reproduction_command') or result.get('result', {}).get('reproduction_command')
+    reproduction = packet.get("reproduction_command") or result.get("result", {}).get(
+        "reproduction_command"
+    )
     if reproduction:
         lines.append(f"Reproduction: {reproduction}")
-    if packet.get('reasoning_summary'):
-        lines.extend(['', 'Reasoning summary:', packet['reasoning_summary']])
-    return '\n'.join(lines)
+    if packet.get("reasoning_summary"):
+        lines.extend(["", "Reasoning summary:", packet["reasoning_summary"]])
+    return "\n".join(lines)
 
 
 def _trinity_analyze_plan(scan, *, case_id, output_dir, no_packet):
     planned_output = str(output_dir) if output_dir else f"./trinity_cases/{case_id}"
-    top_finding = (scan.get('findings') or [{}])[0] if scan.get('findings') else {}
+    top_finding = (scan.get("findings") or [{}])[0] if scan.get("findings") else {}
     return {
-        'case_id': case_id,
-        'scanner_format': scan.get('format', 'unknown'),
-        'finding_count': scan.get('finding_count', 0),
-        'planned_output_dir': planned_output,
-        'packet_will_write': not no_packet,
-        'top_finding': {
-            'title': top_finding.get('title'),
-            'summary': top_finding.get('summary'),
-            'evidence_ref': top_finding.get('evidence_ref'),
+        "case_id": case_id,
+        "scanner_format": scan.get("format", "unknown"),
+        "finding_count": scan.get("finding_count", 0),
+        "planned_output_dir": planned_output,
+        "packet_will_write": not no_packet,
+        "top_finding": {
+            "title": top_finding.get("title"),
+            "summary": top_finding.get("summary"),
+            "evidence_ref": top_finding.get("evidence_ref"),
         },
     }
 
 
 def _trinity_case_summary(bundle, case_root):
-    claim = bundle.get('claim') or {}
-    packet = bundle.get('packet') or bundle
-    scan = bundle.get('scan') or {}
+    claim = bundle.get("claim") or {}
+    packet = bundle.get("packet") or bundle
+    scan = bundle.get("scan") or {}
     lines = [
         f"Case: {bundle.get('case_id', claim.get('id', 'unknown'))}",
         f"Status: {packet.get('status', bundle.get('status', 'unknown'))}",
@@ -367,10 +405,14 @@ def _trinity_case_summary(bundle, case_root):
         f"Claim ID: {claim.get('id') or packet.get('claim', {}).get('id') or 'unknown'}",
         f"Output dir: {case_root}",
     ]
-    reproduction = packet.get('reproduction_command') or bundle.get('reproduction_command') or claim.get('reproduction_command')
+    reproduction = (
+        packet.get("reproduction_command")
+        or bundle.get("reproduction_command")
+        or claim.get("reproduction_command")
+    )
     if reproduction:
         lines.append(f"Reproduction: {reproduction}")
-    return '\n'.join(lines)
+    return "\n".join(lines)
 
 
 def _trinity_export_bundle(case_root, output_dir):
@@ -384,7 +426,7 @@ def _trinity_export_bundle(case_root, output_dir):
 def _trinity_ledger_entry(args):
     from drift.trinity.caseflow import TRINITY_LEDGER_PATH, TrinityCaseLedger
 
-    ledger_path = Path(getattr(args, 'ledger_path', '') or TRINITY_LEDGER_PATH)
+    ledger_path = Path(getattr(args, "ledger_path", "") or TRINITY_LEDGER_PATH)
     return TrinityCaseLedger(ledger_path)
 
 
@@ -393,7 +435,6 @@ def _trinity_case_root(case_ref, args=None):
 
     ledger = _trinity_ledger_entry(args) if args is not None else None
     return resolve_case_root(case_ref, ledger=ledger)
-
 
 
 def cmd_trinity_case_list(args):
@@ -410,7 +451,7 @@ def cmd_trinity_case_show(args):
         return 1
 
     bundle = load_case_bundle(case_root)
-    if args.format == 'json':
+    if args.format == "json":
         print(json.dumps(bundle, indent=2, ensure_ascii=False))
     else:
         print(_trinity_case_summary(bundle, case_root))
@@ -431,10 +472,22 @@ def cmd_trinity_case_export(args):
 
     export_root = _trinity_export_bundle(case_root, args.output)
     bundle = load_case_bundle(case_root)
-    if args.format == 'json':
-        print(json.dumps({'case_ref': args.case_ref, 'export_dir': str(export_root), 'bundle': bundle}, indent=2, ensure_ascii=False))
+    if args.format == "json":
+        print(
+            json.dumps(
+                {
+                    "case_ref": args.case_ref,
+                    "export_dir": str(export_root),
+                    "bundle": bundle,
+                },
+                indent=2,
+                ensure_ascii=False,
+            )
+        )
     else:
-        print(f"Exported Trinity case {bundle.get('case_id', args.case_ref)} to {export_root}")
+        print(
+            f"Exported Trinity case {bundle.get('case_id', args.case_ref)} to {export_root}"
+        )
     return 0
 
 
@@ -452,10 +505,22 @@ def cmd_trinity_packet_export(args):
 
     export_root = _trinity_export_bundle(case_root, args.output)
     bundle = load_case_bundle(case_root)
-    if args.format == 'json':
-        print(json.dumps({'case_ref': args.case_ref, 'export_dir': str(export_root), 'bundle': bundle}, indent=2, ensure_ascii=False))
+    if args.format == "json":
+        print(
+            json.dumps(
+                {
+                    "case_ref": args.case_ref,
+                    "export_dir": str(export_root),
+                    "bundle": bundle,
+                },
+                indent=2,
+                ensure_ascii=False,
+            )
+        )
     else:
-        print(f"Exported Trinity packet {bundle.get('case_id', args.case_ref)} to {export_root}")
+        print(
+            f"Exported Trinity packet {bundle.get('case_id', args.case_ref)} to {export_root}"
+        )
     return 0
 
 
@@ -469,7 +534,7 @@ def cmd_trinity_ledger_show(args):
     if entry is None:
         print(f"Trinity ledger entry not found: {args.case_ref}", file=sys.stderr)
         return 1
-    if args.format == 'json':
+    if args.format == "json":
         print(json.dumps(entry, indent=2, ensure_ascii=False))
     else:
         print(
@@ -483,31 +548,37 @@ def cmd_trinity_ledger_show(args):
 
 
 def cmd_trinity_analyze(args):
-    from drift.trinity.caseflow import build_case_context, parse_scanner_input, run_case_from_scan
+    from drift.trinity.caseflow import (
+        build_case_context,
+        parse_scanner_input,
+        run_case_from_scan,
+    )
 
     try:
         scan = parse_scanner_input(args.input, format_hint=args.format_hint)
-        case_id = args.case_id or scan['case_id']
-        if getattr(args, 'dry_run', False):
+        case_id = args.case_id or scan["case_id"]
+        if getattr(args, "dry_run", False):
             plan = _trinity_analyze_plan(
                 scan,
                 case_id=case_id,
                 output_dir=args.output,
-                no_packet=getattr(args, 'no_packet', False),
+                no_packet=getattr(args, "no_packet", False),
             )
-            if args.format == 'json':
+            if args.format == "json":
                 print(json.dumps(plan, indent=2, ensure_ascii=False))
             else:
-                print('Trinity dry run.')
+                print("Trinity dry run.")
                 print(f"Case: {plan['case_id']}")
                 print(f"Scanner format: {plan['scanner_format']}")
                 print(f"Findings: {plan['finding_count']}")
                 print(f"Planned output dir: {plan['planned_output_dir']}")
-                print(f"Would write packet: {'yes' if plan['packet_will_write'] else 'no'}")
-                top = plan['top_finding']
-                if top.get('title'):
+                print(
+                    f"Would write packet: {'yes' if plan['packet_will_write'] else 'no'}"
+                )
+                top = plan["top_finding"]
+                if top.get("title"):
                     print(f"Top finding: {top['title']}")
-                if top.get('summary'):
+                if top.get("summary"):
                     print(f"Top summary: {top['summary']}")
             return 0
 
@@ -520,27 +591,33 @@ def cmd_trinity_analyze(args):
             subject=args.subject,
             reproduction_command=args.reproduction_command,
             ledger=ledger,
-            write_bundle=not getattr(args, 'no_packet', False),
+            write_bundle=not getattr(args, "no_packet", False),
         )
     except FileNotFoundError as exc:
         print(f"Trinity analyze error: {exc}", file=sys.stderr)
         return 1
     except Exception as exc:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         print(f"Trinity analyze error: {exc}", file=sys.stderr)
         return 1
 
-    if args.format == 'json':
+    if args.format == "json":
         print(json.dumps(result, indent=2, ensure_ascii=False))
     else:
         print(_trinity_result_to_text(result))
-        if getattr(args, 'no_packet', False):
-            print('Packet bundle writing skipped by --no-packet.')
+        if getattr(args, "no_packet", False):
+            print("Packet bundle writing skipped by --no-packet.")
     return 0
 
 
-
 def cmd_trinity_report(args):
-    from drift.trinity.caseflow import load_case_bundle, load_case_report, resolve_case_root
+    from drift.trinity.caseflow import (
+        load_case_bundle,
+        load_case_report,
+        resolve_case_root,
+    )
 
     ledger = _trinity_ledger(args)
     case_root = resolve_case_root(args.case_ref, ledger=ledger)
@@ -548,18 +625,21 @@ def cmd_trinity_report(args):
         print(f"Trinity case not found: {args.case_ref}", file=sys.stderr)
         return 1
 
-    if args.format == 'json':
+    if args.format == "json":
         bundle = load_case_bundle(case_root)
-        bundle['report'] = load_case_report(case_root)
+        bundle["report"] = load_case_report(case_root)
         print(json.dumps(bundle, indent=2, ensure_ascii=False))
     else:
         print(load_case_report(case_root))
     return 0
 
 
-
 def cmd_trinity_packet(args):
-    from drift.trinity.caseflow import load_case_bundle, load_case_report, resolve_case_root
+    from drift.trinity.caseflow import (
+        load_case_bundle,
+        load_case_report,
+        resolve_case_root,
+    )
 
     ledger = _trinity_ledger(args)
     case_root = resolve_case_root(args.case_ref, ledger=ledger)
@@ -568,24 +648,23 @@ def cmd_trinity_packet(args):
         return 1
 
     bundle = load_case_bundle(case_root)
-    if args.format == 'markdown':
+    if args.format == "markdown":
         print(load_case_report(case_root))
     else:
         print(json.dumps(bundle, indent=2, ensure_ascii=False))
     return 0
 
 
-
 def cmd_trinity_cases(args):
     ledger = _trinity_ledger(args)
     entries = ledger.recent(limit=args.limit)
 
-    if args.format == 'json':
+    if args.format == "json":
         print(json.dumps(entries, indent=2, ensure_ascii=False))
         return 0
 
     if not entries:
-        print('No Trinity cases recorded yet.')
+        print("No Trinity cases recorded yet.")
         return 0
 
     for entry in reversed(entries):
@@ -609,7 +688,7 @@ def cmd_version(args):
     from drift.trinity.release import render_release_text
 
     release = _trinity_release_info()
-    if getattr(args, 'json', False):
+    if getattr(args, "json", False):
         print(json.dumps(release, indent=2, ensure_ascii=False))
     else:
         print(render_release_text(release))
@@ -625,47 +704,64 @@ def cmd_manifest(args):
         try:
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         except Exception:
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
             manifest = release
     else:
         manifest = release
-    if getattr(args, 'json', False):
-        print(json.dumps({"manifest": manifest, "release": release}, indent=2, ensure_ascii=False))
+    if getattr(args, "json", False):
+        print(
+            json.dumps(
+                {"manifest": manifest, "release": release}, indent=2, ensure_ascii=False
+            )
+        )
     else:
-        tests = manifest.get('tests_passed')
-        warnings = manifest.get('warnings')
-        print(f"{manifest.get('product', 'ANCHOR')} {manifest.get('version', 'unknown')}")
+        tests = manifest.get("tests_passed")
+        warnings = manifest.get("warnings")
+        print(
+            f"{manifest.get('product', 'ANCHOR')} {manifest.get('version', 'unknown')}"
+        )
         print(f"Status: {manifest.get('status', 'unknown')}")
         print("Powered by Trinity")
-        print(f"Build Date: {manifest.get('build_date', manifest.get('build', 'unknown'))}")
-        print(f"Build ID: {manifest.get('build_id', release.get('build_id', 'unknown'))}")
-        print("")
+        print(
+            f"Build Date: {manifest.get('build_date', manifest.get('build', 'unknown'))}"
+        )
+        print(
+            f"Build ID: {manifest.get('build_id', release.get('build_id', 'unknown'))}"
+        )
+        print()
         print("Components:")
         print(f"  Engine: {manifest.get('engine', 'Trinity')}")
         print("  Validation: Forge")
         print("  Governance: Council")
-        print("")
+        print()
         print("Tests:")
         print(f"  Passed: {tests if tests is not None else 'unknown'}")
         print(f"  Warnings: {warnings if warnings is not None else 'unknown'}")
-        print("")
-        health = 'PASS' if manifest.get('status') == 'release_candidate' else 'CHECK'
+        print()
+        health = "PASS" if manifest.get("status") == "release_candidate" else "CHECK"
         print(f"Release Health: {health}")
         print(f"Manifest path: {manifest_path}")
     return 0
 
 
 def cmd_history(args):
-    from drift.trinity.release import load_history, render_history_text, summarize_history
+    from drift.trinity.release import (
+        load_history,
+        render_history_text,
+        summarize_history,
+    )
 
     entries = load_history(
-        limit=getattr(args, 'limit', 20),
-        ledger_path=getattr(args, 'ledger_path', None),
-        case_id=getattr(args, 'case_id', None),
-        status=getattr(args, 'status', None),
-        scanner_format=getattr(args, 'scanner_format', None),
+        limit=getattr(args, "limit", 20),
+        ledger_path=getattr(args, "ledger_path", None),
+        case_id=getattr(args, "case_id", None),
+        status=getattr(args, "status", None),
+        scanner_format=getattr(args, "scanner_format", None),
     )
-    if getattr(args, 'json', False):
-        payload = {'summary': summarize_history(entries), 'entries': entries}
+    if getattr(args, "json", False):
+        payload = {"summary": summarize_history(entries), "entries": entries}
         print(json.dumps(payload, indent=2, ensure_ascii=False))
     else:
         print(render_history_text(entries))
@@ -678,20 +774,20 @@ def cmd_archive_create(args):
     try:
         result = create_archive(
             args.case_ref,
-            output_dir=getattr(args, 'output', None),
-            ledger_path=getattr(args, 'ledger_path', None),
-            archive_ledger_path=getattr(args, 'archive_ledger_path', None),
-            zip_output=getattr(args, 'zip', False),
+            output_dir=getattr(args, "output", None),
+            ledger_path=getattr(args, "ledger_path", None),
+            archive_ledger_path=getattr(args, "archive_ledger_path", None),
+            zip_output=getattr(args, "zip", False),
         )
     except FileNotFoundError as exc:
-        print(f'Trinity archive error: {exc}', file=sys.stderr)
+        print(f"Trinity archive error: {exc}", file=sys.stderr)
         return 1
-    if getattr(args, 'json', False):
+    if getattr(args, "json", False):
         print(json.dumps(result, indent=2, ensure_ascii=False))
     else:
         print(f"Created archive {result['archive_id']} for case {result['case_id']}")
         print(f"Archive dir: {result['archive_dir']}")
-        if result.get('zip_path'):
+        if result.get("zip_path"):
             print(f"Zip: {result['zip_path']}")
     return 0
 
@@ -700,14 +796,14 @@ def cmd_archive_list(args):
     from drift.trinity.release import list_archives
 
     records = list_archives(
-        limit=getattr(args, 'limit', 20),
-        archive_ledger_path=getattr(args, 'archive_ledger_path', None),
+        limit=getattr(args, "limit", 20),
+        archive_ledger_path=getattr(args, "archive_ledger_path", None),
     )
-    if getattr(args, 'json', False):
+    if getattr(args, "json", False):
         print(json.dumps(records, indent=2, ensure_ascii=False))
     else:
         if not records:
-            print('No Trinity archives recorded yet.')
+            print("No Trinity archives recorded yet.")
         else:
             for record in reversed(records):
                 print(
@@ -725,12 +821,12 @@ def cmd_archive_show(args):
     try:
         record = load_archive_record(
             args.archive_ref,
-            archive_ledger_path=getattr(args, 'archive_ledger_path', None),
+            archive_ledger_path=getattr(args, "archive_ledger_path", None),
         )
     except FileNotFoundError as exc:
-        print(f'Trinity archive error: {exc}', file=sys.stderr)
+        print(f"Trinity archive error: {exc}", file=sys.stderr)
         return 1
-    if getattr(args, 'json', False):
+    if getattr(args, "json", False):
         print(json.dumps(record, indent=2, ensure_ascii=False))
     else:
         print(render_archive_text(record))
@@ -743,17 +839,17 @@ def cmd_export_report(args):
     try:
         result = export_case_report(
             args.case_ref,
-            output=getattr(args, 'output', None),
-            ledger_path=getattr(args, 'ledger_path', None),
+            output=getattr(args, "output", None),
+            ledger_path=getattr(args, "ledger_path", None),
         )
     except FileNotFoundError as exc:
-        print(f'Trinity export error: {exc}', file=sys.stderr)
+        print(f"Trinity export error: {exc}", file=sys.stderr)
         return 1
-    if getattr(args, 'json', False):
+    if getattr(args, "json", False):
         print(json.dumps(result, indent=2, ensure_ascii=False))
     else:
         print(f"Exported report for {result['case_id']}")
-        if result.get('output_path'):
+        if result.get("output_path"):
             print(f"Report path: {result['output_path']}")
     return 0
 
@@ -761,8 +857,8 @@ def cmd_export_report(args):
 def cmd_upgrade(args):
     from drift.trinity.release import build_upgrade_plan, render_upgrade_text
 
-    plan = build_upgrade_plan(apply=getattr(args, 'apply', False))
-    if getattr(args, 'json', False):
+    plan = build_upgrade_plan(apply=getattr(args, "apply", False))
+    if getattr(args, "json", False):
         print(json.dumps(plan, indent=2, ensure_ascii=False))
     else:
         print(render_upgrade_text(plan))
@@ -777,7 +873,7 @@ def _trinity_completion_script(shell):
     ledger = "list show"
 
     if shell == "bash":
-        script = r'''_trin_complete() {
+        script = r"""_trin_complete() {
     local cur prev words cword
     _init_completion || return
     local cmds="__COMMON__"
@@ -804,15 +900,17 @@ def _trinity_completion_script(shell):
     fi
 }
 complete -F _trin_complete trin drift anchor
-'''
-        return (script.replace('__COMMON__', common)
-                    .replace('__TRINITY__', trinity)
-                    .replace('__CASE__', case)
-                    .replace('__PACKET__', packet)
-                    .replace('__LEDGER__', ledger))
+"""
+        return (
+            script.replace("__COMMON__", common)
+            .replace("__TRINITY__", trinity)
+            .replace("__CASE__", case)
+            .replace("__PACKET__", packet)
+            .replace("__LEDGER__", ledger)
+        )
 
     if shell == "zsh":
-        return r'''#compdef trin drift anchor
+        return r"""#compdef trin drift anchor
 _trin_complete() {
   local -a commands
   commands=(chat tui ask web install bridge health backup restore path doctor status setup dashboard version manifest release history archive export-report upgrade help about trinity bug meow completion)
@@ -830,17 +928,17 @@ _trin_complete() {
   fi
 }
 compdef _trin_complete trin drift
-'''
+"""
 
     if shell == "fish":
-        return r'''complete -c trin -c drift -c anchor -f -a "chat tui ask web install bridge health backup restore path doctor status setup dashboard version manifest release history archive export-report upgrade help about trinity bug meow completion"
+        return r"""complete -c trin -c drift -c anchor -f -a "chat tui ask web install bridge health backup restore path doctor status setup dashboard version manifest release history archive export-report upgrade help about trinity bug meow completion"
 complete -c trin -c drift -n '__fish_seen_subcommand_from trinity' -f -a "analyze case report cases packet ledger demo"
 complete -c trin -c drift -n '__fish_seen_subcommand_from trinity; and __fish_seen_subcommand_from case' -f -a "list show report export"
 complete -c trin -c drift -n '__fish_seen_subcommand_from trinity; and __fish_seen_subcommand_from packet' -f -a "show export"
 complete -c trin -c drift -n '__fish_seen_subcommand_from trinity; and __fish_seen_subcommand_from ledger' -f -a "list show"
-'''
+"""
 
-    raise ValueError(f'Unsupported shell: {shell}')
+    raise ValueError(f"Unsupported shell: {shell}")
 
 
 def cmd_completion(args):
@@ -862,6 +960,7 @@ def _append_unique_line(path: Path, line: str) -> bool:
             handle.write("\n")
         handle.write(line + "\n")
     return True
+
 
 def _write_completion_install(shell: str) -> dict:
     if shell == "bash":
@@ -900,17 +999,24 @@ def _trinity_status_summary() -> dict:
     proc = subprocess.run(command, cwd=cwd, capture_output=True, text=True, check=False)
     output = proc.stdout.strip() or proc.stderr.strip()
     if not output:
-        raise RuntimeError(f"trin status produced no output (exit code {proc.returncode})")
+        raise RuntimeError(
+            f"trin status produced no output (exit code {proc.returncode})"
+        )
     try:
         return json.loads(proc.stdout)
     except json.JSONDecodeError as exc:
-        raise RuntimeError(f"trin status did not return JSON: {exc}. Raw output: {output[:500]}") from exc
+        raise RuntimeError(
+            f"trin status did not return JSON: {exc}. Raw output: {output[:500]}"
+        ) from exc
 
 
 def cmd_status(args):
     try:
         summary = _trinity_status_summary()
     except Exception as exc:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         payload = {"healthy": False, "status": "error", "error": str(exc)}
         if getattr(args, "json", False):
             print(json.dumps(payload, indent=2, ensure_ascii=False))
@@ -918,7 +1024,7 @@ def cmd_status(args):
             print("\n".join(_anchor_public_header()))
             print("ANCHOR STATUS")
             print("Evidence Before Belief")
-            print(f"Health: FAIL")
+            print("Health: FAIL")
             print(f"Error: {exc}")
         return 1
 
@@ -984,7 +1090,7 @@ def _install_plan(target: str, public_url: str | None = None) -> dict:
                 bootstrap_cmd,
                 "sudo loginctl enable-linger <user>",
                 f"./scripts/install_anchor_service.sh server --public-url {dashboard_url}",
-                f"systemctl --user status anchor-web@server.service",
+                "systemctl --user status anchor-web@server.service",
                 f"Open {dashboard_url}",
             ],
             "notes": [
@@ -1054,13 +1160,18 @@ def _dashboard_is_live(dashboard_url: str) -> bool:
         with socket.create_connection((host, port), timeout=0.5):
             return True
     except Exception:
-        pass
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
     try:
         with urlopen(dashboard_url, timeout=2):
             return True
     except URLError:
         return False
     except Exception:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         return False
 
 
@@ -1068,18 +1179,28 @@ def cmd_dashboard(args):
     dashboard_url = getattr(args, "url", _default_dashboard_url())
     if _dashboard_is_live(dashboard_url):
         if not getattr(args, "no_open", False):
-            has_gui = bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
+            has_gui = bool(
+                os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")
+            )
             opener = shutil.which("xdg-open") if has_gui else None
             if opener:
                 try:
-                    subprocess.Popen([opener, dashboard_url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    subprocess.Popen(
+                        [opener, dashboard_url],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                    )
                 except Exception:
-                    pass
+                    logging.getLogger(__name__).debug(
+                        "Operation failed; applying fallback", exc_info=True
+                    )
             else:
                 try:
                     webbrowser.open(dashboard_url)
                 except Exception:
-                    pass
+                    logging.getLogger(__name__).debug(
+                        "Operation failed; applying fallback", exc_info=True
+                    )
         from drift.trinity.release import get_release_info
 
         release = get_release_info()
@@ -1097,14 +1218,22 @@ def cmd_dashboard(args):
         opener = shutil.which("xdg-open") if has_gui else None
         if opener:
             try:
-                subprocess.Popen([opener, dashboard_url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                subprocess.Popen(
+                    [opener, dashboard_url],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
             except Exception:
-                pass
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
         else:
             try:
                 webbrowser.open(dashboard_url)
             except Exception:
-                pass
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
     from drift.trinity.release import get_release_info
 
     release = get_release_info()
@@ -1118,33 +1247,33 @@ def cmd_dashboard(args):
 
 def _anchor_public_header() -> list[str]:
     return [
-        'ANCHOR',
-        'Evidence Before Belief',
-        '',
-        'Powered by Trinity',
-        '',
+        "ANCHOR",
+        "Evidence Before Belief",
+        "",
+        "Powered by Trinity",
+        "",
     ]
 
 
 def cmd_help(args):
     parser = build_parser()
-    print('\n'.join(_anchor_public_header()) + parser.format_help())
+    print("\n".join(_anchor_public_header()) + parser.format_help())
     return 0
 
 
 def cmd_about(args):
     lines = [
-        'ANCHOR',
-        'Public Platform',
-        '',
-        'DRIFT      - Cognitive Engine',
-        'TRINITY    - Reasoning Architecture',
-        'FORGE      - Validation Engine',
-        'COUNCIL    - Claim Adjudication',
-        '',
-        'Powered by Trinity',
+        "ANCHOR",
+        "Public Platform",
+        "",
+        "DRIFT      - Cognitive Engine",
+        "TRINITY    - Reasoning Architecture",
+        "FORGE      - Validation Engine",
+        "COUNCIL    - Claim Adjudication",
+        "",
+        "Powered by Trinity",
     ]
-    print('\n'.join(lines))
+    print("\n".join(lines))
     return 0
 
 
@@ -1194,13 +1323,15 @@ def _doctor_fixes(checks, critical_missing, warn_missing):
             }
         )
 
-    completion_ok = any(check["name"] == "Bash completion" and check["ok"] for check in checks)
+    completion_ok = any(
+        check["name"] == "Bash completion" and check["ok"] for check in checks
+    )
     if not completion_ok:
         fixes.append(
             {
                 "issue": "bash_completion",
                 "summary": "Install bash completion by sourcing /home/crexs/.local/share/bash-completion/completions/trin from ~/.bashrc.",
-                "command": "grep -qxF '[ -f \"$HOME/.local/share/bash-completion/completions/trin\" ] && source \"$HOME/.local/share/bash-completion/completions/trin\"' ~/.bashrc || printf '%s\n' '[ -f \"$HOME/.local/share/bash-completion/completions/trin\" ] && source \"$HOME/.local/share/bash-completion/completions/trin\"' >> ~/.bashrc",
+                "command": 'grep -qxF \'[ -f "$HOME/.local/share/bash-completion/completions/trin" ] && source "$HOME/.local/share/bash-completion/completions/trin"\' ~/.bashrc || printf \'%s\n\' \'[ -f "$HOME/.local/share/bash-completion/completions/trin" ] && source "$HOME/.local/share/bash-completion/completions/trin"\' >> ~/.bashrc',
             }
         )
 
@@ -1232,7 +1363,7 @@ def _doctor_fixes(checks, critical_missing, warn_missing):
             {
                 "issue": "database",
                 "summary": "Make the Trinity log directory writable or set TRINITY_DB_PATH to a writable location.",
-                "command": 'mkdir -p ~/.drift_os/logs && touch ~/.drift_os/logs/trinity.db',
+                "command": "mkdir -p ~/.drift_os/logs && touch ~/.drift_os/logs/trinity.db",
             }
         )
 
@@ -1241,9 +1372,16 @@ def _doctor_fixes(checks, critical_missing, warn_missing):
 
 def cmd_doctor(args):
     checks = []
-    output_format = "json" if getattr(args, "json", False) else getattr(args, "format", "text")
+    output_format = (
+        "json" if getattr(args, "json", False) else getattr(args, "format", "text")
+    )
     root = PROJECT_ROOT
-    launcher = shutil.which(CLI_PROG) or shutil.which("anchor") or shutil.which("drift") or shutil.which("trin")
+    launcher = (
+        shutil.which(CLI_PROG)
+        or shutil.which("anchor")
+        or shutil.which("drift")
+        or shutil.which("trin")
+    )
     launcher_path = Path(launcher) if launcher else None
     _doctor_check(
         checks,
@@ -1254,9 +1392,14 @@ def cmd_doctor(args):
     )
 
     python_path = Path(sys.executable)
-    expected_pythons = [root / ".venv" / "bin" / "python", root / "venv" / "bin" / "python"]
+    expected_pythons = [
+        root / ".venv" / "bin" / "python",
+        root / "venv" / "bin" / "python",
+    ]
     python_ok = python_path.exists()
-    env_match = any(p.exists() and p.resolve() == python_path.resolve() for p in expected_pythons)
+    env_match = any(
+        p.exists() and p.resolve() == python_path.resolve() for p in expected_pythons
+    )
     python_detail = str(python_path)
     if not env_match:
         python_detail += " (not the repo venv)"
@@ -1293,7 +1436,13 @@ def cmd_doctor(args):
     for module in module_names:
         present = importlib.util.find_spec(module) is not None
         module_states.append(f"{module}={'yes' if present else 'no'}")
-        if module in {"drift.trinity.caseflow", "drift.trinity.http_api", "drift.trinity.database", "fastapi", "mcp"}:
+        if module in {
+            "drift.trinity.caseflow",
+            "drift.trinity.http_api",
+            "drift.trinity.database",
+            "fastapi",
+            "mcp",
+        }:
             if not present:
                 critical_missing.append(module)
         elif not present:
@@ -1311,7 +1460,9 @@ def cmd_doctor(args):
     sourced_line = '[ -f "$HOME/.local/share/bash-completion/completions/trin" ] && source "$HOME/.local/share/bash-completion/completions/trin"'
     bashrc_text = bashrc.read_text() if bashrc.exists() else ""
     completion_ok = bash_completion.exists() and sourced_line in bashrc_text
-    completion_detail = f"file={bash_completion.exists()} sourced={sourced_line in bashrc_text}"
+    completion_detail = (
+        f"file={bash_completion.exists()} sourced={sourced_line in bashrc_text}"
+    )
 
     zsh_completion = Path.home() / ".local/share/zsh/site-functions/_trin"
     zshrc = Path.home() / ".zshrc"
@@ -1339,6 +1490,9 @@ def cmd_doctor(args):
             critical=True,
         )
     except Exception as exc:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         _doctor_check(checks, "Database", False, str(exc), critical=True)
 
     smoke_checks = [
@@ -1352,16 +1506,30 @@ def cmd_doctor(args):
         ),
     ]
     for name, command in smoke_checks:
-        proc = subprocess.run(command, cwd=str(PROJECT_ROOT), capture_output=True, text=True, check=False)
+        proc = subprocess.run(
+            command, cwd=str(PROJECT_ROOT), capture_output=True, text=True, check=False
+        )
         ok = proc.returncode == 0 and bool(proc.stdout.strip())
-        detail = proc.stdout.strip().splitlines()[0] if proc.stdout.strip() else proc.stderr.strip().splitlines()[0] if proc.stderr.strip() else f"exit={proc.returncode}"
+        detail = (
+            proc.stdout.strip().splitlines()[0]
+            if proc.stdout.strip()
+            else proc.stderr.strip().splitlines()[0]
+            if proc.stderr.strip()
+            else f"exit={proc.returncode}"
+        )
         _doctor_check(checks, name, ok, detail, critical=False)
 
-    fixes = _doctor_fixes(checks, critical_missing, warn_missing) if getattr(args, "fix", False) else []
+    fixes = (
+        _doctor_fixes(checks, critical_missing, warn_missing)
+        if getattr(args, "fix", False)
+        else []
+    )
 
     if output_format == "json":
         payload = {
-            "status": "ok" if not any(c["critical"] and not c["ok"] for c in checks) else "degraded",
+            "status": "ok"
+            if not any(c["critical"] and not c["ok"] for c in checks)
+            else "degraded",
             "checks": checks,
             "critical_missing_modules": critical_missing,
             "warning_missing_modules": warn_missing,
@@ -1404,13 +1572,16 @@ def cmd_trinity_demo(args):
             subject=args.subject,
         )
     except Exception as exc:
+        logging.getLogger(__name__).debug(
+            "Operation failed; applying fallback", exc_info=True
+        )
         print(f"Trinity demo error: {exc}", file=sys.stderr)
         return 1
 
-    if args.format == 'json':
+    if args.format == "json":
         print(json.dumps(result, indent=2, ensure_ascii=False))
     else:
-        print('Trinity demo complete.')
+        print("Trinity demo complete.")
         print(_trinity_result_to_text(result))
         print(f"Bundle written to: {result.get('output_dir', 'unknown')}")
     return 0
@@ -1469,11 +1640,17 @@ def build_parser():
 
     web = sub.add_parser("web", help="Start the web UI.")
     web.add_argument("--host", help="Bind host for the web UI (default: 127.0.0.1).")
-    web.add_argument("--port", type=int, help="Bind port for the web UI (default: 8765).")
-    web.add_argument("--public-url", help="Public dashboard URL to advertise when running remotely.")
+    web.add_argument(
+        "--port", type=int, help="Bind port for the web UI (default: 8765)."
+    )
+    web.add_argument(
+        "--public-url", help="Public dashboard URL to advertise when running remotely."
+    )
     web.set_defaults(func=cmd_web)
 
-    status = sub.add_parser("status", help="Print a machine-readable ANCHOR/Trinity status summary.")
+    status = sub.add_parser(
+        "status", help="Print a machine-readable ANCHOR/Trinity status summary."
+    )
     status.add_argument(
         "--json",
         action="store_true",
@@ -1481,7 +1658,9 @@ def build_parser():
     )
     status.set_defaults(func=cmd_status)
 
-    install = sub.add_parser("install", help="Print the exact install steps for a laptop or droplet.")
+    install = sub.add_parser(
+        "install", help="Print the exact install steps for a laptop or droplet."
+    )
     install.add_argument(
         "target",
         choices=["laptop", "droplet"],
@@ -1498,7 +1677,10 @@ def build_parser():
     )
     install.set_defaults(func=cmd_install)
 
-    setup = sub.add_parser("setup", help="Bootstrap local ANCHOR/Trinity shell integration and directories.")
+    setup = sub.add_parser(
+        "setup",
+        help="Bootstrap local ANCHOR/Trinity shell integration and directories.",
+    )
     setup.add_argument(
         "--json",
         action="store_true",
@@ -1506,7 +1688,9 @@ def build_parser():
     )
     setup.set_defaults(func=cmd_setup)
 
-    dashboard = sub.add_parser("dashboard", help="Launch the ANCHOR/Trinity dashboard in your browser.")
+    dashboard = sub.add_parser(
+        "dashboard", help="Launch the ANCHOR/Trinity dashboard in your browser."
+    )
     dashboard.add_argument(
         "--url",
         default=_default_dashboard_url(),
@@ -1521,7 +1705,9 @@ def build_parser():
 
     bridge_parser = sub.add_parser("bridge", help="Interface with the SSH bridge.")
     bridge_parser.add_argument("subcmd", choices=["run", "shell"], help="run | shell")
-    bridge_parser.add_argument("cmd_args", nargs=argparse.REMAINDER, help="Command to run (for 'run' subcmd)")
+    bridge_parser.add_argument(
+        "cmd_args", nargs=argparse.REMAINDER, help="Command to run (for 'run' subcmd)"
+    )
     bridge_parser.set_defaults(func=cmd_bridge)
 
     health = sub.add_parser("health", help="Run the local health check.")
@@ -1546,7 +1732,9 @@ def build_parser():
     path = sub.add_parser("path", help="Print the bot project path.")
     path.set_defaults(func=cmd_path)
 
-    doctor = sub.add_parser("doctor", help="Check ANCHOR/Trinity launcher, deps, and local setup.")
+    doctor = sub.add_parser(
+        "doctor", help="Check ANCHOR/Trinity launcher, deps, and local setup."
+    )
     doctor.add_argument(
         "--json",
         action="store_true",
@@ -1579,7 +1767,9 @@ def build_parser():
     memory_consolidate.add_argument("--json", action="store_true")
     memory_consolidate.set_defaults(func=cmd_memory_consolidate)
 
-    version = sub.add_parser("version", help="Print the ANCHOR release version and build metadata.")
+    version = sub.add_parser(
+        "version", help="Print the ANCHOR release version and build metadata."
+    )
     version.add_argument(
         "--json",
         action="store_true",
@@ -1633,9 +1823,11 @@ def build_parser():
     )
     history.set_defaults(func=cmd_history)
 
-    archive = sub.add_parser("archive", help="Create, list, or inspect Trinity archives.")
+    archive = sub.add_parser(
+        "archive", help="Create, list, or inspect Trinity archives."
+    )
     archive_sub = archive.add_subparsers(dest="archive_command")
-    archive.set_defaults(func=lambda _args, _parser=archive: (_parser.print_help() or 2))
+    archive.set_defaults(func=lambda _args, _parser=archive: _parser.print_help() or 2)
 
     archive_create = archive_sub.add_parser(
         "create",
@@ -1703,7 +1895,9 @@ def build_parser():
     )
     archive_show.set_defaults(func=cmd_archive_show)
 
-    export_report = sub.add_parser("export-report", help="Export an ANCHOR case report to a file.")
+    export_report = sub.add_parser(
+        "export-report", help="Export an ANCHOR case report to a file."
+    )
     export_report.add_argument("case_ref", help="Case id or bundle directory.")
     export_report.add_argument(
         "--output",
@@ -1720,7 +1914,9 @@ def build_parser():
     )
     export_report.set_defaults(func=cmd_export_report)
 
-    upgrade = sub.add_parser("upgrade", help="Show or apply Trinity release upgrade steps.")
+    upgrade = sub.add_parser(
+        "upgrade", help="Show or apply Trinity release upgrade steps."
+    )
     upgrade.add_argument(
         "--apply",
         action="store_true",
@@ -1736,7 +1932,9 @@ def build_parser():
     help_cmd = sub.add_parser("help", help="Show the ANCHOR public command surface.")
     help_cmd.set_defaults(func=cmd_help)
 
-    about = sub.add_parser("about", help="Show ANCHOR platform identity and role mapping.")
+    about = sub.add_parser(
+        "about", help="Show ANCHOR platform identity and role mapping."
+    )
     about.set_defaults(func=cmd_about)
 
     trinity = sub.add_parser(
@@ -1745,7 +1943,7 @@ def build_parser():
     )
     trinity_sub = trinity.add_subparsers(dest="trinity_command")
 
-    trinity.set_defaults(func=lambda _args, _parser=trinity: (_parser.print_help() or 2))
+    trinity.set_defaults(func=lambda _args, _parser=trinity: _parser.print_help() or 2)
 
     trinity_analyze = trinity_sub.add_parser(
         "analyze",
@@ -1802,7 +2000,7 @@ def build_parser():
         help="Manage ANCHOR cases.",
     )
     case_sub = case.add_subparsers(dest="case_command")
-    case.set_defaults(func=lambda _args, _parser=case: (_parser.print_help() or 2))
+    case.set_defaults(func=lambda _args, _parser=case: _parser.print_help() or 2)
 
     case_list = case_sub.add_parser(
         "list",
@@ -1883,7 +2081,7 @@ def build_parser():
         help="Inspect or export ANCHOR evidence packets.",
     )
     packet_sub = packet.add_subparsers(dest="packet_command")
-    packet.set_defaults(func=lambda _args, _parser=packet: (_parser.print_help() or 2))
+    packet.set_defaults(func=lambda _args, _parser=packet: _parser.print_help() or 2)
 
     packet_show = packet_sub.add_parser(
         "show",
@@ -1925,7 +2123,7 @@ def build_parser():
         help="View ANCHOR run history.",
     )
     ledger_sub = ledger.add_subparsers(dest="ledger_command")
-    ledger.set_defaults(func=lambda _args, _parser=ledger: (_parser.print_help() or 2))
+    ledger.set_defaults(func=lambda _args, _parser=ledger: _parser.print_help() or 2)
 
     ledger_list = ledger_sub.add_parser(
         "list",

@@ -64,35 +64,48 @@ def _default_host() -> str | None:
         os.getenv("DROPLET_HOST")
         or os.getenv("DROPLET_SSH_HOST")
         or os.getenv("SSH_HOST")
-        or (DEFAULT_SSH_HOST_ALIAS if _ssh_config_has_host(DEFAULT_SSH_HOST_ALIAS) else None)
+        or (
+            DEFAULT_SSH_HOST_ALIAS
+            if _ssh_config_has_host(DEFAULT_SSH_HOST_ALIAS)
+            else None
+        )
     )
 
 
-def rsync_pull(host: str, user: str, remote_dir: str, local_dir: str, key: str | None) -> bool:
+def rsync_pull(
+    host: str, user: str, remote_dir: str, local_dir: str, key: str | None
+) -> bool:
     src = f"{user}@{host}:{remote_dir}/{DEFAULT_LOG_GLOB}"
     dst = Path(local_dir)
     dst.mkdir(parents=True, exist_ok=True)
     cmd = ["rsync", "-avz", "--progress"] + _ssh_opts(key) + [src, str(dst) + "/"]
     print(" ".join(cmd))
-    result = subprocess.run(cmd)
+    result = subprocess.run(cmd, check=False)
     return result.returncode == 0
 
 
-def scp_pull(host: str, user: str, remote_dir: str, local_dir: str, key: str | None) -> bool:
+def scp_pull(
+    host: str, user: str, remote_dir: str, local_dir: str, key: str | None
+) -> bool:
     src = f"{user}@{host}:{remote_dir}/{DEFAULT_LOG_GLOB}"
     dst = Path(local_dir)
     dst.mkdir(parents=True, exist_ok=True)
     cmd = ["scp"] + _ssh_opts(key) + [src, str(dst) + "/"]
     print(" ".join(cmd))
-    result = subprocess.run(cmd)
+    result = subprocess.run(cmd, check=False)
     return result.returncode == 0
 
 
-def pull_once(host: str, user: str, remote_dir: str, local_dir: str, key: str | None, force_scp: bool) -> bool:
-    if not force_scp:
-        # Prefer rsync if available
-        if which("rsync"):
-            return rsync_pull(host, user, remote_dir, local_dir, key)
+def pull_once(
+    host: str,
+    user: str,
+    remote_dir: str,
+    local_dir: str,
+    key: str | None,
+    force_scp: bool,
+) -> bool:
+    if not force_scp and which("rsync"):
+        return rsync_pull(host, user, remote_dir, local_dir, key)
     return scp_pull(host, user, remote_dir, local_dir, key)
 
 
@@ -103,11 +116,21 @@ def main() -> None:
         default=_default_host(),
         help="Droplet IP, hostname, or SSH host alias (defaults to DROPLET_HOST / droplet)",
     )
-    parser.add_argument("--user", default=os.getenv("DROPLET_USER", "root"), help="SSH user")
-    parser.add_argument("--key", default=os.getenv("DROPLET_KEY"), help="SSH private key path")
-    parser.add_argument("--remote", default=DEFAULT_REMOTE_DIR, help="Remote log directory")
-    parser.add_argument("--local", default=DEFAULT_LOCAL_DIR, help="Local download directory")
-    parser.add_argument("--watch", type=int, metavar="SECONDS", help="Poll interval (watch mode)")
+    parser.add_argument(
+        "--user", default=os.getenv("DROPLET_USER", "root"), help="SSH user"
+    )
+    parser.add_argument(
+        "--key", default=os.getenv("DROPLET_KEY"), help="SSH private key path"
+    )
+    parser.add_argument(
+        "--remote", default=DEFAULT_REMOTE_DIR, help="Remote log directory"
+    )
+    parser.add_argument(
+        "--local", default=DEFAULT_LOCAL_DIR, help="Local download directory"
+    )
+    parser.add_argument(
+        "--watch", type=int, metavar="SECONDS", help="Poll interval (watch mode)"
+    )
     parser.add_argument("--scp", action="store_true", help="Force scp instead of rsync")
     args = parser.parse_args()
 
@@ -121,12 +144,16 @@ def main() -> None:
     if args.watch:
         print(f"Watch mode: pulling every {args.watch}s. Ctrl-C to stop.")
         while True:
-            ok = pull_once(args.host, args.user, args.remote, args.local, args.key, args.scp)
+            ok = pull_once(
+                args.host, args.user, args.remote, args.local, args.key, args.scp
+            )
             if not ok:
                 print("Pull failed, retrying...", file=sys.stderr)
             time.sleep(args.watch)
     else:
-        ok = pull_once(args.host, args.user, args.remote, args.local, args.key, args.scp)
+        ok = pull_once(
+            args.host, args.user, args.remote, args.local, args.key, args.scp
+        )
         sys.exit(0 if ok else 1)
 
 

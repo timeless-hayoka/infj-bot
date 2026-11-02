@@ -26,7 +26,6 @@ import math
 from dataclasses import dataclass, field
 from typing import Optional
 
-
 # ── Mode Constants ──────────────────────────────────────────────────────────
 
 SHADOW_MODES = {
@@ -155,10 +154,7 @@ def should_promote(anomaly: ShadowAnomaly, current_cycle: int, mode: str) -> boo
         return False
 
     # Check it hasn't collapsed — still above 10% of initial
-    if current_w < anomaly.initial_weight * 0.1:
-        return False
-
-    return True
+    return not current_w < anomaly.initial_weight * 0.1
 
 
 def adjusted_confidence(base_confidence: float, shadow_influence: float) -> float:
@@ -172,7 +168,7 @@ def adjusted_confidence(base_confidence: float, shadow_influence: float) -> floa
     return max(0.0, base_confidence * (1.0 - shadow_influence))
 
 
-def tick(state: ShadowState, new_anomalies: Optional[list] = None) -> ShadowState:
+def tick(state: ShadowState, new_anomalies: list | None = None) -> ShadowState:
     """
     Advance shadow state by one cycle.
 

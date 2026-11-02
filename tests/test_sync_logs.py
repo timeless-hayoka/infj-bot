@@ -17,7 +17,9 @@ def test_default_host_prefers_env_over_ssh_alias(tmp_path, monkeypatch):
     sync_logs = _load_sync_logs()
     ssh_dir = tmp_path / ".ssh"
     ssh_dir.mkdir()
-    (ssh_dir / "config").write_text("Host droplet\n    HostName 203.0.113.10\n", encoding="utf-8")
+    (ssh_dir / "config").write_text(
+        "Host droplet\n    HostName 203.0.113.10\n", encoding="utf-8"
+    )
     monkeypatch.setenv("DROPLET_HOST", "env-droplet")
     monkeypatch.setattr(sync_logs.Path, "home", lambda: tmp_path)
     assert sync_logs._default_host() == "env-droplet"
@@ -27,7 +29,9 @@ def test_default_host_falls_back_to_ssh_alias(tmp_path, monkeypatch):
     sync_logs = _load_sync_logs()
     ssh_dir = tmp_path / ".ssh"
     ssh_dir.mkdir()
-    (ssh_dir / "config").write_text("Host droplet\n    HostName 203.0.113.10\n", encoding="utf-8")
+    (ssh_dir / "config").write_text(
+        "Host droplet\n    HostName 203.0.113.10\n", encoding="utf-8"
+    )
     monkeypatch.delenv("DROPLET_HOST", raising=False)
     monkeypatch.delenv("DROPLET_SSH_HOST", raising=False)
     monkeypatch.delenv("SSH_HOST", raising=False)

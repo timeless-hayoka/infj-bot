@@ -3,9 +3,10 @@ Phase 1 Adapter: Memory (Compatibility Spine)
 Provides a unified interface for drift, core, and hive memory.
 """
 
+from drift.hive_mind import shared_memory as hive_memory
+
 from drift import memory as infj_memory
 from drift.core import memory as core_memory
-from drift.hive_mind import shared_memory as hive_memory
 
 
 class MemoryAdapter:

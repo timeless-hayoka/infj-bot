@@ -12,7 +12,7 @@ import logging
 import sqlite3
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Optional
 
 logger = logging.getLogger("drift")
 
@@ -32,7 +32,7 @@ class PhysicsState:
         0.5  # emotional cycle period estimate (0 = chaotic, 1 = rhythmic)
     )
     center_of_mass: str = "curiosity"  # what the bot's weight rests on
-    last_updated: Optional[str] = None
+    last_updated: str | None = None
 
 
 from drift.core.config import DATA_DIR
@@ -53,7 +53,7 @@ class PhysicsEngine:
     - wavelength: do we fall into rhythms, or is everything jagged?
     """
 
-    def __init__(self, db_path: Optional[str] = None):
+    def __init__(self, db_path: str | None = None):
         self.db_path = db_path or PHYSICS_DB
         self.state = PhysicsState()
         self._init_db()
@@ -228,7 +228,9 @@ class PhysicsEngine:
                 source="physics", content="physical intuition settled", salience=0.45
             )
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Operation failed; applying fallback", exc_info=True
+            )
 
         # Record observations
         for principle, old_val in before.items():
@@ -305,9 +307,7 @@ class PhysicsEngine:
             )
             conn.commit()
 
-    def get_lessons(
-        self, principle: Optional[str] = None, limit: int = 5
-    ) -> List[Dict]:
+    def get_lessons(self, principle: str | None = None, limit: int = 5) -> list[dict]:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             if principle:
@@ -424,7 +424,7 @@ class PhysicsEngine:
 
     # ── Queries ────────────────────────────────────────────────────
 
-    def get_state(self) -> Dict:
+    def get_state(self) -> dict:
         return {
             "gravity": self.state.gravity,
             "inertia": self.state.inertia,
@@ -436,8 +436,8 @@ class PhysicsEngine:
         }
 
     def get_observations(
-        self, principle: Optional[str] = None, limit: int = 10
-    ) -> List[Dict]:
+        self, principle: str | None = None, limit: int = 10
+    ) -> list[dict]:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             if principle:

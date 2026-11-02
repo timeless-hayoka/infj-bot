@@ -24,12 +24,13 @@ import argparse
 import concurrent.futures
 import csv
 import json
+import logging
 import os
 import re
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
@@ -47,24 +48,24 @@ def _read_api_key_from_path(path: Path) -> str:
     raise ValueError(f"no non-empty key line in {path}")
 
 
-def infer_tiers(lines: List[str]) -> Dict[int, str]:
-    tier_by_line: Dict[int, str] = {}
+def infer_tiers(lines: list[str]) -> dict[int, str]:
+    tier_by_line: dict[int, str] = {}
     current = "unknown"
     for i, raw in enumerate(lines):
         line = raw.strip()
         if line.startswith("## TIER"):
-            m = re.match(r"##\s*(TIER\s*\d+[:\s].*)$", line, re.I)
+            m = re.match(r"##\s*(TIER\s*\d+[:\s].*)$", line, re.IGNORECASE)
             current = (m.group(1) if m else line.replace("##", "").strip())[:120]
         if line.startswith("### ") and re.match(r"###\s*\d+\.", line):
             tier_by_line[i] = current
     return tier_by_line
 
 
-def parse_targets(markdown_text: str, limit: int) -> List[Dict[str, Any]]:
+def parse_targets(markdown_text: str, limit: int) -> list[dict[str, Any]]:
     lines = markdown_text.splitlines()
     tiers = infer_tiers(lines)
-    targets: List[Dict[str, Any]] = []
-    cur: Optional[Dict[str, Any]] = None
+    targets: list[dict[str, Any]] = []
+    cur: dict[str, Any] | None = None
 
     hdr = re.compile(r"^###\s*(\d+)\.\s*\*\*(.+?)\*\*")
 
@@ -136,7 +137,7 @@ def first_name_hint(target_person: str) -> str:
     return target_person.split("(")[0].split(",")[0].strip() or "there"
 
 
-def render_offline(rec: Dict[str, Any], tpl: str) -> Dict[str, str]:
+def render_offline(rec: dict[str, Any], tpl: str) -> dict[str, str]:
     """Cheap fills from playbook bullets — uses no AI."""
     sender = os.getenv("INFJ_OUTREACH_SENDER_NAME", "[Your name]")
     email = os.getenv("INFJ_OUTREACH_SENDER_EMAIL", "").strip()
@@ -193,7 +194,7 @@ def render_offline(rec: Dict[str, Any], tpl: str) -> Dict[str, str]:
     return {"subject": subject, "body_plain": body + sig}
 
 
-def _build_user_prompt(rec: Dict[str, Any], template: str) -> str:
+def _build_user_prompt(rec: dict[str, Any], template: str) -> str:
     sender = (
         f"Sender name: {os.getenv('INFJ_OUTREACH_SENDER_NAME', '[Your name]')}\n"
         f"Sender email: {os.getenv('INFJ_OUTREACH_SENDER_EMAIL', '')}\n"
@@ -227,7 +228,7 @@ def generate_with_brain(
     model_name: str,
     prompt: str,
     timeout_seconds: float,
-) -> Dict[str, str]:
+) -> dict[str, str]:
     def _call() -> str:
         raw = brain._generate(model_name, COMBINED_SYSTEM, prompt)
         return raw or ""
@@ -238,8 +239,8 @@ def generate_with_brain(
             text = fut.result(timeout=timeout_seconds)
         except concurrent.futures.TimeoutError as exc:
             raise TimeoutError(
-                "Gemini did not finish within {:.0f}s — try --offline, check API_KEY / network, "
-                "or pass a larger --timeout.".format(timeout_seconds),
+                f"Gemini did not finish within {timeout_seconds:.0f}s — try --offline, check API_KEY / network, "
+                "or pass a larger --timeout.",
             ) from exc
 
     stripped = text.strip()
@@ -316,10 +317,10 @@ def main() -> int:
         try:
             os.environ["API_KEY"] = _read_api_key_from_path(args.api_key_file)
         except OSError as exc:
-            print("ERROR: cannot read --api-key-file: {}".format(exc), file=sys.stderr)
+            print(f"ERROR: cannot read --api-key-file: {exc}", file=sys.stderr)
             return 2
         except ValueError as exc:
-            print("ERROR: {}".format(exc), file=sys.stderr)
+            print(f"ERROR: {exc}", file=sys.stderr)
             return 2
     text = args.input.read_text(encoding="utf-8")
     targets = parse_targets(text, args.limit)
@@ -341,8 +342,8 @@ def main() -> int:
     brain = None
     model_name = None
     if not args.offline:
-        from config import API_KEY
         from brain import INFJ_PRIMARY_MODEL, DriftBrain
+        from config import API_KEY
 
         if not API_KEY:
             print(
@@ -355,9 +356,7 @@ def main() -> int:
             return 2
         print(
             "Bulk outreach — Gemini mode "
-            "(timeout {:.0f}s/email, {:.1f}s delay between calls)".format(
-                args.timeout, args.delay
-            ),
+            f"(timeout {args.timeout:.0f}s/email, {args.delay:.1f}s delay between calls)",
             flush=True,
         )
         print(
@@ -447,14 +446,17 @@ def main() -> int:
                 out_path = run_dir / fname
                 out_path.write_text(md, encoding="utf-8")
                 row["status"] = "ok"
-                print("     wrote {} bytes".format(out_path.stat().st_size), flush=True)
+                print(f"     wrote {out_path.stat().st_size} bytes", flush=True)
             except Exception as exc:
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
                 row["status"] = f"error: {exc}"
                 (run_dir / fname).write_text(
                     f"# ERROR generating {rec['company']}\n\n{exc!s}\n",
                     encoding="utf-8",
                 )
-                print("     FAILED: {}".format(exc), flush=True)
+                print(f"     FAILED: {exc}", flush=True)
 
             writer.writerow(row)
             mf.flush()
