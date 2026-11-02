@@ -43,6 +43,9 @@ class PreferenceStore:
                 )
                 """
             )
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS preference_promotions (key TEXT PRIMARY KEY, salience REAL NOT NULL)"
+            )
             conn.commit()
 
     def _ensure_defaults(self):
@@ -72,6 +75,53 @@ class PreferenceStore:
                 (key, json_value, datetime.now().isoformat()),
             )
             conn.commit()
+
+    def promote_preference(self, key: str, value: str, salience: float = 1.0) -> None:
+        """Atomically replace a promoted preference; never accumulate directives."""
+        import math
+        from datetime import datetime
+
+        if not isinstance(key, str) or not key or not key.replace("_", "").isalnum():
+            raise ValueError("invalid preference key")
+        if (
+            not isinstance(value, str)
+            or not value
+            or len(value) > 512
+            or any(c in value for c in "\r\n")
+        ):
+            raise ValueError("invalid preference value")
+        if (
+            not isinstance(salience, (int, float))
+            or not math.isfinite(salience)
+            or not 0 <= salience <= 1
+        ):
+            raise ValueError("invalid preference salience")
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO preferences VALUES (?, ?, ?)",
+                (key, json.dumps(value), datetime.now().isoformat()),
+            )
+            conn.execute(
+                "INSERT OR REPLACE INTO preference_promotions VALUES (?, ?)",
+                (key, salience),
+            )
+
+    def _prompt_snapshot(self) -> tuple[dict[str, Any], dict[str, str]]:
+        with sqlite3.connect(self.db_path) as conn:
+            rows = conn.execute(
+                "SELECT p.key, p.value, EXISTS(SELECT 1 FROM preference_promotions m WHERE m.key=p.key) FROM preferences p ORDER BY p.key"
+            ).fetchall()
+        prefs = {key: json.loads(value) for key, value, _ in rows}
+        directives = {
+            key: f"[CONSTRAINT] {key}={prefs[key]}"
+            for key, _, promoted in rows
+            if promoted or key == "output_style"
+        }
+        return prefs, directives
+
+    def get_promoted_directives(self) -> dict[str, str]:
+        """Read current values directly from SQLite, including legacy output_style."""
+        return self._prompt_snapshot()[1]
 
     def delete(self, key: str) -> bool:
         with sqlite3.connect(self.db_path) as conn:
@@ -121,12 +171,11 @@ class PreferenceStore:
 
     def format_prompt_snippet(self) -> str:
         """Format preferences into a short snippet for the system prompt."""
-        prefs = self.all()
+        prefs, directives = self._prompt_snapshot()
         lines = ["USER PREFERENCES:"]
 
-        output_style = prefs.get("output_style")
-        if output_style:
-            lines.append(f"[CONSTRAINT] output_style={output_style}")
+        # Canonical live read: no orchestrator cache may retain superseded values.
+        lines.extend(directives.values())
 
         style = prefs.get("communication_style", "warm and analytical")
         length = prefs.get("response_length", "medium")

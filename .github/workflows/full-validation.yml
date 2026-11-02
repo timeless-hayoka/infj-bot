@@ -38,6 +38,8 @@ jobs:
           .venv/bin/python -m pip install -e '.[dev,sarif-semantic]'
       - name: Run every test and preserve evidence
         run: bash run_full_test_suite.sh --output-dir logs/full-validation
+      - name: Verify real preference read path and planted stale-state detector
+        run: .venv/bin/python tests/preference_stress_runner.py --selftest --cycles 20 --output-dir logs/full-validation/preference-stress
       - uses: actions/upload-artifact@v4
         if: always()
         with:

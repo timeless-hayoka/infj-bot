@@ -42,7 +42,7 @@ import contextvars
 import re
 from typing import Any
 
-from drift.core.safe_math import MathError, compute, looks_like_math
+from drift.core.safe_math import MathError, compute, looks_like_math, safe_arithmetic
 
 active_grounded_math_var: contextvars.ContextVar[
     list[GroundedResult] | tuple[GroundedResult, ...]
@@ -110,6 +110,8 @@ class GroundedResult:
             sols = r.get("solutions")
             if sols is not None:
                 return "solutions: " + ", ".join(str(s) for s in sols)
+            if not exact:
+                return r.get("simplified", r.get("numeric", "[no display value]"))
             if exact == approx or not approx:
                 return exact
             return f"{exact} (≈ {approx})"
@@ -202,7 +204,24 @@ def inject_grounded_math(
 # --------------------------------------------------------------------------- #
 
 # Regex for numbers in model output: integers, decimals, simple fractions.
-_NUMBER_RE = re.compile(r"-?\d+(?:[./]\d+)?")
+_NUMBER_RE = re.compile(
+    r"(?<![\w./])[-+]?(?:\d+/\d+|\d+(?:\.\d*)?(?:[eE][-+]?\d+)?)(?![\w./])"
+)
+
+
+def _contains_value(draft: str, value: str) -> bool:
+    """Match whole numerical values; '1' inside '10' is not verification."""
+    try:
+        expected = safe_arithmetic(value)
+    except MathError:
+        return bool(re.search(r"(?<![\w.])" + re.escape(value) + r"(?![\w.])", draft))
+    for token in _NUMBER_RE.findall(draft):
+        try:
+            if safe_arithmetic(token) == expected:
+                return True
+        except MathError:
+            continue
+    return False
 
 
 def critic_math_check(
@@ -256,19 +275,19 @@ def critic_math_check(
         r = gr.result.get("result", {})
         if isinstance(r, dict):
             sols = r.get("solutions")
-            exact = r.get("exact")
+            exact = r.get("exact") or r.get("simplified")
             if sols:
                 # For solved equations, check each solution appears in the draft.
                 for sol in sols:
                     sol_str = str(sol)
-                    if sol_str and sol_str not in draft:
+                    if sol_str and not _contains_value(draft, sol_str):
                         violations.append(
                             f"{gr.expression} solution {sol_str} missing from draft."
                         )
-            elif exact and exact not in draft:
+            elif exact and not _contains_value(draft, exact):
                 # The exact canonical value isn't in the draft. Check for close variants.
                 approx = r.get("approx", "")
-                if not approx or approx not in draft:
+                if not approx or not _contains_value(draft, approx):
                     # Neither exact nor decimal approximation appears. Attempt correction.
                     violations.append(
                         f"{gr.expression} → {exact}: value not found in draft."
@@ -304,8 +323,11 @@ def _run_integration_check() -> None:
     print(f"  prompt hook OK — grounded: {[str(g) for g in grounded]}")
 
     # Hook 2: critic catches drift
-    fake_draft = "The answer is approximately 0.999 which rounds to 1."
-    _corrected, violations = critic_math_check(fake_draft, grounded)
+    fake_draft = "The answer is 10."
+    corrected, violations = critic_math_check(fake_draft, grounded)
+    assert violations and "[Verified:" in corrected, (
+        "critic failed to catch incorrect value"
+    )
     print(f"  critic hook OK — violations: {violations}")
     print("  both hooks reachable and returning expected shapes")
     print("SMOKE-CHECK PASSED")

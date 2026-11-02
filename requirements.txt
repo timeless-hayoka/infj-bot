@@ -131,3 +131,5 @@ google-cloud-run
 opentelemetry-api
 opentelemetry-sdk
 opentelemetry-exporter-gcp-monitoring
+
+sympy==1.14.0

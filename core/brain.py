@@ -717,6 +717,12 @@ class DriftBrain(_BrainGenerationMixin):
             return None
         return getattr(request_budget_local, "budget", None)
 
+    def _check_grounded_response(self, text):
+        checked, violations = critic_math_check(text, active_grounded_math_var.get())
+        if violations:
+            self.logger.warning("DRIFT math grounding violations: %s", violations)
+        return checked
+
     def think(self, user_input, raw_user_input=None, mode=None):
         sec = self._enhanced_security_check(user_input, raw_user_input, mode=mode)
         if sec.blocked:
@@ -841,16 +847,19 @@ class DriftBrain(_BrainGenerationMixin):
         try:
             if request_budget is not None:
                 request_budget.check()
-            return self._generate(
+            reviewed = self._generate(
                 self.critic_model_name,
                 CRITIC_SYSTEM_PROMPT,
                 f"Review the following response for hallucinations, errors, or unsafe content:\n\n{primary_text}",
             )
+            return self._check_grounded_response(reviewed)
         except Exception as exc:
             logging.getLogger(__name__).debug(
                 "Operation failed; applying fallback", exc_info=True
             )
-            return f"{primary_text}\n\n[critic unavailable: {type(exc).__name__}]"
+            return self._check_grounded_response(
+                f"{primary_text}\n\n[critic unavailable: {type(exc).__name__}]"
+            )
 
     @staticmethod
     def _extract_approach(text: str) -> str:
@@ -921,6 +930,10 @@ class DriftBrain(_BrainGenerationMixin):
                 chunks.append(chunk)
                 yield chunk
             primary_text = "".join(chunks)
+            checked = self._check_grounded_response(primary_text)
+            if checked != primary_text:
+                yield checked[len(primary_text) :]
+                primary_text = checked
             if request_budget is not None:
                 request_budget.check()
             self.history.extend([f"User: {user_input}", f"Bot: {primary_text}"])
@@ -1397,6 +1410,10 @@ class DriftBrain(_BrainGenerationMixin):
             else:
                 primary_text = response_text
 
+            checked = self._check_grounded_response(primary_text)
+            if checked != primary_text:
+                yield checked[len(primary_text) :]
+                primary_text = checked
             if request_budget is not None:
                 request_budget.check()
             self.history.extend([f"User: {user_input}", f"Bot: {primary_text}"])
