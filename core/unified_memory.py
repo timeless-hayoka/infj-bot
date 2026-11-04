@@ -62,15 +62,20 @@ class MemoryManager:
 
         self._init_sqlite()
 
-        # Explicitly use project's default embedding function
-        from drift.core.embeddings import get_default_embedding_function
+        self._client = None
+        self._collection = None
 
-        self.embedding_function = get_default_embedding_function()
+        if _CHROMADB_AVAILABLE:
+            # Explicitly use project's default embedding function
+            from drift.core.embeddings import get_default_embedding_function
 
-        self._client = chromadb.PersistentClient(path=self.chroma_path)
-        self._collection = self._client.get_or_create_collection(
-            name="infj_unified_memory_v2", embedding_function=self.embedding_function
-        )
+            self.embedding_function = get_default_embedding_function()
+            self._client = chromadb.PersistentClient(path=self.chroma_path)
+            self._collection = self._client.get_or_create_collection(
+                name="infj_unified_memory_v2", embedding_function=self.embedding_function
+            )
+        else:
+            self.embedding_function = None
 
     @property
     def collection(self):
