@@ -8,15 +8,21 @@ from drift.core.plugins.preferences import PreferenceStore
 def test_deleting_promoted_preference_clears_marker(tmp_path):
     store = PreferenceStore(tmp_path / "preferences.sqlite3")
     store.promote_preference("output_style", "concise")
-    assert store.get_promoted_directives()["output_style"] == "[CONSTRAINT] output_style=concise"
+    assert (
+        store.get_promoted_directives()["output_style"]
+        == "[CONSTRAINT] output_style=concise"
+    )
 
     assert store.delete("output_style") is True
     assert "output_style" not in store.get_promoted_directives()
     with sqlite3.connect(store.db_path) as conn:
-        assert conn.execute(
-            "SELECT COUNT(*) FROM preference_promotions WHERE key = ?",
-            ("output_style",),
-        ).fetchone()[0] == 0
+        assert (
+            conn.execute(
+                "SELECT COUNT(*) FROM preference_promotions WHERE key = ?",
+                ("output_style",),
+            ).fetchone()[0]
+            == 0
+        )
 
     # A fresh, unpromoted setting must not inherit the old promotion marker.
     store.set("output_style", "detailed")
@@ -47,7 +53,10 @@ def test_deleting_missing_preference_removes_orphan_promotion(tmp_path):
         )
     assert store.delete("orphan_mode") is False
     with sqlite3.connect(store.db_path) as conn:
-        assert conn.execute(
-            "SELECT COUNT(*) FROM preference_promotions WHERE key = ?",
-            ("orphan_mode",),
-        ).fetchone()[0] == 0
+        assert (
+            conn.execute(
+                "SELECT COUNT(*) FROM preference_promotions WHERE key = ?",
+                ("orphan_mode",),
+            ).fetchone()[0]
+            == 0
+        )
