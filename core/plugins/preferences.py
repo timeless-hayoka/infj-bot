@@ -124,9 +124,13 @@ class PreferenceStore:
         return self._prompt_snapshot()[1]
 
     def delete(self, key: str) -> bool:
+        """Delete a preference and its promotion together.
+
+        A later ordinary set must not inherit a previously promoted directive.
+        """
         with sqlite3.connect(self.db_path) as conn:
             cur = conn.execute("DELETE FROM preferences WHERE key = ?", (key,))
-            conn.commit()
+            conn.execute("DELETE FROM preference_promotions WHERE key = ?", (key,))
             return cur.rowcount > 0
 
     def all(self) -> dict[str, Any]:
