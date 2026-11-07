@@ -3,6 +3,8 @@
 Supports stdio transport (default) and a simple HTTP transport for local orchestration.
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
 import os
