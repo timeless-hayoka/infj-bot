@@ -7,7 +7,7 @@ from copy import deepcopy
 from core.cognitive_orchestrator import ConflictDetector
 
 
-def test_lower_priority_conflicting_instruction_is_removed():
+def test_different_scopes_are_not_treated_as_conflicting():
     detector = ConflictDetector()
     sections = {
         "safety": ["Be direct when describing confirmed security failures."],
@@ -15,13 +15,13 @@ def test_lower_priority_conflicting_instruction_is_removed():
     }
     original = deepcopy(sections)
     conflicts = detector.detect(sections)
-    assert conflicts, "Expected conflict to be detected"
+    assert not conflicts, "Direct security reporting and gentle emotional responses are compatible"
 
     resolved = detector.resolve(conflicts, sections, {"safety": 100, "style": 10})
 
     assert resolved["safety"] == original["safety"]
-    assert not any("be gentle" in s.lower() for s in resolved["style"])
-    assert any(c.resolution and c.resolution != "noted: both voices present" for c in conflicts)
+    assert resolved["style"] == original["style"]
+
 
 
 def test_no_conflict_keeps_sections_unchanged():
@@ -36,3 +36,13 @@ def test_conflict_resolution_does_not_mutate_original_sections():
     before = deepcopy(sections)
     detector.resolve(detector.detect(sections), sections, {"high": 100, "low": 10})
     assert sections == before
+
+
+def test_explicit_conflicting_directives_are_detected():
+    detector = ConflictDetector()
+    sections = {'core': ['Always be direct in all replies.'], 'style': ['Always be gentle in all replies.']}
+    conflicts = detector.detect(sections)
+    assert conflicts
+    resolved = detector.resolve(conflicts, sections, {'core': 100, 'style': 10})
+    assert resolved['core'] == sections['core']
+    assert resolved['style'] == []
