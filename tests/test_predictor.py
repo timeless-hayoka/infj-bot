@@ -2,9 +2,12 @@
 
 import os
 import tempfile
+from datetime import datetime, timedelta
 from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
+from drift.core.plugins import predictor
 from drift.core.plugins.predictor import PredictiveNeeds
 
 
@@ -131,12 +134,16 @@ class TestPredictiveNeeds:
         assert "PREDICTIVE SENSE" in prompt
         assert "wonder" in prompt.lower()
 
-    def test_gap_trend_stable(self, tmp_db):
+    def test_gap_trend_stable(self, tmp_db, monkeypatch):
+        start = datetime(2026, 1, 1, 12)
+        clock = Mock(wraps=datetime)
+        clock.now.side_effect = [start + timedelta(hours=i) for i in range(6)]
+        monkeypatch.setattr(predictor, "datetime", clock)
         p = PredictiveNeeds(db_path=tmp_db)
         for i in range(6):
             p.record_interaction(f"msg {i}", _make_emotion("neutral", 0.3))
         trend = p._analyze_gap_trend(p._load_recent_patterns(10))
-        assert trend in ("stable", None)
+        assert trend == "stable"
 
     def test_stress_signal_scoring(self, tmp_db):
         p = PredictiveNeeds(db_path=tmp_db)
