@@ -186,17 +186,9 @@ class MemoryManager:
         chroma_ids = results["ids"][0]
         distances = results["distances"][0]
 
-        placeholders = ",".join("?" * len(chroma_ids))
+        row_map = self._episodic_rows(chroma_ids)
         entries = []
         now = datetime.datetime.now()
-
-        with sqlite3.connect(self.db_path) as conn:
-            conn.row_factory = sqlite3.Row
-            rows = conn.execute(
-                f"SELECT * FROM episodic WHERE unified_id IN ({placeholders})",
-                chroma_ids,
-            ).fetchall()
-            row_map = {row["unified_id"]: dict(row) for row in rows}
 
         for c_id, dist in zip(chroma_ids, distances):
             if c_id not in row_map:
@@ -255,6 +247,22 @@ class MemoryManager:
 
         entries.sort(key=lambda x: x.score, reverse=True)
         return entries[:limit]
+
+    def _episodic_rows(self, ids: list[str]) -> dict[str, dict]:
+        if not ids:
+            return {}
+        placeholders = ",".join("?" * len(ids))
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                f"SELECT * FROM episodic WHERE unified_id IN ({placeholders})",
+                ids,
+            ).fetchall()
+        return {row["unified_id"]: dict(row) for row in rows}
+
+    def get_contents_by_id(self, ids: list[str]) -> dict[str, str]:
+        """Read canonical text for candidates that still exist in SQLite."""
+        return {key: row["content"] for key, row in self._episodic_rows(ids).items()}
 
     async def recall(
         self, query: str, limit: int = 20, decay_weight: float = 1.0

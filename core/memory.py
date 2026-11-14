@@ -14,6 +14,8 @@ from drift.core.embeddings import (
 )
 from drift.core.unified_memory import Event, MemoryManager
 
+logger = logging.getLogger(__name__)
+
 # ── Secret scrubbing ──────────────────────────────────────────────
 # Patterns are ordered from most specific to least specific.
 # An allowlist prevents false positives on legit hex/base64-looking data.
@@ -372,42 +374,21 @@ class DriftMemory:
                 n_candidates=n_results * 4,
             )
 
-            logger.info(
-                f"[memory] DMU Retrieval: got {len(results)} results for query: {query[:50]}..."
-            )
+            ranked_ids = [item["id"] for item in results]
+            # SQLite remains authoritative for text and deletion, as in standard recall.
+            contents = self.unified_manager.get_contents_by_id(ranked_ids)
+            selected = [key for key in ranked_ids if contents.get(key)]
+            if not selected:
+                return self.retrieve_context(query, n_results=n_results)
 
-            if not results:
-                # Fallback to standard if DMU found nothing
-                standard = self.retrieve_context(query, n_results=n_results)
-                logger.info(
-                    f"[memory] DMU empty, fallback context length: {len(standard)}"
-                )
-                return standard
+            from drift.core.causal_wiring import retrieved_memory_keys_var
 
-            # Log retrieved keys to causal wiring for observability
-            try:
-                from drift.core.causal_wiring import retrieved_memory_keys_var
-
-                retrieved_memory_keys_var.set(
-                    [item.get("id", "unknown") for item in results]
-                )
-            except Exception:
-                logging.getLogger(__name__).debug(
-                    "Operation failed; applying fallback", exc_info=True
-                )
-
-            # Format results for prompt injection
-            formatted = []
-            for item in results:
-                content = item.get("content", "")
-                if content:
-                    formatted.append(f"Memory: {content}")
-
-            return "\n---\n".join(formatted)
-        except Exception:
-            # Safe fallback: if DMU fails for any reason, use standard retrieval
-            logging.getLogger(__name__).debug(
-                "Operation failed; applying fallback", exc_info=True
+            retrieved_memory_keys_var.set(selected)
+            return "\n---\n".join(f"Memory: {contents[key]}" for key in selected)
+        except Exception as exc:  # noqa: BLE001 - preserve the standard retrieval fallback
+            logger.warning(
+                "Ranked memory retrieval failed (%s); using standard recall",
+                type(exc).__name__,
             )
             return self.retrieve_context(query, n_results=n_results)
 

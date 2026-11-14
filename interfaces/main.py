@@ -20,12 +20,12 @@ from drift.core.context_engine import (
     ContextWorker,
 )
 from drift.core.dii_tracker import get_dii_tracker
-from drift.core.embodiment import EmbodiedSelf
+from drift.core.embodiment import get_embodiment
 from drift.core.emotional_field import EmotionalField
 from drift.core.global_workspace import get_workspace
 from drift.core.history import ChatHistory
 from drift.core.hive.elysium import get_elysium
-from drift.core.homeostasis import HomeostaticRegulator
+from drift.core.homeostasis import get_homeostasis
 from drift.core.intuition import IntuitionEngine
 from drift.core.logic_chain import get_chain_navigator
 from drift.core.memory import DriftMemory
@@ -136,9 +136,9 @@ _temporal = TemporalSense()
 _physics = PhysicsEngine()
 _humanity = HumanityEngine()
 _intuition = IntuitionEngine()
-_embodiment = EmbodiedSelf()
+_embodiment = get_embodiment()
 _iit = PhiProxy()
-_homeostasis = HomeostaticRegulator()
+_homeostasis = get_homeostasis()
 _shadow = get_shadow()
 _last_interaction_time: datetime | None = None
 _last_user_input: str = ""
@@ -284,7 +284,6 @@ async def consciousness_loop():
     being = get_being()
     iteration = 0
     _shadow = get_shadow()
-    _homeostasis = HomeostaticRegulator()
     _dii = get_dii_tracker()
 
     while True:
