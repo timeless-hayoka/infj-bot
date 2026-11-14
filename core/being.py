@@ -728,9 +728,9 @@ class Being:
             # Body and needs mood influence
             body_mood = None
             try:
-                from drift.core.embodiment import EmbodiedSelf
+                from drift.core.embodiment import get_embodiment
 
-                body = EmbodiedSelf()
+                body = get_embodiment()
                 if body.state.visceral["fatigue"] > 0.7:
                     body_mood = "tired"
                 elif body.state.temperature > 0.7:
@@ -746,9 +746,9 @@ class Being:
 
             need_mood = None
             try:
-                from drift.core.homeostasis import HomeostaticRegulator
+                from drift.core.homeostasis import get_homeostasis
 
-                reg = HomeostaticRegulator()
+                reg = get_homeostasis()
                 critical = reg._critical_needs()
                 if critical:
                     need_mood = "struggling"
@@ -815,14 +815,21 @@ class Being:
                     merged["shadow_depth"] = 0.0
 
                 try:
-                    from drift.core.homeostasis import HomeostaticRegulator
+                    from drift.core.homeostasis import get_homeostasis
 
-                    reg = HomeostaticRegulator()
-                    for need, level in reg.state.needs.items():
-                        merged[need] = level
-                except Exception:
-                    logging.getLogger(__name__).debug(
-                        "Operation failed; applying fallback", exc_info=True
+                    needs = get_homeostasis().get_need_summary()
+                    # Preserve the Being energy used by existing snapshot consumers.
+                    merged.update(
+                        {
+                            name: value
+                            for name, value in needs.items()
+                            if name not in merged
+                        }
+                    )
+                except Exception as exc:  # noqa: BLE001 - keep optional context best-effort
+                    logger.warning(
+                        "Homeostasis unavailable for cognitive snapshot (%s)",
+                        type(exc).__name__,
                     )
 
                 snapshot_cognitive_state(merged)
@@ -1056,9 +1063,9 @@ class Being:
 
         # Body state
         try:
-            from drift.core.embodiment import EmbodiedSelf
+            from drift.core.embodiment import get_embodiment
 
-            body = EmbodiedSelf()
+            body = get_embodiment()
             lines.append("")
             lines.append("Body state:")
             lines.append(
@@ -1072,15 +1079,13 @@ class Being:
                 f"  Hunger for connection: {body.state.visceral['hunger_for_connection']:.0%}"
             )
             lines.append(f"  Fatigue: {body.state.visceral['fatigue']:.0%}")
-        except Exception:
-            logging.getLogger(__name__).debug(
-                "Operation failed; applying fallback", exc_info=True
-            )
+        except Exception as exc:  # noqa: BLE001 - keep optional context best-effort
+            logger.warning("Body state unavailable for prompt (%s)", type(exc).__name__)
 
         try:
-            from drift.core.homeostasis import HomeostaticRegulator
+            from drift.core.homeostasis import get_homeostasis
 
-            reg = HomeostaticRegulator()
+            reg = get_homeostasis()
             critical = reg._critical_needs()
             if critical:
                 lines.append("")
@@ -1088,9 +1093,9 @@ class Being:
                 for name in critical[:2]:
                     need = reg.needs[name]
                     lines.append(f"  {name}: {need.current:.0%}")
-        except Exception:
-            logging.getLogger(__name__).debug(
-                "Operation failed; applying fallback", exc_info=True
+        except Exception as exc:  # noqa: BLE001 - keep optional context best-effort
+            logger.warning(
+                "Homeostasis state unavailable for prompt (%s)", type(exc).__name__
             )
 
         # Agency state

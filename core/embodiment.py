@@ -624,6 +624,16 @@ class EmbodiedSelf:
         return ""
 
 
+_embodiment_instance: EmbodiedSelf | None = None
+
+
+def get_embodiment() -> EmbodiedSelf:
+    global _embodiment_instance
+    if _embodiment_instance is None:
+        _embodiment_instance = EmbodiedSelf()
+    return _embodiment_instance
+
+
 # ── Self-registration ────────────────────────────────────────────
 
 
@@ -634,13 +644,16 @@ def _register():
     )
 
     arch = CognitiveArchitecture()
-    if "embodiment" not in arch.list_plugins():
+    existing = arch.get_plugin("embodiment")
+    if existing is not None:
+        existing.instance_factory = get_embodiment
+    else:
         arch.register(
             CognitivePlugin(
                 name="embodiment",
                 description="The bot's body-schema: heartbeat, breath, posture, temperature, tension, visceral drives",
                 module_path="embodiment",
-                instance_factory=EmbodiedSelf,
+                instance_factory=get_embodiment,
                 cycle_handler="cycle",
                 cycle_frequency=1,
                 cycle_priority=40,

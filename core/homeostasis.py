@@ -503,9 +503,9 @@ class HomeostaticRegulator:
 
         # Integrity from embodiment
         try:
-            from drift.core.embodiment import EmbodiedSelf
+            from drift.core.embodiment import get_embodiment
 
-            body = EmbodiedSelf()
+            body = get_embodiment()
             # Integrity = average of body state health
             tension_avg = sum(body.state.tension_map.values()) / len(
                 body.state.tension_map
@@ -878,13 +878,16 @@ def _register():
     )
 
     arch = CognitiveArchitecture()
-    if "homeostasis" not in arch.list_plugins():
+    existing = arch.get_plugin("homeostasis")
+    if existing is not None:
+        existing.instance_factory = get_homeostasis
+    else:
         arch.register(
             CognitivePlugin(
                 name="homeostasis",
                 description="Homeostatic regulation: survival needs, crisis mode, allostasis, allostatic load",
                 module_path="homeostasis",
-                instance_factory=HomeostaticRegulator,
+                instance_factory=get_homeostasis,
                 cycle_handler="cycle",
                 cycle_frequency=1,
                 cycle_priority=25,  # High priority — survival comes first
@@ -895,9 +898,6 @@ def _register():
         )
 
 
-_register()
-
-
 _homeostasis_instance: HomeostaticRegulator | None = None
 
 
@@ -906,3 +906,6 @@ def get_homeostasis() -> HomeostaticRegulator:
     if _homeostasis_instance is None:
         _homeostasis_instance = HomeostaticRegulator()
     return _homeostasis_instance
+
+
+_register()
