@@ -104,6 +104,22 @@ class ConflictDetector:
 
         for a, b, desc in self.CONTRADICTION_PATTERNS:
             if a in combined and b in combined:
+                # A lexical overlap alone is not a contradiction. Only arbitrate
+                # explicit, global directives; scoped instructions may coexist.
+                # More complex semantic conflicts require human review.
+                if not (
+                    any(
+                        "always " + a in item.lower()
+                        and "in all replies" in item.lower()
+                        for item in all_snippets
+                    )
+                    and any(
+                        "always " + b in item.lower()
+                        and "in all replies" in item.lower()
+                        for item in all_snippets
+                    )
+                ):
+                    continue
                 # Find which sections contain the conflicting phrases
                 sec_a = next((s for s in all_snippets if a in s.lower()), "")
                 sec_b = next((s for s in all_snippets if b in s.lower()), "")
@@ -130,11 +146,31 @@ class ConflictDetector:
         sections: dict[str, list[str]],
         priorities: dict[str, int],
     ) -> dict[str, list[str]]:
-        """Apply simple resolution: lower-priority section gets trimmed."""
+        """Return a copy with lower-priority explicit global directives removed.
+
+        Equal or unknown priorities are left unchanged for manual review.
+        """
+        resolved = {tier: list(items) for tier, items in sections.items()}
         for conflict in conflicts:
-            # For now, just mark resolution as "noted"
-            conflict.resolution = "noted: both voices present"
-        return sections
+            candidates = [
+                (tier, index, snippet)
+                for tier, items in resolved.items()
+                for index, snippet in enumerate(items)
+                if snippet.startswith((conflict.section_a, conflict.section_b))
+            ]
+            if len(candidates) != 2:
+                conflict.resolution = "review: ambiguous source sections"
+                continue
+            left, right = candidates
+            p_left = priorities.get(left[0])
+            p_right = priorities.get(right[0])
+            if p_left is None or p_right is None or p_left == p_right:
+                conflict.resolution = "review: missing or equal priority"
+                continue
+            loser = left if p_left < p_right else right
+            resolved[loser[0]].pop(loser[1])
+            conflict.resolution = "removed lower-priority global directive"
+        return resolved
 
 
 # ── Orchestrator ──────────────────────────────────────────────────
@@ -816,7 +852,18 @@ Use this to clarify inner conflict without pathologizing it.
             "context": [s["text"] for s in budget.tiers["context"].sections],
         }
         conflicts = self.conflict_detector.detect(assembled_sections)
-        self.conflict_detector.resolve(conflicts, assembled_sections, {})
+        resolved_sections = self.conflict_detector.resolve(
+            conflicts,
+            assembled_sections,
+            {"core": 100, "cognitive": 75, "analysis": 50, "context": 25},
+        )
+        # Apply the decision to the actual prompt budget, not just a copy.
+        for tier_name, retained in resolved_sections.items():
+            if retained != assembled_sections[tier_name]:
+                tier = budget.tiers[tier_name]
+                tier.sections = [
+                    section for section in tier.sections if section["text"] in retained
+                ]
 
         # Trim to budget
         prompt = budget.trim_to_budget()
