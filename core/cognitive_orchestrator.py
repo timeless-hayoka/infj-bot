@@ -108,8 +108,16 @@ class ConflictDetector:
                 # explicit, global directives; scoped instructions may coexist.
                 # More complex semantic conflicts require human review.
                 if not (
-                    any("always " + a in item.lower() and "in all replies" in item.lower() for item in all_snippets)
-                    and any("always " + b in item.lower() and "in all replies" in item.lower() for item in all_snippets)
+                    any(
+                        "always " + a in item.lower()
+                        and "in all replies" in item.lower()
+                        for item in all_snippets
+                    )
+                    and any(
+                        "always " + b in item.lower()
+                        and "in all replies" in item.lower()
+                        for item in all_snippets
+                    )
                 ):
                     continue
                 # Find which sections contain the conflicting phrases
@@ -148,8 +156,7 @@ class ConflictDetector:
                 (tier, index, snippet)
                 for tier, items in resolved.items()
                 for index, snippet in enumerate(items)
-                if snippet.startswith(conflict.section_a)
-                or snippet.startswith(conflict.section_b)
+                if snippet.startswith((conflict.section_a, conflict.section_b))
             ]
             if len(candidates) != 2:
                 conflict.resolution = "review: ambiguous source sections"
