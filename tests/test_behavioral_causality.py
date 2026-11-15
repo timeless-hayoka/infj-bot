@@ -1,7 +1,7 @@
 """Offline scorer controls: synthetic evidence is never behavioral inference."""
 import pytest
 
-from drift.benchmarks.behavioral_causality import (
+from benchmarks.behavioral_causality import (
     ABILITIES, frozen_scenarios, paired_plan, grade_observable,
     gate_pair, not_run_manifest, write_jsonl,
 )
