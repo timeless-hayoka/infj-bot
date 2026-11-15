@@ -33,7 +33,7 @@ python -m pytest tests -q
 ## Manifest generation (NOT RUN)
 ```bash
 python - <<'PY'
-from drift.benchmarks.behavioral_causality import not_run_manifest, write_jsonl
+from benchmarks.behavioral_causality import not_run_manifest, write_jsonl
 write_jsonl('artifacts/private/drift_behavioral_v1/results.jsonl', not_run_manifest())
 PY
 ```
