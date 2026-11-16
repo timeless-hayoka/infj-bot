@@ -1,9 +1,12 @@
 """Verified outcome bridge between LogicChain, cognitive control, and SQLite."""
 from __future__ import annotations
+
 import sqlite3
 from pathlib import Path
+
 from drift.core.cognitive_control import CognitiveControl
 from drift.core.logic_chain import ChainNavigator
+
 
 class CognitiveLearningBridge:
     def __init__(self, database: str | Path, navigator: ChainNavigator | None = None,
