@@ -9,7 +9,6 @@ import argparse
 import json
 from pathlib import Path
 
-
 FIELDS = ("preference", "workspace", "format", "day", "completed", "next", "reviewer")
 
 
