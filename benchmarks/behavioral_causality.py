@@ -8,7 +8,7 @@ from __future__ import annotations
 import hashlib
 import json
 import random
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 VERSION = "1.0"
@@ -116,7 +116,7 @@ def write_jsonl(path, records):
             if record["status"] not in STATUSES:
                 raise ValueError("invalid status")
             row = dict(record)
-            row.setdefault("timestamp", datetime.now(timezone.utc).isoformat())
+            row.setdefault("timestamp", datetime.now(UTC).isoformat())
             out.write(json.dumps(row, sort_keys=True, allow_nan=False) + "\n")
     path.chmod(0o600)
 
