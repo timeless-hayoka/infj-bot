@@ -16,7 +16,8 @@ import shutil
 import sys
 import tempfile
 from pathlib import Path
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -98,8 +99,7 @@ def _relevant_lines(prompt: str) -> list[str]:
     return [
         line
         for line in prompt.splitlines()
-        if line.startswith("[CONSTRAINT] output_style=")
-        or line.startswith("User:")
+        if line.startswith(("[CONSTRAINT] output_style=", "User:"))
         or "concise bullet" in line.lower()
         or "verbose narrative" in line.lower()
     ]
