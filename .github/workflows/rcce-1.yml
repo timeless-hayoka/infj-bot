@@ -6,7 +6,9 @@ on:
       - 'core/cognitive_control.py'
       - 'core/cognitive_learning_bridge.py'
       - 'core/logic_chain.py'
+      - 'core/rcce_transfer.py'
       - 'tests/test_rcce_strategy_transfer_baseline.py'
+      - 'tests/test_rcce_transfer.py'
       - 'tests/test_cognitive_learning_bridge.py'
       - '.github/workflows/rcce-1.yml'
   workflow_dispatch:
@@ -29,4 +31,4 @@ jobs:
           python -m pip install -e '.[dev]'
       - name: Run RCCE characterization and persistence tests
         run: |
-          python -m pytest -q tests/test_rcce_strategy_transfer_baseline.py tests/test_cognitive_learning_bridge.py
+          python -m pytest -q tests/test_rcce_strategy_transfer_baseline.py tests/test_rcce_transfer.py tests/test_cognitive_learning_bridge.py
