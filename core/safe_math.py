@@ -205,11 +205,14 @@ def _validate_ast(node: ast.AST, source: str, *, symbolic: bool, depth: int = 0)
                 _safe_pow(_eval_arithmetic(node.left, source), exponent)
         child(node.left)
         child(node.right)
-        if isinstance(node.op, (ast.Div, ast.FloorDiv, ast.Mod)) and not any(
-            isinstance(part, (ast.Name, ast.Call)) for part in ast.walk(node.right)
+        if (
+            isinstance(node.op, (ast.Div, ast.FloorDiv, ast.Mod))
+            and not any(
+                isinstance(part, (ast.Name, ast.Call)) for part in ast.walk(node.right)
+            )
+            and _eval_arithmetic(node.right, source) == 0
         ):
-            if _eval_arithmetic(node.right, source) == 0:
-                raise MathError("division by zero")
+            raise MathError("division by zero")
         return
     if symbolic and isinstance(node, ast.Name):
         if node.id in _ALLOWED_CONSTANTS:
