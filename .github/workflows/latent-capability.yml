@@ -1,0 +1,59 @@
+name: Latent capability experiment readiness
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/latent-capability.yml'
+      - 'core/cognitive_architecture.py'
+      - 'core/cognitive_orchestrator.py'
+      - 'core/logic_chain.py'
+      - 'core/being.py'
+
+permissions:
+  contents: read
+
+jobs:
+  readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      API_KEY: ci-placeholder-not-for-production
+      GEMINI_API_KEY: ci-placeholder-not-for-production
+      GOOGLE_API_KEY: ci-placeholder-not-for-production
+      PYTHONPATH: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install OS dependencies
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y libportaudio2
+      - name: Run existing project validation
+        run: make ci BENCHMARK_CASES=25
+      - name: Record evidence boundary
+        if: always()
+        run: |
+          mkdir -p experiment-results
+          cat > experiment-results/STATUS.md <<'EOF'
+          # Latent capability evaluation
+          This workflow executes the repository's existing CI checks.
+          It does NOT perform the four-condition live-model A/B evaluation.
+          Module activation traces: NOT RUN.
+          Memory-on/off comparison: NOT RUN.
+          State-on/off comparison: NOT RUN.
+          Cross-process persistence: NOT RUN.
+          Replicated model outcome scoring: NOT RUN.
+          No cognitive improvement or emergent capability is established by this workflow.
+          EOF
+      - name: Upload readiness evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: latent-capability-readiness
+          path: experiment-results/
+          if-no-files-found: error

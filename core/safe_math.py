@@ -16,9 +16,10 @@ import math
 import queue
 import re
 import threading
+from collections.abc import Callable
 from decimal import Decimal, InvalidOperation, localcontext
 from fractions import Fraction
-from typing import Callable, TypeVar
+from typing import TypeVar
 
 import sympy
 from sympy.parsing.sympy_parser import parse_expr, rationalize, standard_transformations
@@ -204,11 +205,14 @@ def _validate_ast(node: ast.AST, source: str, *, symbolic: bool, depth: int = 0)
                 _safe_pow(_eval_arithmetic(node.left, source), exponent)
         child(node.left)
         child(node.right)
-        if isinstance(node.op, (ast.Div, ast.FloorDiv, ast.Mod)) and not any(
-            isinstance(part, (ast.Name, ast.Call)) for part in ast.walk(node.right)
+        if (
+            isinstance(node.op, (ast.Div, ast.FloorDiv, ast.Mod))
+            and not any(
+                isinstance(part, (ast.Name, ast.Call)) for part in ast.walk(node.right)
+            )
+            and _eval_arithmetic(node.right, source) == 0
         ):
-            if _eval_arithmetic(node.right, source) == 0:
-                raise MathError("division by zero")
+            raise MathError("division by zero")
         return
     if symbolic and isinstance(node, ast.Name):
         if node.id in _ALLOWED_CONSTANTS:
@@ -360,7 +364,7 @@ def _run_with_timeout(function: Callable[[], _T]) -> _T:
     def worker() -> None:
         try:
             outcome.put((True, function()))
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - worker must transport arbitrary exceptions
             outcome.put((False, exc))
         finally:
             _SYMBOLIC_SLOTS.release()
@@ -443,5 +447,5 @@ def compute(text: str) -> dict:
         }
     except MathError as exc:
         return {"ok": False, "reason": str(exc), "input": original}
-    except Exception:
+    except Exception:  # noqa: BLE001 - public API must not leak parser exceptions
         return {"ok": False, "reason": "computation failed safely", "input": original}

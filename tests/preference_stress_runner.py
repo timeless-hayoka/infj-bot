@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Verify preference replacement through DRIFT's real flattened prompt path.
 
 Exit codes: 0 PASS, 1 property failure, 2 INCONCLUSIVE integration/setup failure.
@@ -15,8 +14,9 @@ import os
 import shutil
 import sys
 import tempfile
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -98,8 +98,7 @@ def _relevant_lines(prompt: str) -> list[str]:
     return [
         line
         for line in prompt.splitlines()
-        if line.startswith("[CONSTRAINT] output_style=")
-        or line.startswith("User:")
+        if line.startswith(("[CONSTRAINT] output_style=", "User:"))
         or "concise bullet" in line.lower()
         or "verbose narrative" in line.lower()
     ]
@@ -275,7 +274,7 @@ def _live(cycles: int, output_dir: Path | None = None) -> int:
     os.environ["DRIFT_USE_LOCAL_EMBEDDINGS"] = "true"
     try:
         result = exercise(run_dir if caller_owned else run_dir / "artifacts", cycles=cycles)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - report unexpected integration failures
         print("INCONCLUSIVE", file=sys.stderr)
         print(f"reason={type(exc).__name__}: {exc}", file=sys.stderr)
         print(f"retained_artifacts={run_dir}", file=sys.stderr)
