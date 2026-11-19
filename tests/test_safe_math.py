@@ -160,7 +160,7 @@ def run_suite(*, verbose: bool = True) -> dict:
             pass
         else:
             failures.append("invalid solve_for was accepted")
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - unexpected API exceptions must fail the test
         failures.append(f"direct API contract failed: {type(exc).__name__}: {exc}")
 
     if not math.looks_like_math("please compute 2 + 2"):
