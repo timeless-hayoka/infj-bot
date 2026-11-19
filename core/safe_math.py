@@ -16,9 +16,9 @@ import math
 import queue
 import re
 import threading
+from collections.abc import Callable
 from decimal import Decimal, InvalidOperation, localcontext
 from fractions import Fraction
-from collections.abc import Callable
 from typing import TypeVar
 
 import sympy
