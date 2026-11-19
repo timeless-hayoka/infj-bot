@@ -4,6 +4,7 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass
 
+
 @dataclass(frozen=True)
 class Decision:
     strategy: str | None
