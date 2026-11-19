@@ -18,7 +18,8 @@ import re
 import threading
 from decimal import Decimal, InvalidOperation, localcontext
 from fractions import Fraction
-from typing import Callable, TypeVar
+from collections.abc import Callable
+from typing import TypeVar
 
 import sympy
 from sympy.parsing.sympy_parser import parse_expr, rationalize, standard_transformations
@@ -360,7 +361,7 @@ def _run_with_timeout(function: Callable[[], _T]) -> _T:
     def worker() -> None:
         try:
             outcome.put((True, function()))
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - worker must transport arbitrary exceptions
             outcome.put((False, exc))
         finally:
             _SYMBOLIC_SLOTS.release()
@@ -443,5 +444,5 @@ def compute(text: str) -> dict:
         }
     except MathError as exc:
         return {"ok": False, "reason": str(exc), "input": original}
-    except Exception:
+    except Exception:  # noqa: BLE001 - public API must not leak parser exceptions
         return {"ok": False, "reason": "computation failed safely", "input": original}
