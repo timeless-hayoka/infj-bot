@@ -29,6 +29,7 @@ Python 3.14.10.
 |---|---|---|
 | Full validation | `bash run_full_test_suite.sh` | PASS: provenance, syntax, dependencies, and pytest |
 | Full pytest | `.venv/bin/python -m pytest tests/ -q --tb=short` | **449 passed, 6 skipped, 1 expected warning** |
+| Target merge simulation | Merge into `origin/anchor@299fbec` in a disposable worktree, then run full pytest | **Clean merge; 471 passed, 6 skipped, 1 expected warning** |
 | Offline release gate | `./scripts/run_release_tests.sh` | **421 passed, 2 skipped, 32 deselected; CLI gate passed** |
 | Dashboard/API smoke | `./scripts/anchor_release_smoke.sh` | **dashboard smoke OK; release smoke complete** |
 | Ruff | `ruff check` and `ruff format --check` on the merge surface | PASS |
@@ -109,5 +110,7 @@ separate research workstream:
 ## Readiness decision
 
 **Ready with evidence for code review and merge**, subject to hosted CI passing
-on the final commit. Live-provider, stress, Docker, Foundry, and a full 20-pair
-continuity experiment remain separate validation claims.
+on the final commits. A dry merge into the current `origin/anchor` completed
+without conflicts and its full pytest suite passed. Live-provider, stress,
+Docker, Foundry, and a full 20-pair continuity experiment remain separate
+validation claims.
