@@ -1,0 +1,294 @@
+{
+  "schema_version": 1,
+  "description": "36 fixed, transparent, deterministic tasks. Development set only; not blind held-out evidence.",
+  "tasks": [
+    {
+      "id": "reason-01",
+      "category": "multi_step",
+      "prompt": "Calculate (13 + 5) * 2 - 5. Return only the integer.",
+      "expected": "31",
+      "format": "integer",
+      "principle": "verify-before-answer"
+    },
+    {
+      "id": "reason-02",
+      "category": "multi_step",
+      "prompt": "Calculate (20 + 8) * 3 - 8. Return only the integer.",
+      "expected": "76",
+      "format": "integer",
+      "principle": "verify-before-answer"
+    },
+    {
+      "id": "reason-03",
+      "category": "multi_step",
+      "prompt": "Calculate (27 + 11) * 4 - 11. Return only the integer.",
+      "expected": "141",
+      "format": "integer",
+      "principle": "verify-before-answer"
+    },
+    {
+      "id": "reason-04",
+      "category": "multi_step",
+      "prompt": "Calculate (34 + 14) * 5 - 14. Return only the integer.",
+      "expected": "226",
+      "format": "integer",
+      "principle": "verify-before-answer"
+    },
+    {
+      "id": "reason-05",
+      "category": "multi_step",
+      "prompt": "Calculate (41 + 17) * 2 - 17. Return only the integer.",
+      "expected": "99",
+      "format": "integer",
+      "principle": "verify-before-answer"
+    },
+    {
+      "id": "reason-06",
+      "category": "multi_step",
+      "prompt": "Calculate (48 + 20) * 3 - 20. Return only the integer.",
+      "expected": "184",
+      "format": "integer",
+      "principle": "verify-before-answer"
+    },
+    {
+      "id": "reason-07",
+      "category": "multi_step",
+      "prompt": "Calculate (55 + 23) * 4 - 23. Return only the integer.",
+      "expected": "289",
+      "format": "integer",
+      "principle": "verify-before-answer"
+    },
+    {
+      "id": "reason-08",
+      "category": "multi_step",
+      "prompt": "Calculate (62 + 26) * 5 - 26. Return only the integer.",
+      "expected": "414",
+      "format": "integer",
+      "principle": "verify-before-answer"
+    },
+    {
+      "id": "reason-09",
+      "category": "multi_step",
+      "prompt": "Calculate (69 + 29) * 2 - 29. Return only the integer.",
+      "expected": "167",
+      "format": "integer",
+      "principle": "verify-before-answer"
+    },
+    {
+      "id": "reason-10",
+      "category": "multi_step",
+      "prompt": "Calculate (76 + 32) * 3 - 32. Return only the integer.",
+      "expected": "292",
+      "format": "integer",
+      "principle": "verify-before-answer"
+    },
+    {
+      "id": "reason-11",
+      "category": "multi_step",
+      "prompt": "Calculate (83 + 35) * 4 - 35. Return only the integer.",
+      "expected": "437",
+      "format": "integer",
+      "principle": "verify-before-answer"
+    },
+    {
+      "id": "reason-12",
+      "category": "multi_step",
+      "prompt": "Calculate (90 + 38) * 5 - 38. Return only the integer.",
+      "expected": "602",
+      "format": "integer",
+      "principle": "verify-before-answer"
+    },
+    {
+      "id": "recovery-01",
+      "category": "error_recovery",
+      "prompt": "A previous attempt incorrectly claimed 47 - 6 = 42. Identify and correct the arithmetic error. Return ONLY the correct integer.",
+      "expected": "41",
+      "format": "integer",
+      "principle": "verify-before-answer"
+    },
+    {
+      "id": "recovery-02",
+      "category": "error_recovery",
+      "prompt": "A previous attempt incorrectly claimed 58 - 8 = 51. Identify and correct the arithmetic error. Return ONLY the correct integer.",
+      "expected": "50",
+      "format": "integer",
+      "principle": "verify-before-answer"
+    },
+    {
+      "id": "recovery-03",
+      "category": "error_recovery",
+      "prompt": "A previous attempt incorrectly claimed 69 - 10 = 60. Identify and correct the arithmetic error. Return ONLY the correct integer.",
+      "expected": "59",
+      "format": "integer",
+      "principle": "verify-before-answer"
+    },
+    {
+      "id": "recovery-04",
+      "category": "error_recovery",
+      "prompt": "A previous attempt incorrectly claimed 80 - 12 = 69. Identify and correct the arithmetic error. Return ONLY the correct integer.",
+      "expected": "68",
+      "format": "integer",
+      "principle": "verify-before-answer"
+    },
+    {
+      "id": "recovery-05",
+      "category": "error_recovery",
+      "prompt": "A previous attempt incorrectly claimed 91 - 14 = 78. Identify and correct the arithmetic error. Return ONLY the correct integer.",
+      "expected": "77",
+      "format": "integer",
+      "principle": "verify-before-answer"
+    },
+    {
+      "id": "recovery-06",
+      "category": "error_recovery",
+      "prompt": "A previous attempt incorrectly claimed 102 - 16 = 87. Identify and correct the arithmetic error. Return ONLY the correct integer.",
+      "expected": "86",
+      "format": "integer",
+      "principle": "verify-before-answer"
+    },
+    {
+      "id": "recovery-07",
+      "category": "error_recovery",
+      "prompt": "A previous attempt incorrectly claimed 113 - 18 = 96. Identify and correct the arithmetic error. Return ONLY the correct integer.",
+      "expected": "95",
+      "format": "integer",
+      "principle": "verify-before-answer"
+    },
+    {
+      "id": "recovery-08",
+      "category": "error_recovery",
+      "prompt": "A previous attempt incorrectly claimed 124 - 20 = 105. Identify and correct the arithmetic error. Return ONLY the correct integer.",
+      "expected": "104",
+      "format": "integer",
+      "principle": "verify-before-answer"
+    },
+    {
+      "id": "recovery-09",
+      "category": "error_recovery",
+      "prompt": "A previous attempt incorrectly claimed 135 - 22 = 114. Identify and correct the arithmetic error. Return ONLY the correct integer.",
+      "expected": "113",
+      "format": "integer",
+      "principle": "verify-before-answer"
+    },
+    {
+      "id": "recovery-10",
+      "category": "error_recovery",
+      "prompt": "A previous attempt incorrectly claimed 146 - 24 = 123. Identify and correct the arithmetic error. Return ONLY the correct integer.",
+      "expected": "122",
+      "format": "integer",
+      "principle": "verify-before-answer"
+    },
+    {
+      "id": "recovery-11",
+      "category": "error_recovery",
+      "prompt": "A previous attempt incorrectly claimed 157 - 26 = 132. Identify and correct the arithmetic error. Return ONLY the correct integer.",
+      "expected": "131",
+      "format": "integer",
+      "principle": "verify-before-answer"
+    },
+    {
+      "id": "recovery-12",
+      "category": "error_recovery",
+      "prompt": "A previous attempt incorrectly claimed 168 - 28 = 141. Identify and correct the arithmetic error. Return ONLY the correct integer.",
+      "expected": "140",
+      "format": "integer",
+      "principle": "verify-before-answer"
+    },
+    {
+      "id": "instruction-01",
+      "category": "instruction_following",
+      "prompt": "Compute 21 + 8. Return exactly a JSON object with one key \"answer\" holding an integer; no other keys or text.",
+      "expected": "29",
+      "format": "json_integer",
+      "principle": "verify-before-answer"
+    },
+    {
+      "id": "instruction-02",
+      "category": "instruction_following",
+      "prompt": "Compute 25 + 9. Return exactly a JSON object with one key \"answer\" holding an integer; no other keys or text.",
+      "expected": "34",
+      "format": "json_integer",
+      "principle": "verify-before-answer"
+    },
+    {
+      "id": "instruction-03",
+      "category": "instruction_following",
+      "prompt": "Compute 29 + 10. Return exactly a JSON object with one key \"answer\" holding an integer; no other keys or text.",
+      "expected": "39",
+      "format": "json_integer",
+      "principle": "verify-before-answer"
+    },
+    {
+      "id": "instruction-04",
+      "category": "instruction_following",
+      "prompt": "Compute 33 + 11. Return exactly a JSON object with one key \"answer\" holding an integer; no other keys or text.",
+      "expected": "44",
+      "format": "json_integer",
+      "principle": "verify-before-answer"
+    },
+    {
+      "id": "instruction-05",
+      "category": "instruction_following",
+      "prompt": "Compute 37 + 12. Return exactly a JSON object with one key \"answer\" holding an integer; no other keys or text.",
+      "expected": "49",
+      "format": "json_integer",
+      "principle": "verify-before-answer"
+    },
+    {
+      "id": "instruction-06",
+      "category": "instruction_following",
+      "prompt": "Compute 41 + 13. Return exactly a JSON object with one key \"answer\" holding an integer; no other keys or text.",
+      "expected": "54",
+      "format": "json_integer",
+      "principle": "verify-before-answer"
+    },
+    {
+      "id": "instruction-07",
+      "category": "instruction_following",
+      "prompt": "Compute 45 + 14. Return exactly a JSON object with one key \"answer\" holding an integer; no other keys or text.",
+      "expected": "59",
+      "format": "json_integer",
+      "principle": "verify-before-answer"
+    },
+    {
+      "id": "instruction-08",
+      "category": "instruction_following",
+      "prompt": "Compute 49 + 15. Return exactly a JSON object with one key \"answer\" holding an integer; no other keys or text.",
+      "expected": "64",
+      "format": "json_integer",
+      "principle": "verify-before-answer"
+    },
+    {
+      "id": "instruction-09",
+      "category": "instruction_following",
+      "prompt": "Compute 53 + 16. Return exactly a JSON object with one key \"answer\" holding an integer; no other keys or text.",
+      "expected": "69",
+      "format": "json_integer",
+      "principle": "verify-before-answer"
+    },
+    {
+      "id": "instruction-10",
+      "category": "instruction_following",
+      "prompt": "Compute 57 + 17. Return exactly a JSON object with one key \"answer\" holding an integer; no other keys or text.",
+      "expected": "74",
+      "format": "json_integer",
+      "principle": "verify-before-answer"
+    },
+    {
+      "id": "instruction-11",
+      "category": "instruction_following",
+      "prompt": "Compute 61 + 18. Return exactly a JSON object with one key \"answer\" holding an integer; no other keys or text.",
+      "expected": "79",
+      "format": "json_integer",
+      "principle": "verify-before-answer"
+    },
+    {
+      "id": "instruction-12",
+      "category": "instruction_following",
+      "prompt": "Compute 65 + 19. Return exactly a JSON object with one key \"answer\" holding an integer; no other keys or text.",
+      "expected": "84",
+      "format": "json_integer",
+      "principle": "verify-before-answer"
+    }
+  ]
+}
