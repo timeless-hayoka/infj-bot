@@ -260,6 +260,7 @@ class CognitiveOrchestrator:
     def enable_cognitive_learning(self, database_path):
         """Opt in to verified strategy learning; preserve existing safety gates."""
         from drift.core.cognitive_learning_bridge import CognitiveLearningBridge
+
         self._cognitive_learning = CognitiveLearningBridge(database_path)
         return self._cognitive_learning
 
@@ -269,17 +270,20 @@ class CognitiveOrchestrator:
             return None
         return self._cognitive_learning.choose(task, candidates)
 
-    def record_cognitive_outcome(self, task, strategy, outcome, *,
-                                 verified=False, evidence="", scope="global"):
+    def record_cognitive_outcome(
+        self, task, strategy, outcome, *, verified=False, evidence="", scope="global"
+    ):
         if self._cognitive_learning is None:
             return False
         accepted = self._cognitive_learning.record(
             task, strategy, outcome, verified=verified, evidence=evidence, scope=scope
         )
         if accepted:
-            self.bus.publish("cognitive_outcome_verified",
-                             {"task": task, "strategy": strategy, "outcome": outcome},
-                             source="cognitive_learning")
+            self.bus.publish(
+                "cognitive_outcome_verified",
+                {"task": task, "strategy": strategy, "outcome": outcome},
+                source="cognitive_learning",
+            )
         return accepted
 
     def _wire_event_handlers(self):

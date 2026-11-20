@@ -16,9 +16,10 @@ import math
 import queue
 import re
 import threading
+from collections.abc import Callable
 from decimal import Decimal, InvalidOperation, localcontext
 from fractions import Fraction
-from typing import Callable, TypeVar
+from typing import TypeVar
 
 import sympy
 from sympy.parsing.sympy_parser import parse_expr, rationalize, standard_transformations
@@ -28,7 +29,7 @@ MAX_SYMBOLIC_LEN = 256
 MAX_POW_EXPONENT = 1_000
 MAX_RESULT_BITS = 60_000
 MAX_AST_DEPTH = 60
-SYMBOLIC_TIMEOUT_S = 2.0
+SYMBOLIC_TIMEOUT_S = 8.0
 
 _MAX_AST_NODES = 256
 _MAX_SYMBOLS = 4
@@ -60,10 +61,32 @@ _VARIABLE_RE = re.compile(r"[A-Za-z][A-Za-z0-9]{0,9}\Z", re.ASCII)
 _ALLOWED_CHARS_RE = re.compile(r"[0-9A-Za-z_+\-*/%().,^= \t]+\Z", re.ASCII)
 _SUSPICIOUS = ("__", "import", "lambda", "eval", "exec", "compile")
 _DENIED_NAMES = {
-    "builtins", "open", "print", "globals", "locals", "vars", "getattr",
-    "setattr", "delattr", "type", "object", "classmethod", "staticmethod",
-    "help", "input", "breakpoint", "memoryview", "super", "True", "False",
-    "None", "nan", "oo", "zoo", "inf", "Infinity",
+    "builtins",
+    "open",
+    "print",
+    "globals",
+    "locals",
+    "vars",
+    "getattr",
+    "setattr",
+    "delattr",
+    "type",
+    "object",
+    "classmethod",
+    "staticmethod",
+    "help",
+    "input",
+    "breakpoint",
+    "memoryview",
+    "super",
+    "True",
+    "False",
+    "None",
+    "nan",
+    "oo",
+    "zoo",
+    "inf",
+    "Infinity",
 }
 _MATH_HINT = re.compile(
     r"\d\s*(?:\*\*|[-+*/%^])\s*\d|=|"
@@ -87,7 +110,10 @@ class MathError(Exception):
 
 
 def _guard_fraction(value: Fraction) -> Fraction:
-    if max(abs(value.numerator).bit_length(), value.denominator.bit_length()) > MAX_RESULT_BITS:
+    if (
+        max(abs(value.numerator).bit_length(), value.denominator.bit_length())
+        > MAX_RESULT_BITS
+    ):
         raise MathError("result too large")
     return value
 
@@ -168,7 +194,9 @@ def _is_variable_name(name: str) -> bool:
     )
 
 
-def _validate_ast(node: ast.AST, source: str, *, symbolic: bool, depth: int = 0) -> None:
+def _validate_ast(
+    node: ast.AST, source: str, *, symbolic: bool, depth: int = 0
+) -> None:
     if depth > MAX_AST_DEPTH:
         raise MathError("expression too deeply nested")
 
@@ -195,7 +223,9 @@ def _validate_ast(node: ast.AST, source: str, *, symbolic: bool, depth: int = 0)
             try:
                 exponent = _eval_arithmetic(node.right, source)
             except MathError as exc:
-                raise MathError("power exponent must be bounded numeric arithmetic") from exc
+                raise MathError(
+                    "power exponent must be bounded numeric arithmetic"
+                ) from exc
             if abs(exponent) > MAX_POW_EXPONENT:
                 raise MathError("exponent too large")
             if exponent.denominator == 1 and not any(
@@ -204,11 +234,14 @@ def _validate_ast(node: ast.AST, source: str, *, symbolic: bool, depth: int = 0)
                 _safe_pow(_eval_arithmetic(node.left, source), exponent)
         child(node.left)
         child(node.right)
-        if isinstance(node.op, (ast.Div, ast.FloorDiv, ast.Mod)) and not any(
-            isinstance(part, (ast.Name, ast.Call)) for part in ast.walk(node.right)
+        if (
+            isinstance(node.op, (ast.Div, ast.FloorDiv, ast.Mod))
+            and not any(
+                isinstance(part, (ast.Name, ast.Call)) for part in ast.walk(node.right)
+            )
+            and _eval_arithmetic(node.right, source) == 0
         ):
-            if _eval_arithmetic(node.right, source) == 0:
-                raise MathError("division by zero")
+            raise MathError("division by zero")
         return
     if symbolic and isinstance(node, ast.Name):
         if node.id in _ALLOWED_CONSTANTS:
@@ -360,7 +393,7 @@ def _run_with_timeout(function: Callable[[], _T]) -> _T:
     def worker() -> None:
         try:
             outcome.put((True, function()))
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - convert worker failures to MathError
             outcome.put((False, exc))
         finally:
             _SYMBOLIC_SLOTS.release()
@@ -395,16 +428,24 @@ def safe_symbolic(expr: str, *, solve_for: str | None = None) -> dict:
 def looks_like_math(text: str) -> bool:
     """Conservatively identify text that may contain a math request."""
 
-    return isinstance(text, str) and len(text) <= 4_096 and bool(_MATH_HINT.search(text))
+    return (
+        isinstance(text, str) and len(text) <= 4_096 and bool(_MATH_HINT.search(text))
+    )
 
 
 def _format_fraction(value: Fraction, significant_digits: int = 12) -> dict[str, str]:
-    exact = str(value.numerator) if value.denominator == 1 else f"{value.numerator}/{value.denominator}"
+    exact = (
+        str(value.numerator)
+        if value.denominator == 1
+        else f"{value.numerator}/{value.denominator}"
+    )
     if value.denominator == 1:
         return {"exact": exact, "approx": exact}
     with localcontext() as context:
         context.prec = significant_digits
-        approx = str((Decimal(value.numerator) / Decimal(value.denominator)).normalize())
+        approx = str(
+            (Decimal(value.numerator) / Decimal(value.denominator)).normalize()
+        )
     return {"exact": exact, "approx": approx}
 
 
@@ -443,5 +484,5 @@ def compute(text: str) -> dict:
         }
     except MathError as exc:
         return {"ok": False, "reason": str(exc), "input": original}
-    except Exception:
+    except Exception:  # noqa: BLE001 - public API must never leak internal failures
         return {"ok": False, "reason": "computation failed safely", "input": original}

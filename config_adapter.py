@@ -9,7 +9,9 @@ from __future__ import annotations
 
 import logging
 import os
+import sqlite3
 import sys
+import tempfile
 from pathlib import Path
 
 try:
@@ -23,6 +25,39 @@ except ImportError:
 logger = logging.getLogger("drift_os.config_adapter")
 
 PROJECT_ROOT_PATH = Path(__file__).resolve().parent
+
+
+def migrate_legacy_sqlite_database(
+    legacy_path: str | Path, canonical_path: str | Path
+) -> bool:
+    """Copy a legacy SQLite database once, without overwriting canonical state.
+
+    SQLite's backup API produces a consistent database even when the source uses
+    WAL mode.  A hard link publishes the completed temporary file atomically and
+    fails safely if another process created the canonical database first.
+    """
+    legacy = Path(legacy_path).expanduser().resolve()
+    canonical = Path(canonical_path).expanduser().resolve()
+    if legacy == canonical or canonical.exists() or not legacy.is_file():
+        return False
+
+    canonical.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=f".{canonical.name}.", suffix=".migrating", dir=canonical.parent
+    )
+    os.close(descriptor)
+    temporary = Path(temporary_name)
+    try:
+        with sqlite3.connect(legacy) as source, sqlite3.connect(temporary) as target:
+            source.backup(target)
+        try:
+            os.link(temporary, canonical)
+        except FileExistsError:
+            return False
+        logger.info("Migrated legacy SQLite state from %s to %s", legacy, canonical)
+        return True
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def _bootstrap_local_venv_site_packages() -> None:

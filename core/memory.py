@@ -396,7 +396,7 @@ class DriftMemory:
         self, documents, metadatas, distances, top_k=5
     ) -> tuple[list[str], list[dict]]:
         # Deprecated: _rerank logic is now handled internally by MemoryManager.recall
-        pass
+        return [], []
 
     def search(self, query, n_results=5):
         return self.retrieve_context(query, n_results=n_results, include_metadata=True)

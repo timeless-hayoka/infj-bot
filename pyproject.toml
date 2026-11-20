@@ -33,7 +33,7 @@ version = "0.10.0"
 description = "INFJ cognitive architecture bot — consciousness, emotion, intuition, shadow, and being"
 readme = "README.md"
 requires-python = ">=3.11"
-license = {text = "Apache-2.0"}
+license = "LicenseRef-Proprietary"
 authors = [
     {name = "Julien James", email = "hiimju9@gmail.com"}
 ]
@@ -48,7 +48,7 @@ classifiers = [
 
 dependencies = [
     "sympy==1.14.0",
-    "fastapi>=0.136",
+    "fastapi==0.136.1",
     "uvicorn>=0.46",
     "chromadb>=1.5",
     "torch>=2.11",
@@ -58,18 +58,13 @@ dependencies = [
     "google-genai>=1.73",
     "google-generativeai>=0.8",
     "pydantic>=2.13",
-    "httpx>=0.28",
+    "httpx==0.28.1",
     "rich>=15.0",
     "typer>=0.25",
     "mcp>=1.27",
-    "playwright>=1.59",
     "numpy>=2.0",
     "pandas",
     "matplotlib",
-    "sounddevice",
-    "soundfile",
-    "piper-tts>=1.4",
-    "faster-whisper>=1.2",
     "python-dotenv>=1.2",
     "ddgs>=9.14.4",
     "PyYAML>=6.0",
@@ -81,8 +76,13 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "fastapi>=0.136",
-    "httpx>=0.28",
+    "anyio==4.13.0",
+    "fastapi==0.136.1",
+    "httpx==0.28.1",
+    "ruff==0.17.3",
+    "bandit",
+    "detect-secrets",
+    "mypy",
     "pytest>=9.0",
     "pytest-asyncio>=0.24",
     "pytest-timeout>=2.4",
@@ -90,8 +90,12 @@ dev = [
 ]
 voice = [
     "piper-tts>=1.4",
+    "faster-whisper>=1.2",
     "sounddevice",
     "soundfile",
+]
+browser = [
+    "playwright>=1.59",
 ]
 sarif-semantic = [
     "umap-learn>=0.5",
@@ -107,6 +111,11 @@ anchor = "drift.interfaces.cli:main"
 
 [tool.ruff.lint]
 ignore = ["E402", "E702", "E731", "F841", "F401", "F811", "E701", "F821", "E722", "E741"]
+
+[tool.ruff.lint.per-file-ignores]
+"automation/__init__.py" = ["N999"]
+"automation/mouse/__init__.py" = ["N999"]
+"benchmarks/__init__.py" = ["N999"]
 
 [tool.pytest.ini_options]
 filterwarnings = [

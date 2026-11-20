@@ -19,6 +19,7 @@ from fastapi.staticfiles import StaticFiles
 
 from drift.config_adapter import PROJECT_ROOT
 
+CORE_IMPORT_ERROR: Exception | None = None
 try:
     from drift.core.brain import DriftBrain
     from drift.core.cognitive_orchestrator import (
@@ -42,6 +43,7 @@ try:
     from drift.core.prompt_builder import build_chat_prompt
     from drift.core.tools import format_tool_inventory
 except Exception as exc:  # pragma: no cover - optional/degraded runtime path
+    CORE_IMPORT_ERROR = exc
     logging.getLogger(__name__).debug(
         "Operation failed; applying fallback", exc_info=True
     )
@@ -97,6 +99,11 @@ logger = logging.getLogger("drift")
 
 brain = None
 memory = None
+memory_init_lock = threading.Lock()
+_memory_readiness_lock = threading.Lock()
+_memory_readiness_event = threading.Event()
+_memory_readiness_thread: threading.Thread | None = None
+_memory_readiness_error: BaseException | None = None
 history = ChatHistory()
 state = BotState(authorized_targets=set(DEFAULT_AUTHORIZED_TARGETS))
 goals_db = GoalsDB()
@@ -112,14 +119,15 @@ def _get_brain():
 
 def _get_memory():
     global memory
-    if memory is None:
-        try:
-            memory = DriftMemory()
-        except Exception:
-            logging.getLogger(__name__).debug(
-                "Operation failed; applying fallback", exc_info=True
-            )
-            memory = None
+    with memory_init_lock:
+        if memory is None:
+            try:
+                memory = DriftMemory()
+            except Exception:
+                logging.getLogger(__name__).debug(
+                    "Operation failed; applying fallback", exc_info=True
+                )
+                memory = None
     return memory
 
 
@@ -137,35 +145,95 @@ def _get_doc_store():
 
 
 def _health_snapshot() -> dict[str, object]:
-    """Build the health payload shared by the health and Anchor snapshot routes."""
-    try:
-        from hive_mind.orchestrator import HiveOrchestrator
-
-        orch = HiveOrchestrator()
-        hive_status = orch.get_status()
-    except Exception:
-        logging.getLogger(__name__).debug(
-            "Operation failed; applying fallback", exc_info=True
-        )
-        hive_status = "offline"
-
-    memory_obj = _get_memory()
-    try:
-        memory_count = memory_obj.count() if memory_obj is not None else 0
-    except Exception:
-        logging.getLogger(__name__).debug(
-            "Operation failed; applying fallback", exc_info=True
-        )
-        memory_count = 0
+    """Return a fast, side-effect-free liveness payload."""
+    memory_obj = memory
+    memory_status = "initialized" if memory_obj is not None else "not_initialized"
+    memory_count = None
 
     return {
-        "ok": True,
+        "ok": CORE_IMPORT_ERROR is None,
         "company": "PHI",
         "model": "Drift",
         "memory_count": memory_count,
+        "memory_status": memory_status,
         "turns": getattr(state, "turns", 0),
         "mode": getattr(state, "mode", "unknown"),
-        "hive": hive_status,
+        "hive": "not_checked",
+        "core_status": "ready" if CORE_IMPORT_ERROR is None else "unavailable",
+    }
+
+
+async def _readiness_snapshot(timeout_s: float = 5.0) -> dict[str, object]:
+    """Initialize slow dependencies off-loop and report bounded readiness."""
+    if CORE_IMPORT_ERROR is not None:
+        return {
+            "ok": False,
+            "core_status": "unavailable",
+            "memory_status": "unavailable",
+        }
+    timeout_s = min(max(float(timeout_s), 0.01), 30.0)
+
+    global _memory_readiness_error, _memory_readiness_thread
+    with _memory_readiness_lock:
+        if memory is not None:
+            _memory_readiness_event.set()
+        elif (
+            _memory_readiness_thread is None or not _memory_readiness_thread.is_alive()
+        ):
+            _memory_readiness_event.clear()
+            _memory_readiness_error = None
+
+            def initialize_memory():
+                global _memory_readiness_error
+                try:
+                    _get_memory()
+                except BaseException as exc:  # noqa: BLE001 - reported as readiness
+                    _memory_readiness_error = exc
+                finally:
+                    _memory_readiness_event.set()
+
+            _memory_readiness_thread = threading.Thread(
+                target=initialize_memory,
+                name="drift-memory-readiness",
+                daemon=True,
+            )
+            _memory_readiness_thread.start()
+        initialized = _memory_readiness_event
+
+    deadline = asyncio.get_running_loop().time() + timeout_s
+    while not initialized.is_set():
+        remaining = deadline - asyncio.get_running_loop().time()
+        if remaining <= 0:
+            break
+        await asyncio.sleep(min(0.01, remaining))
+
+    if not initialized.is_set():
+        return {
+            "ok": False,
+            "core_status": "ready",
+            "memory_status": "timeout",
+        }
+    if _memory_readiness_error is not None:
+        logger.warning(
+            "Readiness initialization failed: %s",
+            type(_memory_readiness_error).__name__,
+        )
+        return {
+            "ok": False,
+            "core_status": "ready",
+            "memory_status": "error",
+        }
+    memory_obj = memory
+    if memory_obj is None:
+        return {
+            "ok": False,
+            "core_status": "ready",
+            "memory_status": "unavailable",
+        }
+    return {
+        "ok": True,
+        "core_status": "ready",
+        "memory_status": "ready",
     }
 
 
@@ -2005,6 +2073,12 @@ async def api_hive():
 @app.get("/api/health")
 async def api_health():
     return _health_snapshot()
+
+
+@app.get("/api/readiness")
+async def api_readiness(timeout_s: float = 5.0):
+    payload = await _readiness_snapshot(timeout_s=timeout_s)
+    return JSONResponse(payload, status_code=200 if payload["ok"] else 503)
 
 
 @app.get("/api/identity")

@@ -10,9 +10,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from drift.core.config import PROJECT_ROOT
 from drift.core.jsonl_logger import HardenedJsonlLogger
 from drift.core.types import SecurityScanResult
+
+from drift.config_adapter import LOGS_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +32,7 @@ def _get_shadow_critic():
 
 
 # ── Audit log ───────────────────────────────────────────────────────
-SECURITY_AUDIT_PATH = Path(PROJECT_ROOT) / "security_audit.jsonl"
+SECURITY_AUDIT_PATH = LOGS_DIR / "security_audit.jsonl"
 _security_logger = HardenedJsonlLogger(SECURITY_AUDIT_PATH)
 
 

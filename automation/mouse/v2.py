@@ -36,6 +36,7 @@ COMMANDS (inside shell):
 """
 
 import argparse
+import hashlib
 import json
 import logging
 import os
@@ -48,6 +49,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 from urllib import error, request
+from urllib.parse import urlsplit, urlunsplit
 
 # ──────────────────────────────────────────────────────────────────────────────
 # PATH & PORTABILITY ENGINE
@@ -219,13 +221,28 @@ def _get_git_status() -> dict[str, Any]:
     rc, status_out, _ = _run_shell(["git", "status", "--short"], cwd=str(root))
     _rc2, log_out, _ = _run_shell(["git", "log", "--oneline", "-5"], cwd=str(root))
     _rc3, remote_out, _ = _run_shell(["git", "remote", "-v"], cwd=str(root))
+    remotes = []
+    for line in remote_out.strip().splitlines()[:3]:
+        parts = line.split()
+        if len(parts) >= 2:
+            parsed = urlsplit(parts[1])
+            if parsed.scheme in {"http", "https"} and parsed.hostname:
+                hostname = parsed.hostname
+                if ":" in hostname:
+                    hostname = f"[{hostname}]"
+                netloc = hostname
+                if parsed.port is not None:
+                    netloc += f":{parsed.port}"
+                parts[1] = urlunsplit((parsed.scheme, netloc, parsed.path, "", ""))
+                line = "\t".join(parts)
+        remotes.append(line)
     return {
         "in_repo": True,
         "root": str(root),
         "branch": branch,
         "status_short": status_out.strip(),
         "recent_commits": log_out.strip().splitlines(),
-        "remotes": remote_out.strip().splitlines()[:3],
+        "remotes": remotes,
     }
 
 
@@ -428,18 +445,19 @@ class MemoryStore:
 
     def __init__(self, directory: Path):
         self.directory = directory
+        self.directory.mkdir(parents=True, exist_ok=True)
         self.current_project = "global"
         self.items: list[MemoryItem] = []
         self._load_all()
 
     def _memory_path(self, project: str) -> Path:
-        safe = "".join(c for c in project if c.isalnum() or c in "-_.")
-        return self.directory / f"{safe}.json"
+        safe = "".join(c if c.isalnum() or c in "-_." else "-" for c in project)
+        safe = safe.strip("-_.")[:48] or "project"
+        digest = hashlib.sha256(project.encode("utf-8")).hexdigest()[:12]
+        return self.directory / f"{safe}-{digest}.json"
 
-    def _load_project(self, project: str) -> list[MemoryItem]:
-        path = self._memory_path(project)
-        if not path.exists():
-            return []
+    @staticmethod
+    def _load_path(path: Path) -> list[MemoryItem]:
         try:
             with open(path, "r", encoding="utf-8") as f:
                 raw = json.load(f)
@@ -450,11 +468,22 @@ class MemoryStore:
             )
             return []
 
+    def _load_project(self, project: str) -> list[MemoryItem]:
+        path = self._memory_path(project)
+        if not path.exists():
+            return []
+        return self._load_path(path)
+
     def _load_all(self):
         """Load all memories into a unified view."""
         self.items = []
+        seen: set[str] = set()
         for fpath in self.directory.glob("*.json"):
-            self.items.extend(self._load_project(fpath.stem))
+            for item in self._load_path(fpath):
+                identity = json.dumps(item.to_dict(), sort_keys=True)
+                if identity not in seen:
+                    seen.add(identity)
+                    self.items.append(item)
 
     def save_project(self, project: str | None = None):
         project = project or self.current_project
@@ -518,7 +547,9 @@ class MemoryStore:
             },
             "memories": [m.to_dict() for m in relevant],
         }
-        sync_path = SYNC_DIR / f"{target}_sync_{int(time.time())}.json"
+        sync_path = (
+            SYNC_DIR / f"{self._memory_path(target).stem}_sync_{int(time.time())}.json"
+        )
         with open(sync_path, "w", encoding="utf-8") as f:
             json.dump(sync_data, f, indent=2)
         return str(sync_path)
@@ -716,7 +747,7 @@ class SymbioticAI:
         self.world.deployment_mode = "VANGUARD (USB)" if VANGUARD_MODE else "STATIONARY"
         self.project_ctx = ProjectContext.detect(
             max_files=self.config.get("max_project_files", 12),
-            max_size=self.config.get("max_project_files", 50000),
+            max_size=self.config.get("max_file_size", 50000),
         )
         if self.project_ctx.active:
             self.memory.current_project = str(self.project_ctx.root)
@@ -832,6 +863,8 @@ Response:""".strip()
         draft = self.client.generate(
             prompt, temperature=self.config.get("temperature", 0.7)
         )
+        if draft.startswith("[ERROR]"):
+            return draft
         scores = self._evaluate_draft(draft)
         if self._needs_revision(scores):
             print("[SYSTEM] Self-correction triggered...")
@@ -840,6 +873,8 @@ Response:""".strip()
                 f"Preserve honesty and tactical utility. Draft: {draft}"
             )
             draft = self.client.generate(revision_prompt)
+            if draft.startswith("[ERROR]"):
+                return draft
         self.memory.add(
             "interaction",
             f"User: {user_input[:80]}... | Response: {draft[:80]}...",

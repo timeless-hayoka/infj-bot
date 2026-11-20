@@ -5,8 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - 2026-05-17
+## [Unreleased] - 2026-11-20
 ### Added
+- Local restart-continuity evaluation with real-provider provenance, isolated
+  ON/OFF conditions, deterministic scoring, and rescore support.
+- Merge evidence index covering verification, research artifacts, limitations,
+  and rollback.
+- API liveness/readiness separation and repair-regression coverage.
 - **Elysium Phase 5 — First-Class Hive Engine** (`core/hive/`)
   - `elysium.py`: Nexus Loop decision engine (Ignition → Proposals → Critique → Integration → Resolution)
   - `nexus.py`: Persistent self-model with moral stance, narrative arc, active tension tracking
@@ -24,6 +29,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Unified canonical DRIFT core into drift/core/
 - Enhanced /hive command with propose flow + Elysium subcommands
 ### Fixed
+- Repo-local CLI launchers are recognized without requiring global `PATH`
+  installation.
+- Lazy CLI compatibility exports avoid duplicate `runpy` module execution.
+- Readiness timeout tests isolate global memory state and remain stable in the
+  full-suite order.
 - Torch meta tensor errors on CPU
 - Race conditions in embedding function
 - ANCHOR dashboard optional panels now show loading and error states instead of failing silently

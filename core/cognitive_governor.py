@@ -44,6 +44,10 @@ from typing import ClassVar, Optional
 
 import numpy as np
 
+from drift.config_adapter import LOGS_DIR
+
+DEFAULT_CALIBRATION_LOG = LOGS_DIR / "governor_calibration.jsonl"
+
 # --------------------------------------------------------------------------- #
 # Mode definitions — integrate with existing DRIFT mode names
 # Energy modes MODIFY the current mode's parameters, not replace it
@@ -114,7 +118,7 @@ class CognitiveGovernor:
 
     def __init__(
         self,
-        calibration_log: str = "logs/governor_calibration.jsonl",
+        calibration_log: str | Path = DEFAULT_CALIBRATION_LOG,
         energy_min: float = 0.10,
     ):
         self._lock = threading.Lock()

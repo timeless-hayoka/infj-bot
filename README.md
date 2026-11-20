@@ -316,4 +316,4 @@ Removing DMU re-ranking (D) is the most measurable signal — the 221-character 
 
 ## License
 
-Apache 2.0 — see [`LICENSE`](LICENSE).
+Proprietary / all rights reserved — see [`LICENSE`](LICENSE). Public visibility does not grant permission to use or redistribute the implementation. Separately released public research data and documentation may carry their own explicit reuse terms; those terms do not change the license of the DRIFT core.

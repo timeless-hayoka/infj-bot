@@ -8,20 +8,21 @@
     "test": "tests"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "python3 -m pytest -q"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/timeless-hayoka/drift.git"
+    "url": "git+https://github.com/timeless-hayoka/infj-bot.git"
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "UNLICENSED",
+  "private": true,
   "type": "module",
   "bugs": {
-    "url": "https://github.com/timeless-hayoka/drift/issues"
+    "url": "https://github.com/timeless-hayoka/infj-bot/issues"
   },
-  "homepage": "https://github.com/timeless-hayoka/drift#readme",
+  "homepage": "https://github.com/timeless-hayoka/infj-bot#readme",
   "dependencies": {
     "@ai-sdk/openai": "^3.0.67",
     "ai": "^6.0.196",

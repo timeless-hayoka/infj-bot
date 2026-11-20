@@ -1,11 +1,10 @@
 {
   "mcpServers": {
     "drift": {
-      "command": "/home/crexs/infj_bot/.venv/bin/python",
+      "command": "${workspaceFolder}/.venv/bin/python",
       "args": ["-u", "-m", "core.mcp_server"],
-      "cwd": "/home/crexs/infj_bot",
+      "cwd": "${workspaceFolder}",
       "env": {
-        "ANCHOR_ROOT": "/home/crexs/ANCHOR",
         "INFJ_EMBEDDING_MODE": "local"
       }
     }

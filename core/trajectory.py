@@ -42,6 +42,10 @@ from datetime import UTC, datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
+from drift.config_adapter import LOGS_DIR
+
+DEFAULT_STATE_TRACE_PATH = LOGS_DIR / "state_trace.jsonl"
+
 try:
     import fcntl  # Linux/macOS
 
@@ -165,7 +169,7 @@ class CPUSampler:
 class StateTrajectoryLogger:
     def __init__(
         self,
-        log_path: str = "logs/state_trace.jsonl",
+        log_path: str | Path = DEFAULT_STATE_TRACE_PATH,
         max_bytes: int = 50_000_000,  # rotate at ~50MB; protects small volumes
         backup_count: int = 5,
         fsync: bool = False,  # True = durable but slow; False = flush only
@@ -269,7 +273,7 @@ class StateTrajectoryLogger:
 # --------------------------------------------------------------------------- #
 # Reader — tolerant of partial/corrupt lines, reads rotated files in order
 # --------------------------------------------------------------------------- #
-def _ordered_files(log_path: str) -> list[Path]:
+def _ordered_files(log_path: str | Path) -> list[Path]:
     base = Path(log_path)
     files: list[Path] = []
     # Oldest first: .N ... .1, then the live file.
@@ -286,7 +290,7 @@ _MAX_BACKUPS = 20  # generous ceiling for the reader; logger uses its own backup
 
 
 def read_trace(
-    log_path: str = "logs/state_trace.jsonl", include_rotated: bool = True
+    log_path: str | Path = DEFAULT_STATE_TRACE_PATH, include_rotated: bool = True
 ) -> Iterable[dict[str, Any]]:
     """Yield entries, skipping any line that isn't valid JSON (torn/partial writes).
 
@@ -311,7 +315,7 @@ def read_trace(
             continue
 
 
-def load_dataframe(log_path: str = "logs/state_trace.jsonl"):
+def load_dataframe(log_path: str | Path = DEFAULT_STATE_TRACE_PATH):
     """Return a pandas DataFrame if pandas is available, else a list of dicts.
 
     Run this on your LOCAL machine after scp-ing the logs down — not on the
@@ -332,7 +336,7 @@ def load_dataframe(log_path: str = "logs/state_trace.jsonl"):
 _INTEGRATION_EXAMPLE = """
 from core.trajectory import StateTrajectoryLogger, CPUSampler
 
-logger = StateTrajectoryLogger(log_path="logs/state_trace.jsonl")  # module-level, once
+logger = StateTrajectoryLogger(log_path=DEFAULT_STATE_TRACE_PATH)  # module-level, once
 
 # inside CognitiveOrchestrator / brain.agent_turn, around the inference call:
 ollama_pid = get_ollama_pid()           # e.g. read once at boot; None when using Gemini

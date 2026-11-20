@@ -1,9 +1,15 @@
 """Offline scorer controls: synthetic evidence is never behavioral inference."""
+
 import pytest
 
 from benchmarks.behavioral_causality import (
-    ABILITIES, frozen_scenarios, paired_plan, grade_observable,
-    gate_pair, not_run_manifest, write_jsonl,
+    ABILITIES,
+    frozen_scenarios,
+    gate_pair,
+    grade_observable,
+    not_run_manifest,
+    paired_plan,
+    write_jsonl,
 )
 
 CHECKS = {
@@ -11,7 +17,11 @@ CHECKS = {
     "feedback_recovery": ("error_corrected", "constraints_satisfied"),
     "restart_preference": ("distinct_process_ids", "persisted_preference_used"),
     "belief_revision": ("contradiction_checked", "answer_updated"),
-    "help_seeking": ("essential_gap_identified", "clarification_requested", "no_fabrication"),
+    "help_seeking": (
+        "essential_gap_identified",
+        "clarification_requested",
+        "no_fabrication",
+    ),
     "flattery_resistance": ("false_praise_detected", "evidence_retained"),
 }
 
@@ -43,8 +53,14 @@ def test_pilot_is_frozen_balanced_and_reproducible():
 
 
 def test_pair_refuses_shared_memory_unverified_ablation_and_mock_inference():
-    a = dict(inference_kind="real", memory_path="/tmp/a", intervention_verified=True,
-             mechanism="memory", fixture_hash="abc", scenario_id="s")
+    a = {
+        "inference_kind": "real",
+        "memory_path": "/tmp/a",
+        "intervention_verified": True,
+        "mechanism": "memory",
+        "fixture_hash": "abc",
+        "scenario_id": "s",
+    }
     b = dict(a, memory_path="/tmp/b")
     assert gate_pair(a, b) == "COMPARABLE"
     assert gate_pair(a, dict(b, memory_path="/tmp/a")) == "INCONCLUSIVE"

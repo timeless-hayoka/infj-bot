@@ -9,6 +9,7 @@ id_ed25519
 secrets/
 venv/
 .venv/
+.venv.*
 __pycache__/
 *.pyc
 *.pyo

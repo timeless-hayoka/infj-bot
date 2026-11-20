@@ -7,6 +7,7 @@ dump the final structured prompt for debugging.
 
 import json
 import logging
+import os
 import re
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -91,12 +92,20 @@ class PromptBudget:
 
     def __init__(
         self,
-        max_total_chars: int = 12000,
+        max_total_chars: int | None = None,
         core_budget: int = 3000,
         cognitive_budget: int = 4000,
         analysis_budget: int = 2500,
-        context_budget: int = 2500,
+        context_budget: int | None = None,
     ):
+        if max_total_chars is None:
+            max_total_chars = int(os.environ.get("DRIFT_PROMPT_TOTAL_CHARS", "12000"))
+            if max_total_chars <= 0:
+                raise ValueError("DRIFT_PROMPT_TOTAL_CHARS must be positive")
+        if context_budget is None:
+            context_budget = int(os.environ.get("DRIFT_PROMPT_CONTEXT_CHARS", "2500"))
+            if context_budget <= 0:
+                raise ValueError("DRIFT_PROMPT_CONTEXT_CHARS must be positive")
         self.max_total_chars = max_total_chars
         self.tiers: dict[str, BudgetTier] = {
             "core": BudgetTier("core", core_budget),

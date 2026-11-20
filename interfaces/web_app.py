@@ -1430,9 +1430,12 @@ def api_email():
 @app.route("/observatory")
 def observatory():
     try:
-        path = Path(__file__).resolve().parent / "templates" / "observatory.html"
-        if not path.exists():
-            path = Path("/home/crexs/templates/observatory.html")
+        path = Path(
+            os.getenv(
+                "DRIFT_OBSERVATORY_TEMPLATE",
+                Path(__file__).resolve().parent / "templates" / "observatory.html",
+            )
+        )
         with open(path, "r", encoding="utf-8") as f:
             content = f.read()
         from flask import make_response
@@ -1449,9 +1452,12 @@ def observatory():
 @app.route("/phi-glyph")
 def glyph():
     try:
-        path = Path(__file__).resolve().parent / "templates" / "phi_glyph_system.html"
-        if not path.exists():
-            path = Path("/home/crexs/Downloads/PHI Glyph System.html")
+        path = Path(
+            os.getenv(
+                "DRIFT_GLYPH_TEMPLATE",
+                Path(__file__).resolve().parent / "templates" / "phi_glyph_system.html",
+            )
+        )
         with open(path, "r", encoding="utf-8") as f:
             content = f.read()
         from flask import make_response

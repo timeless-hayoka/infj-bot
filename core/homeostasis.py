@@ -25,8 +25,12 @@ from pathlib import Path
 from typing import Any, Optional
 
 from drift.core.config import DATA_DIR
+from drift.core.config import HOMEOSTASIS_DB as CONFIG_HOMEOSTASIS_DB
 
-HOMEOSTASIS_DB = DATA_DIR / "homeostasis.db"
+from drift.config_adapter import migrate_legacy_sqlite_database
+
+HOMEOSTASIS_DB = Path(CONFIG_HOMEOSTASIS_DB)
+LEGACY_HOMEOSTASIS_DB = DATA_DIR / "homeostasis.db"
 
 ENERGY_DECAY_RATE = 0.00001  # cost per CPU millisecond
 BASE_NETWORK_COST = 0.02  # flat cost for Gemini remote turns
@@ -179,6 +183,8 @@ class HomeostaticRegulator:
     """The bot's survival imperative — maintain internal needs or cease to be."""
 
     def __init__(self, db_path: Path | None = None):
+        if db_path is None:
+            migrate_legacy_sqlite_database(LEGACY_HOMEOSTASIS_DB, HOMEOSTASIS_DB)
         self.db_path = str(db_path or HOMEOSTASIS_DB)
         self._init_db()
         self.needs = self._load_needs()
