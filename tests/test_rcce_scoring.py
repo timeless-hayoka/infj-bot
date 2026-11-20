@@ -3,7 +3,7 @@ from drift.core.rcce_scoring import score_response, summarize_pairs
 
 
 def test_correct_value_with_explanation_is_not_format_compliant():
-    result = score_response("Method check: 12 * 12 = 144.\\n\\n144", "144", "integer")
+    result = score_response("Method check: 12 * 12 = 144.\n\n144", "144", "integer")
     assert result == {"correct": True, "format_compliant": False}
 
 
