@@ -1,12 +1,12 @@
 """HiveOrchestrator — node registry and heartbeat for the Hive Mind."""
 
-from typing import Dict, List
+from typing import ClassVar, Dict, List
 
 
 class HiveOrchestrator:
     """Manages the set of Hive nodes and their health status."""
 
-    _DEFAULT_NODES = ["spark-0", "seed-1", "sprout-2", "lantern-4"]
+    _DEFAULT_NODES: ClassVar[list[str]] = ["spark-0", "seed-1", "sprout-2", "lantern-4"]
 
     def __init__(self, nodes: List[str] = None):
         self._nodes: List[str] = list(nodes or self._DEFAULT_NODES)
