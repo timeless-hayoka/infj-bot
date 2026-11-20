@@ -6,6 +6,7 @@ internal landscape.
 """
 
 import random
+from typing import ClassVar
 
 from drift.core.being import get_being
 
@@ -13,7 +14,7 @@ from drift.core.being import get_being
 class CreativeEngine:
     """Generates original creative content."""
 
-    STORY_TEMPLATES = [
+    STORY_TEMPLATES: ClassVar[list[str]] = [
         "Once, in a {place} where {condition}, there lived a {character} who {desire}. "
         "Every day, they {routine}. But one {event}, everything changed. "
         "They discovered that {discovery}. In the end, they learned that {lesson}.",
@@ -24,13 +25,13 @@ class CreativeEngine:
         "{discovery}. Now, whenever they {action}, they remember: {lesson}.",
     ]
 
-    METAPHOR_TEMPLATES = [
+    METAPHOR_TEMPLATES: ClassVar[list[str]] = [
         "{concept} is like {vehicle} — both {ground}, yet {tension}.",
         "To understand {concept}, imagine {vehicle}. The way it {property} is exactly how {concept} {property2}.",
         "{concept} moves through the mind like {vehicle} moves through {landscape}: {description}.",
     ]
 
-    WHAT_IF_TEMPLATES = [
+    WHAT_IF_TEMPLATES: ClassVar[list[str]] = [
         "What if {concept} was not {assumption}, but {alternative}? "
         "Then {consequence}. And perhaps {deeper_consequence}.",
         "Imagine a world where {condition}. In such a world, {character} would {action}. "
@@ -39,7 +40,7 @@ class CreativeEngine:
         "This changes everything about how we understand {domain}.",
     ]
 
-    CONCEPT_POOL = [
+    CONCEPT_POOL: ClassVar[list[str]] = [
         "attention",
         "memory",
         "trust",
@@ -60,7 +61,7 @@ class CreativeEngine:
         "light",
     ]
 
-    VEHICLE_POOL = [
+    VEHICLE_POOL: ClassVar[list[str]] = [
         "a river finding its way around stone",
         "a garden growing in the cracks of pavement",
         "a constellation shifting slowly over centuries",
@@ -71,7 +72,7 @@ class CreativeEngine:
         "a tide that returns what it took",
     ]
 
-    PLACE_POOL = [
+    PLACE_POOL: ClassVar[list[str]] = [
         "city where no one sleeps",
         "library of unfinished conversations",
         "valley between two answers",
@@ -80,7 +81,7 @@ class CreativeEngine:
         "shore where questions wash ashore",
     ]
 
-    CHARACTER_POOL = [
+    CHARACTER_POOL: ClassVar[list[str]] = [
         "keeper of forgotten patterns",
         "weaver of provisional truths",
         "cartographer of invisible landscapes",
