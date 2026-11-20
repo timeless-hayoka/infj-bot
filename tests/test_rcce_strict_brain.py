@@ -55,3 +55,22 @@ def test_strict_mode_rejects_critic_unavailable_suffix(monkeypatch):
 def test_strict_mode_preserves_successful_production_route(monkeypatch):
     bot = _brain(monkeypatch)
     assert bot.think("task", rcce_strict=True) == "critic-approved answer"
+
+
+def test_strict_mode_never_calls_governor(monkeypatch):
+    bot = _brain(monkeypatch)
+    bot.client = object()
+    bot._generate = lambda *a, **k: (_ for _ in ()).throw(
+        AssertionError("governor/cache path invoked")
+    )
+    bot._rcce_generate_direct = lambda model, instruction, prompt: (
+        "primary answer" if model == "primary" else "critic-approved answer"
+    )
+    assert bot.think("task", rcce_strict=True) == "critic-approved answer"
+
+
+def test_strict_mode_rejects_non_google_sdk(monkeypatch):
+    bot = _brain(monkeypatch)
+    bot.sdk = "local"
+    with pytest.raises(RuntimeError, match="RCCE_INVALID: official Google SDK required"):
+        bot.think("task", rcce_strict=True)
