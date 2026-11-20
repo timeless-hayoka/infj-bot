@@ -662,9 +662,25 @@ class DriftBrain(_BrainGenerationMixin):
         output = (response.text or "").strip()
         if not output:
             raise RuntimeError("RCCE_INVALID: empty provider response")
+        # Provider receipt is diagnostic evidence, not a cryptographic attestation.
+        import hashlib
+
+        receipt = {
+            "provider": "google.genai",
+            "model_requested": model_name,
+            "provider_response_id": getattr(response, "response_id", None),
+            "response_sha256": hashlib.sha256(output.encode("utf-8")).hexdigest(),
+            "response_length": len(output),
+        }
+        self._rcce_provider_receipts = [
+            *getattr(self, "_rcce_provider_receipts", []),
+            receipt,
+        ]
         return output
 
     def think(self, user_input, raw_user_input=None, mode=None, *, rcce_strict=False):
+        if rcce_strict:
+            self._rcce_provider_receipts = []
         if rcce_strict and self.sdk != "google.genai":
             raise RuntimeError("RCCE_INVALID: official Google SDK required")
         sec = self._enhanced_security_check(user_input, raw_user_input, mode=mode)
