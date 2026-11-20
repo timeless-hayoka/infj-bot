@@ -647,7 +647,26 @@ class DriftBrain(_BrainGenerationMixin):
             return None
         return getattr(request_budget_local, "budget", None)
 
+    def _rcce_generate_direct(self, model_name, system_instruction, prompt):
+        """Uncached direct Gemini request for research; bypass all governors and fallbacks."""
+        if self.sdk != "google.genai" or self.client is None or genai_types is None:
+            raise RuntimeError("RCCE_INVALID: official Google SDK required")
+        response = self.client.models.generate_content(
+            model=model_name,
+            contents=prompt,
+            config=genai_types.GenerateContentConfig(
+                system_instruction=system_instruction,
+                temperature=0,
+            ),
+        )
+        output = (response.text or "").strip()
+        if not output:
+            raise RuntimeError("RCCE_INVALID: empty provider response")
+        return output
+
     def think(self, user_input, raw_user_input=None, mode=None, *, rcce_strict=False):
+        if rcce_strict and self.sdk != "google.genai":
+            raise RuntimeError("RCCE_INVALID: official Google SDK required")
         sec = self._enhanced_security_check(user_input, raw_user_input, mode=mode)
         if sec.blocked:
             self.logger.warning("Security block: %s", sec.to_dict())
@@ -677,8 +696,15 @@ class DriftBrain(_BrainGenerationMixin):
         )
 
         try:
+            if rcce_strict:
+                primary_text = self._rcce_generate_direct(
+                    self.primary_model_name, sys_instruction, full_prompt
+                )
+                self.history.extend([f"User: {user_input}", f"Bot: {primary_text}"])
+                if len(self.history) > self._max_history:
+                    self.history = self.history[-self._max_history:]
             # High-tier logic: Try HF Pro for complex reasoning if enabled
-            if DRIFT_USE_HF and self.hf_bridge.is_available():
+            elif DRIFT_USE_HF and self.hf_bridge.is_available():
                 # Pass conversation history natively via the HF chat API instead
                 # of cramming it all into a single user prompt.
                 history_messages = self._history_to_messages()
@@ -779,7 +805,7 @@ class DriftBrain(_BrainGenerationMixin):
         try:
             if request_budget is not None:
                 request_budget.check()
-            return self._generate(
+            return (self._rcce_generate_direct if rcce_strict else self._generate)(
                 self.critic_model_name,
                 CRITIC_SYSTEM_PROMPT,
                 f"Review the following response for hallucinations, errors, or unsafe content:\n\n{primary_text}",
