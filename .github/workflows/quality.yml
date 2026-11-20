@@ -7,6 +7,39 @@ on:
     branches: [main, master]
 
 jobs:
+  safe-autofix:
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'maintenance/ruff-runtime-safety'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: maintenance/ruff-runtime-safety
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install 'ruff==0.14.6'
+      - name: Apply Ruff safe fixes and validate syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          ruff check . --exclude venv --exclude .venv --exclude chroma_db --ignore E701,E402 --fix || test "$?" -eq 1
+          git diff --check
+          python -m compileall -q core tests interfaces memory automation
+          git diff --stat
+      - name: Commit safe fixes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add -u
+          if git diff --cached --quiet; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'style(ruff): apply safe automated lint fixes'
+          git push origin HEAD:maintenance/ruff-runtime-safety
+
   factory-regression:
     runs-on: ubuntu-latest
     timeout-minutes: 12
