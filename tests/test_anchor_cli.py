@@ -44,6 +44,25 @@ def test_cli_help_exits_zero():
     )
 
 
+def test_module_cli_help_has_no_runpy_runtime_warning():
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-W",
+            "error::RuntimeWarning",
+            "-m",
+            "drift.interfaces.cli",
+            "--help",
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 0, proc.stderr
+
+
 def test_doctor_json_shape(capsys, monkeypatch):
     from interfaces import cli
     from interfaces.cli import build_parser

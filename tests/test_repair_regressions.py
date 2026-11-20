@@ -47,6 +47,12 @@ def test_readiness_timeout_does_not_block_event_loop(monkeypatch):
 
     release = threading.Event()
     worker_daemon_flags = []
+    monkeypatch.setattr(api, "memory", None)
+    monkeypatch.setattr(
+        api, "_memory_readiness_event", threading.Event(), raising=False
+    )
+    monkeypatch.setattr(api, "_memory_readiness_thread", None, raising=False)
+    monkeypatch.setattr(api, "_memory_readiness_error", None, raising=False)
 
     def blocked_memory_initialization():
         worker_daemon_flags.append(threading.current_thread().daemon)
@@ -75,6 +81,7 @@ def test_repeated_readiness_timeouts_share_one_initializer(monkeypatch):
 
     release = threading.Event()
     calls = []
+    monkeypatch.setattr(api, "memory", None)
     monkeypatch.setattr(
         api, "_memory_readiness_event", threading.Event(), raising=False
     )
