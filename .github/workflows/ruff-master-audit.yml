@@ -1,0 +1,51 @@
+name: Ruff master baseline audit
+
+on:
+  push:
+    branches: [maintenance/ruff-runtime-safety]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Ruff
+        run: python -m pip install 'ruff==0.14.6'
+      - name: Capture exact master lint baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rev-parse HEAD | tee master-sha.txt
+          ruff check . --exclude venv --exclude .venv --exclude chroma_db --ignore E701,E402 --output-format json > ruff-master.json || test "$?" -eq 1
+          python - <<'PY'
+          import collections
+          import json
+          from pathlib import Path
+          findings = json.loads(Path('ruff-master.json').read_text())
+          rules = collections.Counter(x['code'] for x in findings)
+          files = collections.Counter(x['filename'].removeprefix(str(Path.cwd()) + '/') for x in findings)
+          print('MASTER_SHA:', Path('master-sha.txt').read_text().strip())
+          print('TOTAL_FINDINGS:', len(findings))
+          print('AFFECTED_FILES:', len(files))
+          print('RULE_COUNTS:', json.dumps(dict(sorted(rules.items())), sort_keys=True))
+          print('FILES_BY_COUNT:', json.dumps(dict(files.most_common()), sort_keys=False))
+          print('RUNTIME_PRIORITY:', json.dumps([{'rule': x['code'], 'file': x['filename'].removeprefix(str(Path.cwd()) + '/'), 'line': x['location']['row'], 'message': x['message']} for x in findings if x['code'] in {'F012', 'F821', 'F823', 'E999', 'F632'}][:100]))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ruff-master-baseline
+          path: |
+            ruff-master.json
+            master-sha.txt
