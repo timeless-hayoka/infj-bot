@@ -35,6 +35,7 @@ def _brain(monkeypatch, *, primary_fails=False, critic_fails=False):
             raise ConnectionError("provider unavailable")
         return "primary answer" if model == "primary" else "critic-approved answer"
     bot._generate = generate
+    bot._rcce_generate_direct = generate
     return bot
 
 
