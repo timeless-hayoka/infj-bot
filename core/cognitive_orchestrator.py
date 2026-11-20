@@ -88,13 +88,15 @@ class PromptConflict:
 class ConflictDetector:
     """Detects contradictions and redundancies in assembled prompt sections."""
 
-    CONTRADICTION_PATTERNS: List[Tuple[str, str, str]] = [
-        ("be direct", "be gentle", "contradiction: directness vs gentleness"),
-        ("challenge", "comfort", "contradiction: challenge vs comfort"),
-        ("push", "hold space", "contradiction: push vs hold"),
-        ("analyze", "feel", "contradiction: analysis vs presence"),
-        ("fix", "witness", "contradiction: fixing vs witnessing"),
-    ]
+    def __init__(self):
+        self.CONTRADICTION_PATTERNS: List[Tuple[str, str, str]] = [
+            ("be direct", "be gentle", "contradiction: directness vs gentleness"),
+            ("challenge", "comfort", "contradiction: challenge vs comfort"),
+            ("push", "hold space", "contradiction: push vs hold"),
+            ("analyze", "feel", "contradiction: analysis vs presence"),
+            ("fix", "witness", "contradiction: fixing vs witnessing"),
+        ]
+    
 
     def detect(self, sections: Dict[str, List[str]]) -> List[PromptConflict]:
         conflicts = []
