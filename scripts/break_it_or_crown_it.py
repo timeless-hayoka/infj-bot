@@ -28,6 +28,7 @@ import argparse
 import json
 import logging
 import math
+import os
 import re
 import statistics
 import time
@@ -41,7 +42,7 @@ from pathlib import Path
 # ─── CONFIG ────────────────────────────────────────────────────────────────────
 
 BASE_URL = "http://localhost:8765"
-TIMEOUT = 120  # generous for local LLM
+TIMEOUT = int(os.getenv("DRIFT_COGNITIVE_TEST_TIMEOUT", "300"))
 CHAT_URL = None  # discovered at runtime
 
 # ─── UTILITIES ──────────────────────────────────────────────────────────────────

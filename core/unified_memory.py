@@ -12,6 +12,13 @@ import anyio
 import chromadb
 from drift.core.config import PERSIST_DIRECTORY
 
+from drift.config_adapter import SQLITE_DIR, migrate_legacy_sqlite_database
+
+
+def default_memory_db_path() -> Path:
+    """Return the canonical SQLite location for unified memory metadata."""
+    return SQLITE_DIR / "unified_memory.db"
+
 
 @dataclass
 class Event:
@@ -42,7 +49,10 @@ class MemoryManager:
 
     def __init__(self, db_path: str | None = None, chroma_path: str | None = None):
         if db_path is None:
-            self.db_path = str(Path(PERSIST_DIRECTORY) / "unified_memory.db")
+            canonical_db = default_memory_db_path()
+            legacy_db = Path(PERSIST_DIRECTORY) / "unified_memory.db"
+            migrate_legacy_sqlite_database(legacy_db, canonical_db)
+            self.db_path = str(canonical_db)
         else:
             self.db_path = db_path
 
@@ -121,7 +131,14 @@ class MemoryManager:
 
         if vector is not None:
             kwargs["embeddings"] = [vector]
-        self._collection.add(**kwargs)
+        try:
+            self._collection.add(**kwargs)
+        except BaseException:
+            # SQLite and Chroma cannot share a transaction. Compensate so a
+            # failed vector write never leaves an authoritative orphan row.
+            with sqlite3.connect(self.db_path) as conn:
+                conn.execute("DELETE FROM episodic WHERE unified_id = ?", (unified_id,))
+            raise
         return unified_id
 
     async def remember(

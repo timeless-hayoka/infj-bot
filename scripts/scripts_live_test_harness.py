@@ -39,7 +39,7 @@ def hash_file(filepath):
     """Calculates MD5 hash for verification."""
     if not filepath.exists():
         return None
-    hasher = hashlib.md5()
+    hasher = hashlib.md5(usedforsecurity=False)
     with open(filepath, "rb") as f:
         buf = f.read()
         hasher.update(buf)

@@ -467,16 +467,33 @@ def _github_contribution_snapshot() -> dict[str, Any]:
             "highlights": [],
         }
 
+    github_available = True
+
     def _list(command: list[str]) -> list[dict[str, Any]]:
-        result = subprocess.run(
-            command,
-            cwd=str(PROJECT_ROOT),
-            capture_output=True,
-            text=True,
-            check=False,
-            timeout=12,
-        )
+        nonlocal github_available
+        if not github_available:
+            return []
+        try:
+            result = subprocess.run(
+                command,
+                cwd=str(PROJECT_ROOT),
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=float(os.getenv("TRINITY_GH_TIMEOUT_S", "2.0")),
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            github_available = False
+            logging.getLogger(__name__).warning(
+                "GitHub contribution lookup unavailable"
+            )
+            return []
         if result.returncode != 0:
+            github_available = False
+            logging.getLogger(__name__).warning(
+                "GitHub contribution lookup failed with exit code %s",
+                result.returncode,
+            )
             return []
         try:
             payload = json.loads(result.stdout or "[]")
@@ -528,6 +545,8 @@ def _github_contribution_snapshot() -> dict[str, Any]:
     )
     repo = None
     try:
+        if not github_available:
+            raise RuntimeError("GitHub CLI unavailable")
         remote = subprocess.run(
             ["git", "remote", "get-url", "origin"],
             cwd=str(PROJECT_ROOT),
@@ -546,7 +565,7 @@ def _github_contribution_snapshot() -> dict[str, Any]:
         )
         repo = None
     return {
-        "source": "github_cli",
+        "source": "github_cli" if github_available else "unavailable",
         "repo": repo,
         "open_prs": len(open_prs),
         "merged_prs": len(merged_prs),

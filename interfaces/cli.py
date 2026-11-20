@@ -1055,9 +1055,9 @@ def cmd_status(args):
 
 
 def _install_plan(target: str, public_url: str | None = None) -> dict:
-    repo_url = "https://github.com/timeless-hayoka/drift.git"
-    clone_cmd = f"git clone {repo_url}"
-    repo_dir = "cd drift"
+    repo_url = "https://github.com/timeless-hayoka/infj-bot.git"
+    clone_cmd = f"git clone --branch anchor --single-branch {repo_url}"
+    repo_dir = "cd infj-bot"
     bootstrap_cmd = "./scripts/bootstrap_anchor.sh"
 
     if target in {"laptop", "local"}:
@@ -1288,22 +1288,41 @@ def _doctor_check(checks, name, ok, detail, critical=False):
     )
 
 
+def _find_launcher(name: str) -> Path | None:
+    """Find an installed launcher, including supported repo-local installs."""
+    path_launcher = shutil.which(name)
+    if path_launcher:
+        return Path(path_launcher)
+
+    root = Path(PROJECT_ROOT)
+    candidates = [
+        root / ".venv" / "bin" / name,
+        root / "venv" / "bin" / name,
+        root / "scripts" / name,
+    ]
+    return next((candidate for candidate in candidates if candidate.is_file()), None)
+
+
 def _doctor_fixes(checks, critical_missing, warn_missing):
     fixes = []
+    root = Path(PROJECT_ROOT).resolve()
+    home = Path.home().resolve()
+    venv_python = root / ".venv/bin/python"
+    local_bin = home / ".local/bin"
     if any(check["name"] == "Launcher" and not check["ok"] for check in checks):
         fixes.append(
             {
                 "issue": "launcher",
-                "summary": "Reinstall or relink the `trin` launcher so it points at /home/crexs/infj_bot/.venv/bin/python -m interfaces.cli (and keep `anchor` synced).",
-                "command": "ln -sf /home/crexs/.local/bin/drift /home/crexs/.local/bin/trin && ln -sf /home/crexs/.local/bin/trin /home/crexs/.local/bin/anchor",
+                "summary": f"Install the `drift`, `trin`, and `anchor` launchers into {local_bin} from {root}.",
+                "command": f'"{venv_python}" -m pip install -e "{root}"',
             }
         )
     if any(check["name"] == "Python" and not check["ok"] for check in checks):
         fixes.append(
             {
                 "issue": "python",
-                "summary": "Use the repo virtualenv at /home/crexs/infj_bot/.venv or recreate it with the project setup flow.",
-                "command": "cd /home/crexs/infj_bot && python3 -m venv .venv && .venv/bin/python -m pip install -e .",
+                "summary": f"Use the repo virtualenv at {venv_python}; the current interpreter is {sys.executable}.",
+                "command": f'cd "{root}" && python3 -m venv .venv && .venv/bin/python -m pip install -e .',
             }
         )
     if critical_missing:
@@ -1311,7 +1330,7 @@ def _doctor_fixes(checks, critical_missing, warn_missing):
             {
                 "issue": "modules",
                 "summary": "Install the missing Trinity modules in the repo venv.",
-                "command": "cd /home/crexs/infj_bot && .venv/bin/python -m pip install -e .",
+                "command": f'cd "{root}" && .venv/bin/python -m pip install -e .',
             }
         )
     if "prometheus_client" in warn_missing:
@@ -1319,7 +1338,7 @@ def _doctor_fixes(checks, critical_missing, warn_missing):
             {
                 "issue": "prometheus_client",
                 "summary": "Install prometheus-client in the repo venv.",
-                "command": "cd /home/crexs/infj_bot && .venv/bin/python -m pip install prometheus-client",
+                "command": f'cd "{root}" && .venv/bin/python -m pip install prometheus-client',
             }
         )
 
@@ -1330,7 +1349,7 @@ def _doctor_fixes(checks, critical_missing, warn_missing):
         fixes.append(
             {
                 "issue": "bash_completion",
-                "summary": "Install bash completion by sourcing /home/crexs/.local/share/bash-completion/completions/trin from ~/.bashrc.",
+                "summary": f"Install bash completion by sourcing {home / '.local/share/bash-completion/completions/trin'} from ~/.bashrc.",
                 "command": 'grep -qxF \'[ -f "$HOME/.local/share/bash-completion/completions/trin" ] && source "$HOME/.local/share/bash-completion/completions/trin"\' ~/.bashrc || printf \'%s\n\' \'[ -f "$HOME/.local/share/bash-completion/completions/trin" ] && source "$HOME/.local/share/bash-completion/completions/trin"\' >> ~/.bashrc',
             }
         )
@@ -1376,13 +1395,14 @@ def cmd_doctor(args):
         "json" if getattr(args, "json", False) else getattr(args, "format", "text")
     )
     root = PROJECT_ROOT
-    launcher = (
-        shutil.which(CLI_PROG)
-        or shutil.which("anchor")
-        or shutil.which("drift")
-        or shutil.which("trin")
+    launcher_path = next(
+        (
+            launcher
+            for name in (CLI_PROG, "anchor", "drift", "trin")
+            if (launcher := _find_launcher(name)) is not None
+        ),
+        None,
     )
-    launcher_path = Path(launcher) if launcher else None
     _doctor_check(
         checks,
         "Launcher",
@@ -1413,7 +1433,7 @@ def cmd_doctor(args):
         critical=True,
     )
 
-    anchor_path = shutil.which("anchor")
+    anchor_path = _find_launcher("anchor")
     _doctor_check(
         checks,
         "Anchor",

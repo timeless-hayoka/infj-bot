@@ -44,12 +44,45 @@ def test_cli_help_exits_zero():
     )
 
 
-def test_doctor_json_shape(capsys):
+def test_doctor_json_shape(capsys, monkeypatch):
+    from interfaces import cli
     from interfaces.cli import build_parser
 
+    real_which = cli.shutil.which
+    monkeypatch.setattr(
+        cli.shutil,
+        "which",
+        lambda name: (
+            sys.executable if name in {"anchor", "drift", "trin"} else real_which(name)
+        ),
+    )
     parser = build_parser()
     args = parser.parse_args(["doctor", "--json"])
     code = args.func(args)
     captured = capsys.readouterr()
     assert code == 0
     assert captured.out.strip().startswith("{")
+
+
+def test_doctor_accepts_repo_local_launchers(tmp_path, capsys, monkeypatch):
+    from interfaces import cli
+
+    venv_bin = tmp_path / ".venv" / "bin"
+    venv_bin.mkdir(parents=True)
+    (venv_bin / "python").symlink_to(sys.executable)
+    for name in ("drift", "anchor"):
+        (venv_bin / name).write_text("#!/bin/sh\n", encoding="utf-8")
+
+    monkeypatch.setattr(cli, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(cli.shutil, "which", lambda _name: None)
+
+    args = cli.build_parser().parse_args(["doctor", "--json"])
+    exit_code = cli.cmd_doctor(args)
+    payload = json.loads(capsys.readouterr().out)
+    checks = {check["name"]: check for check in payload["checks"]}
+
+    assert exit_code == (0 if payload["status"] == "ok" else 1)
+    assert checks["Launcher"]["ok"] is True
+    assert checks["Anchor"]["ok"] is True
+    assert checks["Launcher"]["detail"] == str(venv_bin / "drift")
+    assert checks["Anchor"]["detail"] == str(venv_bin / "anchor")

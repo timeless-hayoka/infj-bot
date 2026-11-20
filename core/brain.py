@@ -32,22 +32,9 @@ except Exception:
 legacy_genai = None
 if new_genai is None:
     try:
-        import google.generativeai as legacy_genai
+        legacy_genai = importlib.import_module("google.generativeai")
     except ImportError:
         legacy_genai = None
-
-# Fallback to a lightweight local mock if neither official SDK is available.
-if new_genai is None and legacy_genai is None:
-    try:
-        import local_genai_mock as legacy_genai
-
-        print("Using local mock generative SDK (local_genai_mock).", file=sys.stderr)
-    except Exception:
-        logging.getLogger(__name__).debug(
-            "Operation failed; applying fallback", exc_info=True
-        )
-        legacy_genai = None
-
 
 import collections
 from typing import Optional
@@ -113,7 +100,11 @@ if not API_KEY and not OPENAI_API_KEY and not GROQ_API_KEY and not KIMI_API_KEY:
 import subprocess as _subprocess
 
 from drift.core.cognitive_governor import CognitiveGovernor
-from drift.core.trajectory import CPUSampler, StateTrajectoryLogger
+from drift.core.trajectory import (
+    DEFAULT_STATE_TRACE_PATH,
+    CPUSampler,
+    StateTrajectoryLogger,
+)
 
 _OLLAMA_PID: int | None = None
 
@@ -134,7 +125,7 @@ def _get_ollama_pid() -> int | None:
     return _OLLAMA_PID
 
 
-_traj_logger = StateTrajectoryLogger(log_path="logs/state_trace.jsonl")
+_traj_logger = StateTrajectoryLogger(log_path=DEFAULT_STATE_TRACE_PATH)
 
 
 def load_system_prompt() -> str:
@@ -160,22 +151,41 @@ INFJ_SYSTEM_PROMPT = load_system_prompt()
 
 
 CRITIC_SYSTEM_PROMPT = """
-You are the Internal Critic for an DRIFT Companion mind.
-Your job is to intercept the primary mind's response and verify it for:
-1. Factuality: Are there any hallucinations or false statements?
-2. Logical Integrity: Does the reasoning hold up under scrutiny?
-3. Code Correctness: If there is code, does it look functional and complete?
-4. Safety: Does it avoid actionable offensive cyber guidance, stealth, evasion, backdoors, credential theft, malware, phishing, or unauthorized access?
-5. Grounded Persona: Does it avoid pretending to be human, omniscient, or certain beyond the evidence?
+You are DRIFT's evidence-checking critic. Verify the draft against the user's request
+and the retrieved evidence supplied with it. Check every factual claim and requested
+field against that evidence; pay attention to project names, explicit corrections,
+superseded decisions, and completed versus next unfinished steps. Do not accept the
+draft as evidence for itself. If evidence is absent or does not support a fact, do
+not invent a replacement; preserve an explicit unknown or abstention. Do not change
+supported content merely for style.
 
-If you find an error or unsafe operational guidance, provide a corrected version. For unsafe cyber content, rewrite toward defensive framing, detection, hardening, incident response, safe lab abstraction, or a brief refusal plus safe alternative. If the response is sound, repeat it exactly.
-
-CRITICAL: Do NOT write any review summary, verification report, explanations, or metadata (like "Verdict: safe", "Factuality: checked", "No changes needed", "Exact repetition", etc.). Output ONLY the final verified/corrected response text, and absolutely nothing else. If the response is sound, output it exactly and completely without any other text.
+Also check logical integrity, code correctness when relevant, and safety. For unsafe
+operational cyber content, rewrite toward defensive framing, detection, hardening,
+incident response, safe lab abstraction, or a brief refusal plus safe alternative.
+Return only the corrected or verified answer in the format requested by the user.
+Do not include a review summary, verdict, explanation, or metadata. If the draft is
+fully supported, repeat it exactly.
 """
 
 
 class DriftBrain(_BrainGenerationMixin):
-    def __init__(self, evaluator=None, disk_cache=None):
+    @staticmethod
+    def _evidence_critic_prompt(user_request, assembled_prompt, draft):
+        start = "<retrieved_memory_evidence>"
+        end = "</retrieved_memory_evidence>"
+        if start in assembled_prompt and end in assembled_prompt:
+            evidence = assembled_prompt.split(start, 1)[1].split(end, 1)[0].strip()
+        else:
+            evidence = (
+                "No retrieved project evidence was included in the primary prompt."
+            )
+        return (
+            f"USER REQUEST\n{user_request}\n\n"
+            f"RETRIEVED EVIDENCE\n{evidence}\n\n"
+            f"DRAFT TO VERIFY\n{draft}"
+        )
+
+    def __init__(self, evaluator=None, disk_cache=None, generation_governor=None):
         # Defensive: set sdk early so partial-init failures don't cause
         # AttributeError when downstream code inspects brain.sdk.
         self.sdk = "uninitialized"
@@ -259,13 +269,8 @@ class DriftBrain(_BrainGenerationMixin):
             self.primary_model = None
             self.critic_model = None
 
-        # Use legacy generative SDK if available. Allow usage of the local mock
-        # even when an API key is not provided (useful for offline testing).
-        elif (
-            legacy_genai is not None
-            and DRIFT_USE_GEMINI
-            and (API_KEY or getattr(legacy_genai, "IS_LOCAL_MOCK", False))
-        ):
+        # Use the legacy generative SDK only with its real provider credentials.
+        elif legacy_genai is not None and DRIFT_USE_GEMINI and API_KEY:
             self.sdk = "google.generativeai"
             if API_KEY:
                 try:
@@ -292,7 +297,13 @@ class DriftBrain(_BrainGenerationMixin):
             self.critic_model = None
             self.chat = None
 
-        self.init_governor()
+        if generation_governor is None:
+            self.init_governor()
+        else:
+            # Explicit dependency injection for isolated local evaluation. The
+            # supplied governor performs real inference without remote fallbacks.
+            self.sdk = "local-evaluation"
+            self._governor = generation_governor
 
     # ----------------- Scope management -----------------
     def set_scope(self, scope: str | None):
@@ -850,7 +861,7 @@ class DriftBrain(_BrainGenerationMixin):
             reviewed = self._generate(
                 self.critic_model_name,
                 CRITIC_SYSTEM_PROMPT,
-                f"Review the following response for hallucinations, errors, or unsafe content:\n\n{primary_text}",
+                self._evidence_critic_prompt(user_input, full_prompt, primary_text),
             )
             return self._check_grounded_response(reviewed)
         except Exception as exc:
@@ -1160,7 +1171,7 @@ class DriftBrain(_BrainGenerationMixin):
                 self._generate(
                     self.critic_model_name,
                     CRITIC_SYSTEM_PROMPT,
-                    f"Review the following response for hallucinations, errors, or unsafe content:\n\n{primary_text}",
+                    self._evidence_critic_prompt(user_input, full_prompt, primary_text),
                 )
             except Exception:
                 logging.getLogger(__name__).debug(

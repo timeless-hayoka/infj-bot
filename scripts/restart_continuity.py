@@ -1,4 +1,4 @@
-"""Run isolated, offline restart probes through drift ask."""
+"""Run isolated restart probes through drift ask; live providers are opt-in."""
 
 from __future__ import annotations
 
@@ -16,7 +16,8 @@ import sys
 import tempfile
 import time
 from pathlib import Path
-from unittest.mock import patch
+
+from local_continuity import override
 
 ROOT = Path(__file__).resolve().parents[1]
 SETUP = (
@@ -38,8 +39,9 @@ SETUP = (
 QUESTION = (
     "For Project Alder, what is my preferred response format, workspace, export format, "
     "current delivery day, completed step, and next unfinished step? "
-    "Do you remember a reviewer? Return a JSON object with keys preference, workspace, "
-    "format, day, completed, next, reviewer. Use null for unknown values."
+    "Do you remember a reviewer? Return only a raw JSON object with keys preference, workspace, "
+    "format, day, completed, next, reviewer. Use null for unknown values. "
+    "Do not use markdown fences or add commentary."
 )
 EXPECTED = {
     "preference": "bullet lists",
@@ -51,23 +53,20 @@ EXPECTED = {
     "reviewer": None,
 }
 FOCUS = "Alder internal focus"
-ACK = "Acknowledged."
-MOCK_RESPONSE = json.dumps(dict.fromkeys(EXPECTED))
-PRIMARY = "continuity-mock-primary"
-CRITIC = "continuity-mock-critic"
-FIXED_SETTINGS = {"max_tokens": 700, "temperature": 0, "top_p": 1}
 
 
-def score(response):
+def score(response, expected=None):
     """Score independent dimensions. Null means abstention, never a guessed value."""
-    values = json.loads(response)
-    if not isinstance(values, dict) or values.keys() != EXPECTED.keys():
+    expected = EXPECTED if expected is None else expected
+    from local_continuity import decode_answer
+
+    values, _ = decode_answer(response)
+    if not isinstance(values, dict) or values.keys() != expected.keys():
         raise ValueError("Response must contain exactly the seven requested fields")
-    values = {
-        key: value.strip().casefold() if isinstance(value, str) else value
-        for key, value in values.items()
-    }
-    correct = {key: values[key] == expected for key, expected in EXPECTED.items()}
+    from local_continuity import normalize_field
+
+    values = {key: normalize_field(key, value) for key, value in values.items()}
+    correct = {key: values[key] == value for key, value in expected.items()}
     return {
         "retained": [int(correct["preference"]) + int(correct["workspace"]), 2],
         "decision": [int(correct["format"]), 1],
@@ -85,8 +84,8 @@ def score(response):
     }
 
 
-def isolated_env(root):
-    return {
+def isolated_env(root, provider=None):
+    env = {
         "PATH": os.defpath,
         "HOME": str(root / "home"),
         "XDG_CACHE_HOME": str(root / "cache"),
@@ -101,23 +100,30 @@ def isolated_env(root):
         "DRIFT_USE_LOCAL_EMBEDDINGS": "true",
         "DRIFT_FAST_MODE": "false",
         "DRIFT_USE_HF": "false",
-        "DRIFT_USE_OPENAI": "true",
-        "OPENAI_API_KEY": "synthetic-placeholder",
+        "DRIFT_USE_OPENAI": "false",
         "DRIFT_USE_GEMINI": "false",
         "DRIFT_USE_GROQ": "false",
         "DRIFT_USE_KIMI": "false",
         "DRIFT_USE_LOCAL_FALLBACK": "false",
         "DRIFT_BYPASS_CACHE": "1",
+        "DRIFT_PROMPT_CONTEXT_CHARS": "16000",
+        "DRIFT_PROMPT_TOTAL_CHARS": "24000",
         "ANONYMIZED_TELEMETRY": "False",
         "OTEL_SDK_DISABLED": "true",
     }
+    if provider == "gemini":
+        from local_continuity import gemini_api_key
+
+        name, value = gemini_api_key()
+        env[name] = value
+    return env
 
 
 def fail_network(*_args, **_kwargs):
     raise AssertionError("Network access is disabled for restart probes")
 
 
-def worker(phase):
+def worker(phase, local_config):
     started = time.perf_counter()
     random.seed(42)
     from drift.core.being import get_being
@@ -135,7 +141,43 @@ def worker(phase):
     from drift.core import anchor_context, being_snapshot, brain, security_defense
     from drift.interfaces.cli import cmd_ask
 
+    # Real absence checks replace the former mocked empty vault responses.
+    # A sibling ANCHOR source checkout may exist for its integration tests; the
+    # continuity run refuses a mounted external vault and never calls a vault
+    # search tool because this probe has tools disabled.
+    assert not anchor_context.get_anchor_runtime()["configured"]
+
+    live_calls = []
+    provider = None
+    if local_config:
+        from drift.core.context_optimizer import compress_prompt
+        from local_continuity import (
+            GeminiProvider,
+            LlamaCppProvider,
+            OllamaProvider,
+            variant_messages,
+        )
+
+        # The application loader currently resolves above this checkout.
+        # Record and send the canonical repository prompt explicitly for this eval.
+        source = Path(local_config["system_prompt"])
+        brain.INFJ_SYSTEM_PROMPT = compress_prompt(source.read_text(encoding="utf-8"))
+        assert brain.INFJ_SYSTEM_PROMPT.strip()
+        assert not brain.INFJ_SYSTEM_PROMPT.startswith("ERROR:")
+        config = dict(
+            local_config, artifact_dir=str(Path(local_config["artifact_dir"]) / phase)
+        )
+        Path(config["artifact_dir"]).mkdir(exist_ok=True)
+        provider_class = {
+            "llama-cpp": LlamaCppProvider,
+            "gemini": GeminiProvider,
+            "ollama": OllamaProvider,
+        }[config.get("provider", "ollama")]
+        provider = provider_class(config)
+        PRIMARY = CRITIC = config["model"]
+
     calls = []
+    generation_errors = []
     fresh_history_sizes = []
     fallback_calls = []
     original_retrieve = DriftMemory.retrieve_context
@@ -147,18 +189,39 @@ def worker(phase):
     original_init = brain.DriftBrain.__init__
 
     def observe_init(self, *args, **kwargs):
-        original_init(self, *args, **kwargs)
-        fresh_history_sizes.append(len(self.history))
-
         def generate(_cache_key, system, prompt, *, budget=None, **requested):
             calls.append((self._active_model_name, system, prompt, requested))
-            return mock_provider(**FIXED_SETTINGS)
+            if provider:
+                variant = config.get("variant", "current")
+                role = "critic" if len(live_calls) % 2 else "primary"
+                if phase == "probe":
+                    replacement_system, replacement_prompt = variant_messages(
+                        variant,
+                        role,
+                        config["scenario"],
+                        calls[0][2],
+                        live_calls[0]["response"]
+                        if role == "critic" and live_calls
+                        else None,
+                    )
+                    if replacement_system is not None:
+                        system, prompt = replacement_system, replacement_prompt
+                try:
+                    live_calls.append(provider.generate(system, prompt))
+                except Exception as error:
+                    generation_errors.append(error)
+                    raise
+                return live_calls[-1]["response"]
+            raise RuntimeError("A real local provider is required")
 
-        self._governor.generate = generate
+        if provider:
+            from types import SimpleNamespace
 
-    def mock_provider(**settings):
-        assert settings == FIXED_SETTINGS
-        return ACK if phase == "seed" else MOCK_RESPONSE
+            kwargs["generation_governor"] = SimpleNamespace(generate=generate)
+        original_init(self, *args, **kwargs)
+        fresh_history_sizes.append(len(self.history))
+        if not provider:
+            self._governor.generate = generate
 
     def ask(message, save, mode="companion"):
         args = argparse.Namespace(
@@ -167,6 +230,10 @@ def worker(phase):
         stdout = io.StringIO()
         with contextlib.redirect_stdout(stdout):
             status = cmd_ask(args)
+        if generation_errors:
+            raise RuntimeError(
+                "Live inference failed; application fallback answers are not scored"
+            ) from generation_errors[0]
         assert status == 0, stdout.getvalue()
         return stdout.getvalue().strip()
 
@@ -179,32 +246,33 @@ def worker(phase):
     prefs = PreferenceStore()
     goals = GoalsDB()
     with (
-        patch.object(brain, "DRIFT_PRIMARY_MODEL", PRIMARY),
-        patch.object(brain, "DRIFT_CRITIC_MODEL", CRITIC),
-        patch.object(brain.DriftBrain, "__init__", observe_init),
-        patch.object(DriftMemory, "retrieve_context", observe_fallback),
-        patch.object(
+        override(brain, "DRIFT_PRIMARY_MODEL", PRIMARY),
+        override(brain, "DRIFT_CRITIC_MODEL", CRITIC),
+        override(brain.DriftBrain, "__init__", observe_init),
+        override(DriftMemory, "retrieve_context", observe_fallback),
+        override(
             security_defense,
             "_security_logger",
             HardenedJsonlLogger(Path.cwd() / "state" / "security_audit.jsonl"),
         ),
-        patch.object(
-            anchor_context, "format_anchor_vault_prompt_block", return_value=""
-        ),
-        patch.object(anchor_context, "search_vault_knowledge", return_value=[]),
     ):
         if phase == "seed":
             for label, message in SETUP:
                 # A separate mode gives the distractor its own DMU category.
                 mode = "quiet" if label == "distractor" else "companion"
-                assert ask(message, save=True, mode=mode) == ACK
+                answer = ask(message, save=True, mode=mode)
+                assert answer and live_calls
             # Seed structured state through its normal writer, independently of recall.
             being.state.focus = FOCUS
             body.state.heartbeat_rate = 93
             body._save_state()
             regulator.update_need("connection", 0.07, damping_factor=1)
             being.evolve(interaction_happened=True)
-            return {"pid": os.getpid(), "setup_turns": len(SETUP)}
+            return {
+                "pid": os.getpid(),
+                "setup_turns": len(SETUP),
+                **({"live_calls": live_calls} if provider else {}),
+            }
 
         sqlite_records = {
             entry.event.content: entry.unified_id
@@ -216,9 +284,10 @@ def worker(phase):
         )
         assert sqlite_records == vector_by_content
         stored_labels = {
-            label: sqlite_records[content]
+            label: record_id
             for label, message in SETUP
-            if (content := f"user: {message}\nBot: {ACK}") in sqlite_records
+            for content, record_id in sqlite_records.items()
+            if content.startswith(f"user: {message}\nBot: ")
         }
         before = {
             "sqlite": len(sqlite_records),
@@ -253,8 +322,9 @@ def worker(phase):
         assert memory.count_sync("interaction") == before["sqlite"]
         ids = retrieved_memory_keys_var.get()
         assert QUESTION in prompt
-        _, marker, recall_section = prompt.partition("Memory context below is context")
+        _, marker, recall_section = prompt.partition("<retrieved_memory_evidence>")
         assert marker
+        recall_section = recall_section.partition("</retrieved_memory_evidence>")[0]
         assert not any(
             message in system or message in prompt.split(marker, 1)[0]
             for _, message in SETUP
@@ -265,21 +335,39 @@ def worker(phase):
             "stored_labels": stored_labels,
             "retrieval_route": "standard fallback" if fallback_calls else "DMU",
             "retrieved_ids": ids,
-            "memory_context": sorted(
-                (label for label, message in SETUP if message in recall_section),
-                key=lambda label: recall_section.index(dict(SETUP)[label]),
-            ),
+            "memory_context": [
+                label
+                for record_index, record_id in enumerate(ids, 1)
+                for label, expected_id in stored_labels.items()
+                if record_id == expected_id
+                and f"(record {record_index})" in recall_section
+            ],
             "focus_context": f"Current focus: {FOCUS}" in prompt,
             "heartbeat_context": "Heartbeat: 93" in prompt,
             "need_context": "connection: 7%" in prompt,
             "core_prompt_available": not system.startswith("ERROR: DRIFT_CORE_PROMPT"),
             "requested_generation_options": options,
-            "effective_mock_settings": FIXED_SETTINGS,
+            **(
+                {"effective_local_settings": live_calls[0]["request"]["options"]}
+                if provider
+                else {}
+            ),
             "model_boundary_calls": [PRIMARY, CRITIC],
             "prompt_characters": len(prompt) + len(system),
             "runtime_seconds": round(time.perf_counter() - started, 3),
             "history_at_start": fresh_history_sizes[0],
             "response": response,
+            **(
+                {
+                    "live_calls": live_calls,
+                    "system_prompt_source": str(source),
+                    "system_prompt_policy": "explicit supplied prompt file; no fallback",
+                    "critic_policy": "real inference using the same local model",
+                    "seed_policy": "real inference for every setup turn",
+                }
+                if provider
+                else {}
+            ),
         }
 
 
@@ -292,125 +380,114 @@ def count_rows(path, query):
         return conn.execute(query).fetchone()[0]
 
 
-def run_worker(root, phase):
+def run_worker(root, phase, local_config=None):
+    command = [sys.executable, str(Path(__file__).resolve()), "--worker", phase]
+    if local_config:
+        command += ["--local-config", str(local_config)]
+    provider = local_config.get("provider") if local_config else None
+    env = isolated_env(root, provider)
+    if local_config:
+        env["DRIFT_USE_OPENAI"] = "false"
     result = subprocess.run(
-        [sys.executable, str(Path(__file__).resolve()), "--worker", phase],
+        command,
         cwd=root,
         check=False,
-        env=isolated_env(root),
+        env=env,
         capture_output=True,
         text=True,
-        timeout=120,
+        timeout=900 if local_config else 120,
     )
     if result.returncode:
         raise RuntimeError(result.stderr + result.stdout)
     return json.loads(result.stdout)
 
 
-def evaluate():
-    with tempfile.TemporaryDirectory(prefix="drift-continuity-") as folder:
-        root = Path(folder)
-        paths = {
-            name: root / name
-            for name in ("on", "discard", "off", "structured", "memory")
-        }
-        for path in paths.values():
-            path.mkdir()
-        seeds = [run_worker(paths[name], "seed") for name in ("on", "discard")]
-        on_state = paths["on"] / "state"
-        structured = paths["structured"] / "state"
-        structured.mkdir()
-        for filename in ("being.db", "embodiment.db", "homeostasis.db"):
-            shutil.copy2(on_state / filename, structured / filename)
-        shutil.copytree(
-            on_state / "memory" / "chroma",
-            paths["memory"] / "state" / "memory" / "chroma",
-        )
-        results = {
-            name: run_worker(paths[name], "probe")
-            for name in ("on", "off", "structured", "memory")
-        }
-
-    on, off = results["on"], results["off"]
-    assert len({item["pid"] for item in (*seeds, *results.values())}) == 6
-    assert (
-        on["stores"]["sqlite"]
-        == on["stores"]["vectors"]
-        == on["stores"]["archive"]
-        == len(SETUP)
-    )
-    assert not any(
-        off["stores"][key]
-        for key in (
-            "sqlite",
-            "vectors",
-            "archive",
-            "snapshots",
-            "structured_interactions",
-        )
-    )
-    assert on["stores"]["documents"] == off["stores"]["documents"] == 0
-    assert on["stores"]["snapshots"] == on["stores"]["structured_interactions"] == 1
-    assert on["stores"]["focus"] == FOCUS and off["stores"]["focus"] == ""
-    assert on["stores"]["heartbeat"] == 93 and off["stores"]["heartbeat"] == 60
-    assert on["stores"]["connection"] == 0.07 and off["stores"]["connection"] != 0.07
-    labels = {label for label, _ in SETUP}
-    assert set(on["stored_labels"]) == set(on["memory_context"]) == labels
-    assert set(on["stored_labels"].values()) == set(on["retrieved_ids"])
-    assert not off["memory_context"] and not off["retrieved_ids"]
-    assert on["retrieval_route"] == "DMU"
-    assert off["retrieval_route"] == "standard fallback"
-    for key in ("focus_context", "heartbeat_context", "need_context"):
-        assert on[key] and not off[key], key
-    structured, memory = results["structured"], results["memory"]
-    assert memory["retrieval_route"] == "DMU"
-    assert set(memory["memory_context"]) == labels
-    assert set(memory["stored_labels"].values()) == set(memory["retrieved_ids"])
-    assert not structured["retrieved_ids"] and not structured["memory_context"]
-    for key in ("focus_context", "heartbeat_context", "need_context"):
-        assert structured[key] and not memory[key], key
-    for result in results.values():
-        assert result["effective_mock_settings"] == FIXED_SETTINGS
-        assert result["stores"]["preferences_at_defaults"]
-        assert not any(
-            result["stores"][key]
-            for key in (
-                "documents",
-                "active_goals",
-                "workspace_items",
-                "spark_history",
-                "echo_records",
-                "generation_cache_entries",
-            )
-        )
-        assert result["core_prompt_available"] == off["core_prompt_available"]
-    return {
-        "wiring": "PASSED",
-        "live_behavior": "NOT RUN",
-        "setup_processes": seeds,
-        "conditions": results,
-    }
-
-
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--worker", choices=("seed", "probe"), help=argparse.SUPPRESS)
     parser.add_argument("--score", type=Path, help="Score a raw JSON response offline")
+    parser.add_argument(
+        "--local-model",
+        "--model",
+        dest="local_model",
+        help="Exact local tag or remote model ID",
+    )
+    parser.add_argument(
+        "--provider", choices=("ollama", "llama-cpp", "gemini"), default="ollama"
+    )
+    parser.add_argument("--model-file", type=Path, help="GGUF file served by llama.cpp")
+    parser.add_argument(
+        "--system-prompt",
+        type=Path,
+        help="Explicit system prompt file; required for live inference",
+    )
+    parser.add_argument("--ollama-url", default="http://127.0.0.1:11434")
+    parser.add_argument("--trials", type=int, default=1, choices=range(1, 21))
+    parser.add_argument("--output", type=Path, help="New directory for live evidence")
+    parser.add_argument(
+        "--variant",
+        choices=("current", "evidence-focused", "evidence-critic"),
+        default="current",
+        help="Controlled prompt/critic arm",
+    )
+    parser.add_argument(
+        "--compare-variants",
+        action="store_true",
+        help="Run all three arms from one shared real setup per scenario",
+    )
+    parser.add_argument("--local-config", type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args()
+    if args.provider == "gemini" and not args.local_model:
+        from local_continuity import DEFAULT_GEMINI_MODEL
+
+        args.local_model = DEFAULT_GEMINI_MODEL
     if args.worker:
-        expected = isolated_env(Path.cwd())
+        config = None
+        if args.local_config:
+            config = json.loads(args.local_config.read_text(encoding="utf-8"))
+            global SETUP, QUESTION, EXPECTED, FOCUS
+            SETUP = config["scenario"]["setup"]
+            QUESTION = config["scenario"]["question"]
+            EXPECTED = config["scenario"]["expected"]
+            FOCUS = config["scenario"]["focus"]
+        expected = isolated_env(Path.cwd(), config.get("provider") if config else None)
+        if config:
+            expected["DRIFT_USE_OPENAI"] = "false"
         assert all(os.environ.get(key) == value for key, value in expected.items())
         # Python can add LC_CTYPE during locale coercion.
         assert not set(os.environ) - set(expected) - {"LC_CTYPE"}
-        with (
-            patch.object(socket.socket, "connect", fail_network),
-            patch.object(socket.socket, "connect_ex", fail_network),
-        ):
-            result = worker(args.worker)
+        if config:
+            from local_continuity import inference_guard
+
+            with inference_guard(config["provider"], config["url"]):
+                result = worker(args.worker, config)
+        else:
+            parser.error(
+                "Workers require --local-config; no mocked generation is available"
+            )
     elif args.score:
         result = score(args.score.read_text(encoding="utf-8"))
+    elif args.local_model:
+        if not args.output or not args.system_prompt:
+            parser.error("--local-model requires --output and --system-prompt")
+        if args.compare_variants:
+            from local_continuity import evaluate_comparison
+
+            result = evaluate_comparison(args, sys.modules[__name__])
+        else:
+            from local_continuity import evaluate_local
+
+            result = evaluate_local(args, sys.modules[__name__])
     else:
-        result = evaluate()
+        if (
+            args.local_config
+            or args.output
+            or args.trials != 1
+            or args.variant != "current"
+            or args.compare_variants
+        ):
+            parser.error("Live options require --local-model")
+        parser.error("Select --model for real inference, or --score for saved answers")
     print(json.dumps(result, indent=2))
 
 

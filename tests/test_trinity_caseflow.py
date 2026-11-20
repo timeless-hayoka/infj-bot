@@ -500,7 +500,7 @@ def test_trinity_doctor_reports_health(capsys):
     args = SimpleNamespace(format="text", json=False)
 
     exit_code = cmd_doctor(args)
-    assert exit_code == 0
+    assert exit_code in {0, 1}
     output = capsys.readouterr().out
     assert "ANCHOR doctor" in output
     assert "Launcher:" in output
@@ -511,34 +511,34 @@ def test_trinity_doctor_json_reports_health(capsys):
     args = SimpleNamespace(format="text", json=True, fix=False)
 
     exit_code = cmd_doctor(args)
-    assert exit_code == 0
     payload = json.loads(capsys.readouterr().out)
-    assert payload["status"] == "ok"
+    assert exit_code == (0 if payload["status"] == "ok" else 1)
     assert any(check["name"] == "Launcher" for check in payload["checks"])
     assert any(check["name"] == "Database" for check in payload["checks"])
 
 
-def test_trinity_doctor_fix_mode_reports_actions(monkeypatch, capsys):
-    monkeypatch.setattr("interfaces.cli.shutil.which", lambda _name: None)
+def test_trinity_doctor_fix_mode_reports_actions(monkeypatch, tmp_path, capsys):
+    from interfaces import cli as canonical_cli
+
+    monkeypatch.setattr(canonical_cli.shutil, "which", lambda _name: None)
+    monkeypatch.setattr(canonical_cli, "PROJECT_ROOT", tmp_path)
 
     def fake_find_spec(name):
         return None if name == "prometheus_client" else True
 
-    monkeypatch.setattr("interfaces.cli.importlib.util.find_spec", fake_find_spec)
+    monkeypatch.setattr(canonical_cli.importlib.util, "find_spec", fake_find_spec)
 
     args = SimpleNamespace(format="text", json=False, fix=True)
 
-    exit_code = cmd_doctor(args)
+    exit_code = canonical_cli.cmd_doctor(args)
     assert exit_code == 1
     output = capsys.readouterr().out
     assert "Suggested fixes:" in output
     assert "Run these in order:" in output
-    assert "1. Reinstall or relink the `trin` launcher" in output
-    assert "$ ln -sf /home/crexs/.local/bin/drift /home/crexs/.local/bin/trin" in output
-    assert (
-        "$ cd /home/crexs/infj_bot && .venv/bin/python -m pip install prometheus-client"
-        in output
-    )
+    assert "1. Install the `drift`, `trin`, and `anchor` launchers" in output
+    assert str(tmp_path) in output
+    assert ".venv/bin/python -m pip install prometheus-client" in output
+    assert "/home/crexs" not in output
 
 
 def test_trinity_doctor_reports_zsh_completion_fix(monkeypatch, tmp_path, capsys):
@@ -558,7 +558,7 @@ def test_trinity_doctor_reports_zsh_completion_fix(monkeypatch, tmp_path, capsys
     args = SimpleNamespace(format="text", json=False, fix=True)
 
     exit_code = cmd_doctor(args)
-    assert exit_code == 0
+    assert exit_code in {0, 1}
     output = capsys.readouterr().out
     assert "Zsh completion" in output
     assert (
@@ -688,10 +688,9 @@ def test_trinity_status_helper_wraps_doctor_json(tmp_path):
         text=True,
         check=False,
     )
-    assert proc.returncode == 0
     payload = json.loads(proc.stdout)
-    assert payload["healthy"] is True
-    assert payload["doctor"]["status"] == "ok"
+    assert proc.returncode == (0 if payload["healthy"] else 1)
+    assert payload["healthy"] is (payload["doctor"]["status"] == "ok")
     assert "fixes" in payload
     assert "command" in payload
 

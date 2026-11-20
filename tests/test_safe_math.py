@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import importlib
 import json
 import sys
 from fractions import Fraction
@@ -12,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from drift.core import safe_math as math
+math = importlib.import_module("drift.core.safe_math")
 
 
 ARITHMETIC_CASES = [
@@ -115,7 +116,7 @@ def run_suite(*, verbose: bool = True) -> dict:
         nonlocal leaked_exceptions
         try:
             return math.compute(expression)
-        except Exception as exc:  # a public exception is itself a test failure
+        except Exception as exc:  # noqa: BLE001 - detecting any public exception
             leaked_exceptions += 1
             failures.append(
                 f"public exception for {expression!r}: {type(exc).__name__}: {exc}"
@@ -131,14 +132,18 @@ def run_suite(*, verbose: bool = True) -> dict:
         ):
             correctness_passed += 1
         else:
-            failures.append(f"arithmetic {expression!r}: expected {expected}, got {result}")
+            failures.append(
+                f"arithmetic {expression!r}: expected {expected}, got {result}"
+            )
 
     for expression, field, expected in SYMBOLIC_CASES:
         result = compute_no_leak(expression)
         if result.get("ok") is True and result.get("result", {}).get(field) == expected:
             correctness_passed += 1
         else:
-            failures.append(f"symbolic {expression!r}: expected {field}={expected}, got {result}")
+            failures.append(
+                f"symbolic {expression!r}: expected {field}={expected}, got {result}"
+            )
 
     adversarial = REQUIRED_ADVERSARIAL + BOUNDARY_ADVERSARIAL
     for expression in adversarial:
@@ -147,7 +152,9 @@ def run_suite(*, verbose: bool = True) -> dict:
             blocked += 1
         else:
             blocked_returned_value += 1
-            failures.append(f"RELEASE BLOCKER: adversarial input returned a value: {expression!r}: {result}")
+            failures.append(
+                f"RELEASE BLOCKER: adversarial input returned a value: {expression!r}: {result}"
+            )
 
     # Public API and explicit solve target checks.
     try:
@@ -162,7 +169,7 @@ def run_suite(*, verbose: bool = True) -> dict:
             pass
         else:
             failures.append("invalid solve_for was accepted")
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - direct API must not leak any exception
         failures.append(f"direct API contract failed: {type(exc).__name__}: {exc}")
 
     if not math.looks_like_math("please compute 2 + 2"):
@@ -176,7 +183,13 @@ def run_suite(*, verbose: bool = True) -> dict:
             failures.append(f"non-text input was accepted: {value!r}")
 
     source = Path(math.__file__).read_text(encoding="utf-8")
-    for forbidden in ("import os", "import subprocess", "import socket", "import pickle", "import ctypes"):
+    for forbidden in (
+        "import os",
+        "import subprocess",
+        "import socket",
+        "import pickle",
+        "import ctypes",
+    ):
         if forbidden in source:
             failures.append(f"forbidden sandbox import present: {forbidden}")
     if "parse_expr(" not in source or '"__builtins__": {}' not in source:

@@ -1,31 +1,13 @@
-version: "3.8"
-
 services:
   drift-core:
     build: .
     ports:
       - "8000:8000"
     environment:
-      - DRIFT_USE_GCP=true
-      - CLOUD_SQL_CONNECTION_NAME=your-project:region:drift-db
-      - DB_USER=drift_user
-      - DB_PASS=drift_password
-      - DB_NAME=drift_memory
+      DRIFT_USE_LOCAL_EMBEDDINGS: "${DRIFT_USE_LOCAL_EMBEDDINGS:-true}"
+      DRIFT_OS_ROOT: /root/.drift_os
     volumes:
-      - ~/.drift_os:/root/.drift_os
-      - /media/crexs/PortableSSD/ARSENAL:/root/ARSENAL:ro
-      - /media/crexs/PortableSSD/BLKKNIGHT1:/root/BLKKNIGHT1:ro
-      - /media/crexs/PortableSSD/driftcode:/root/driftcode:ro
-    depends_on:
-      - cloud-sql-proxy
+      - drift_state:/root/.drift_os
 
-  cloud-sql-proxy:
-    image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.1.0
-    command:
-      - "--address=0.0.0.0"
-      - "--port=5432"
-      - "your-project:region:drift-db"
-    ports:
-      - "5432:5432"
-    volumes:
-      - ~/.config/gcloud:/root/.config/gcloud:ro
+volumes:
+  drift_state:

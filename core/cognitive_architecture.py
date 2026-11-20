@@ -14,6 +14,7 @@ import logging
 import random
 import sqlite3
 from collections.abc import Callable
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -54,6 +55,17 @@ FORBIDDEN_IMPORTS = {
     "builtins",
     "__builtin__",
 }
+
+
+@contextmanager
+def _sqlite_connection(db_path: str):
+    """Yield a transactional SQLite connection and always close it."""
+    conn = sqlite3.connect(db_path)
+    try:
+        with conn:
+            yield conn
+    finally:
+        conn.close()
 
 
 @dataclass
@@ -215,7 +227,7 @@ class CognitiveArchitecture:
         self._initialized = True
 
     def _init_db(self):
-        with sqlite3.connect(self.db_path) as conn:
+        with _sqlite_connection(self.db_path) as conn:
             conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS cognitive_plugins (
@@ -269,7 +281,7 @@ class CognitiveArchitecture:
 
     def _load_registry(self):
         """Load registered plugins from DB."""
-        with sqlite3.connect(self.db_path) as conn:
+        with _sqlite_connection(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute("SELECT * FROM cognitive_plugins").fetchall()
         for row in rows:
@@ -325,7 +337,7 @@ class CognitiveArchitecture:
 
         self._plugins[plugin.name] = plugin
 
-        with sqlite3.connect(self.db_path) as conn:
+        with _sqlite_connection(self.db_path) as conn:
             conn.execute(
                 """
                 INSERT OR REPLACE INTO cognitive_plugins
@@ -350,7 +362,7 @@ class CognitiveArchitecture:
         if plugin.is_core or name in CORE_PLUGINS:
             return False
         del self._plugins[name]
-        with sqlite3.connect(self.db_path) as conn:
+        with _sqlite_connection(self.db_path) as conn:
             conn.execute("DELETE FROM cognitive_plugins WHERE name = ?", (name,))
             conn.commit()
         self._record_event("unregistered", name, "Plugin unregistered")
@@ -360,7 +372,7 @@ class CognitiveArchitecture:
         if name not in self._plugins:
             return False
         self._plugins[name].enabled = True
-        with sqlite3.connect(self.db_path) as conn:
+        with _sqlite_connection(self.db_path) as conn:
             conn.execute(
                 "UPDATE cognitive_plugins SET enabled = 1 WHERE name = ?", (name,)
             )
@@ -374,7 +386,7 @@ class CognitiveArchitecture:
         if self._plugins[name].is_core or name in CORE_PLUGINS:
             return False
         self._plugins[name].enabled = False
-        with sqlite3.connect(self.db_path) as conn:
+        with _sqlite_connection(self.db_path) as conn:
             conn.execute(
                 "UPDATE cognitive_plugins SET enabled = 0 WHERE name = ?", (name,)
             )
@@ -443,7 +455,7 @@ class CognitiveArchitecture:
     # ---- Proposal system ----
 
     def propose_plugin(self, proposal: PluginProposal) -> PluginProposal:
-        with sqlite3.connect(self.db_path) as conn:
+        with _sqlite_connection(self.db_path) as conn:
             cur = conn.execute(
                 """
                 INSERT INTO plugin_proposals
@@ -469,7 +481,7 @@ class CognitiveArchitecture:
         return proposal
 
     def get_proposals(self, status: str | None = None) -> list[PluginProposal]:
-        with sqlite3.connect(self.db_path) as conn:
+        with _sqlite_connection(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             if status:
                 rows = conn.execute(
@@ -498,7 +510,7 @@ class CognitiveArchitecture:
         )
 
     def approve_proposal(self, proposal_id: int) -> bool:
-        with sqlite3.connect(self.db_path) as conn:
+        with _sqlite_connection(self.db_path) as conn:
             conn.execute(
                 "UPDATE plugin_proposals SET status = 'approved', reviewed_at = ? WHERE id = ?",
                 (datetime.now().isoformat(), proposal_id),
@@ -508,7 +520,7 @@ class CognitiveArchitecture:
         return True
 
     def reject_proposal(self, proposal_id: int) -> bool:
-        with sqlite3.connect(self.db_path) as conn:
+        with _sqlite_connection(self.db_path) as conn:
             conn.execute(
                 "UPDATE plugin_proposals SET status = 'rejected', reviewed_at = ? WHERE id = ?",
                 (datetime.now().isoformat(), proposal_id),
@@ -518,7 +530,7 @@ class CognitiveArchitecture:
         return True
 
     def mark_installed(self, proposal_id: int, plugin_name: str) -> bool:
-        with sqlite3.connect(self.db_path) as conn:
+        with _sqlite_connection(self.db_path) as conn:
             conn.execute(
                 "UPDATE plugin_proposals SET status = 'installed', installed_at = ? WHERE id = ?",
                 (datetime.now().isoformat(), proposal_id),
@@ -613,7 +625,7 @@ class CognitiveArchitecture:
         return "\n".join(lines)
 
     def _record_event(self, event_type: str, plugin_name: str | None, description: str):
-        with sqlite3.connect(self.db_path) as conn:
+        with _sqlite_connection(self.db_path) as conn:
             conn.execute(
                 "INSERT INTO architecture_events (timestamp, event_type, plugin_name, description) VALUES (?, ?, ?, ?)",
                 (datetime.now().isoformat(), event_type, plugin_name, description),
