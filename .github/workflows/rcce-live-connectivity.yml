@@ -6,6 +6,7 @@ on:
       - research/rcce-1-strategy-transfer
     paths:
       - 'tests/rcce_live_connectivity.py'
+      - 'tests/rcce_live_drift_integration.py'
       - 'tests/test_rcce_strict_brain.py'
       - 'core/brain.py'
       - 'core/config.py'
@@ -39,3 +40,12 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINIAPIKEY }}
           DRIFT_PRIMARY_MODEL: gemini-3.5-flash-lite
         run: python tests/rcce_live_connectivity.py
+      - name: Verify real DriftBrain primary and critic (NOT scored)
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINIAPIKEY }}
+          DRIFT_PRIMARY_MODEL: gemini-3.5-flash-lite
+          DRIFT_CRITIC_MODEL: gemini-3.5-flash-lite
+          DRIFT_PREFER_LOCAL: 'false'
+          DRIFT_USE_LOCAL_FALLBACK: 'false'
+          DRIFT_USE_HF: 'false'
+        run: python tests/rcce_live_drift_integration.py
