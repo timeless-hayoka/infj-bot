@@ -40,10 +40,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Install package and test dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e '.[dev]'
+      - name: Install focused test dependencies
+        run: python -m pip install 'pytest>=9,<10'
+        # RCCE modules and their LogicChain dependency use Python's standard library.
+        # Avoid installing the full GPU/model stack for deterministic unit tests.
+        env:
+          PIP_DISABLE_PIP_VERSION_CHECK: '1'
       - name: Run RCCE characterization and persistence tests
+        env:
+          PYTHONPATH: .
         run: |
           python -m pytest -q tests/test_rcce_strategy_transfer_baseline.py tests/test_rcce_transfer.py tests/test_cognitive_learning_bridge.py
