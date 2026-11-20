@@ -16,9 +16,10 @@ import math
 import queue
 import re
 import threading
+from collections.abc import Callable
 from decimal import Decimal, InvalidOperation, localcontext
 from fractions import Fraction
-from typing import Callable, TypeVar
+from typing import TypeVar
 
 import sympy
 from sympy.parsing.sympy_parser import parse_expr, rationalize, standard_transformations
@@ -206,9 +207,8 @@ def _validate_ast(node: ast.AST, source: str, *, symbolic: bool, depth: int = 0)
         child(node.right)
         if isinstance(node.op, (ast.Div, ast.FloorDiv, ast.Mod)) and not any(
             isinstance(part, (ast.Name, ast.Call)) for part in ast.walk(node.right)
-        ):
-            if _eval_arithmetic(node.right, source) == 0:
-                raise MathError("division by zero")
+        ) and _eval_arithmetic(node.right, source) == 0:
+            raise MathError("division by zero")
         return
     if symbolic and isinstance(node, ast.Name):
         if node.id in _ALLOWED_CONSTANTS:
