@@ -11,7 +11,7 @@ import sqlite3
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import ClassVar, Dict, List, Optional
 
 from drift.core.config import DATA_DIR
 
@@ -35,7 +35,7 @@ class EmotionalField:
     """Manages emotional contagion and the bot's emotional responses."""
 
     # Emotional transitions: how the bot's mood shifts when resonating
-    RESONANCE_MAP = {
+    RESONANCE_MAP: ClassVar[dict[str, dict[str, str]]] = {
         "anxious": {
             "mirror": "concerned",
             "complement": "peaceful",
