@@ -6,6 +6,9 @@ on:
       - research/rcce-1-strategy-transfer
     paths:
       - 'tests/rcce_live_connectivity.py'
+      - 'tests/test_rcce_strict_brain.py'
+      - 'core/brain.py'
+      - 'core/config.py'
       - '.github/workflows/rcce-live-connectivity.yml'
   workflow_dispatch:
 
@@ -23,6 +26,14 @@ jobs:
           python-version: '3.12'
       - name: Install official Google SDK
         run: python -m pip install 'google-genai>=1,<2'
+      - name: Install focused regression dependencies
+        run: |
+          python -m pip install 'pytest>=9,<10' 'huggingface-hub>=0.30' 'requests>=2.31' 'numpy>=2.0'
+          python -m pip install --no-deps -e .
+      - name: Verify strict direct-provider regression tests (offline)
+        run: |
+          python -m compileall -q core/brain.py tests/test_rcce_strict_brain.py
+          python -m pytest -q tests/test_rcce_strict_brain.py
       - name: Verify real provider connectivity (NOT scored)
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINIAPIKEY }}
