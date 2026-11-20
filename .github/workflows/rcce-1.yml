@@ -20,7 +20,8 @@ on:
       - 'tests/test_rcce_evidence.py'
       - 'tests/test_rcce_strategy_transfer_baseline.py'
       - 'tests/test_rcce_transfer.py'
-      - 'tests/test_rcce_process_restart.py tests/test_rcce_transfer_ab.py'
+      - 'tests/test_rcce_process_restart.py'
+      - 'tests/test_rcce_transfer_ab.py'
       - 'tests/test_cognitive_learning_bridge.py'
       - '.github/workflows/rcce-1.yml'
   workflow_dispatch:
