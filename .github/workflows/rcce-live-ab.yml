@@ -1,6 +1,14 @@
 name: RCCE-1 exploratory live A/B (not scored)
 
 on:
+  push:
+    branches:
+      - research/rcce-1-strategy-transfer
+    paths:
+      - 'tests/rcce_live_ab_exploratory.py'
+      - 'tests/test_rcce_process_restart.py'
+      - 'tests/test_rcce_transfer_ab.py'
+      - '.github/workflows/rcce-live-ab.yml'
   workflow_dispatch:
 
 permissions:
