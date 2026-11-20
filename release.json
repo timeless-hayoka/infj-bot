@@ -3,7 +3,7 @@
   "engine": "Trinity",
   "version": "0.10.0",
   "build_date": "2026-11-20",
-  "tests_passed": 449,
+  "tests_passed": 471,
   "warnings": 1,
   "status": "release_candidate",
   "build_id": "anchor-0.10.0-20261120",

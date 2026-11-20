@@ -28,9 +28,9 @@ Python 3.14.10.
 | Gate | Command | Result |
 |---|---|---|
 | Full validation | `bash run_full_test_suite.sh` | PASS: provenance, syntax, dependencies, and pytest |
-| Full pytest | `.venv/bin/python -m pytest tests/ -q --tb=short` | **449 passed, 6 skipped, 1 expected warning** |
+| Full pytest | `.venv/bin/python -m pytest tests/ -q --tb=short` | **471 passed, 6 skipped, 1 expected warning** |
 | Target merge simulation | Merge into `origin/anchor@299fbec` in a disposable worktree, then run full pytest | **Clean merge; 471 passed, 6 skipped, 1 expected warning** |
-| Offline release gate | `./scripts/run_release_tests.sh` | **421 passed, 2 skipped, 32 deselected; CLI gate passed** |
+| Offline release gate | `./scripts/run_release_tests.sh` | **443 passed, 2 skipped, 32 deselected; CLI gate passed** |
 | Dashboard/API smoke | `./scripts/anchor_release_smoke.sh` | **dashboard smoke OK; release smoke complete** |
 | Ruff | `ruff check` and `ruff format --check` on the merge surface | PASS |
 | Type checking | CI mypy command over five maintained core modules | PASS |
