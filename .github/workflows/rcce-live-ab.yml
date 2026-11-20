@@ -8,6 +8,10 @@ on:
       - 'tests/rcce_live_ab_exploratory.py'
       - 'tests/test_rcce_process_restart.py'
       - 'tests/test_rcce_transfer_ab.py'
+      - 'tests/test_rcce_scoring.py'
+      - 'tests/test_rcce_task_bank.py'
+      - 'tests/data/rcce_dev_tasks_v1.json'
+      - 'core/rcce_scoring.py'
       - '.github/workflows/rcce-live-ab.yml'
   workflow_dispatch:
 
