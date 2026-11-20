@@ -19,6 +19,12 @@ def main() -> int:
 
         model = os.environ.get("DRIFT_PRIMARY_MODEL", "gemini-2.5-flash")
         client = genai.Client(api_key=key)
+        info = client.models.get(model=model)
+        print("MODEL_INFO: " + json.dumps({
+            "requested": model,
+            "resolved": getattr(info, "name", None),
+            "supported_generation_methods": getattr(info, "supported_generation_methods", None),
+        }, sort_keys=True))
         response = client.models.generate_content(
             model=model,
             contents="Reply with exactly: RCCE connectivity verified",
@@ -66,7 +72,7 @@ def main() -> int:
                     if isinstance(name, str) and name.startswith("models/gemini-"):
                         eligible.append(name)
                 print(
-                    "DISCOVERY: available Gemini model identifiers="
+                    "DISCOVERY: listed Gemini model identifiers="
                     + json.dumps(sorted(set(eligible))[:40]),
                     file=sys.stderr,
                 )
