@@ -29,7 +29,7 @@ jobs:
           python -m pip install --no-deps -e .
       - name: Verify baseline and restart first
         run: |
-          python -m pytest -q tests/test_rcce_strategy_transfer_baseline.py tests/test_rcce_transfer.py tests/test_rcce_process_restart.py tests/test_rcce_transfer_ab.py tests/test_rcce_strict_brain.py
+          python -m pytest -q tests/test_rcce_strategy_transfer_baseline.py tests/test_rcce_transfer.py tests/test_rcce_process_restart.py tests/test_rcce_transfer_ab.py tests/test_rcce_strict_brain.py tests/test_rcce_scoring.py tests/test_rcce_task_bank.py
       - name: Run real provider paired A/B (exploratory, NOT SCORED)
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINIAPIKEY }}
@@ -38,3 +38,11 @@ jobs:
           DRIFT_USE_LOCAL_FALLBACK: 'false'
           DRIFT_USE_HF: 'false'
         run: python tests/rcce_live_ab_exploratory.py
+      - name: Preserve paired trial evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rcce-live-ab-evidence
+          path: rcce-live-ab-results.json
+          if-no-files-found: warn
+          retention-days: 30
