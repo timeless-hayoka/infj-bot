@@ -39,7 +39,24 @@ def main() -> int:
         return 0
     except Exception as exc:
         # Avoid printing exception strings: provider libraries may include request metadata.
-        print(f"FAIL: provider call raised {type(exc).__name__}", file=sys.stderr)
+        # Log only structured status and a fixed category; never log exception text.
+        status = getattr(exc, "code", None)
+        if not isinstance(status, int):
+            status = getattr(exc, "status_code", None)
+        categories = {
+            400: "INVALID_REQUEST_OR_MODEL",
+            401: "INVALID_AUTHENTICATION",
+            403: "PERMISSION_DENIED_OR_KEY_RESTRICTION",
+            404: "MODEL_NOT_FOUND_OR_UNAVAILABLE",
+            429: "QUOTA_OR_RATE_LIMIT",
+        }
+        category = categories.get(status, "PROVIDER_ERROR")
+        print(
+            f"FAIL: provider call raised {type(exc).__name__}; "
+            f"http_status={status if isinstance(status, int) else 'unknown'}; "
+            f"category={category}",
+            file=sys.stderr,
+        )
         return 1
 
 
