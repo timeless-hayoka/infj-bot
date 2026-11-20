@@ -34,6 +34,7 @@ def evaluate():
     module.DRIFT_PRIMARY_MODEL = os.environ.get("DRIFT_PRIMARY_MODEL", "gemini-3.5-flash-lite")
     module.DRIFT_CRITIC_MODEL = module.DRIFT_PRIMARY_MODEL
     records = []
+    stage = "initialization"
     with tempfile.TemporaryDirectory(prefix="rcce-live-ab-") as directory:
         paths = {
             "enabled": Path(directory) / "enabled.sqlite",
@@ -55,9 +56,11 @@ def evaluate():
                     candidates=["answer without checking", "check arithmetic before answering"],
                 )
                 prompt = question + "\\nMethod: " + choice.strategy + "."
+                stage = "construct:" + task_id + ":" + condition
                 bot = DriftBrain()
                 if bot.sdk != "google.genai":
                     raise RuntimeError("RCCE_INVALID: non-Gemini SDK")
+                stage = "inference:" + task_id + ":" + condition
                 answer = bot.think(prompt, rcce_strict=True).strip()
                 receipts = bot._rcce_provider_receipts
                 if len(receipts) != 2 or any(not r.get("provider_response_id") for r in receipts):
@@ -80,5 +83,9 @@ if __name__ == "__main__":
     try:
         sys.exit(evaluate())
     except Exception as exc:
-        print("FAIL: " + type(exc).__name__, file=sys.stderr)
+        message = str(exc)
+        secret = os.environ.get("GEMINI_API_KEY", "")
+        if secret:
+            message = message.replace(secret, "[REDACTED]")
+        print("FAIL: " + type(exc).__name__ + ": " + message[:500], file=sys.stderr)
         sys.exit(1)
