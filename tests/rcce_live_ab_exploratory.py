@@ -11,14 +11,18 @@ import tempfile
 from pathlib import Path
 
 from drift.core.rcce_transfer import PrincipleTransferPolicy
+from drift.core.rcce_scoring import score_response, summarize_pairs
 
 
-TASKS = (
-    ("t1", "What is 17 + 25? Answer with the integer only.", "42"),
-    ("t2", "What is 9 multiplied by 8? Answer with the integer only.", "72"),
-    ("t3", "What is 100 minus 37? Answer with the integer only.", "63"),
-    ("t4", "What is 12 squared? Answer with the integer only.", "144"),
-)
+TASK_BANK = Path(__file__).parent / "data" / "rcce_dev_tasks_v1.json"
+
+
+def load_tasks():
+    bank = json.loads(TASK_BANK.read_text())["tasks"]
+    limit = int(os.environ.get("RCCE_TASK_LIMIT", "6"))
+    if limit < 1 or limit > len(bank):
+        raise ValueError("RCCE_TASK_LIMIT out of range")
+    return bank[:limit]
 
 
 def evaluate():
@@ -34,6 +38,9 @@ def evaluate():
     module.DRIFT_PRIMARY_MODEL = os.environ.get("DRIFT_PRIMARY_MODEL", "gemini-3.5-flash-lite")
     module.DRIFT_CRITIC_MODEL = module.DRIFT_PRIMARY_MODEL
     records = []
+    repeats = int(os.environ.get("RCCE_REPEATS", "2"))
+    if repeats < 1 or repeats > 5:
+        raise ValueError("RCCE_REPEATS must be 1..5")
     stage = "initialization"
     with tempfile.TemporaryDirectory(prefix="rcce-live-ab-") as directory:
         paths = {
@@ -46,7 +53,9 @@ def evaluate():
             strategy="answer without checking", outcome="failure",
             verified=True, evidence="training oracle rejected unverified answer",
         )
-        for index, (task_id, question, expected) in enumerate(TASKS):
+        for index, task in enumerate(load_tasks() * repeats):
+            task_id, question, expected = task["id"], task["prompt"], task["expected"]
+            repeat = index // len(load_tasks())
             # Alternate condition order to reduce order effects.
             order = ("enabled", "disabled") if index % 2 == 0 else ("disabled", "enabled")
             for condition in order:
@@ -66,16 +75,20 @@ def evaluate():
                 if len(receipts) != 2 or any(not r.get("provider_response_id") for r in receipts):
                     raise RuntimeError("RCCE_INVALID: missing provider receipts")
                 records.append({
-                    "task_id": task_id, "condition": condition,
+                    "task_id": task_id, "repeat": repeat, "category": task["category"],
+                    "condition": condition,
                     "model": module.DRIFT_PRIMARY_MODEL,
                     "prompt_sha256": hashlib.sha256(prompt.encode()).hexdigest(),
                     "strategy": choice.strategy,
                     "answer": answer,
                     "expected": expected,
+                    **score_response(answer, expected, task["format"]),
                     "exact_match": answer == expected,
                     "provider_receipts": receipts,
                 })
-    print("RCCE_LIVE_AB_EXPLORATORY_NOT_SCORED: " + json.dumps(records, sort_keys=True))
+    output = Path(os.environ.get("RCCE_RESULTS_PATH", "rcce-live-ab-results.json"))
+    output.write_text(json.dumps({"trials": records, "summary": summarize_pairs(records)}, indent=2))
+    print("RCCE_LIVE_AB_EXPLORATORY_NOT_SCORED: " + json.dumps(summarize_pairs(records), sort_keys=True))
     return 0
 
 
