@@ -38,6 +38,8 @@ def evaluate():
     module.DRIFT_PRIMARY_MODEL = os.environ.get("DRIFT_PRIMARY_MODEL", "gemini-3.5-flash-lite")
     module.DRIFT_CRITIC_MODEL = module.DRIFT_PRIMARY_MODEL
     records = []
+    output = Path(os.environ.get("RCCE_RESULTS_PATH", "rcce-live-ab-results.json"))
+    output.write_text(json.dumps({"status": "started", "trials": []}, indent=2))
     repeats = int(os.environ.get("RCCE_REPEATS", "2"))
     if repeats < 1 or repeats > 5:
         raise ValueError("RCCE_REPEATS must be 1..5")
@@ -86,8 +88,8 @@ def evaluate():
                     "exact_match": answer == expected,
                     "provider_receipts": receipts,
                 })
-    output = Path(os.environ.get("RCCE_RESULTS_PATH", "rcce-live-ab-results.json"))
-    output.write_text(json.dumps({"trials": records, "summary": summarize_pairs(records)}, indent=2))
+                output.write_text(json.dumps({"status": "in_progress", "trials": records}, indent=2))
+    output.write_text(json.dumps({"status": "complete", "trials": records, "summary": summarize_pairs(records)}, indent=2))
     print("RCCE_LIVE_AB_EXPLORATORY_NOT_SCORED: " + json.dumps(summarize_pairs(records), sort_keys=True))
     return 0
 
@@ -100,5 +102,12 @@ if __name__ == "__main__":
         secret = os.environ.get("GEMINI_API_KEY", "")
         if secret:
             message = message.replace(secret, "[REDACTED]")
+        output = Path(os.environ.get("RCCE_RESULTS_PATH", "rcce-live-ab-results.json"))
+        if output.exists():
+            partial = json.loads(output.read_text())
+            partial["status"] = "failed"
+            partial["error_type"] = type(exc).__name__
+            partial["error_message"] = message[:500]
+            output.write_text(json.dumps(partial, indent=2))
         print("FAIL: " + type(exc).__name__ + ": " + message[:500], file=sys.stderr)
         sys.exit(1)
