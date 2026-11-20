@@ -51,6 +51,30 @@ def main() -> int:
             429: "QUOTA_OR_RATE_LIMIT",
         }
         category = categories.get(status, "PROVIDER_ERROR")
+        if status == 404:
+            try:
+                # Query the provider rather than guessing model identifiers.
+                from google import genai
+
+                client = genai.Client(api_key=key)
+                eligible = []
+                for entry in client.models.list():
+                    methods = getattr(entry, "supported_generation_methods", None)
+                    if methods is not None and "generateContent" not in methods:
+                        continue
+                    name = getattr(entry, "name", "")
+                    if isinstance(name, str) and name.startswith("models/gemini-"):
+                        eligible.append(name)
+                print(
+                    "DISCOVERY: available Gemini model identifiers="
+                    + json.dumps(sorted(set(eligible))[:40]),
+                    file=sys.stderr,
+                )
+            except Exception as discovery_exc:
+                print(
+                    f"DISCOVERY_UNAVAILABLE: {type(discovery_exc).__name__}",
+                    file=sys.stderr,
+                )
         print(
             f"FAIL: provider call raised {type(exc).__name__}; "
             f"http_status={status if isinstance(status, int) else 'unknown'}; "
