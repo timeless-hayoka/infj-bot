@@ -1,0 +1,32 @@
+name: RCCE-1 exploratory live A/B (not scored)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-ab:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install research dependencies
+        run: |
+          python -m pip install 'google-genai>=1,<2' 'pytest>=9,<10' 'huggingface-hub>=0.30' 'requests>=2.31' 'numpy>=2.0'
+          python -m pip install --no-deps -e .
+      - name: Verify baseline and restart first
+        run: |
+          python -m pytest -q tests/test_rcce_strategy_transfer_baseline.py tests/test_rcce_transfer.py tests/test_rcce_process_restart.py tests/test_rcce_transfer_ab.py tests/test_rcce_strict_brain.py
+      - name: Run real provider paired A/B (exploratory, NOT SCORED)
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINIAPIKEY }}
+          DRIFT_PRIMARY_MODEL: gemini-3.5-flash-lite
+          DRIFT_PREFER_LOCAL: 'false'
+          DRIFT_USE_LOCAL_FALLBACK: 'false'
+          DRIFT_USE_HF: 'false'
+        run: python tests/rcce_live_ab_exploratory.py
