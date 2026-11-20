@@ -26,5 +26,5 @@ jobs:
       - name: Verify real provider connectivity (NOT scored)
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINIAPIKEY }}
-          DRIFT_PRIMARY_MODEL: gemini-2.5-flash
+          DRIFT_PRIMARY_MODEL: gemini-2.5-flash-lite
         run: python tests/rcce_live_connectivity.py
