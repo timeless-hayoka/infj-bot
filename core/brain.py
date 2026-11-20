@@ -647,7 +647,7 @@ class DriftBrain(_BrainGenerationMixin):
             return None
         return getattr(request_budget_local, "budget", None)
 
-    def think(self, user_input, raw_user_input=None, mode=None):
+    def think(self, user_input, raw_user_input=None, mode=None, *, rcce_strict=False):
         sec = self._enhanced_security_check(user_input, raw_user_input, mode=mode)
         if sec.blocked:
             self.logger.warning("Security block: %s", sec.to_dict())
@@ -758,6 +758,8 @@ class DriftBrain(_BrainGenerationMixin):
         except (RequestCancelled, RequestDeadlineExceeded, SystemOverload):
             raise
         except Exception as exc:
+            if rcce_strict:
+                raise RuntimeError("RCCE_INVALID: primary inference failed") from exc
             return self._offline_fallback(user_input, exc)
 
         # Record the approach in the chain
@@ -783,6 +785,8 @@ class DriftBrain(_BrainGenerationMixin):
                 f"Review the following response for hallucinations, errors, or unsafe content:\n\n{primary_text}",
             )
         except Exception as exc:
+            if rcce_strict:
+                raise RuntimeError("RCCE_INVALID: critic inference failed") from exc
             return f"{primary_text}\n\n[critic unavailable: {type(exc).__name__}]"
 
     @staticmethod

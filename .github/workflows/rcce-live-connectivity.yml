@@ -1,0 +1,30 @@
+name: RCCE-1 live provider connectivity (not scored)
+
+on:
+  push:
+    branches:
+      - research/rcce-1-strategy-transfer
+    paths:
+      - 'tests/rcce_live_connectivity.py'
+      - '.github/workflows/rcce-live-connectivity.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gemini-connectivity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install official Google SDK
+        run: python -m pip install 'google-genai>=1,<2'
+      - name: Verify real provider connectivity (NOT scored)
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          DRIFT_PRIMARY_MODEL: gemini-2.5-flash
+        run: python tests/rcce_live_connectivity.py
