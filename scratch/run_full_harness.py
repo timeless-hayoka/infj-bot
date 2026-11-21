@@ -152,10 +152,10 @@ def main():
                     print(f"\n[+] First 10 lines of {gov_file.name}:")
                     with gov_file.open() as f:
                         for i in range(10):
-                            l = f.readline()
-                            if not l:
+                            line = f.readline()
+                            if not line:
                                 break
-                            print(l.strip())
+                            print(line.strip())
 
 
 if __name__ == "__main__":

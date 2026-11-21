@@ -74,7 +74,7 @@ def deliberation_bridge(goal: str):
 
     try:
         try:
-            loop = asyncio.get_running_loop()
+            asyncio.get_running_loop()
             # If we're here, we're in an async context.
             # We can't block the loop, so we MUST run in a separate thread.
             with ThreadPoolExecutor() as executor:

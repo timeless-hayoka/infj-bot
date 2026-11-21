@@ -53,7 +53,7 @@ class TestBetaRecovery(unittest.TestCase):
         self.brain._generate = MagicMock(return_value=long_response)
 
         # 3. Trigger a turn
-        reply = self.brain.agent_turn("tell me a long story")
+        _reply = self.brain.agent_turn("tell me a long story")
 
         # 4. Verify energy level has decreased below 0.70
         self.assertLess(self.being.state.energy, 0.70)

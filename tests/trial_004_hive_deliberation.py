@@ -105,7 +105,7 @@ def main():
         brain._generate = MagicMock(
             side_effect=[f"```tool\n{tool_call}\n```", "Response after tool"]
         )
-        output = brain.agent_turn("test", tools_enabled=True)
+        _output = brain.agent_turn("test", tools_enabled=True)
 
         correct_goal = "write_file" in deliberation_goal_str
         return {

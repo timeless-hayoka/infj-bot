@@ -524,7 +524,7 @@ def main():
                 if d_control_flag:
                     meta["d_control"] = d_control_flag
 
-                homeo = get_homeostasis()
+                _homeo = get_homeostasis()
                 being = get_being()
                 traj_logger.log_turn(
                     turn=idx + 1,

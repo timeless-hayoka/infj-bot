@@ -3,6 +3,7 @@
 This verifies a genuine provider call and never prints the API key or prompt.
 It does not certify DriftBrain routing, cache isolation, or transfer learning.
 """
+
 import hashlib
 import json
 import os

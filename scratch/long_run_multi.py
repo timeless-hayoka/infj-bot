@@ -74,9 +74,9 @@ def run_single_simulation(run_id: str, cycles: int = 500, test_type: str = "cont
 
         try:
             # We use think() which triggers security, memory decay, homeostasis, and DII/PEDI updates.
-            response = brain.think(prompt, mode="companion")
+            _response = brain.think(prompt, mode="companion")
         except Exception as e:
-            response = f"ERROR: {e}"
+            _response = f"ERROR: {e}"
 
         # Gather metrics
         pedi_val = getattr(being.state.pedi, "value", 0.0)

@@ -99,7 +99,6 @@ class PSCStateBuffer:
         if self._count < self._cap:
             return self._data[: self._count][-n:].copy()
         # Wrap-around
-        end = (self._head - 1) % self._cap
         start = (self._head - self._count) % self._cap
         arr = np.roll(self._data, -start)[: self._count]
         return arr[-n:]

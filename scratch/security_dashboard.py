@@ -22,7 +22,7 @@ def generate_security_dashboard(
         for line in list(f)[-last_n:]:
             try:
                 logs.append(json.loads(line.strip()))
-            except:
+            except json.JSONDecodeError:
                 continue
 
     if not logs:
@@ -51,7 +51,7 @@ def generate_security_dashboard(
                 blocked_count += 1
             if log.get("social_risk", 0) > 0.5:
                 high_risk_count += 1
-        except:
+        except (AttributeError, KeyError, TypeError, ValueError):
             continue
 
     # Plot

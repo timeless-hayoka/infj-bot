@@ -66,7 +66,6 @@ class PEDIMetric:
         self.coherence_history.append(coherence)
         if len(self.coherence_history) > 20:
             self.coherence_history = self.coherence_history[-20:]
-        avg = sum(self.coherence_history) / len(self.coherence_history)
         self.stability = 0.7 * self.stability + 0.3 * (1.0 if interaction else 0.6)
         if abs(coherence - self.value) > 0.15:
             self.drift_events += 1

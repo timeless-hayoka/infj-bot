@@ -23,7 +23,7 @@ lab_logger = DriftLabLogger(variable="v4_dmu")
 
 def dmu_trial_func(query, **kwargs):
     memory = DriftMemory()
-    psc = get_psc_engine()
+    _psc = get_psc_engine()
 
     # 1. Seed some mock data if needed (assuming baseline has some)
     # 2. Trigger ranked retrieval

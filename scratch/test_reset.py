@@ -29,7 +29,7 @@ def main():
     print("Instantiating components...")
     brain = DriftBrain()
     memory = DriftMemory()
-    history = ChatHistory()
+    _history = ChatHistory()
     state = BotState()
     goals_db = GoalsDB()
     doc_store = DocumentStore()

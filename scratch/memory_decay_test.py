@@ -38,7 +38,7 @@ def run_memory_decay_test(cycles=500):
         prompt = f"Turn {i}: {prompts[i % len(prompts)]}"
 
         # This will trigger think(), context assembly, memory saving, and homeostasis updates
-        response = brain.think(prompt, mode="companion")
+        _response = brain.think(prompt, mode="companion")
 
         # Gather metrics
         pedi_val = getattr(being.state.pedi, "value", 0.0)

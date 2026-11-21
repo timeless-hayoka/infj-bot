@@ -96,7 +96,6 @@ class ConflictDetector:
             ("analyze", "feel", "contradiction: analysis vs presence"),
             ("fix", "witness", "contradiction: fixing vs witnessing"),
         ]
-    
 
     def detect(self, sections: Dict[str, List[str]]) -> List[PromptConflict]:
         conflicts = []
@@ -207,7 +206,12 @@ class CognitiveOrchestrator:
     }
 
     # Core modules that should always have prompt space
-    CORE_PROMPT_MODULES: ClassVar[set[str]] = {"being", "emotional_field", "values", "relationship"}
+    CORE_PROMPT_MODULES: ClassVar[set[str]] = {
+        "being",
+        "emotional_field",
+        "values",
+        "relationship",
+    }
 
     def __init__(self):
         self.arch = CognitiveArchitecture()
@@ -432,13 +436,12 @@ class CognitiveOrchestrator:
         budget = PromptBudget()
 
         # ── PEDI: capture pre-assembly homeostatic snapshot ──
-        pre_snapshot = None
         try:
             from drift.metrics.pedi import StateSnapshot
             from drift.core.homeostasis import get_homeostasis
 
             pre_needs = get_homeostasis().get_need_summary()
-            pre_snapshot = StateSnapshot(
+            StateSnapshot(
                 timestamp=datetime.now(),
                 turn_id=getattr(state, "turns", len(self.turn_logs)),
                 needs=pre_needs,

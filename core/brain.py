@@ -922,7 +922,6 @@ class DriftBrain(_BrainGenerationMixin):
 
         gate_result = self._cognitive_governor.apply(prev_energy, turn=self.turns)
         max_tokens = gate_result.max_tokens
-        gate_applied = gate_result.gate_applied
 
         primary_text = ""
         try:
@@ -1057,7 +1056,6 @@ class DriftBrain(_BrainGenerationMixin):
 
             # DRIFT V2 — update homeostasis needs with timing and response length
             new_energy = prev_energy
-            delta_energy = 0.0
             from drift.core.homeostasis import get_homeostasis
 
             homeo = get_homeostasis()
@@ -1080,7 +1078,6 @@ class DriftBrain(_BrainGenerationMixin):
                     gate_result=gate_result,
                 )
                 new_energy = turn_record.new_energy
-                delta_energy = turn_record.delta_energy
 
                 # Sync new energy with homeostasis system
                 homeo.update_need("energy", being.state.energy)
@@ -1192,7 +1189,6 @@ class DriftBrain(_BrainGenerationMixin):
 
         gate_result = self._cognitive_governor.apply(prev_energy, turn=self.turns)
         max_tokens = gate_result.max_tokens
-        gate_applied = gate_result.gate_applied
 
         primary_text = ""
         try:
@@ -1293,7 +1289,6 @@ class DriftBrain(_BrainGenerationMixin):
 
             # DRIFT V2 — update homeostasis needs with timing and response length
             new_energy = prev_energy
-            delta_energy = 0.0
             from drift.core.homeostasis import get_homeostasis
 
             homeo = get_homeostasis()
@@ -1316,7 +1311,6 @@ class DriftBrain(_BrainGenerationMixin):
                     gate_result=gate_result,
                 )
                 new_energy = turn_record.new_energy
-                delta_energy = turn_record.delta_energy
 
                 # Sync new energy with homeostasis system
                 homeo.update_need("energy", being.state.energy)

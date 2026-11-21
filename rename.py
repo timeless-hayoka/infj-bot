@@ -1,5 +1,3 @@
-import os
-import glob
 from pathlib import Path
 
 repo_dir = Path("/home/crexs/drift")

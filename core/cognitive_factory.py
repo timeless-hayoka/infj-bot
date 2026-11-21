@@ -158,7 +158,7 @@ class CognitiveFactory:
                 "methods": ["detect_milestone", "generate_celebration"],
             },
         ]
-    
+
         self._init_db()
 
     def _init_db(self) -> None:

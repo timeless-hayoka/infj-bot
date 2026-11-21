@@ -316,9 +316,14 @@ class _StaleOrchestrator:
 
 def run_selftest() -> int:
     global build_orchestrator, assemble, current_directive_text
+
     # point the seams at the fakes
-    current_directive_text = lambda store, key: store.get_promoted_directives().get(key)
-    assemble = lambda o, ui: o.assemble_prompt(ui)
+    def current_directive_text(store, key):
+        return store.get_promoted_directives().get(key)
+
+    def assemble(orchestrator, user_input):
+        return orchestrator.assemble_prompt(user_input)
+
     tmp = tempfile.mkdtemp(prefix="pref_selftest_")
     log = os.path.join(tmp, "selftest.jsonl")
     try:

@@ -2,7 +2,6 @@ import random
 
 
 def build_state(condition, pedi, dii, homeostasis):
-
     state = {"PEDI_VECTOR": pedi, "DII_SCORE": dii, "HOMEOSTASIS": homeostasis}
 
     if condition["pedi"] is None:

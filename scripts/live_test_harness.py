@@ -154,7 +154,6 @@ def analyze_telemetry(results_dir: Path) -> dict:
         return {"error": "turns logged but no TURN events found"}
 
     drains = [t["delta_energy"] for t in turns]
-    response_lens = [t["response_len"] for t in turns]
     modes_seen = list(dict.fromkeys(t["energy_mode"] for t in turns))  # ordered unique
     gated = [t for t in turns if t["gate_applied"]]
 
@@ -278,7 +277,6 @@ def run_monitor() -> None:
         if e.get("event") == "TURN":
             gate = "🔴 GATE" if e["gate_applied"] else "🟢 free"
             dii = e.get("state", {}).get("dii", "?")
-            energy = e.get("new_energy", e.get("energy_snapshot", "?"))
             print(
                 f"turn {e['turn']:3d} | {e['energy_mode']:10} | {gate} | "
                 f"max={e['max_tokens']:4d} | drain={e['delta_energy']:+.6f} | "
@@ -329,7 +327,7 @@ def main() -> None:
 
     # --- Snapshot ---
     print(f"\n[2/5] SNAPSHOTTING STATE → {backup_dir}")
-    snap = snapshot_state(backup_dir, state_paths)
+    snapshot_state(backup_dir, state_paths)
     pre_counts_file = backup_dir / "pre_test_telemetry_counts.json"
     pre_counts = json.loads(pre_counts_file.read_text())
 
