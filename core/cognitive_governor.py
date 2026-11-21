@@ -362,7 +362,8 @@ def verify_beta_recovery():
             turn = 1
             gate_applied = False
             energy_mode = "NORMAL"
-            interventions = []
+            def __init__(self):
+                self.interventions = []
 
         # Test 1: Heavy turn (no recovery)
         r_heavy = gov.record_turn(
