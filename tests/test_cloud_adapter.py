@@ -1,9 +1,9 @@
 """Security and production-path tests for the read-only DRIFT cloud adapter."""
 
 import pytest
-from fastapi.testclient import TestClient
 
 from drift.core.cloud_adapter import create_app
+from fastapi.testclient import TestClient
 
 
 def test_missing_token_configuration_fails_closed(monkeypatch):
