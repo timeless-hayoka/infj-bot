@@ -149,7 +149,7 @@ def _run_shell(
         return 127, "", f"Command not found: {cmd[0]}"
     except subprocess.TimeoutExpired:
         return -1, "", "Command timed out"
-    except Exception as exc:
+    except (OSError, subprocess.SubprocessError) as exc:
         return -1, "", str(exc)
 
 
@@ -171,14 +171,14 @@ def _get_hardware_diag() -> Dict[str, Any]:
             mem_total = next((ln for ln in lines if ln.startswith("MemTotal:")), None)
             if mem_total:
                 diag["memory_total_mb"] = int(mem_total.split()[1]) // 1024
-    except Exception:
+    except (OSError, ValueError, IndexError, StopIteration):
         diag["memory_total_mb"] = "unknown"
     # Disk info for the drive Mouse lives on
     try:
         st = os.statvfs(EXECUTABLE_DIR)
         diag["disk_free_gb"] = round((st.f_bavail * st.f_frsize) / (1024**3), 2)
         diag["disk_total_gb"] = round((st.f_blocks * st.f_frsize) / (1024**3), 2)
-    except Exception:
+    except OSError:
         diag["disk_free_gb"] = "unknown"
     return diag
 
