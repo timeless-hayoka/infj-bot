@@ -40,6 +40,44 @@ def cmd_tui(_args):
 
 
 def cmd_ask(args):
+    prompt = " ".join(args.prompt).strip()
+    if not prompt:
+        print(
+            "Give me something to ask. Example: drift ask what should I focus on today?"
+        )
+        return 2
+
+    feedback_file = getattr(args, "rcce_feedback", None)
+    feedback_profile = getattr(args, "rcce_profile", None)
+    feedback_context = getattr(args, "rcce_context", None)
+    feedback_scope = getattr(args, "rcce_scope", None)
+    pilot_guidance = None
+    if any((feedback_file, feedback_profile, feedback_context, feedback_scope)):
+        if not all((feedback_file, feedback_profile, feedback_context)):
+            print(
+                "RCCE pilot requires --rcce-feedback, --rcce-profile, and --rcce-context.",
+                file=sys.stderr,
+            )
+            return 2
+        from pathlib import Path
+
+        from drift.core.rcce_feedback import load_pilot_preference
+
+        try:
+            pilot_guidance = load_pilot_preference(
+                Path(feedback_file),
+                feedback_profile,
+                feedback_context,
+                feedback_scope or "default",
+            )
+        except (OSError, ValueError) as exc:
+            print(
+                f"RCCE feedback unavailable ({type(exc).__name__}). See docs/RCCE_OPT_IN_PILOT.md.",
+                file=sys.stderr,
+            )
+            return 2
+
+    tools_enabled = not args.no_tools and pilot_guidance is None
     from drift.core.brain import DriftBrain
     from drift.core.commands import BotState
     from drift.core.history import ChatHistory
@@ -47,13 +85,6 @@ def cmd_ask(args):
     from drift.core.prompt_builder import build_chat_prompt
     from drift.core.plugins.goals import GoalsDB
     from drift.core.plugins.documents import DocumentStore
-
-    prompt = " ".join(args.prompt).strip()
-    if not prompt:
-        print(
-            "Give me something to ask. Example: drift ask what should I focus on today?"
-        )
-        return 2
 
     from drift.core.config import DEFAULT_AUTHORIZED_TARGETS
 
@@ -127,7 +158,7 @@ def cmd_ask(args):
             memory,
             goals_db=goals_db,
             doc_store=doc_store,
-            tools_enabled=not args.no_tools,
+            tools_enabled=tools_enabled,
             prefs=state.prefs,
         )
     except Exception as exc:
@@ -141,19 +172,22 @@ def cmd_ask(args):
         return 1
 
     try:
+        if pilot_guidance is not None:
+            built_prompt = f"{pilot_guidance}\n\n{built_prompt}"
         output = brain.agent_turn(
-            built_prompt, tools_enabled=not args.no_tools, raw_user_input=prompt
+            built_prompt, tools_enabled=tools_enabled, raw_user_input=prompt
         )
-        try:
-            brain.evaluate_last(built_prompt, output)
-        except Exception:
-            pass
+        if pilot_guidance is None:
+            try:
+                brain.evaluate_last(built_prompt, output)
+            except Exception:
+                pass
     except Exception as exc:
         print(f"Error generating response: {exc}")
         return 1
     print(output)
 
-    if not args.no_save:
+    if not args.no_save and pilot_guidance is None:
         importance = min(
             0.95, 0.45 + emotion["intensity"] * 0.3 + dissonance["score"] * 0.15
         )
@@ -320,6 +354,16 @@ def build_parser():
     )
     ask.add_argument(
         "--no-tools", action="store_true", help="Disable tool-use for this one-shot."
+    )
+    ask.add_argument(
+        "--rcce-feedback",
+        metavar="FILE",
+        help="Opt in using a local JSON feedback file.",
+    )
+    ask.add_argument("--rcce-profile", help="Profile identifier in the feedback file.")
+    ask.add_argument("--rcce-context", help="Decision context in the feedback file.")
+    ask.add_argument(
+        "--rcce-scope", help="Exception scope for this request. Defaults to default."
     )
     ask.add_argument("prompt", nargs=argparse.REMAINDER)
     ask.set_defaults(func=cmd_ask)
