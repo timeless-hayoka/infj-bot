@@ -1,4 +1,3 @@
-from typing import ClassVar
 #!/usr/bin/env python3
 """Generate a real baseline evaluation report from DRIFT's current stored state.
 
@@ -14,7 +13,7 @@ import sys
 from collections import Counter
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import ClassVar, Dict, List, Tuple
 
 PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
