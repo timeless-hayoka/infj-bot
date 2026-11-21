@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Standalone correctness and adversarial tests for ``drift.core.safe_math``."""
 
 from __future__ import annotations
@@ -13,7 +12,6 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from drift.core import safe_math as math
-
 
 ARITHMETIC_CASES = [
     ("2+2", "4"),
@@ -115,7 +113,7 @@ def run_suite(*, verbose: bool = True) -> dict:
         nonlocal leaked_exceptions
         try:
             return math.compute(expression)
-        except Exception as exc:  # a public exception is itself a test failure
+        except Exception as exc:  # noqa: BLE001 - all public exceptions are test failures
             leaked_exceptions += 1
             failures.append(
                 f"public exception for {expression!r}: {type(exc).__name__}: {exc}"
@@ -162,7 +160,7 @@ def run_suite(*, verbose: bool = True) -> dict:
             pass
         else:
             failures.append("invalid solve_for was accepted")
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - all public exceptions are test failures
         failures.append(f"direct API contract failed: {type(exc).__name__}: {exc}")
 
     if not math.looks_like_math("please compute 2 + 2"):
