@@ -1,0 +1,44 @@
+name: RCCE-1 simulated partner-state pilot
+
+on:
+  push:
+    branches:
+      - research/rcce-1-strategy-transfer
+    paths:
+      - 'tests/rcce_partner_pilot.py'
+      - 'tests/test_rcce_partner_pilot.py'
+      - '.github/workflows/rcce-partner-pilot.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  partner-state:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pilot dependencies
+        run: |
+          python -m pip install 'google-genai==1.75.0' 'pytest>=9,<10' 'huggingface-hub>=0.30' 'requests>=2.31' 'numpy>=2.0'
+          python -m pip install --no-deps -e .
+      - name: Verify offline protocol and restart regression
+        run: python -m pytest -q tests/test_rcce_partner_pilot.py tests/test_rcce_process_restart.py tests/test_rcce_strict_brain.py
+      - name: Run the live partner-state pilot
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINIAPIKEY }}
+          DRIFT_PRIMARY_MODEL: gemini-3.5-flash-lite
+          DRIFT_USE_GROQ: 'false'
+        run: python tests/rcce_partner_pilot.py evaluate "$RUNNER_TEMP/rcce-partners" rcce-partner-evidence.json
+      - name: Upload full or partial run evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rcce-partner-evidence
+          path: rcce-partner-evidence.json
+          if-no-files-found: warn
+          retention-days: 30
