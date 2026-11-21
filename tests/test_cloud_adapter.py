@@ -67,22 +67,28 @@ def test_memory_search_rejects_invalid_input_and_unauthorized_calls(monkeypatch)
 
 
 def test_persisted_memory_survives_restart_through_http(tmp_path, monkeypatch):
-    """Use actual SQLite/Chroma-backed memory and production MCP search, no search stub."""
+    """Exercise real persistent storage through the production MCP search path."""
     from drift.core import embeddings, mcp_server
     from drift.core.memory import DriftMemory
 
     # Exercise real storage and retrieval with deterministic offline embeddings.
-    monkeypatch.setattr(embeddings, "_global_embedding_function", embeddings.LocalEmbeddingFunction())
+    monkeypatch.setattr(
+        embeddings, "_global_embedding_function", embeddings.LocalEmbeddingFunction()
+    )
     monkeypatch.setenv("DRIFT_PLUGIN_TOKEN", "test-secret-long-enough")
     original_memory = mcp_server.memory
     try:
-        first = DriftMemory(persist_directory=str(tmp_path / "isolated_memory"), use_semantic=False)
+        first = DriftMemory(
+            persist_directory=str(tmp_path / "isolated_memory"), use_semantic=False
+        )
         first.save_interaction_sync(
             "persistent recovery marker cobalt-heron-427",
             "The recovery evidence is stored.",
         )
         mcp_server.memory = None
-        reopened = DriftMemory(persist_directory=str(tmp_path / "isolated_memory"), use_semantic=False)
+        reopened = DriftMemory(
+            persist_directory=str(tmp_path / "isolated_memory"), use_semantic=False
+        )
         mcp_server.memory = reopened
         client = TestClient(create_app())
         response = client.post(
