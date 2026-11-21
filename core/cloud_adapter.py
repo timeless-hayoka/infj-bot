@@ -41,7 +41,7 @@ def create_app() -> FastAPI:
 
         try:
             result = production_memory_search(body.query, n_results=body.limit)
-        except Exception:
+        except Exception:  # noqa: BLE001 - boundary must sanitize unexpected storage failures
             # Fail closed: never expose storage paths, credentials or stack traces.
             raise HTTPException(status_code=503, detail="DRIFT memory unavailable") from None
         return {"result": result}
