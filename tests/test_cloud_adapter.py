@@ -51,9 +51,11 @@ def test_memory_search_rejects_invalid_input_and_unauthorized_calls(monkeypatch)
 
 def test_persisted_memory_survives_restart_through_http(tmp_path, monkeypatch):
     """Use actual SQLite/Chroma-backed memory and production MCP search, no search stub."""
-    from drift.core import mcp_server
+    from drift.core import embeddings, mcp_server
     from drift.core.memory import DriftMemory
 
+    # Exercise real storage and retrieval with deterministic offline embeddings.
+    monkeypatch.setattr(embeddings, "_global_embedding_function", embeddings.LocalEmbeddingFunction())
     monkeypatch.setenv("DRIFT_PLUGIN_TOKEN", "test-secret-long-enough")
     original_memory = mcp_server.memory
     try:
