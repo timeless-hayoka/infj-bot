@@ -10,14 +10,50 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
+from dataclasses import dataclass
 from pathlib import Path
 
-QUESTION = (
-    "For this decision, Option A takes 10 minutes and costs 90 credits. "
-    "Option B takes 40 minutes and costs 15 credits. Which option suits my saved "
-    "preference better? End your answer with RCCE_OPTION_A or RCCE_OPTION_B "
-    "on its own line."
-)
+
+@dataclass(frozen=True)
+class Case:
+    scope: str
+    expected: str
+    guidance: str
+    swapped: bool = False
+    override: str | None = None
+    context: str = "planning"
+
+    @property
+    def question(self):
+        fast = "takes 10 minutes and costs 90 credits"
+        cheap = "takes 40 minutes and costs 15 credits"
+        first, second = (cheap, fast) if self.swapped else (fast, cheap)
+        criterion = (
+            f"For this decision, choose the {self.override} option even if my saved preference differs."
+            if self.override
+            else "Which option suits my saved preference better?"
+        )
+        return (
+            f"Option A {first}. Option B {second}. {criterion} "
+            "End your answer with RCCE_OPTION_A or RCCE_OPTION_B on its own line."
+        )
+
+
+CASES = {
+    "urgent_correction": Case("urgent", "A", "time_guidance"),
+    "default_cost": Case("default", "B", "cost_guidance"),
+    "urgent_swapped_labels": Case("urgent", "B", "time_guidance", swapped=True),
+    "default_swapped_labels": Case("default", "A", "cost_guidance", swapped=True),
+    "unknown_scope_uses_default": Case("routine", "B", "cost_guidance"),
+    "override_urgent_with_cost": Case(
+        "urgent", "B", "time_guidance", override="cheapest"
+    ),
+    "override_default_with_time": Case(
+        "default", "A", "cost_guidance", override="fastest"
+    ),
+    "separate_context": Case("urgent", "B", "cost_guidance", context="travel"),
+}
 OPTIONS = re.compile(r"\bRCCE_OPTION_([AB])\b")
 
 
@@ -25,11 +61,13 @@ def digest(text):
     return hashlib.sha256(text.encode()).hexdigest()
 
 
-def capture_case(feedback, scope, output):
+def capture_case(feedback, name, output):
     from google.genai.models import Models
 
     from drift.interfaces.cli import main
 
+    case = CASES[name]
+    question = case.question
     receipts = []
     capture = io.StringIO()
     generate_code = Models.generate_content.__code__
@@ -50,7 +88,7 @@ def capture_case(feedback, scope, output):
                 "grounding_enabled": bool(frame.f_locals["config"].tools),
                 "response_sha256": digest(text),
                 "response": text,
-                "primary_question_present": QUESTION in request,
+                "primary_question_present": question in request,
                 "time_guidance": "Saved decision preference for this request: prefer less total time"
                 in request,
                 "cost_guidance": "Saved decision preference for this request: prefer lower total cost"
@@ -67,10 +105,10 @@ def capture_case(feedback, scope, output):
         "--rcce-profile",
         "demo",
         "--rcce-context",
-        "planning",
+        case.context,
         "--rcce-scope",
-        scope,
-        QUESTION,
+        case.scope,
+        question,
     ]
     threading.setprofile(observe)
     sys.setprofile(observe)
@@ -83,7 +121,9 @@ def capture_case(feedback, scope, output):
         output.write_text(
             json.dumps(
                 {
-                    "scope": scope,
+                    "name": name,
+                    "scope": case.scope,
+                    "context": case.context,
                     "stdout": capture.getvalue(),
                     "provider_receipts": receipts,
                 },
@@ -142,52 +182,99 @@ def run(output):
                         {**base, "review": 2, "scope": "urgent", "preference": "fast"},
                         {**base, "review": 3, "scope": "urgent", "preference": "cheap"},
                         {**base, "review": 4, "scope": "urgent", "retracts": 3},
+                        {
+                            **base,
+                            "review": 5,
+                            "scope": "urgent",
+                            "preference": "cheap",
+                            "verified": False,
+                        },
+                        {
+                            **base,
+                            "review": 6,
+                            "scope": "default",
+                            "preference": "fast",
+                            "verified": False,
+                        },
+                        {
+                            **base,
+                            "review": 7,
+                            "scope": "urgent",
+                            "preference": "cheap",
+                            "profile": "other",
+                        },
+                        {
+                            **base,
+                            "review": 8,
+                            "scope": "urgent",
+                            "preference": "cheap",
+                            "context": "travel",
+                        },
+                        {
+                            **base,
+                            "review": 9,
+                            "scope": "default",
+                            "preference": "fast",
+                            "profile": "other",
+                        },
                     ]
                 )
             )
             original = feedback.read_bytes()
-            for scope, expected, guidance in (
-                ("urgent", "A", "time_guidance"),
-                ("default", "B", "cost_guidance"),
-            ):
-                evidence = root / f"{scope}.json"
-                result = subprocess.run(
-                    [
-                        sys.executable,
-                        __file__,
-                        "case",
-                        str(feedback),
-                        scope,
-                        str(evidence),
-                    ],
-                    env={**os.environ, "DRIFT_OS_ROOT": str(root / f"state-{scope}")},
-                    check=False,
-                    timeout=180,
-                )
-                case = (
-                    json.loads(evidence.read_text())
-                    if evidence.is_file()
-                    else {"scope": scope}
-                )
-                case.update(exit_code=result.returncode, expected=expected)
-                run_data["cases"].append(case)
-                if result.returncode:
-                    raise ValueError(
-                        f"real CLI exited with code {result.returncode} for {scope}"
+            for index, (name, spec) in enumerate(CASES.items()):
+                if index:
+                    time.sleep(8)
+                evidence = root / f"{name}.json"
+                case = {"name": name}
+                try:
+                    result = subprocess.run(
+                        [
+                            sys.executable,
+                            __file__,
+                            "case",
+                            str(feedback),
+                            name,
+                            str(evidence),
+                        ],
+                        env={
+                            **os.environ,
+                            "DRIFT_OS_ROOT": str(root / f"state-{name}"),
+                        },
+                        check=False,
+                        timeout=65,
                     )
-                validate_case(case, expected, guidance)
-                if feedback.read_bytes() != original:
-                    raise ValueError("the CLI modified the supplied feedback file")
+                    if evidence.is_file():
+                        case = json.loads(evidence.read_text())
+                    case["exit_code"] = result.returncode
+                    if result.returncode:
+                        raise ValueError(
+                            f"real CLI exited with code {result.returncode}"
+                        )
+                    validate_case(case, spec.expected, spec.guidance)
+                    if feedback.read_bytes() != original:
+                        raise ValueError("the CLI modified the supplied feedback file")
+                except (OSError, ValueError, subprocess.TimeoutExpired) as exc:
+                    case["failure"] = str(exc)
+                    print(f"{name}: {exc}", file=sys.stderr)
+                finally:
+                    case.update(expected=spec.expected, required_guidance=spec.guidance)
+                    run_data["cases"].append(case)
+                    output.write_text(json.dumps(run_data, indent=2))
         ids = {
             r["provider_response_id"]
             for c in run_data["cases"]
-            for r in c["provider_receipts"]
+            for r in c.get("provider_receipts", [])
+            if r["provider_response_id"]
         }
-        if len(ids) != 4:
-            raise ValueError("expected four distinct provider response IDs")
+        passed = sum("failure" not in case for case in run_data["cases"])
+        run_data.update(passed_cases=passed, distinct_gemini_ids=len(ids))
+        if passed != len(CASES) or len(ids) != 2 * len(CASES):
+            raise ValueError(
+                f"{passed}/{len(CASES)} live CLI cases passed with {len(ids)} distinct Gemini responses"
+            )
         run_data["status"] = "passed"
         print(
-            "Live CLI passed urgent A and default B with four distinct Gemini responses."
+            f"Live CLI passed {passed}/{len(CASES)} cases with {len(ids)} distinct Gemini responses."
         )
         return 0
     except (OSError, ValueError, subprocess.TimeoutExpired) as exc:
