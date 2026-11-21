@@ -37,9 +37,9 @@ def create_app() -> FastAPI:
     @app.post("/memory/search", dependencies=[Depends(authenticate)])
     def memory_search(body: MemoryQuery) -> dict[str, str]:
         # Import only on use: no substitute memory store or synthetic response.
-        from drift.core.mcp_server import memory_search as production_memory_search
-
         try:
+            from drift.core.mcp_server import memory_search as production_memory_search
+
             result = production_memory_search(body.query, n_results=body.limit)
         except Exception:  # noqa: BLE001 - boundary must sanitize unexpected storage failures
             # Fail closed: never expose storage paths, credentials or stack traces.
