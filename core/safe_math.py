@@ -360,7 +360,7 @@ def _run_with_timeout(function: Callable[[], _T]) -> _T:
     def worker() -> None:
         try:
             outcome.put((True, function()))
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - worker must relay all failures
             outcome.put((False, exc))
         finally:
             _SYMBOLIC_SLOTS.release()
@@ -443,5 +443,5 @@ def compute(text: str) -> dict:
         }
     except MathError as exc:
         return {"ok": False, "reason": str(exc), "input": original}
-    except Exception:
+    except Exception:  # noqa: BLE001 - public math API must never leak exceptions
         return {"ok": False, "reason": "computation failed safely", "input": original}
