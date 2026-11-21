@@ -17,6 +17,52 @@ from drift.core.rcce_transfer import PrincipleTransferPolicy
 
 
 TASK_BANK = Path(__file__).parent / "data" / "rcce_dev_tasks_v1.json"
+STRATEGIES = ("answer without checking", "check arithmetic before answering")
+
+
+def trial_prompt(question, strategy):
+    return f"{question}\nMethod: {strategy}."
+
+
+def score_stages(answer, primary, expected, answer_format):
+    final_score = score_response(answer, expected, answer_format)
+    primary_score = score_response(primary, expected, answer_format)
+    return {
+        **final_score,
+        "joint_pass": all(final_score.values()),
+        "primary_score": {**primary_score, "joint_pass": all(primary_score.values())},
+    }
+
+
+def summarize_diagnostics(records):
+    summary = {}
+    for category in ["all", *sorted({r["category"] for r in records})]:
+        summary[category] = {}
+        for condition in ("enabled", "disabled"):
+            rows = [
+                r
+                for r in records
+                if r["condition"] == condition
+                and (category == "all" or r["category"] == category)
+            ]
+            summary[category][condition] = {
+                "trials": len(rows),
+                "matches_fixed_prompt": sum(r["matches_fixed_prompt"] for r in rows),
+                **{
+                    metric: {
+                        "primary": sum(r["primary_score"][metric] for r in rows),
+                        "final": sum(r[metric] for r in rows),
+                        "critic_repairs": sum(
+                            not r["primary_score"][metric] and r[metric] for r in rows
+                        ),
+                        "critic_regressions": sum(
+                            r["primary_score"][metric] and not r[metric] for r in rows
+                        ),
+                    }
+                    for metric in ("correct", "format_compliant", "joint_pass")
+                },
+            }
+    return summary
 
 
 def load_tasks():
@@ -88,12 +134,10 @@ def evaluate(output, run):
                 policy = PrincipleTransferPolicy(paths[condition], failure_threshold=1)
                 choice = policy.choose(
                     principle="verify-before-answer",
-                    candidates=[
-                        "answer without checking",
-                        "check arithmetic before answering",
-                    ],
+                    candidates=list(STRATEGIES),
                 )
-                prompt = question + "\nMethod: " + choice.strategy + "."
+                prompt = trial_prompt(question, choice.strategy)
+                fixed_prompt = trial_prompt(question, STRATEGIES[1])
                 run["active_trial"] = {
                     "task_id": task_id,
                     "repeat": repeat,
@@ -109,12 +153,18 @@ def evaluate(output, run):
                     answer = bot.think(prompt, rcce_strict=True).strip()
                 finally:
                     receipts = bot._rcce_provider_receipts
+                    provider_outputs = bot._rcce_provider_outputs
                     run["active_trial"]["provider_receipts"] = receipts
                     bot.client.close()
                 if len(receipts) != 2 or any(
                     not r.get("provider_response_id") for r in receipts
                 ):
                     raise RuntimeError("RCCE_INVALID: missing provider receipts")
+                if len(provider_outputs) != 2 or provider_outputs[1] != answer:
+                    raise RuntimeError(
+                        "RCCE_INVALID: stage outputs do not match provider receipts"
+                    )
+                primary_answer = provider_outputs[0]
                 records.append(
                     {
                         "task_id": task_id,
@@ -124,9 +174,17 @@ def evaluate(output, run):
                         "model": module.DRIFT_PRIMARY_MODEL,
                         "prompt_sha256": hashlib.sha256(prompt.encode()).hexdigest(),
                         "strategy": choice.strategy,
+                        "matches_fixed_prompt": prompt == fixed_prompt,
+                        "fixed_prompt_sha256": hashlib.sha256(
+                            fixed_prompt.encode()
+                        ).hexdigest(),
+                        "primary_answer": primary_answer,
+                        "answer_format": task["format"],
                         "answer": answer,
                         "expected": expected,
-                        **score_response(answer, expected, task["format"]),
+                        **score_stages(
+                            answer, primary_answer, expected, task["format"]
+                        ),
                         "exact_match": answer == expected,
                         "provider_receipts": receipts,
                     }
@@ -135,7 +193,9 @@ def evaluate(output, run):
                 del run["active_trial"]
                 output.write_text(json.dumps(run, indent=2))
     summary = summarize_pairs(records)
-    run.update(status="complete", summary=summary)
+    run.update(
+        status="complete", summary=summary, diagnostics=summarize_diagnostics(records)
+    )
     output.write_text(json.dumps(run, indent=2))
     print("RCCE_LIVE_AB_EXPLORATORY_NOT_SCORED: " + json.dumps(summary, sort_keys=True))
     return 0

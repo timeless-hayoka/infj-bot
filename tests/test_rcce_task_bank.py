@@ -67,3 +67,23 @@ def test_failed_live_trial_keeps_provider_status_without_raw_error(
     assert evidence["status"] == "failed"
     assert evidence["provider_http_status"] == 429
     assert evidence["active_trial"]["task_id"] == "test"
+
+
+def test_stage_diagnostics_separate_critic_regression_from_primary_failure():
+    from rcce_live_ab_exploratory import score_stages, summarize_diagnostics
+
+    row = {
+        "category": "instruction_following",
+        "condition": "enabled",
+        "matches_fixed_prompt": True,
+        **score_stages("The answer is 7.", '{"answer": 7}', "7", "json_integer"),
+    }
+
+    summary = summarize_diagnostics([row])["all"]["enabled"]
+    assert summary["matches_fixed_prompt"] == 1
+    assert summary["joint_pass"] == {
+        "primary": 1,
+        "final": 0,
+        "critic_repairs": 0,
+        "critic_regressions": 1,
+    }

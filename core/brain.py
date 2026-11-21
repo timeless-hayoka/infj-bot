@@ -680,6 +680,10 @@ class DriftBrain(_BrainGenerationMixin):
             "response_sha256": hashlib.sha256(output.encode("utf-8")).hexdigest(),
             "response_length": len(output),
         }
+        self._rcce_provider_outputs = [
+            *getattr(self, "_rcce_provider_outputs", []),
+            output,
+        ]
         self._rcce_provider_receipts = [
             *getattr(self, "_rcce_provider_receipts", []),
             receipt,
@@ -689,6 +693,7 @@ class DriftBrain(_BrainGenerationMixin):
     def think(self, user_input, raw_user_input=None, mode=None, *, rcce_strict=False):
         if rcce_strict:
             self._rcce_provider_receipts = []
+            self._rcce_provider_outputs = []
         if rcce_strict and self.sdk != "google.genai":
             raise RuntimeError("RCCE_INVALID: official Google SDK required")
         sec = self._enhanced_security_check(user_input, raw_user_input, mode=mode)
