@@ -1,0 +1,43 @@
+name: RCCE-1 matched-history budget study
+
+on:
+  push:
+    branches:
+      - research/rcce-1-strategy-transfer
+    paths:
+      - 'tests/rcce_budget_study.py'
+      - 'tests/test_rcce_budget_study.py'
+      - '.github/workflows/rcce-budget-study.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  budget-study:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pilot dependencies
+        run: |
+          python -m pip install 'google-genai==1.75.0' 'pytest>=9,<10' 'huggingface-hub>=0.30' 'requests>=2.31' 'numpy>=2.0'
+          python -m pip install --no-deps -e .
+      - name: Verify offline protocol and restart regression
+        run: python -m pytest -q tests/test_rcce_budget_study.py tests/test_rcce_process_restart.py tests/test_rcce_strict_brain.py
+      - name: Run the live budget-study pilot
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINIAPIKEY }}
+          DRIFT_PRIMARY_MODEL: gemini-3.5-flash-lite
+        run: python tests/rcce_budget_study.py evaluate "$RUNNER_TEMP/rcce-budget-history" rcce-budget-evidence.json
+      - name: Upload full or partial run evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rcce-budget-evidence
+          path: rcce-budget-evidence.json
+          if-no-files-found: warn
+          retention-days: 30
