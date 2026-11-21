@@ -1,3 +1,4 @@
+from typing import ClassVar
 #!/usr/bin/env python3
 """Generate a real baseline evaluation report from DRIFT's current stored state.
 
@@ -95,7 +96,7 @@ def load_memory_stats(logs: List[Dict]) -> Dict:
 class RealConsistencyEvaluator:
     """Evaluate consistency using actual history.jsonl + DB state."""
 
-    EMOTIONAL_TRIGGERS = [
+    EMOTIONAL_TRIGGERS: ClassVar[list[str]] = [
         "stress",
         "happy",
         "sad",
@@ -134,7 +135,7 @@ class RealConsistencyEvaluator:
         "build",
     ]
 
-    CONTRADICTION_MARKERS = [
+    CONTRADICTION_MARKERS: ClassVar[list[str]] = [
         "i don't care",
         "not important",
         "doesn't matter",
