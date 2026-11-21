@@ -15,8 +15,13 @@ def test_health_requires_authentication(monkeypatch):
     monkeypatch.setenv("DRIFT_PLUGIN_TOKEN", "test-secret-long-enough")
     client = TestClient(create_app())
     assert client.get("/health").status_code == 401
-    assert client.get("/health", headers={"Authorization": "Bearer wrong"}).status_code == 401
-    response = client.get("/health", headers={"Authorization": "Bearer test-secret-long-enough"})
+    assert (
+        client.get("/health", headers={"Authorization": "Bearer wrong"}).status_code
+        == 401
+    )
+    response = client.get(
+        "/health", headers={"Authorization": "Bearer test-secret-long-enough"}
+    )
     assert response.status_code == 200
     assert response.json()["status"] == "ready"
 
@@ -34,7 +39,9 @@ def test_memory_search_reaches_real_production_function(monkeypatch):
     monkeypatch.setattr(mcp_server, "memory_search", production_search)
     client = TestClient(create_app())
     headers = {"Authorization": "Bearer test-secret-long-enough"}
-    response = client.post("/memory/search", json={"query": "recovery", "limit": 3}, headers=headers)
+    response = client.post(
+        "/memory/search", json={"query": "recovery", "limit": 3}, headers=headers
+    )
     assert response.status_code == 200
     assert response.json() == {"result": "[memory]\nVerified result"}
     assert observed == [("recovery", 3)]
@@ -45,8 +52,18 @@ def test_memory_search_rejects_invalid_input_and_unauthorized_calls(monkeypatch)
     client = TestClient(create_app())
     assert client.post("/memory/search", json={"query": "private"}).status_code == 401
     headers = {"Authorization": "Bearer test-secret-long-enough"}
-    assert client.post("/memory/search", json={"query": "", "limit": 2}, headers=headers).status_code == 422
-    assert client.post("/memory/search", json={"query": "x", "limit": 100}, headers=headers).status_code == 422
+    assert (
+        client.post(
+            "/memory/search", json={"query": "", "limit": 2}, headers=headers
+        ).status_code
+        == 422
+    )
+    assert (
+        client.post(
+            "/memory/search", json={"query": "x", "limit": 100}, headers=headers
+        ).status_code
+        == 422
+    )
 
 
 def test_persisted_memory_survives_restart_through_http(tmp_path, monkeypatch):
