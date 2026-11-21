@@ -362,6 +362,7 @@ def verify_beta_recovery():
             turn = 1
             gate_applied = False
             energy_mode = "NORMAL"
+
             def __init__(self):
                 self.interventions = []
 

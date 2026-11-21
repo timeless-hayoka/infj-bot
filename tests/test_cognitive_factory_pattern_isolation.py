@@ -31,5 +31,7 @@ def test_separate_factory_databases_preserve_independent_proposals(tmp_path):
     proposal = first.propose("I want a gratitude practice")
     assert proposal is not None
     assert proposal.name == "gratitude_journal"
-    assert [item.name for item in first.list_pending_proposals()] == ["gratitude_journal"]
+    assert [item.name for item in first.list_pending_proposals()] == [
+        "gratitude_journal"
+    ]
     assert second.list_pending_proposals() == []

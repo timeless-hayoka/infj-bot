@@ -1,5 +1,4 @@
 def generate(ces):
-
     print("\nFINAL CAUSALITY REPORT")
     print("=" * 40)
 

@@ -96,7 +96,6 @@ class ConflictDetector:
             ("analyze", "feel", "contradiction: analysis vs presence"),
             ("fix", "witness", "contradiction: fixing vs witnessing"),
         ]
-    
 
     def detect(self, sections: Dict[str, List[str]]) -> List[PromptConflict]:
         conflicts = []
@@ -207,7 +206,12 @@ class CognitiveOrchestrator:
     }
 
     # Core modules that should always have prompt space
-    CORE_PROMPT_MODULES: ClassVar[set[str]] = {"being", "emotional_field", "values", "relationship"}
+    CORE_PROMPT_MODULES: ClassVar[set[str]] = {
+        "being",
+        "emotional_field",
+        "values",
+        "relationship",
+    }
 
     def __init__(self):
         self.arch = CognitiveArchitecture()

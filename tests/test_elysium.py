@@ -206,6 +206,7 @@ class TestElysiumEngine:
                     class FakeEntry:
                         unified_id = "1"
                         event = FakeEvent()
+
                         def __init__(self):
                             self.metadata = {
                                 "salience": 0.8,
@@ -213,7 +214,6 @@ class TestElysiumEngine:
                                 "tags": ["shadow"],
                                 "dmu": 0.7,
                             }
-
 
                     return [FakeEntry()]
 
