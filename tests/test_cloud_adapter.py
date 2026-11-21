@@ -1,7 +1,6 @@
 """Security and production-path tests for the read-only DRIFT cloud adapter."""
 
 import pytest
-
 from drift.core.cloud_adapter import create_app
 from fastapi.testclient import TestClient
 
