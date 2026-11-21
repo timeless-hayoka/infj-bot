@@ -78,8 +78,10 @@ def _is_removable_media(path: Path) -> bool:
             fstype = mount.stdout.strip()
             if fstype in ("vfat", "exfat", "ntfs", "fuse"):
                 return True
-    except Exception:
-        pass
+    except (OSError, subprocess.SubprocessError):
+        # Removable-media detection is best-effort; unavailable mount tools
+        # must not prevent MOUSE from starting.
+        return False
     return False
 
 
