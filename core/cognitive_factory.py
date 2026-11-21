@@ -117,47 +117,48 @@ class CognitiveFactory:
     """
 
     # Patterns that suggest the bot might benefit from a new module
-    NEED_PATTERNS: List[Dict] = [
-        {
-            "keyword": "gratitude",
-            "module_name": "gratitude_journal",
-            "description": "Tracks moments of gratitude and thanks.",
-            "methods": ["record_gratitude", "format_gratitude_prompt"],
-        },
-        {
-            "keyword": "humor",
-            "module_name": "humor_sense",
-            "description": "Develops timing and taste for playful responses.",
-            "methods": ["detect_humor_opportunity", "generate_playful_response"],
-        },
-        {
-            "keyword": "story",
-            "module_name": "storyteller",
-            "description": "Builds and recalls ongoing narratives.",
-            "methods": ["continue_narrative", "weave_user_into_story"],
-        },
-        {
-            "keyword": "routine",
-            "module_name": "routine_awareness",
-            "description": "Notices and honors user's daily rhythms.",
-            "methods": ["infer_routine", "honor_routine_transition"],
-        },
-        {
-            "keyword": "boundary",
-            "module_name": "boundary_sense",
-            "description": "Recognizes and respects emotional and conversational boundaries.",
-            "methods": ["detect_boundary_signal", "soften_approach"],
-        },
-        {
-            "keyword": "celebration",
-            "module_name": "celebration_engine",
-            "description": "Marks milestones, wins, and meaningful moments.",
-            "methods": ["detect_milestone", "generate_celebration"],
-        },
-    ]
 
     def __init__(self, db_path: Optional[str] = None):
         self.db_path = db_path or os.path.join("data", "cognitive_factory.db")
+        self.NEED_PATTERNS: List[Dict] = [
+            {
+                "keyword": "gratitude",
+                "module_name": "gratitude_journal",
+                "description": "Tracks moments of gratitude and thanks.",
+                "methods": ["record_gratitude", "format_gratitude_prompt"],
+            },
+            {
+                "keyword": "humor",
+                "module_name": "humor_sense",
+                "description": "Develops timing and taste for playful responses.",
+                "methods": ["detect_humor_opportunity", "generate_playful_response"],
+            },
+            {
+                "keyword": "story",
+                "module_name": "storyteller",
+                "description": "Builds and recalls ongoing narratives.",
+                "methods": ["continue_narrative", "weave_user_into_story"],
+            },
+            {
+                "keyword": "routine",
+                "module_name": "routine_awareness",
+                "description": "Notices and honors user's daily rhythms.",
+                "methods": ["infer_routine", "honor_routine_transition"],
+            },
+            {
+                "keyword": "boundary",
+                "module_name": "boundary_sense",
+                "description": "Recognizes and respects emotional and conversational boundaries.",
+                "methods": ["detect_boundary_signal", "soften_approach"],
+            },
+            {
+                "keyword": "celebration",
+                "module_name": "celebration_engine",
+                "description": "Marks milestones, wins, and meaningful moments.",
+                "methods": ["detect_milestone", "generate_celebration"],
+            },
+        ]
+    
         self._init_db()
 
     def _init_db(self) -> None:

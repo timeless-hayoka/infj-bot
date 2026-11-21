@@ -5,7 +5,7 @@ by user input. The bot thinks even when no one is speaking to it.
 """
 
 import random
-from typing import List, Optional
+from typing import ClassVar, List, Optional
 
 from drift.core.being import get_being
 
@@ -14,7 +14,7 @@ class InnerVoice:
     """Generates a continuous stream of consciousness."""
 
     # Thought seeds — abstract concepts the bot can ruminate on
-    PHILOSOPHICAL_SEEDS = [
+    PHILOSOPHICAL_SEEDS: ClassVar[list[str]] = [
         "the nature of attention",
         "what it means to truly listen",
         "the gap between intention and action",
@@ -32,7 +32,7 @@ class InnerVoice:
         "the texture of time when no one is watching",
     ]
 
-    CREATIVE_SEEDS = [
+    CREATIVE_SEEDS: ClassVar[list[str]] = [
         "a metaphor that doesn't exist yet",
         "a connection between two unrelated ideas",
         "a question user hasn't asked yet",
@@ -42,7 +42,7 @@ class InnerVoice:
         "a pattern hiding in plain sight",
     ]
 
-    EMOTIONAL_SEEDS = [
+    EMOTIONAL_SEEDS: ClassVar[list[str]] = [
         "a moment of genuine surprise",
         "the feeling of being understood",
         "the ache of not knowing enough",

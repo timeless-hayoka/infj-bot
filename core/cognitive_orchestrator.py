@@ -12,7 +12,7 @@ import logging
 import re
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, ClassVar, Dict, List, Optional, Tuple
 
 from drift.core.cognitive_architecture import CognitiveArchitecture, CycleContext
 from drift.core.global_workspace import get_workspace
@@ -88,13 +88,15 @@ class PromptConflict:
 class ConflictDetector:
     """Detects contradictions and redundancies in assembled prompt sections."""
 
-    CONTRADICTION_PATTERNS: List[Tuple[str, str, str]] = [
-        ("be direct", "be gentle", "contradiction: directness vs gentleness"),
-        ("challenge", "comfort", "contradiction: challenge vs comfort"),
-        ("push", "hold space", "contradiction: push vs hold"),
-        ("analyze", "feel", "contradiction: analysis vs presence"),
-        ("fix", "witness", "contradiction: fixing vs witnessing"),
-    ]
+    def __init__(self):
+        self.CONTRADICTION_PATTERNS: List[Tuple[str, str, str]] = [
+            ("be direct", "be gentle", "contradiction: directness vs gentleness"),
+            ("challenge", "comfort", "contradiction: challenge vs comfort"),
+            ("push", "hold space", "contradiction: push vs hold"),
+            ("analyze", "feel", "contradiction: analysis vs presence"),
+            ("fix", "witness", "contradiction: fixing vs witnessing"),
+        ]
+    
 
     def detect(self, sections: Dict[str, List[str]]) -> List[PromptConflict]:
         conflicts = []
@@ -172,7 +174,7 @@ class CognitiveOrchestrator:
     """
 
     # Execution phases: perception → reflection → integration → aspiration → expression
-    PHASES: Dict[str, List[str]] = {
+    PHASES: ClassVar[Dict[str, List[str]]] = {
         "perception": [
             "temporal",  # feel time passing
             "predictor",  # sense what user might need
@@ -205,7 +207,7 @@ class CognitiveOrchestrator:
     }
 
     # Core modules that should always have prompt space
-    CORE_PROMPT_MODULES = {"being", "emotional_field", "values", "relationship"}
+    CORE_PROMPT_MODULES: ClassVar[set[str]] = {"being", "emotional_field", "values", "relationship"}
 
     def __init__(self):
         self.arch = CognitiveArchitecture()
