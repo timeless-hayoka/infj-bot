@@ -94,6 +94,8 @@ def cmd_ask(args):
         authorized_targets=set(DEFAULT_AUTHORIZED_TARGETS),
     )
     brain = DriftBrain()
+    if pilot_guidance is not None:
+        brain.gemini_search_enabled = False
     memory = DriftMemory()
     history = ChatHistory()
 

@@ -290,8 +290,9 @@ class DriftBrain(_BrainGenerationMixin):
         config_kwargs = {
             "temperature": kwargs.get("temperature"),
             "top_p": kwargs.get("top_p"),
-            "tools": [{"google_search": {}}],
         }
+        if getattr(self, "gemini_search_enabled", True):
+            config_kwargs["tools"] = [{"google_search": {}}]
 
         # Support Context Caching for better token usage if passed
         if "cached_content" in kwargs:

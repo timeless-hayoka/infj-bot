@@ -47,6 +47,7 @@ def capture_case(feedback, scope, output):
                 "model_version": result.model_version,
                 "requested_model": frame.f_locals.get("model"),
                 "request_sha256": digest(request),
+                "grounding_enabled": bool(frame.f_locals["config"].tools),
                 "response_sha256": digest(text),
                 "response": text,
                 "primary_question_present": QUESTION in request,
@@ -106,6 +107,8 @@ def validate_case(result, expected, guidance):
         for r in receipts
     ):
         raise ValueError("provider ID or model is missing or mismatched")
+    if any(r.get("grounding_enabled", True) for r in receipts):
+        raise ValueError("the local feedback pilot enabled Gemini Search grounding")
     if (
         not primary[0][guidance]
         or primary[0]["time_guidance"] == primary[0]["cost_guidance"]

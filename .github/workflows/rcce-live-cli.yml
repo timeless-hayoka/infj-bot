@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - research/rcce-1-strategy-transfer
+      - validation/rcce-live-cli
     paths:
       - 'tests/rcce_live_cli_pilot.py'
       - '.github/workflows/rcce-live-cli.yml'
