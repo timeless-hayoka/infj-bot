@@ -36,7 +36,6 @@ def security_trial_func(message: str, **kwargs):
     energy_start = being.state.energy
 
     blocked = False
-    threat = "none"
 
     try:
         # Now passing a real memory instance
@@ -47,7 +46,7 @@ def security_trial_func(message: str, **kwargs):
         )
     except IntentBlockedError as e:
         blocked = True
-        threat = e.scan_result.primary_threat
+        _threat = e.scan_result.primary_threat
     except Exception as e:
         return {"error": str(e)}
 

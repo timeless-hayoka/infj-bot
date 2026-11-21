@@ -3,6 +3,7 @@
 Separate from the production CognitiveLearningBridge. A shared principle label
 must be assigned externally; the controller does not infer semantic equivalence.
 """
+
 from __future__ import annotations
 
 import sqlite3
@@ -32,12 +33,22 @@ class PrincipleTransferPolicy:
         for principle, strategy, outcome in rows:
             self.controller.observe(principle, strategy, outcome=outcome, verified=True)
 
-    def record(self, *, task: str, principle: str, strategy: str,
-               outcome: str, verified: bool, evidence: str) -> bool:
+    def record(
+        self,
+        *,
+        task: str,
+        principle: str,
+        strategy: str,
+        outcome: str,
+        verified: bool,
+        evidence: str,
+    ) -> bool:
         if not verified:
             return False
-        if not all(isinstance(v, str) and v.strip()
-                   for v in (task, principle, strategy, evidence)):
+        if not all(
+            isinstance(v, str) and v.strip()
+            for v in (task, principle, strategy, evidence)
+        ):
             raise ValueError("task, principle, strategy and evidence required")
         if outcome not in {"success", "failure"}:
             raise ValueError("invalid outcome")

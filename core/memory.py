@@ -1,6 +1,7 @@
 import uuid
 import datetime
 import json
+import logging
 import re
 import asyncio
 from pathlib import Path
@@ -13,6 +14,8 @@ from drift.core.embeddings import (
     SemanticEmbeddingFunction,
 )
 from drift.core.unified_memory import MemoryManager, Event
+
+logger = logging.getLogger(__name__)
 
 
 # ── Secret scrubbing ──────────────────────────────────────────────
@@ -370,15 +373,13 @@ class DriftMemory:
                 n_candidates=n_results * 4,
             )
 
-            logger.info(
-                f"[memory] DMU Retrieval: got {len(results)} results for query: {query[:50]}..."
-            )
+            logger.info("[memory] DMU retrieval returned %d results", len(results))
 
             if not results:
                 # Fallback to standard if DMU found nothing
                 standard = self.retrieve_context(query, n_results=n_results)
                 logger.info(
-                    f"[memory] DMU empty, fallback context length: {len(standard)}"
+                    "[memory] DMU empty, fallback context length: %d", len(standard)
                 )
                 return standard
 

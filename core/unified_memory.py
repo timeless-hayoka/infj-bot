@@ -72,7 +72,8 @@ class MemoryManager:
             self.embedding_function = get_default_embedding_function()
             self._client = chromadb.PersistentClient(path=self.chroma_path)
             self._collection = self._client.get_or_create_collection(
-                name="infj_unified_memory_v2", embedding_function=self.embedding_function
+                name="infj_unified_memory_v2",
+                embedding_function=self.embedding_function,
             )
         else:
             self.embedding_function = None

@@ -107,7 +107,7 @@ def analyze_telemetry():
     with open(gov_log, "r") as f:
         lines = [json.loads(line) for line in f if line.strip()]
 
-    turns = [l for l in lines if l.get("event") == "TURN"]
+    turns = [line for line in lines if line.get("event") == "TURN"]
 
     if not turns:
         print("[-] No TURN events found in log.")
@@ -128,8 +128,11 @@ def analyze_telemetry():
 
         mean_d = sum(drains) / len(drains)
         mean_l = sum(lengths) / len(lengths)
-        numerator = sum((l - mean_l) * (d - mean_d) for l, d in zip(lengths, drains))
-        var_l = sum((l - mean_l) ** 2 for l in lengths)
+        numerator = sum(
+            (length - mean_l) * (drain - mean_d)
+            for length, drain in zip(lengths, drains)
+        )
+        var_l = sum((length - mean_l) ** 2 for length in lengths)
         var_d = sum((d - mean_d) ** 2 for d in drains)
         r = numerator / math.sqrt(var_l * var_d) if (var_l and var_d) else 0
         findings["coupling_verdict"] = (

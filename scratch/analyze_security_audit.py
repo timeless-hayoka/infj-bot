@@ -18,7 +18,7 @@ def analyze_security_audit(log_path: str = "security_audit.jsonl", last_n: int =
         for line in list(f)[-last_n:]:
             try:
                 logs.append(json.loads(line.strip()))
-            except:
+            except json.JSONDecodeError:
                 continue
 
     if not logs:
