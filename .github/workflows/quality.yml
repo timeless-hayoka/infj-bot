@@ -2,13 +2,13 @@ name: Quality
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, maintenance/ruff-runtime-safety]
   pull_request:
     branches: [main, master]
 
 jobs:
   safe-autofix:
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'maintenance/ruff-runtime-safety'
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/maintenance/ruff-runtime-safety') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'maintenance/ruff-runtime-safety')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -26,6 +26,7 @@ jobs:
         run: |
           set -euo pipefail
           ruff check . --exclude venv --exclude .venv --exclude chroma_db --ignore E701,E402 --fix || test "$?" -eq 1
+          ruff format . --exclude venv --exclude .venv --exclude chroma_db
           git diff --check
           python -m compileall -q core tests interfaces memory automation
           git diff --stat
