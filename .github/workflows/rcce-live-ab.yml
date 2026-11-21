@@ -12,6 +12,7 @@ on:
       - 'tests/test_rcce_task_bank.py'
       - 'tests/data/rcce_dev_tasks_v1.json'
       - 'core/rcce_scoring.py'
+      - 'core/brain.py'
       - '.github/workflows/rcce-live-ab.yml'
   workflow_dispatch:
 

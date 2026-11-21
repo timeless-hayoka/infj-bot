@@ -657,6 +657,14 @@ class DriftBrain(_BrainGenerationMixin):
             config=genai_types.GenerateContentConfig(
                 system_instruction=system_instruction,
                 temperature=0,
+                http_options=genai_types.HttpOptions(
+                    retry_options=genai_types.HttpRetryOptions(
+                        attempts=5,
+                        initial_delay=8,
+                        max_delay=60,
+                        http_status_codes=[408, 429, 500, 502, 503, 504],
+                    ),
+                ),
             ),
         )
         output = (response.text or "").strip()
@@ -718,7 +726,7 @@ class DriftBrain(_BrainGenerationMixin):
                 )
                 self.history.extend([f"User: {user_input}", f"Bot: {primary_text}"])
                 if len(self.history) > self._max_history:
-                    self.history = self.history[-self._max_history:]
+                    self.history = self.history[-self._max_history :]
             # High-tier logic: Try HF Pro for complex reasoning if enabled
             elif DRIFT_USE_HF and self.hf_bridge.is_available():
                 # Pass conversation history natively via the HF chat API instead
