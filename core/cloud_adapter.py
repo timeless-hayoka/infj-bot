@@ -19,9 +19,16 @@ class MemoryQuery(BaseModel):
 def create_app() -> FastAPI:
     token = os.environ.get("DRIFT_PLUGIN_TOKEN", "")
     if len(token) < 16:
-        raise RuntimeError("DRIFT_PLUGIN_TOKEN must be configured with at least 16 characters")
+        raise RuntimeError(
+            "DRIFT_PLUGIN_TOKEN must be configured with at least 16 characters"
+        )
 
-    app = FastAPI(title="DRIFT Read-Only Cloud Adapter", docs_url=None, redoc_url=None, openapi_url=None)
+    app = FastAPI(
+        title="DRIFT Read-Only Cloud Adapter",
+        docs_url=None,
+        redoc_url=None,
+        openapi_url=None,
+    )
 
     def authenticate(authorization: str | None = Header(default=None)) -> None:
         supplied = ""
@@ -43,7 +50,9 @@ def create_app() -> FastAPI:
             result = production_memory_search(body.query, n_results=body.limit)
         except Exception:  # noqa: BLE001 - boundary must sanitize unexpected storage failures
             # Fail closed: never expose storage paths, credentials or stack traces.
-            raise HTTPException(status_code=503, detail="DRIFT memory unavailable") from None
+            raise HTTPException(
+                status_code=503, detail="DRIFT memory unavailable"
+            ) from None
         return {"result": result}
 
     return app
