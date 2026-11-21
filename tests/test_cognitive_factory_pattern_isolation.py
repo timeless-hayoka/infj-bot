@@ -16,3 +16,19 @@ def test_pattern_mutation_does_not_affect_new_factory(tmp_path):
     first.NEED_PATTERNS[0]["keyword"] = "unexpected_keyword"
     fresh = CognitiveFactory(str(tmp_path / "fresh.db"))
     assert fresh.NEED_PATTERNS[0]["keyword"] == "gratitude"
+
+
+def test_nested_method_list_mutation_does_not_leak_to_new_instance(tmp_path):
+    first = CognitiveFactory(str(tmp_path / "first.db"))
+    first.NEED_PATTERNS[0]["methods"][0] = "corrupted"
+    fresh = CognitiveFactory(str(tmp_path / "fresh.db"))
+    assert fresh.NEED_PATTERNS[0]["methods"][0] == "record_gratitude"
+
+
+def test_separate_factory_databases_preserve_independent_proposals(tmp_path):
+    first = CognitiveFactory(str(tmp_path / "first.db"))
+    second = CognitiveFactory(str(tmp_path / "second.db"))
+    proposal = first.propose("I want a gratitude practice")
+    assert proposal is not None
+    assert proposal.name == "gratitude_journal"
+    assert second.propose("There is no matching keyword here") is None
