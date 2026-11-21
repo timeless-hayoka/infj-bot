@@ -1,0 +1,7 @@
+# RCCE exact arithmetic study
+
+This follow-up tests whether exact arithmetic can improve decisions made with the resolved preference. Thirty-two fresh A/B problems are balanced over eight simulated profiles. Each profile receives two exception cases and two default or retracted-exception cases. Both conditions see the same resolved verified record and arithmetic inputs. The treatment adds exact time and cost totals for both options, with no answer letter or recommendation. Requests are paired and seeded on one model, with the same temperature, schema and 1,600-token cap.
+
+The primary endpoint is correct structured choice. An accuracy win requires a mean gain of at least 10 percentage points and a one-sided exact sign test at 0.05 over eight profile differences, counting ties as failures. A structurally invalid output invalidates the decision gate. The prior benchmark is context only.
+
+Each answer also reports the criterion and two option totals. Diagnostics classify reported criterion errors, followed by reported totals errors and then choices that disagree with correct totals. These categories describe observed outputs. They do not identify hidden reasoning states. Python independently resolves the benchmark's unambiguous fixture rules and calculates the oracle from integer operands. The experiment is a synthetic research benchmark and uses the real provider, outside the conversational CLI.
