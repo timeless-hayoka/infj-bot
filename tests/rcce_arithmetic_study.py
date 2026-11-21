@@ -137,6 +137,26 @@ def summarize(rows):
     }
 
 
+def read_prefix(model, manifest):
+    resume_path = os.environ.get("RCCE_RESUME_PATH")
+    if not resume_path:
+        return [], None
+    previous = json.loads(Path(resume_path).read_text())
+    if (
+        previous["status"] != "failed"
+        or previous.get("provider_http_status") != 429
+        or previous["commit"] != os.environ["RCCE_RESUME_COMMIT"]
+        or previous["model"] != model
+        or previous["seed"] != SEED
+        or previous["training"]["histories"] != manifest["histories"]
+    ):
+        raise ValueError("prior run is incompatible with this study")
+    prefix = previous["trials"]
+    if not 0 < len(prefix) < 2 * len(make_cases()):
+        raise ValueError("prior run must contain a proper trial prefix")
+    return prefix, previous["commit"]
+
+
 def evaluate(folder, output):
     from google import genai
     from google.genai import types
@@ -182,6 +202,9 @@ def evaluate(folder, output):
             evaluation_pid=os.getpid(),
             training=manifest,
         )
+        prefix, previous_commit = read_prefix(model, manifest)
+        if prefix:
+            run.update(resumed_trials=len(prefix), previous_commit=previous_commit)
         with genai.Client(api_key=os.environ["GEMINI_API_KEY"]) as client:
             for profile, context, scope, jobs, options, arms in make_cases():
                 history = histories[profile]
@@ -211,15 +234,38 @@ def evaluate(folder, output):
                     run["active_trial"] = dict(
                         profile=profile, context=context, scope=scope, arm=arm
                     )
-                    response = client.models.generate_content(
-                        model=model, contents=prompt, config=config
-                    )
-                    raw = response.text or ""
-                    tokens = getattr(
-                        response.usage_metadata, "prompt_token_count", None
-                    )
+                    offset = len(run["trials"])
+                    if offset < len(prefix):
+                        saved = prefix[offset]
+                        if (
+                            any(
+                                saved[key] != value
+                                for key, value in run["active_trial"].items()
+                            )
+                            or saved["prompt"] != prompt
+                            or saved["prompt_sha256"] != digest(prompt)
+                            or saved["history_sha256"] != manifest["histories"][profile]
+                            or saved["raw_sha256"] != digest(saved["raw"])
+                        ):
+                            raise ValueError(
+                                "retained trial does not match the current plan"
+                            )
+                        raw = saved["raw"]
+                        tokens = saved["prompt_tokens"]
+                        provider_id = saved["provider_response_id"]
+                        model_version = saved["model_version"]
+                    else:
+                        response = client.models.generate_content(
+                            model=model, contents=prompt, config=config
+                        )
+                        raw = response.text or ""
+                        tokens = getattr(
+                            response.usage_metadata, "prompt_token_count", None
+                        )
+                        provider_id = response.response_id
+                        model_version = response.model_version
                     if (
-                        not response.response_id
+                        not provider_id
                         or not isinstance(tokens, int)
                         or not 0 < tokens <= PROMPT_TOKEN_LIMIT
                     ):
@@ -236,8 +282,8 @@ def evaluate(folder, output):
                             "prompt_tokens": tokens,
                             "raw": raw,
                             "raw_sha256": digest(raw),
-                            "provider_response_id": response.response_id,
-                            "model_version": response.model_version,
+                            "provider_response_id": provider_id,
+                            "model_version": model_version,
                             "jobs": jobs,
                             "options": options,
                             "rule": rule,

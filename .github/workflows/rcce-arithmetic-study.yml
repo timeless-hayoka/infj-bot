@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   arithmetic-study:
@@ -28,11 +29,25 @@ jobs:
           python -m pip install --no-deps -e .
       - name: Verify offline protocol and restart regression
         run: python -m pytest -q tests/test_rcce_filtered_replay_study.py tests/test_rcce_process_restart.py tests/test_rcce_strict_brain.py
+      - name: Recover the original run's genuine response prefix
+        if: contains(github.event.head_commit.message, '[rcce resume]')
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: 44916574890
+          name: rcce-arithmetic-evidence
+          path: prior-evidence
       - name: Run the live arithmetic-study pilot
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINIAPIKEY }}
           DRIFT_PRIMARY_MODEL: gemini-3.5-flash-lite
-        run: python tests/rcce_arithmetic_study.py evaluate "$RUNNER_TEMP/rcce-arithmetic-history" rcce-arithmetic-evidence.json
+          RCCE_RESUME_ENABLED: ${{ contains(github.event.head_commit.message, '[rcce resume]') }}
+          RCCE_RESUME_COMMIT: 1f38ba0b41c307890fedeac82eb2465f8bfe4fdb
+        run: |
+          if [ "$RCCE_RESUME_ENABLED" = true ]; then
+            export RCCE_RESUME_PATH=prior-evidence/rcce-arithmetic-evidence.json
+          fi
+          python tests/rcce_arithmetic_study.py evaluate "$RUNNER_TEMP/rcce-arithmetic-history" rcce-arithmetic-evidence.json
       - name: Upload full or partial run evidence
         if: always()
         uses: actions/upload-artifact@v4
