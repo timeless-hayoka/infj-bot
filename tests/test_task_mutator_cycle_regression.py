@@ -1,7 +1,6 @@
 """Regression: task mutation must preserve the caller's cycle in its audit record."""
 
 import pytest
-
 from drift.core.task_mutator import Task, TaskStatus, execute_mutation
 
 
