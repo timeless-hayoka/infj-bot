@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 import json
+import logging
 import re
 import uuid
 from pathlib import Path
@@ -13,6 +14,8 @@ from drift.core.embeddings import (
     get_default_embedding_function,
 )
 from drift.core.unified_memory import Event, MemoryManager
+
+logger = logging.getLogger(__name__)
 
 # ── Secret scrubbing ──────────────────────────────────────────────
 # Patterns are ordered from most specific to least specific.
