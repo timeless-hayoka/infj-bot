@@ -167,7 +167,7 @@ def execute_mutation(
     task: Task,
     shadow_influence: float,
     current_mode: str,
-    _current_cycle: int,
+    current_cycle: int,
     promotion_threshold: float = 0.25,
 ) -> tuple:
     """
