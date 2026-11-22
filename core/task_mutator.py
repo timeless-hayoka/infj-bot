@@ -125,7 +125,7 @@ def should_mutate(
     task: Task,
     shadow_influence: float,
     promotion_threshold: float,
-    _current_cycle: int,
+    current_cycle: int,
 ) -> tuple:
     """
     Pre-mutation reflection gate.
