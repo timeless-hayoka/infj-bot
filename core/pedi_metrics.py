@@ -19,7 +19,7 @@ FALLBACK_ANCHOR = {"coherence": 0.85, "resonance": 0.82, "tension": 0.12}
 
 @dataclass
 class AnchorResult:
-    anchor: Dict[str, float]
+    anchor: dict[str, float]
     valid: bool
     reason: str
 
@@ -36,8 +36,8 @@ class PEDIEngine:
 
         recent_blocks = []
         try:
-            import os
             import json
+            import os
 
             try:
                 from drift.core.svalbard_vault import VAULT_PATH
@@ -46,10 +46,10 @@ class PEDIEngine:
 
             if os.path.exists(VAULT_PATH):
                 with open(VAULT_PATH, "r", encoding="utf-8") as f:
-                    lines = [line for line in f.readlines() if line.strip()]
+                    lines = [line for line in f if line.strip()]
                     recent_blocks = [json.loads(line) for line in lines[-20:]]
         except Exception as e:
-            return AnchorResult(FALLBACK_ANCHOR, False, f"read_error: {str(e)}")
+            return AnchorResult(FALLBACK_ANCHOR, False, f"read_error: {e!s}")
 
         if not recent_blocks:
             return AnchorResult(FALLBACK_ANCHOR, False, "no_blocks")

@@ -3,7 +3,6 @@ import urllib.error
 import urllib.request
 from datetime import datetime
 
-
 BUG_SCOPE_TEMPLATE = """Bug bounty scope card
 Program:
 Authorized assets:

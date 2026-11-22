@@ -126,7 +126,7 @@ def delete_file(path: str, dry_run: bool) -> None:
         return
     # huggingface_hub API deletion requires Python; fallback to git push
     print(f"  DELETE: {path}")
-    from huggingface_hub import HfApi, CommitOperationDelete
+    from huggingface_hub import CommitOperationDelete, HfApi
 
     api = HfApi()
     api.create_commit(

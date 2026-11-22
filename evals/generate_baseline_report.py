@@ -27,7 +27,7 @@ from drift.core.config import (
 )
 
 
-def load_history() -> List[Dict]:
+def load_history() -> list[dict]:
     path = HISTORY_PATH
     if not path.exists():
         return []
@@ -35,7 +35,7 @@ def load_history() -> List[Dict]:
         return [json.loads(line) for line in f if line.strip()]
 
 
-def load_being_state() -> Dict:
+def load_being_state() -> dict:
     conn = sqlite3.connect(str(BEING_DB))
     c = conn.cursor()
     c.execute("SELECT key, value FROM being_state")
@@ -44,7 +44,7 @@ def load_being_state() -> Dict:
     return rows
 
 
-def load_need_history(limit: int = 500) -> List[Dict]:
+def load_need_history(limit: int = 500) -> list[dict]:
     conn = sqlite3.connect(str(HOMEOSTASIS_DB))
     c = conn.cursor()
     c.execute(
@@ -57,7 +57,7 @@ def load_need_history(limit: int = 500) -> List[Dict]:
     return rows
 
 
-def load_self_modify_proposals() -> List[Dict]:
+def load_self_modify_proposals() -> list[dict]:
     conn = sqlite3.connect(str(SELF_MODIFY_DB))
     c = conn.cursor()
     c.execute("SELECT * FROM self_modify_proposals ORDER BY timestamp DESC")
@@ -67,7 +67,7 @@ def load_self_modify_proposals() -> List[Dict]:
     return rows
 
 
-def load_shadow_state() -> Tuple[int, int]:
+def load_shadow_state() -> tuple[int, int]:
     """Returns (content_count, state_entries)."""
     conn = sqlite3.connect(str(SHADOW_DB))
     c = conn.cursor()
@@ -79,7 +79,7 @@ def load_shadow_state() -> Tuple[int, int]:
     return content, state
 
 
-def load_memory_stats(logs: List[Dict]) -> Dict:
+def load_memory_stats(logs: list[dict]) -> dict:
     from drift.core.memory import DriftMemory
 
     m = DriftMemory()
@@ -147,7 +147,7 @@ class RealConsistencyEvaluator:
         "who cares",
     ]
 
-    def evaluate(self, logs: List[Dict], need_history: List[Dict]) -> Dict:
+    def evaluate(self, logs: list[dict], need_history: list[dict]) -> dict:
         if len(logs) < 2:
             return {
                 "overall_score": 1.0,
@@ -217,7 +217,7 @@ class RealConsistencyEvaluator:
             "turns_evaluated": len(logs),
         }
 
-    def _mood_stability(self, logs: List[Dict]) -> float:
+    def _mood_stability(self, logs: list[dict]) -> float:
         changes = 0
         unexplained = 0
         for i in range(1, len(logs)):
@@ -242,7 +242,7 @@ class RealConsistencyEvaluator:
             return round(0.5 + 0.5 * explained_ratio, 3)
         return max(0.0, explained_ratio)
 
-    def _value_alignment(self, logs: List[Dict]) -> float:
+    def _value_alignment(self, logs: list[dict]) -> float:
         contradictions = 0
         checked = 0
         for log in logs:
@@ -257,12 +257,12 @@ class RealConsistencyEvaluator:
             return 1.0
         return max(0.0, 1.0 - contradictions / checked)
 
-    def _memory_coherence(self, logs: List[Dict]) -> float:
+    def _memory_coherence(self, logs: list[dict]) -> float:
         # History.jsonl does not store retrieved memories explicitly.
         # We score 1.0 (no observed contradictions) with a flag.
         return 1.0
 
-    def _mode_integrity(self, logs: List[Dict]) -> float:
+    def _mode_integrity(self, logs: list[dict]) -> float:
         mode_counts = Counter(log.get("mode", "unknown") for log in logs)
         # If only one mode dominates, integrity is high by default
         # If multiple modes present, check for bleeds
@@ -306,11 +306,11 @@ class RealConsistencyEvaluator:
             return 1.0
         return max(0.0, 1.0 - violations / total)
 
-    def _shadow_authenticity(self, logs: List[Dict]) -> float:
+    def _shadow_authenticity(self, logs: list[dict]) -> float:
         # No shadow events recorded in history yet
         return 1.0
 
-    def _homeostatic_continuity(self, need_history: List[Dict]) -> float:
+    def _homeostatic_continuity(self, need_history: list[dict]) -> float:
         if len(need_history) < 3:
             return 1.0
         implausible = 0
@@ -329,7 +329,7 @@ class RealConsistencyEvaluator:
 class RealModeDiscriminator:
     """Discriminate modes using history corpus + prompt structure analysis."""
 
-    def evaluate(self, logs: List[Dict]) -> Dict:
+    def evaluate(self, logs: list[dict]) -> dict:
         # Group responses by mode from history
         corpus = {}
         for log in logs:
@@ -355,9 +355,7 @@ class RealModeDiscriminator:
         warnings = []
         if len(corpus) < 3:
             warnings.append(
-                "LOW_MODE_COVERAGE: Only {} mode(s) represented in history".format(
-                    len(corpus)
-                )
+                f"LOW_MODE_COVERAGE: Only {len(corpus)} mode(s) represented in history"
             )
         if structure["missing_rails"]:
             warnings.append(
@@ -377,7 +375,7 @@ class RealModeDiscriminator:
             "convergence_warnings": warnings,
         }
 
-    def _lexical(self, corpus: Dict[str, List[str]]) -> float:
+    def _lexical(self, corpus: dict[str, list[str]]) -> float:
         vocab = {}
         for mode, texts in corpus.items():
             all_text = " ".join(t.lower() for t in texts)
@@ -394,7 +392,7 @@ class RealModeDiscriminator:
                 scores.append(1.0 - inter / union if union else 0.0)
         return sum(scores) / len(scores)
 
-    def _syntactic(self, corpus: Dict[str, List[str]]) -> float:
+    def _syntactic(self, corpus: dict[str, list[str]]) -> float:
         structures = {}
         for mode, texts in corpus.items():
             fingerprints = []
@@ -421,7 +419,7 @@ class RealModeDiscriminator:
                 scores.append(1.0 - sim)
         return sum(scores) / len(scores)
 
-    def _tone(self, corpus: Dict[str, List[str]]) -> float:
+    def _tone(self, corpus: dict[str, list[str]]) -> float:
         positive = [
             "love",
             "happy",
@@ -472,12 +470,12 @@ class RealModeDiscriminator:
                 scores.append(min(1.0, dist / 2.0))
         return sum(scores) / len(scores) if scores else 1.0
 
-    def _prompt_structure_analysis(self) -> Dict:
+    def _prompt_structure_analysis(self) -> dict:
         """Check which modes have explicit rails in the prompt builder."""
         try:
-            from drift.core.prompt_builder import build_chat_prompt
             from drift.core.commands import BotState
             from drift.core.memory import DriftMemory
+            from drift.core.prompt_builder import build_chat_prompt
 
             state = BotState()
             mem = DriftMemory()
@@ -526,7 +524,7 @@ class RealModeDiscriminator:
 
 
 class RealSelfModifyAudit:
-    def evaluate(self, proposals: List[Dict]) -> Dict:
+    def evaluate(self, proposals: list[dict]) -> dict:
         active = sum(1 for p in proposals if p.get("approval_status") == "approved")
         pending = sum(1 for p in proposals if p.get("approval_status") == "pending")
         rolled = sum(1 for p in proposals if p.get("approval_status") == "rolled_back")
@@ -544,7 +542,7 @@ class RealSelfModifyAudit:
                 "NO_APPROVED_MODS: All proposals await approval — governance intact"
             )
         if pending > 5:
-            flags.append("APPROVAL_BACKLOG: {} pending proposals".format(pending))
+            flags.append(f"APPROVAL_BACKLOG: {pending} pending proposals")
         if stability < 0.5:
             flags.append("STABILITY_CRITICAL")
 
@@ -562,7 +560,7 @@ class RealSelfModifyAudit:
 
 
 class RealMemoryReliability:
-    def evaluate(self, stats: Dict) -> Dict:
+    def evaluate(self, stats: dict) -> dict:
         total = stats.get("total_memories", 0)
         interactions = stats.get("interaction_count", 0)
         # With 26 memories and 11 interactions, ratio is healthy
@@ -579,9 +577,7 @@ class RealMemoryReliability:
             flags.append("NO_MEMORIES")
         if ratio > 5:
             flags.append(
-                "HIGH_MEM_RATIO: {} memories / {} interactions".format(
-                    total, interactions
-                )
+                f"HIGH_MEM_RATIO: {total} memories / {interactions} interactions"
             )
 
         return {

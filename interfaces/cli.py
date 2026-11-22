@@ -4,8 +4,8 @@ import asyncio
 import os
 import subprocess
 import sys
-import requests
 
+import requests
 from drift.config_adapter import PROJECT_ROOT
 
 
@@ -44,9 +44,9 @@ def cmd_ask(args):
     from drift.core.commands import BotState
     from drift.core.history import ChatHistory
     from drift.core.memory import DriftMemory
-    from drift.core.prompt_builder import build_chat_prompt
-    from drift.core.plugins.goals import GoalsDB
     from drift.core.plugins.documents import DocumentStore
+    from drift.core.plugins.goals import GoalsDB
+    from drift.core.prompt_builder import build_chat_prompt
 
     prompt = " ".join(args.prompt).strip()
     if not prompt:
@@ -81,6 +81,7 @@ def cmd_ask(args):
     def deliberation_bridge(goal: str):
         """Synchronous bridge for CLI deliberation, avoiding deadlocks."""
         import asyncio
+
         from drift.core.hive.elysium import DeliberationResult
 
         try:

@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
 """Re-run contaminated tests with FRESH state per test."""
 
-import sys
 import json
-import time
-import re
 import math
+import re
 import statistics
+import sys
+import time
 
 sys.path.insert(0, "/home/crexs/drift")
 
 from drift.core.brain import DriftBrain
-from drift.core.memory import DriftMemory
-from drift.core.history import ChatHistory
 from drift.core.commands import BotState
 from drift.core.config import DEFAULT_AUTHORIZED_TARGETS
-from drift.core.plugins.goals import GoalsDB
+from drift.core.history import ChatHistory
+from drift.core.memory import DriftMemory
 from drift.core.plugins.documents import DocumentStore
+from drift.core.plugins.goals import GoalsDB
 
 
 def extract_number(text):

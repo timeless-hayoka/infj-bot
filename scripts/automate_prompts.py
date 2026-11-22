@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-import requests
-import time
 import sys
+import time
+
+import requests
 
 API_URL = "http://localhost:8765/api/chat"
 

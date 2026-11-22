@@ -7,53 +7,53 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock
 
-from drift.core.plugins.emotion import detect_emotion, emotion_prompt_hint
 from drift.core.cognition import (
     detect_dissonance,
     dissonance_prompt_hint,
     map_dissonance,
 )
 from drift.core.commands import (
-    is_command,
-    parse_command,
-    handle_command,
     MODES,
     BotState,
+    handle_command,
+    is_command,
+    parse_command,
 )
 from drift.core.guardrails import cyber_context_hint, mode_scope_rail
-from drift.core.memory import LocalEmbeddingFunction, DriftMemory
+from drift.core.memory import DriftMemory, LocalEmbeddingFunction
+from drift.core.plugins.emotion import detect_emotion, emotion_prompt_hint
 
 # Hive Mind lives on an external SSD; skip tests when unavailable
 try:
-    from drift.hive_mind.consensus_engine import ConsensusEngine as _CE  # noqa: F401
+    from drift.hive_mind.consensus_engine import ConsensusEngine as _CE
 
     HIVE_AVAILABLE = True
 except (ImportError, ModuleNotFoundError):
     HIVE_AVAILABLE = False
-from drift.core.plugins.growth import growth_profile
-from drift.core.plugins.proactive import ProactiveState
+from drift.core.config import PROJECT_ROOT
 from drift.core.plugins.documents import (
     DocumentStore,
     _chunk_text,
     format_doc_results,
 )
+from drift.core.plugins.goals import GoalsDB
+from drift.core.plugins.growth import growth_profile
+from drift.core.plugins.proactive import ProactiveState
 from drift.core.tools import (
-    tool_get_datetime,
-    tool_read_file,
-    tool_write_file,
-    tool_write_to_cold_storage,
-    tool_list_directory,
-    tool_shell,
-    tool_execute_terminal_command,
-    tool_run_python,
-    tool_run_nuclei_scan,
+    build_tool_prompt,
     execute_tool_call,
     extract_tool_calls,
-    build_tool_prompt,
     recent_tool_audit,
+    tool_execute_terminal_command,
+    tool_get_datetime,
+    tool_list_directory,
+    tool_read_file,
+    tool_run_nuclei_scan,
+    tool_run_python,
+    tool_shell,
+    tool_write_file,
+    tool_write_to_cold_storage,
 )
-from drift.core.config import PROJECT_ROOT
-from drift.core.plugins.goals import GoalsDB
 
 
 class TestEmotion(unittest.TestCase):
@@ -284,7 +284,7 @@ class TestTools(unittest.TestCase):
         try:
             import tools
         except ImportError:
-            import drift.core.tools as tools
+            from drift.core import tools
         import drift.core.tools as core_tools
         from drift.core.jsonl_logger import HardenedJsonlLogger
 
@@ -310,7 +310,7 @@ class TestTools(unittest.TestCase):
         try:
             import tools
         except ImportError:
-            import drift.core.tools as tools
+            from drift.core import tools
         import drift.core.tools as core_tools
 
         if self._orig_safe_home is not None:
@@ -573,6 +573,7 @@ class TestDocuments(unittest.TestCase):
 class TestHistory(unittest.TestCase):
     def test_export_and_import(self):
         import tempfile
+
         from drift.core.history import ChatHistory
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -591,6 +592,7 @@ class TestHistory(unittest.TestCase):
 
     def test_import_skips_bad_lines(self):
         import tempfile
+
         from drift.core.history import ChatHistory
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -605,8 +607,8 @@ class TestHistory(unittest.TestCase):
 
 class TestApi(unittest.TestCase):
     def test_health_and_tools_endpoints(self):
-        from fastapi.testclient import TestClient
         from drift.interfaces.api import app
+        from fastapi.testclient import TestClient
 
         client = TestClient(app)
         health = client.get("/api/health")
@@ -618,8 +620,8 @@ class TestApi(unittest.TestCase):
         self.assertIn("run_nuclei_scan", tools.json()["reply"])
 
     def test_chat_rejects_invalid_json(self):
-        from fastapi.testclient import TestClient
         from drift.interfaces.api import app
+        from fastapi.testclient import TestClient
 
         client = TestClient(app)
         response = client.post(
@@ -629,10 +631,11 @@ class TestApi(unittest.TestCase):
         self.assertIn("invalid JSON", response.json()["error"])
 
     def test_api_identity_handshake(self):
-        from fastapi.testclient import TestClient
-        import hmac
         import hashlib
+        import hmac
         import os
+
+        from fastapi.testclient import TestClient
 
         orig_key = os.environ.get("DRIFT_SHARED_KEY")
         orig_env = os.environ.get("DRIFT_ENV")
@@ -705,9 +708,10 @@ class TestApi(unittest.TestCase):
                 del os.environ["DRIFT_ENV"]
 
     def test_shadow_intent_enforcement_blocking(self):
-        from fastapi.testclient import TestClient
-        from drift.interfaces.api import app
         import os
+
+        from drift.interfaces.api import app
+        from fastapi.testclient import TestClient
 
         # Ensure bypass is disabled
         orig_bypass = os.environ.get("DRIFT_BYPASS_SECURITY")
@@ -735,12 +739,13 @@ class TestApi(unittest.TestCase):
             del os.environ["DRIFT_BYPASS_SECURITY"]
 
     def test_middleware_signature_verification(self):
-        from fastapi.testclient import TestClient
-        import hmac
         import hashlib
+        import hmac
+        import json
         import os
         import time
-        import json
+
+        from fastapi.testclient import TestClient
 
         orig_key = os.environ.get("DRIFT_SHARED_KEY")
         orig_env = os.environ.get("DRIFT_ENV")

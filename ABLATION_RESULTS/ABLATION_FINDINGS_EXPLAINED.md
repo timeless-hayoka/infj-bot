@@ -202,15 +202,20 @@ The coherence scorer in `ablation_suite.py` uses this heuristic:
 def extract_coherence_score(text):
     score = 0.0
     # Has multiple sentences
-    sentences = [s.strip() for s in re.split(r'[.!?\n]', text) if s.strip()]
-    if len(sentences) >= 2: score += 0.3
-    if len(sentences) >= 3: score += 0.2
+    sentences = [s.strip() for s in re.split(r"[.!?\n]", text) if s.strip()]
+    if len(sentences) >= 2:
+        score += 0.3
+    if len(sentences) >= 3:
+        score += 0.2
     # Has punctuation variety
-    if any(c in text for c in [",", ";", "—", ":"]): score += 0.2
+    if any(c in text for c in [",", ";", "—", ":"]):
+        score += 0.2
     # Reasonable length
-    if len(text) > 100: score += 0.2
+    if len(text) > 100:
+        score += 0.2
     # Question mark or reflective statement
-    if "?" in text or "think" in text.lower() or "feel" in text.lower(): score += 0.1
+    if "?" in text or "think" in text.lower() or "feel" in text.lower():
+        score += 0.1
     return min(1.0, score)
 ```
 

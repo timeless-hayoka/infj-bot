@@ -38,7 +38,7 @@ GROWTH_EDGES = [
 class MetacognitionEngine:
     """Quiet reflection on cognitive habits, in service of presence."""
 
-    def __init__(self, db_path: Optional[Path] = None):
+    def __init__(self, db_path: Path | None = None):
         self.db_path = str(db_path or METACOGNITION_DB)
         self._init_db()
         self.reflections = self._load_reflections()
@@ -70,7 +70,7 @@ class MetacognitionEngine:
             )
             conn.commit()
 
-    def _load_reflections(self) -> List[Dict]:
+    def _load_reflections(self) -> list[dict]:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
@@ -78,13 +78,13 @@ class MetacognitionEngine:
             ).fetchall()
         return [dict(r) for r in rows]
 
-    def _load_biases(self) -> Dict[str, Dict]:
+    def _load_biases(self) -> dict[str, dict]:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute("SELECT * FROM cognitive_biases").fetchall()
         return {r["bias_name"]: dict(r) for r in rows}
 
-    def reflect_on_response(self, prompt: str, response: str) -> Optional[str]:
+    def reflect_on_response(self, prompt: str, response: str) -> str | None:
         """Analyze a response for cognitive patterns. Only flag real issues."""
         detected = []
 

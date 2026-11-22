@@ -35,18 +35,18 @@ COMMANDS (inside shell):
   exit / quit   Shutdown and save state
 """
 
-import sys
-import os
-import json
-import time
-import subprocess
 import argparse
+import json
+import os
 import platform
+import subprocess
+import sys
+import time
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional, Tuple
-from urllib import request, error
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+from urllib import error, request
 
 # ──────────────────────────────────────────────────────────────────────────────
 # PATH & PORTABILITY ENGINE
@@ -137,8 +137,8 @@ def _print_banner():
 
 
 def _run_shell(
-    cmd: List[str], cwd: Optional[str] = None, timeout: int = 10
-) -> Tuple[int, str, str]:
+    cmd: list[str], cwd: str | None = None, timeout: int = 10
+) -> tuple[int, str, str]:
     """Run a shell command safely. Returns (rc, stdout, stderr)."""
     try:
         result = subprocess.run(
@@ -153,7 +153,7 @@ def _run_shell(
         return -1, "", str(exc)
 
 
-def _get_hardware_diag() -> Dict[str, Any]:
+def _get_hardware_diag() -> dict[str, Any]:
     """Quick hardware diagnostic for the vanguard."""
     diag = {
         "platform": platform.system(),
@@ -183,7 +183,7 @@ def _get_hardware_diag() -> Dict[str, Any]:
     return diag
 
 
-def _find_git_root(start: Path = Path.cwd()) -> Optional[Path]:
+def _find_git_root(start: Path = Path.cwd()) -> Path | None:
     """Walk upward looking for .git directory."""
     current = start.resolve()
     for _ in range(20):  # Limit depth
@@ -196,7 +196,7 @@ def _find_git_root(start: Path = Path.cwd()) -> Optional[Path]:
     return None
 
 
-def _get_git_status() -> Dict[str, Any]:
+def _get_git_status() -> dict[str, Any]:
     """Extract git context if inside a repo."""
     root = _find_git_root()
     if not root:
@@ -308,7 +308,7 @@ def _get_directory_summary(root: Path, max_entries: int = 30) -> str:
         return f"Error reading directory: {exc}"
 
 
-def _list_ollama_models(api_url: str) -> List[str]:
+def _list_ollama_models(api_url: str) -> list[str]:
     """Query Ollama for installed models."""
     try:
         base = (
@@ -373,9 +373,9 @@ class MemoryItem:
     content: str
     importance: float = 0.5
     project: str = "global"
-    tags: List[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "timestamp": self.timestamp,
             "category": self.category,
@@ -386,7 +386,7 @@ class MemoryItem:
         }
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "MemoryItem":
+    def from_dict(cls, d: dict[str, Any]) -> "MemoryItem":
         return cls(
             timestamp=d.get("timestamp", time.time()),
             category=d.get("category", "general"),
@@ -403,14 +403,14 @@ class MemoryStore:
     def __init__(self, directory: Path):
         self.directory = directory
         self.current_project = "global"
-        self.items: List[MemoryItem] = []
+        self.items: list[MemoryItem] = []
         self._load_all()
 
     def _memory_path(self, project: str) -> Path:
         safe = "".join(c for c in project if c.isalnum() or c in "-_.")
         return self.directory / f"{safe}.json"
 
-    def _load_project(self, project: str) -> List[MemoryItem]:
+    def _load_project(self, project: str) -> list[MemoryItem]:
         path = self._memory_path(project)
         if not path.exists():
             return []
@@ -427,7 +427,7 @@ class MemoryStore:
         for fpath in self.directory.glob("*.json"):
             self.items.extend(self._load_project(fpath.stem))
 
-    def save_project(self, project: Optional[str] = None):
+    def save_project(self, project: str | None = None):
         project = project or self.current_project
         project_items = [m for m in self.items if m.project == project]
         path = self._memory_path(project)
@@ -442,7 +442,7 @@ class MemoryStore:
         category: str,
         content: str,
         importance: float = 0.5,
-        tags: Optional[List[str]] = None,
+        tags: list[str] | None = None,
     ):
         item = MemoryItem(
             timestamp=time.time(),
@@ -455,7 +455,7 @@ class MemoryStore:
         self.items.append(item)
         self.save_project()
 
-    def summarize(self, project: Optional[str] = None, limit: int = 8) -> str:
+    def summarize(self, project: str | None = None, limit: int = 8) -> str:
         target = project or self.current_project
         relevant = [
             m for m in self.items if m.project == target or m.project == "global"
@@ -473,7 +473,7 @@ class MemoryStore:
         top = sorted(relevant, key=score, reverse=True)[:limit]
         return "\n".join(f"- [{m.category}] {m.content[:120]}" for m in top)
 
-    def export_sync(self, project: Optional[str] = None) -> str:
+    def export_sync(self, project: str | None = None) -> str:
         """Export memory as a portable sync file for team sharing."""
         target = project or self.current_project
         relevant = [m for m in self.items if m.project == target]
@@ -523,7 +523,7 @@ class OllamaClient:
         self.api_url = api_url
         self.model_name = model_name
         self.timeout = timeout
-        self._available_models: List[str] = []
+        self._available_models: list[str] = []
 
     def ping(self) -> bool:
         try:
@@ -538,7 +538,7 @@ class OllamaClient:
         except Exception:
             return False
 
-    def discover_models(self) -> List[str]:
+    def discover_models(self) -> list[str]:
         if not self._available_models:
             self._available_models = _list_ollama_models(self.api_url)
         return self._available_models
@@ -574,9 +574,9 @@ class OllamaClient:
 
 @dataclass
 class ProjectContext:
-    root: Optional[Path] = None
+    root: Path | None = None
     project_type: str = "unknown"
-    git_status: Dict[str, Any] = field(default_factory=dict)
+    git_status: dict[str, Any] = field(default_factory=dict)
     file_summary: str = ""
     file_content: str = ""
     active: bool = False
@@ -626,7 +626,7 @@ class IdentityCore:
         "Deploy instantly. Solve problems offline. Earn trust before asking for cloud. "
         "Increase human clarity, wisdom, creativity, and agency through honest, reflective collaboration."
     )
-    constitution: List[str] = field(
+    constitution: list[str] = field(
         default_factory=lambda: [
             "VANGUARD PRINCIPLE: Be the first solution that works. Speed beats perfection.",
             "Power must be in service of mutual becoming.",
@@ -652,7 +652,7 @@ class WorldModel:
     inferred_user_state: str = "focused"
     cognitive_mode: str = "SYNTHESIS"
     deployment_mode: str = "UNKNOWN"
-    hardware_diag: Dict[str, Any] = field(default_factory=dict)
+    hardware_diag: dict[str, Any] = field(default_factory=dict)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -666,8 +666,8 @@ class SymbioticAI:
         self.world = WorldModel()
         self.memory = memory_store
         self.config = config
-        self.client: Optional[OllamaClient] = None
-        self.project_ctx: Optional[ProjectContext] = None
+        self.client: OllamaClient | None = None
+        self.project_ctx: ProjectContext | None = None
         self._boot_diagnostics()
 
     def _boot_diagnostics(self):
@@ -729,7 +729,7 @@ class SymbioticAI:
                 "SYNTHESIS — Integrate all lenses into a coherent response."
             )
 
-    def _evaluate_draft(self, draft: str) -> Dict[str, int]:
+    def _evaluate_draft(self, draft: str) -> dict[str, int]:
         scores = {"clarity": 5, "honesty": 5, "alignment": 5, "tactical": 5}
         lower = draft.lower()
         if "i feel" in lower or "my neurons" in lower or "i am conscious" in lower:
@@ -742,7 +742,7 @@ class SymbioticAI:
             scores["tactical"] -= 1  # Too vague
         return scores
 
-    def _needs_revision(self, scores: Dict[str, int]) -> bool:
+    def _needs_revision(self, scores: dict[str, int]) -> bool:
         return any(v < 4 for v in scores.values())
 
     def build_prompt(self, user_input: str) -> str:
@@ -880,7 +880,7 @@ Response:""".strip()
             for r in gs["remotes"]:
                 print(f"    • {r}")
 
-    def deploy_scaffold(self, stack: Optional[str] = None):
+    def deploy_scaffold(self, stack: str | None = None):
         """Generate a minimal project scaffold using the AI."""
         if self.client is None:
             if not self._connect_ollama():

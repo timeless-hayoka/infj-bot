@@ -3,13 +3,13 @@ svalbard_vault.py — Core Identity Persistence Module
 DRIFT Cognitive Architecture | Immutable Episodic Memory Ledger (V2.2)
 """
 
+import hashlib
+import hmac
 import json
 import os
 import sys
-import hashlib
-import hmac
+from dataclasses import asdict, dataclass
 from datetime import datetime
-from dataclasses import dataclass, asdict
 
 # ==========================================
 # CONFIGURATION & ENVIRONMENT

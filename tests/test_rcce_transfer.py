@@ -1,7 +1,6 @@
 """Characterization of explicit-principle transfer; no live-model claims."""
 
 import pytest
-
 from drift.core.rcce_transfer import PrincipleTransferPolicy
 
 

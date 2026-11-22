@@ -1,10 +1,12 @@
-import json
 import itertools
+import json
 import os
+
 import requests
+from client import call_drift
 from conditions import CONDITIONS
 from state_builder import build_state
-from client import call_drift
+
 from metrics import cosine, structural_metrics
 
 API_URL = "http://localhost:8765/api/chat"

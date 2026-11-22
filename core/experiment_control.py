@@ -16,8 +16,8 @@ Usage:
     control.end_run()
 """
 
-import warnings
 import subprocess
+import warnings
 from contextlib import contextmanager
 
 from drift.core.run_logger import RunLogger

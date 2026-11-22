@@ -4,7 +4,6 @@ import hashlib
 from dataclasses import replace
 
 import pytest
-
 from drift.core.rcce_evidence import InferenceReceipt, validate_scored_trial
 
 

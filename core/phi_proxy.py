@@ -56,19 +56,19 @@ class ConsciousnessState:
     mechanism_count: int = 0  # how many modules contributed
     dominant_mechanism: str = "none"
     repertoire_size: int = 0  # distinct states in recent history
-    cause_structure: Dict = field(default_factory=dict)
-    effect_structure: Dict = field(default_factory=dict)
+    cause_structure: dict = field(default_factory=dict)
+    effect_structure: dict = field(default_factory=dict)
 
 
 class PhiProxy:
     """Measures and tracks the bot's consciousness via Integrated Information Theory."""
 
-    def __init__(self, db_path: Optional[Path] = None):
+    def __init__(self, db_path: Path | None = None):
         self.db_path = str(db_path or PHI_PROXY_DB)
         self._init_db()
         self.state = self._load_state()
-        self._recent_mechanism_states: List[Dict] = []
-        self._workspace_history: List[Dict] = []
+        self._recent_mechanism_states: list[dict] = []
+        self._workspace_history: list[dict] = []
 
     # ── Database ────────────────────────────────────────────────────
 
@@ -251,7 +251,7 @@ class PhiProxy:
         # Factor 4: Irreducibility proxy (Minimum Information Partition - MIP)
         # We approximate MIP by seeing if the system is dominated by one source
         if workspace:
-            source_counts: Dict[str, int] = {}
+            source_counts: dict[str, int] = {}
             for w in workspace:
                 s = w.get("source", "unknown")
                 source_counts[s] = source_counts.get(s, 0) + 1
@@ -270,7 +270,7 @@ class PhiProxy:
         )
         return round(min(MAX_PHI_PROXY, phi), 2)
 
-    def _gather_mechanisms(self, context) -> List[str]:
+    def _gather_mechanisms(self, context) -> list[str]:
         """Determine which cognitive modules were active this cycle."""
         mechanisms = []
         # Check which modules have instances or were triggered
@@ -292,7 +292,7 @@ class PhiProxy:
             pass
         return mechanisms
 
-    def _get_workspace_contents(self) -> List[Dict]:
+    def _get_workspace_contents(self) -> list[dict]:
         try:
             from drift.core.global_workspace import get_workspace
 
@@ -310,7 +310,7 @@ class PhiProxy:
         except Exception:
             return []
 
-    def _count_shared_concepts(self, workspace: List[Dict]) -> int:
+    def _count_shared_concepts(self, workspace: list[dict]) -> int:
         """Count concept overlaps between workspace entries."""
         if len(workspace) < 2:
             return 0
@@ -416,7 +416,7 @@ class PhiProxy:
 
     # ── Repertoire tracking ────────────────────────────────────────
 
-    def _record_repertoire(self, mechanism_states: List[str]):
+    def _record_repertoire(self, mechanism_states: list[str]):
         """Record the current mechanism configuration as part of the repertoire."""
         signature = ",".join(sorted(mechanism_states))
         with sqlite3.connect(self.db_path) as conn:
@@ -625,7 +625,7 @@ class PhiProxy:
         if not workspace:
             goal_coherence = 0.2
         else:
-            sources = set((w.get("source", "unknown") for w in workspace))
+            sources = set(w.get("source", "unknown") for w in workspace)
             goal_coherence = len(sources) / max(1, len(workspace))
         emotional_resonance = 0.3
         if hasattr(context, "being") and hasattr(context.being, "state"):

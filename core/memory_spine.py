@@ -3,12 +3,13 @@ DRIFT Memory Spine - Unified Memory Manager (Phase 4 Core)
 """
 
 import math
-import uuid
-from datetime import datetime
-from typing import Dict, Any, Optional
-import numpy as np
-from dataclasses import dataclass
 import sqlite3
+import uuid
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Any, Dict, Optional
+
+import numpy as np
 
 try:
     import chromadb
@@ -31,8 +32,8 @@ class MemoryEntry:
 
     unified_id: str
     event: Event
-    metadata: Dict[str, Any]
-    vector: Optional[np.ndarray]
+    metadata: dict[str, Any]
+    vector: np.ndarray | None
     dmu: float
     last_reinforced: datetime
     reps: int
@@ -61,7 +62,7 @@ class MemoryManager:
         self._ensure_tables()
 
     def compute_dmu(
-        self, entry: MemoryEntry, current_context: Optional[Dict] = None
+        self, entry: MemoryEntry, current_context: dict | None = None
     ) -> float:
         t_days = (datetime.now() - entry.last_reinforced).total_seconds() / 86400.0
         stability = 1 + self.kappa * math.log(1 + entry.reps + (entry.salience * 10))
@@ -87,7 +88,7 @@ class MemoryManager:
         return max(dmu, 0.0)
 
     async def remember(
-        self, event: Event, metadata: Dict, vector: Optional[np.ndarray] = None
+        self, event: Event, metadata: dict, vector: np.ndarray | None = None
     ) -> str:
         entry = MemoryEntry(
             unified_id="",
@@ -107,7 +108,7 @@ class MemoryManager:
         entry.dmu = self.compute_dmu(entry)
         return await self._atomic_store(entry)
 
-    async def get_by_id(self, unified_id: str) -> Optional[MemoryEntry]:
+    async def get_by_id(self, unified_id: str) -> MemoryEntry | None:
         """Retrieve full MemoryEntry by unified_id (SQLite + Chroma)."""
         cursor = self.sqlite_conn.execute(
             """

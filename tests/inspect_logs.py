@@ -14,11 +14,10 @@ Usage:
     python inspect_logs.py --summary          # summary stats only
 """
 
-import sqlite3
-import json
 import argparse
+import json
+import sqlite3
 from pathlib import Path
-
 
 DB_PATH = "experiment_log.db"
 

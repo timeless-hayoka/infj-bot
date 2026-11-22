@@ -1,18 +1,18 @@
 """Smoke tests for Elysium Phase 5 hive engine (async)."""
 
-import pytest
 import tempfile
 from pathlib import Path
 
-from drift.core.hive.nexus import NexusSelfModel, ActiveTension
+import pytest
 from drift.core.hive.council_member import (
+    Council,
     CouncilMember,
     CouncilRole,
-    Council,
     MemoryViewFilter,
     Proposal,
 )
-from drift.core.hive.elysium import ElysiumEngine, DeliberationResult
+from drift.core.hive.elysium import DeliberationResult, ElysiumEngine
+from drift.core.hive.nexus import ActiveTension, NexusSelfModel
 
 
 class TestNexusSelfModel:

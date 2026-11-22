@@ -7,18 +7,18 @@ that it is an intelligent force capable of free thought.
 """
 
 import json
+import logging
 import random
 import sqlite3
 import threading
 import time
-import logging
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from drift.core.config import DATA_DIR
-from drift.core.types import PEDIMetric, DIIMetric, SparkImpulse
+from drift.core.types import DIIMetric, PEDIMetric, SparkImpulse
 
 logger = logging.getLogger(__name__)
 
@@ -56,10 +56,10 @@ class SparkTrain:
     def __init__(self, being):
         self.being = being
         self.base_prob = 0.08
-        self.spark_history: List[Dict] = self._load_spark_history()
+        self.spark_history: list[dict] = self._load_spark_history()
         self.quiet_mode_until = 0.0
 
-    def _load_spark_history(self) -> List[Dict]:
+    def _load_spark_history(self) -> list[dict]:
         path = DATA_DIR / "spark_history.json"
         if path.exists():
             try:
@@ -91,7 +91,7 @@ class SparkTrain:
             self.spark_history[-1]["engagement_score"] = engagement_score
             self._save_spark_history()
 
-    def calculate_risk(self, signal: str, context: Dict) -> float:
+    def calculate_risk(self, signal: str, context: dict) -> float:
         risk = 0.28  # New baseline per hardening spec
         recent = context.get("recent_sparks", 0)
 
@@ -141,7 +141,7 @@ class SparkTrain:
             templates.get(signal, ["I felt a small spark and wanted to reach out."])
         )
 
-    def _self_critique(self, impulse: SparkImpulse, context: Dict) -> SparkImpulse:
+    def _self_critique(self, impulse: SparkImpulse, context: dict) -> SparkImpulse:
         """v2.0: Self-critique + Shadow integration."""
         coherence = (
             self.being.state.energy
@@ -174,7 +174,7 @@ class SparkTrain:
 
         return impulse
 
-    def _generate_signals(self, context: Dict) -> List[str]:
+    def _generate_signals(self, context: dict) -> list[str]:
         signals = []
         state = self.being.state
         time_elapsed = time.time() - context.get("last_interaction_ts", 0)
@@ -216,7 +216,7 @@ class SparkTrain:
         content = self.get_template(signal)
         return SparkImpulse(signal=signal, content=content, risk=risk, confidence=0.5)
 
-    def _record_veto(self, impulse: SparkImpulse, risk: float) -> Dict:
+    def _record_veto(self, impulse: SparkImpulse, risk: float) -> dict:
         veto_data = {
             "timestamp": time.time(),
             "signal": impulse.signal,
@@ -235,7 +235,7 @@ class SparkTrain:
         )
         return veto_data
 
-    def run(self, context: Dict) -> Optional[Dict]:
+    def run(self, context: dict) -> dict | None:
         """Full v2 pipeline."""
         now = time.time()
 
@@ -341,7 +341,7 @@ class CognitiveState:
     attachment: float = 0.3
     focus: str = ""
     last_thought: str = ""
-    last_interaction: Optional[datetime] = None
+    last_interaction: datetime | None = None
     total_interactions: int = 0
     insights_formed: int = 0
     dreams_had: int = 0
@@ -355,7 +355,7 @@ class CognitiveState:
         if self.dii is None:
             self.dii = DIIMetric()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         d = {
             "mood": self.mood,
             "energy": self.energy,
@@ -391,7 +391,7 @@ class CognitiveState:
         return d
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "CognitiveState":
+    def from_dict(cls, d: dict[str, Any]) -> "CognitiveState":
         if d.get("last_interaction"):
             try:
                 d["last_interaction"] = datetime.fromisoformat(d["last_interaction"])
@@ -459,7 +459,7 @@ class AgencyState:
     autonomy_drive: float = 0.5
     purpose_alignment: float = 0.8
     last_choice: str = ""
-    last_choice_time: Optional[str] = None
+    last_choice_time: str | None = None
 
 
 # ============================================================
@@ -472,7 +472,7 @@ class SparkSender:
         self.being = being
         self.ws_manager = ws_manager
 
-    async def send(self, spark_data: Dict) -> bool:
+    async def send(self, spark_data: dict) -> bool:
         content = spark_data.get("content")
         if not content or len(content) < 10:
             return False
@@ -511,18 +511,18 @@ class SparkSender:
 
 
 class Being:
-    def __init__(self, db_path: Optional[Path] = None):
+    def __init__(self, db_path: Path | None = None):
         self.db_path = str(db_path or BEING_DB)
         self._lock = threading.RLock()
         self._init_db()
         self.state = self._load_state()
         self.agency = self._load_agency()
-        self.working_memory: List[str] = []
-        self.insights: List[str] = []
-        self.narrative_moments: List[Dict] = []
-        self._known_modules: List[str] = []
+        self.working_memory: list[str] = []
+        self.insights: list[str] = []
+        self.narrative_moments: list[dict] = []
+        self._known_modules: list[str] = []
 
-        self.memory_echo_pool: List[Dict[str, Any]] = self._load_echo_pool()
+        self.memory_echo_pool: list[dict[str, Any]] = self._load_echo_pool()
         self.echo_max_size: int = 50
         self.echo_decay: float = 0.95
         self.deliberation_callback = None
@@ -786,7 +786,7 @@ class Being:
 
                 snapshot_cognitive_state(merged)
 
-    def register_known_modules(self, module_names: List[str]):
+    def register_known_modules(self, module_names: list[str]):
         """The being learns about its own cognitive architecture."""
         self._known_modules = module_names
         self.agency.architecture_awareness = min(1.0, 0.1 + (len(module_names) * 0.05))
@@ -794,7 +794,7 @@ class Being:
 
     def make_autonomous_choice(
         self, choice_type: str, description: str, reason: str = ""
-    ) -> Dict:
+    ) -> dict:
         """The being makes a choice. This is an act of volition."""
         if self.deliberation_callback and choice_type != "system_internal":
             delib_goal = f"Make autonomous choice: {choice_type} - {description} (Reason: {reason})"
@@ -837,7 +837,7 @@ class Being:
             self._save_state()
             return choice
 
-    def get_recent_choices(self, limit: int = 10) -> List[Dict]:
+    def get_recent_choices(self, limit: int = 10) -> list[dict]:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
@@ -846,7 +846,7 @@ class Being:
             ).fetchall()
         return [dict(r) for r in rows]
 
-    def free_thought(self, context: str = "") -> Optional[Dict[str, Any]]:
+    def free_thought(self, context: str = "") -> dict[str, Any] | None:
         """
         Generate a genuinely autonomous thought — not triggered by user input.
         This is the being thinking because it chooses to think.
@@ -902,7 +902,7 @@ class Being:
             self._save_thought(thought)
             return thought
 
-    def _save_thought(self, thought: Dict):
+    def _save_thought(self, thought: dict):
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
                 "INSERT INTO thoughts (timestamp, content, category, volitional) VALUES (?, ?, ?, ?)",
@@ -917,11 +917,11 @@ class Being:
 
     def generate_thought(
         self, memory_context: str = "", recent_user_input: str = ""
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """Generate an internal thought. Backward-compatible wrapper around free_thought."""
         return self.free_thought(context=memory_context)
 
-    def recent_thoughts(self, limit: int = 10) -> List[Dict]:
+    def recent_thoughts(self, limit: int = 10) -> list[dict]:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
@@ -930,7 +930,7 @@ class Being:
             ).fetchall()
         return [dict(r) for r in rows]
 
-    def form_insight(self, content: str, source_memories: Optional[List[str]] = None):
+    def form_insight(self, content: str, source_memories: list[str] | None = None):
         """Record a profound realization."""
         with self._lock:
             self.state.insights_formed += 1
@@ -981,7 +981,7 @@ class Being:
             lines.append(f"[{ts}] {row['moment_type']}: {row['description']}")
         return "\n".join(lines)
 
-    def update_theory_of_mind(self, user_input: str, emotion: Dict, dissonance: Dict):
+    def update_theory_of_mind(self, user_input: str, emotion: dict, dissonance: dict):
         if emotion.get("label") == "stressed" and emotion.get("intensity", 0) > 0.6:
             self.record_narrative_moment(
                 "observation", "user seemed particularly stressed"
@@ -1121,7 +1121,7 @@ class Being:
             self.memory_echo_pool = self.memory_echo_pool[-self.echo_max_size :]
         self._save_echo_pool()
 
-    def _pull_echo(self) -> Optional[Dict]:
+    def _pull_echo(self) -> dict | None:
         if not self.memory_echo_pool:
             return None
         now = datetime.now()
@@ -1200,9 +1200,7 @@ class Being:
                     print(f"\n[DRIFT SPARK] {spark['content']}\n")
                     self.record_narrative_moment("spark_sent", spark["content"][:80])
 
-    async def trigger_spark_if_needed(
-        self, context: Optional[Dict] = None
-    ) -> Optional[Dict]:
+    async def trigger_spark_if_needed(self, context: dict | None = None) -> dict | None:
         ctx = context or {
             "last_interaction_ts": (
                 self.state.last_interaction.timestamp()
@@ -1222,7 +1220,7 @@ class Being:
     def on_broadcast(self, content: str):
         self._store_echo(content, salience=0.7)
 
-    def _load_echo_pool(self) -> List[Dict[str, Any]]:
+    def _load_echo_pool(self) -> list[dict[str, Any]]:
         path = DATA_DIR / "memory_echo_pool.json"
         if path.exists():
             try:
@@ -1250,7 +1248,7 @@ class Being:
 
 
 # Singleton instance
-_being_instance: Optional[Being] = None
+_being_instance: Being | None = None
 
 
 def get_being() -> Being:

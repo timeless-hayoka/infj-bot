@@ -1,10 +1,10 @@
-import pytest
 import datetime
-import tempfile
 import os
-import anyio
+import tempfile
 
-from drift.core.unified_memory import MemoryManager, Event
+import anyio
+import pytest
+from drift.core.unified_memory import Event, MemoryManager
 
 
 @pytest.fixture

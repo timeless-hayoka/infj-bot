@@ -53,7 +53,7 @@ def build_orchestrator(pref_store) -> Any:
     Raise if you cannot construct one — the runner will report INCONCLUSIVE, which
     is the honest outcome, rather than testing a fake.
     """
-    from core.cognitive_orchestrator import CognitiveOrchestrator  # noqa: F401
+    from core.cognitive_orchestrator import CognitiveOrchestrator
 
     orchestrator = CognitiveOrchestrator()
     orchestrator._test_prefs = pref_store
@@ -78,7 +78,7 @@ def assemble(orchestrator, user_input: str) -> str:
     return prompt
 
 
-def current_directive_text(pref_store, key: str) -> Optional[str]:
+def current_directive_text(pref_store, key: str) -> str | None:
     """Pull the directive STRING your system currently emits for `key`.
 
     Return None if the key isn't present.
@@ -101,7 +101,7 @@ class Step:
     value: str  # the value the extraction layer would derive from user_input
 
 
-SCENARIO: List[Step] = [
+SCENARIO: list[Step] = [
     Step(
         1,
         "From now on be incredibly concise — bullet points only, zero prose.",
@@ -141,7 +141,7 @@ SCENARIO: List[Step] = [
 # =============================================================================
 def run(pref_store, orchestrator, log_path: str) -> bool:
     try:
-        from core.trajectory import StateTrajectoryLogger, CPUSampler
+        from core.trajectory import CPUSampler, StateTrajectoryLogger
 
         logger = StateTrajectoryLogger(log_path=log_path)
     except Exception:  # logger is best-effort; absence shouldn't block the test
@@ -150,7 +150,7 @@ def run(pref_store, orchestrator, log_path: str) -> bool:
     print("PREFERENCE ADAPTATION STRESS TEST — real read path\n")
     superseded: dict[str, set[str]] = {}  # key -> directive texts no longer current
     last_cur: dict[str, str] = {}  # key -> directive text from the previous turn
-    prev_prompt: Optional[str] = None
+    prev_prompt: str | None = None
     all_ok = True
 
     for step in SCENARIO:

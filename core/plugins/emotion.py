@@ -95,7 +95,7 @@ def _load_classifier():
     return _TRANSFORMER_CLASSIFIER
 
 
-def _detect_transformer(text: str) -> Dict:
+def _detect_transformer(text: str) -> dict:
     clf = _load_classifier()
     if clf is False:
         return {}
@@ -156,7 +156,7 @@ def _detect_transformer(text: str) -> Dict:
 # ---------------------------------------------------------------------------
 
 
-def _detect_lexicon(text: str) -> Dict:
+def _detect_lexicon(text: str) -> dict:
     words = {word.strip(".,!?;:\"'()[]{}").lower() for word in text.split()}
     scores = {
         label: len(words & keywords) for label, keywords in EMOTION_KEYWORDS.items()
@@ -191,7 +191,7 @@ def _detect_lexicon(text: str) -> Dict:
 # ---------------------------------------------------------------------------
 
 
-def detect_emotion(text: str) -> Dict:
+def detect_emotion(text: str) -> dict:
     result = _detect_transformer(text)
     if result:  # Check if dictionary is non-empty
         return result

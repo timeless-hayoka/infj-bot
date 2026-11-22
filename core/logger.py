@@ -5,9 +5,9 @@ Enforces schema integrity for all experimental trials.
 
 import json
 import os
-from datetime import datetime, timezone
+from dataclasses import asdict, dataclass
+from datetime import UTC, datetime, timezone
 from pathlib import Path
-from dataclasses import dataclass, asdict
 from typing import Any, Dict, Optional
 
 
@@ -17,9 +17,9 @@ class LabRecord:
     test_id: str
     control_hash: str
     variable_tested: str
-    metrics: Dict[str, Any]
+    metrics: dict[str, Any]
     verdict: str  # PASS | FAIL | INCONCLUSIVE
-    metadata: Dict[str, Any]
+    metadata: dict[str, Any]
 
 
 class DriftLabLogger:
@@ -43,13 +43,13 @@ class DriftLabLogger:
     def log_trial(
         self,
         test_id: str,
-        metrics: Dict[str, Any],
+        metrics: dict[str, Any],
         verdict: str,
-        meta: Optional[Dict[str, Any]] = None,
+        meta: dict[str, Any] | None = None,
     ):
         """Record a single trial to the standardized JSON log."""
         record = LabRecord(
-            timestamp=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            timestamp=datetime.now(UTC).isoformat().replace("+00:00", "Z"),
             test_id=test_id,
             control_hash=os.getenv("DRIFT_LAB_HASH", "UNKNOWN"),
             variable_tested=self.variable,

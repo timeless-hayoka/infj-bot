@@ -52,10 +52,10 @@ class InnerVoice:
     ]
 
     def __init__(self):
-        self.thought_history: List[str] = []
+        self.thought_history: list[str] = []
         self.max_history = 50
 
-    def generate_stream(self, memory_fragments: Optional[List[str]] = None) -> str:
+    def generate_stream(self, memory_fragments: list[str] | None = None) -> str:
         """Generate a single thought from the stream of consciousness."""
         being = get_being()
         mood = being.state.mood
@@ -77,7 +77,7 @@ class InnerVoice:
             self.thought_history = self.thought_history[-self.max_history :]
         return thought
 
-    def _weave_thought(self, seed: str, memories: List[str]) -> str:
+    def _weave_thought(self, seed: str, memories: list[str]) -> str:
         """Weave a thought from a seed and optional memory fragments."""
         patterns = [
             f"I'm thinking about {seed}.",

@@ -18,8 +18,9 @@ Design goals (from operator feedback):
 import argparse
 import json
 from collections import Counter
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Iterator, Optional
+from typing import Optional
 
 
 def _read_jsonl_fault_tolerant(path: Path) -> Iterator[dict]:
@@ -37,7 +38,7 @@ def _read_jsonl_fault_tolerant(path: Path) -> Iterator[dict]:
                 continue
 
 
-def _get_ts(record: dict) -> Optional[str]:
+def _get_ts(record: dict) -> str | None:
     return record.get("ts") or record.get("timestamp")
 
 
@@ -59,7 +60,7 @@ def tail(paths: list[Path], n: int) -> None:
         print(f"[{p.name}] {ts}  {json.dumps(rec, default=str)[:200]}")
 
 
-def summary(paths: list[Path], since: Optional[str] = None) -> None:
+def summary(paths: list[Path], since: str | None = None) -> None:
     total = 0
     valid = 0
     corrupt = 0

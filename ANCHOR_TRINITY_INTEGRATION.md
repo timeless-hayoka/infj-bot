@@ -36,30 +36,30 @@ Trinity                           ANCHOR
 ```python
 @dataclass
 class Run:
-    run_id: str                           # "run_abc123def456"
-    benchmark: str                        # Benchmark ID (usually "3a8b8bf0")
-    mode: str                             # "demo" | "trinity" | "hunt_analysis"
-    params: dict[str, Any]                # {"target": "...", "script": "...", "registry": "..."}
-    status: str                           # "pending" | "running" | "done"
-    cases: dict[str, dict[str, Any]]      # case_id → case object
-    registry: dict[str, Any] | None       # Final aggregated registry
-    events: list[dict[str, Any]]          # All events emitted
+    run_id: str  # "run_abc123def456"
+    benchmark: str  # Benchmark ID (usually "3a8b8bf0")
+    mode: str  # "demo" | "trinity" | "hunt_analysis"
+    params: dict[str, Any]  # {"target": "...", "script": "...", "registry": "..."}
+    status: str  # "pending" | "running" | "done"
+    cases: dict[str, dict[str, Any]]  # case_id → case object
+    registry: dict[str, Any] | None  # Final aggregated registry
+    events: list[dict[str, Any]]  # All events emitted
 ```
 
 ### Case Object Structure
 
 ```python
 case = {
-    "case_id": "TinyReentrancy",          # Unique case ID
-    "contract": "TinyReentrancy",         # Contract being tested
-    "swc": "SWC-107",                     # Primary SWC weakness
-    "expected": ["SWC-107"],              # Expected weaknesses
-    "detected": ["SWC-107"],              # Detected by scanner
-    "correlated": ["SWC-107"],            # Correlated by multiple tools
-    "reproduced_real": ["SWC-107"],       # Reproduced with real PoC
-    "validation_state": "REPRODUCED_REAL", # PENDING | DETECTED | CORRELATED | FAILED | REPRODUCED_REAL
-    "reproduction_status": "REPRODUCED_REAL", # Human-readable status
-    "execution_artifacts": [              # List of PoC results
+    "case_id": "TinyReentrancy",  # Unique case ID
+    "contract": "TinyReentrancy",  # Contract being tested
+    "swc": "SWC-107",  # Primary SWC weakness
+    "expected": ["SWC-107"],  # Expected weaknesses
+    "detected": ["SWC-107"],  # Detected by scanner
+    "correlated": ["SWC-107"],  # Correlated by multiple tools
+    "reproduced_real": ["SWC-107"],  # Reproduced with real PoC
+    "validation_state": "REPRODUCED_REAL",  # PENDING | DETECTED | CORRELATED | FAILED | REPRODUCED_REAL
+    "reproduction_status": "REPRODUCED_REAL",  # Human-readable status
+    "execution_artifacts": [  # List of PoC results
         {
             "swc": "SWC-107",
             "success": True,
@@ -104,10 +104,10 @@ from anchor_server import create_run
 # Create a new ANCHOR run in "trinity" mode
 run = create_run(
     mode="trinity",
-    script="trinity_hunt.py",            # Path to Trinity script
-    registry="trinity_findings.json",     # Where to save findings
-    benchmark="3a8b8bf0",                 # Use this benchmark ID
-    target="src/TinyReentrancy.sol",      # Optional: limit to one contract
+    script="trinity_hunt.py",  # Path to Trinity script
+    registry="trinity_findings.json",  # Where to save findings
+    benchmark="3a8b8bf0",  # Use this benchmark ID
+    target="src/TinyReentrancy.sol",  # Optional: limit to one contract
 )
 run_id = run.run_id
 print(f"Created run: {run_id}")
@@ -120,30 +120,39 @@ ANCHOR_RUNS[run_id] = run
 
 ```python
 # When Trinity detects a weakness
-await run.emit("finding.detected", {
-    "case_id": "reentrancy_case_1",
-    "contract": "TinyReentrancy",
-    "swc": "SWC-107",
-    "expected": ["SWC-107"],
-    "timestamp": "2026-07-25T18:01:00Z",
-})
+await run.emit(
+    "finding.detected",
+    {
+        "case_id": "reentrancy_case_1",
+        "contract": "TinyReentrancy",
+        "swc": "SWC-107",
+        "expected": ["SWC-107"],
+        "timestamp": "2026-07-25T18:01:00Z",
+    },
+)
 
 # When Trinity correlates evidence (multiple tools agree)
-await run.emit("finding.correlated", {
-    "case_id": "reentrancy_case_1",
-    "swc": "SWC-107",
-})
+await run.emit(
+    "finding.correlated",
+    {
+        "case_id": "reentrancy_case_1",
+        "swc": "SWC-107",
+    },
+)
 
 # When Trinity executes a PoC and gets results
-await run.emit("poc.result", {
-    "case_id": "reentrancy_case_1",
-    "swc": "SWC-107",
-    "exploit_verified": True,            # ← THE CRITICAL FLAG
-    "assertion_count": 3,
-    "test_path": "test/TinyReentrancy.t.sol",
-    "stderr": "",
-    "failure_reason": "",
-})
+await run.emit(
+    "poc.result",
+    {
+        "case_id": "reentrancy_case_1",
+        "swc": "SWC-107",
+        "exploit_verified": True,  # ← THE CRITICAL FLAG
+        "assertion_count": 3,
+        "test_path": "test/TinyReentrancy.t.sol",
+        "stderr": "",
+        "failure_reason": "",
+    },
+)
 ```
 
 ### 3. Check Results
@@ -175,13 +184,13 @@ for case in registry["results"]:
 
 ```python
 {
-    "case_id": str,                  # Unique case identifier
-    "swc": str | None,               # SWC code (e.g., "SWC-107")
-    "exploit_verified": bool,        # TRUE = REPRODUCED_REAL, FALSE = FAILED
-    "assertion_count": int,          # Number of assertions that passed
-    "test_path": str | None,         # Path to Forge test file
-    "stderr": str,                   # Any error output
-    "failure_reason": str,           # Human explanation if failed
+    "case_id": str,  # Unique case identifier
+    "swc": str | None,  # SWC code (e.g., "SWC-107")
+    "exploit_verified": bool,  # TRUE = REPRODUCED_REAL, FALSE = FAILED
+    "assertion_count": int,  # Number of assertions that passed
+    "test_path": str | None,  # Path to Forge test file
+    "stderr": str,  # Any error output
+    "failure_reason": str,  # Human explanation if failed
 }
 ```
 
@@ -195,8 +204,8 @@ When ANCHOR receives `poc.result`:
 {
     "case_id": str,
     "contract": str | None,
-    "expected": list[str],           # SWC codes expected in this contract
-    "timestamp": str,                # ISO timestamp
+    "expected": list[str],  # SWC codes expected in this contract
+    "timestamp": str,  # ISO timestamp
 }
 ```
 
@@ -206,7 +215,7 @@ When ANCHOR receives `poc.result`:
 {
     "case_id": str,
     "contract": str | None,
-    "swc": str,                      # Detected SWC
+    "swc": str,  # Detected SWC
     "expected": list[str],
 }
 ```
@@ -216,7 +225,7 @@ When ANCHOR receives `poc.result`:
 ```python
 {
     "case_id": str,
-    "swc": str,                      # SWC confirmed by multiple tools
+    "swc": str,  # SWC confirmed by multiple tools
 }
 ```
 
@@ -227,66 +236,85 @@ When ANCHOR receives `poc.result`:
 ```python
 # trinity_hunt.py or similar
 
+
 async def hunt_with_anchor_registry(
     run: Run,
     hypotheses: list[Hypothesis],
 ) -> dict[str, Any]:
     """Run Trinity's hunt loop, emitting ANCHOR events."""
-    
+
     async with run.lock:  # Thread-safe access
-        await run.emit("run.started", {
-            "timestamp": utc_stamp(),
-            "script": "trinity_hunt.py",
-        })
-    
+        await run.emit(
+            "run.started",
+            {
+                "timestamp": utc_stamp(),
+                "script": "trinity_hunt.py",
+            },
+        )
+
     for hypothesis in hypotheses:
         case_id = hypothesis.id
-        
+
         # Start the case
         async with run.lock:
-            await run.emit("case.started", {
-                "case_id": case_id,
-                "contract": hypothesis.contract,
-                "expected": [hypothesis.swc],
-            })
-        
+            await run.emit(
+                "case.started",
+                {
+                    "case_id": case_id,
+                    "contract": hypothesis.contract,
+                    "expected": [hypothesis.swc],
+                },
+            )
+
         # Trinity detects it
         async with run.lock:
-            await run.emit("finding.detected", {
-                "case_id": case_id,
-                "swc": hypothesis.swc,
-                "expected": [hypothesis.swc],
-            })
-        
+            await run.emit(
+                "finding.detected",
+                {
+                    "case_id": case_id,
+                    "swc": hypothesis.swc,
+                    "expected": [hypothesis.swc],
+                },
+            )
+
         # Trinity correlates it
         async with run.lock:
-            await run.emit("finding.correlated", {
-                "case_id": case_id,
-                "swc": hypothesis.swc,
-            })
-        
+            await run.emit(
+                "finding.correlated",
+                {
+                    "case_id": case_id,
+                    "swc": hypothesis.swc,
+                },
+            )
+
         # Trinity generates and executes PoC
         poc_code = generate_poc(hypothesis)
         forge_result = await execute_forge(poc_code, hypothesis.contract)
-        
+
         # Trinity tells ANCHOR the result
         async with run.lock:
-            await run.emit("poc.result", {
-                "case_id": case_id,
-                "swc": hypothesis.swc,
-                "exploit_verified": forge_result.all_assertions_passed,
-                "assertion_count": forge_result.passed_assertions,
-                "test_path": forge_result.test_file,
-                "stderr": forge_result.stderr,
-                "failure_reason": forge_result.error_msg or "",
-            })
-    
+            await run.emit(
+                "poc.result",
+                {
+                    "case_id": case_id,
+                    "swc": hypothesis.swc,
+                    "exploit_verified": forge_result.all_assertions_passed,
+                    "assertion_count": forge_result.passed_assertions,
+                    "test_path": forge_result.test_file,
+                    "stderr": forge_result.stderr,
+                    "failure_reason": forge_result.error_msg or "",
+                },
+            )
+
     # Done with this hunt run
     async with run.lock:
-        await run.emit("run.completed", {
-            "timestamp": utc_stamp(),
-        })
-    
+        await run.emit(
+            "run.completed",
+            {
+                "timestamp": utc_stamp(),
+            },
+        )
+
     # Return the final registry
     return build_registry_from_cases(run)
 ```
@@ -311,9 +339,9 @@ ANCHOR's `LADDER` tracks progression:
 
 ```python
 LADDER = {
-    "DETECTED": 0,           # Scanner found a potential issue
-    "CORRELATED": 1,         # Multiple tools or stages confirm it
-    "REPRODUCED_REAL": 2,    # PoC executed, assertions passed, state delta measured
+    "DETECTED": 0,  # Scanner found a potential issue
+    "CORRELATED": 1,  # Multiple tools or stages confirm it
+    "REPRODUCED_REAL": 2,  # PoC executed, assertions passed, state delta measured
 }
 ```
 

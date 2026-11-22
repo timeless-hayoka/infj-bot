@@ -9,7 +9,6 @@ from typing import Any, Dict, List
 
 from drift.core.plugins.findings_db import Finding
 
-
 SEVERITY_MAP = {
     "P1": "critical",
     "P2": "high",
@@ -22,7 +21,7 @@ SEVERITY_MAP = {
 class ReportBuilder:
     """Build Bugcrowd-ready reports from findings."""
 
-    def build(self, finding: Finding, evidence_list: List[Dict[str, Any]]) -> str:
+    def build(self, finding: Finding, evidence_list: list[dict[str, Any]]) -> str:
         """Return a full Bugcrowd markdown report."""
         lines = [
             f"# {finding.title}",
@@ -65,7 +64,7 @@ class ReportBuilder:
         )
         return "\n".join(lines)
 
-    def build_summary(self, findings: List[Finding]) -> str:
+    def build_summary(self, findings: list[Finding]) -> str:
         """Build a summary table of multiple findings."""
         if not findings:
             return "No findings to summarize."

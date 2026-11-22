@@ -42,15 +42,15 @@ TEST_PROMPTS = [
 @dataclass
 class ModeDiscriminationReport:
     timestamp: str
-    modes_tested: List[str]
+    modes_tested: list[str]
     lexical_distinctness: float = 0.0
     syntactic_distinctness: float = 0.0
     tool_distinctness: float = 0.0
     tone_distinctness: float = 0.0
     overall_score: float = 0.0
-    convergence_warnings: List[str] = field(default_factory=list)
+    convergence_warnings: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "timestamp": self.timestamp,
             "modes_tested": self.modes_tested,
@@ -66,7 +66,7 @@ class ModeDiscriminationReport:
 class ModeDiscriminator:
     """Tests whether DRIFT's modes produce measurably different behavior."""
 
-    def __init__(self, db_path: Optional[Path] = None):
+    def __init__(self, db_path: Path | None = None):
         self.db_path = str(db_path or EVAL_DB)
         Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
         self._init_db()
@@ -89,7 +89,7 @@ class ModeDiscriminator:
             conn.commit()
 
     def evaluate_modes(
-        self, modes: List[str], prompts: Optional[List[str]] = None, n_prompts: int = 10
+        self, modes: list[str], prompts: list[str] | None = None, n_prompts: int = 10
     ) -> ModeDiscriminationReport:
         """Run discrimination analysis across modes."""
         test_prompts = (prompts or TEST_PROMPTS)[:n_prompts]
@@ -123,8 +123,8 @@ class ModeDiscriminator:
         return report
 
     def _collect_responses(
-        self, modes: List[str], prompts: List[str]
-    ) -> Dict[str, List[Dict]]:
+        self, modes: list[str], prompts: list[str]
+    ) -> dict[str, list[dict]]:
         """Collect responses from each mode for each prompt."""
         from drift.core.brain import DriftBrain
         from drift.core.commands import BotState
@@ -164,14 +164,14 @@ class ModeDiscriminator:
                     )
         return responses
 
-    def _extract_tools(self, response: str) -> List[str]:
+    def _extract_tools(self, response: str) -> list[str]:
         """Extract tool invocations from response text."""
         tool_pattern = r"\b(tool_[a-z_]+|recon|scan|fuzz|computer_use)\b"
         return list(set(re.findall(tool_pattern, response.lower())))
 
     # ── Metrics ──
 
-    def _lexical_distinctness(self, responses: Dict[str, List[Dict]]) -> float:
+    def _lexical_distinctness(self, responses: dict[str, list[dict]]) -> float:
         """Measure vocabulary differentiation between modes."""
         mode_vocab = {}
         for mode, resps in responses.items():
@@ -198,7 +198,7 @@ class ModeDiscriminator:
 
         return sum(distinct_ratios) / len(distinct_ratios) if distinct_ratios else 1.0
 
-    def _syntactic_distinctness(self, responses: Dict[str, List[Dict]]) -> float:
+    def _syntactic_distinctness(self, responses: dict[str, list[dict]]) -> float:
         """Measure sentence structure differentiation."""
         mode_structures = {}
         for mode, resps in responses.items():
@@ -238,7 +238,7 @@ class ModeDiscriminator:
 
         return sum(distinct_scores) / len(distinct_scores) if distinct_scores else 1.0
 
-    def _tool_distinctness(self, responses: Dict[str, List[Dict]]) -> float:
+    def _tool_distinctness(self, responses: dict[str, list[dict]]) -> float:
         """Measure tool usage differentiation between modes."""
         mode_tools = {}
         for mode, resps in responses.items():
@@ -266,7 +266,7 @@ class ModeDiscriminator:
 
         return sum(distinct_scores) / len(distinct_scores) if distinct_scores else 1.0
 
-    def _tone_distinctness(self, responses: Dict[str, List[Dict]]) -> float:
+    def _tone_distinctness(self, responses: dict[str, list[dict]]) -> float:
         """Measure emotional tone differentiation using sentiment markers."""
         positive_markers = [
             "love",
@@ -347,8 +347,8 @@ class ModeDiscriminator:
         return sum(distinct_scores) / len(distinct_scores) if distinct_scores else 1.0
 
     def _detect_convergence(
-        self, responses: Dict[str, List[Dict]], modes: List[str]
-    ) -> List[str]:
+        self, responses: dict[str, list[dict]], modes: list[str]
+    ) -> list[str]:
         """Detect specific mode pairs that are converging."""
         warnings = []
         lexical = {}
@@ -393,7 +393,7 @@ class ModeDiscriminator:
             )
             conn.commit()
 
-    def get_report_history(self, limit: int = 20) -> List[Dict]:
+    def get_report_history(self, limit: int = 20) -> list[dict]:
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.execute(
                 "SELECT * FROM mode_discrimination_reports ORDER BY timestamp DESC LIMIT ?",

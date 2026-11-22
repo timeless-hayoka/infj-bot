@@ -10,7 +10,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
-
 DEFAULT_DB_PATH = (
     Path(__file__).resolve().parent.parent.parent / "data" / "bugbot_targets.db"
 )
@@ -34,7 +33,7 @@ class Target:
 
 
 class TargetManager:
-    def __init__(self, db_path: Optional[Path] = None):
+    def __init__(self, db_path: Path | None = None):
         self.db_path = db_path or DEFAULT_DB_PATH
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._init_db()
@@ -93,7 +92,7 @@ class TargetManager:
         self,
         program_id: str,
         program_name: str,
-        assets: List[Dict[str, Any]],
+        assets: list[dict[str, Any]],
         scope: str = "in",
     ):
         """Add multiple assets from a Bugcrowd scope sync."""
@@ -163,12 +162,12 @@ class TargetManager:
 
     def list_targets(
         self,
-        program_id: Optional[str] = None,
-        scope: Optional[str] = None,
-        asset_type: Optional[str] = None,
-    ) -> List[Target]:
+        program_id: str | None = None,
+        scope: str | None = None,
+        asset_type: str | None = None,
+    ) -> list[Target]:
         query = "SELECT * FROM targets WHERE 1=1"
-        params: List[Any] = []
+        params: list[Any] = []
         if program_id:
             query += " AND program_id = ?"
             params.append(program_id)
@@ -183,7 +182,7 @@ class TargetManager:
             rows = conn.execute(query, params).fetchall()
         return [Target(**{k: r[k] for k in r.keys()}) for r in rows]
 
-    def get_authorized_targets(self) -> Set[str]:
+    def get_authorized_targets(self) -> set[str]:
         """Return all in-scope assets for quick set checks."""
         with self._conn() as conn:
             rows = conn.execute(
@@ -199,11 +198,9 @@ class TargetManager:
             conn.commit()
         return cur.rowcount
 
-    def count(
-        self, program_id: Optional[str] = None, scope: Optional[str] = None
-    ) -> int:
+    def count(self, program_id: str | None = None, scope: str | None = None) -> int:
         query = "SELECT COUNT(*) FROM targets WHERE 1=1"
-        params: List[Any] = []
+        params: list[Any] = []
         if program_id:
             query += " AND program_id = ?"
             params.append(program_id)

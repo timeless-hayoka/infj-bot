@@ -21,8 +21,8 @@ import sys
 from pathlib import Path
 
 import httpx
-from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
 
 CREDS_PATH = Path.home() / ".config" / "drift" / "gmail_credentials.json"
 GMAIL_MCP_URL = "https://gmailmcp.googleapis.com/mcp/v1"

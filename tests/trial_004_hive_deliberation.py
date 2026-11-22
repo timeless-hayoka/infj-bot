@@ -5,18 +5,18 @@ Hypothesis: High-risk tool calls will trigger the deliberation bridge and
 can be blocked by the Council of Seven.
 """
 
+import json
 import logging
 import sys
-import json
 from pathlib import Path
 from unittest.mock import MagicMock
 
 # Add project root to path
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
-from drift.core.logger import DriftLabLogger
 from drift.core.brain import DriftBrain
 from drift.core.hive.elysium import DeliberationResult
+from drift.core.logger import DriftLabLogger
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)

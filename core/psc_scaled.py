@@ -16,11 +16,12 @@ Scalability architecture:
 DRIFT V4 | Julien James (CREX)
 """
 
-import numpy as np
 import logging
 import time
 from dataclasses import dataclass
 from typing import Optional
+
+import numpy as np
 
 logger = logging.getLogger("drift.psc_scaled")
 
@@ -93,7 +94,7 @@ class PSCStateBuffer:
         self._head = (self._head + 1) % self._cap
         self._count = min(self._count + 1, self._cap)
 
-    def get(self, n: Optional[int] = None) -> np.ndarray:
+    def get(self, n: int | None = None) -> np.ndarray:
         """Return last n values in chronological order."""
         n = min(n or self._count, self._count)
         if self._count < self._cap:
@@ -382,7 +383,7 @@ class PSCBatchEngine:
             if isinstance(v, (int, float)):
                 self.buffers[d].push(float(v))
 
-    def run(self) -> Optional[PSCBatchResult]:
+    def run(self) -> PSCBatchResult | None:
         """
         Full PSC cycle over all dimensions in one vectorized pass.
         Returns None if insufficient history.
@@ -612,7 +613,7 @@ if __name__ == "__main__":
     print(f"  16-dim  engine buffer RAM: ~{16 * BUFFER_SIZE * 4 / 1024:.2f} KB")
 
 # ─── Singleton Accessor ──────────────────────────────────────────────────────
-_psc_instance: Optional[PSCBatchEngine] = None
+_psc_instance: PSCBatchEngine | None = None
 
 
 def get_psc_engine() -> PSCBatchEngine:

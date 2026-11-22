@@ -13,10 +13,10 @@ except ImportError:
     chromadb = None  # type: ignore[assignment]
     _CHROMADB_AVAILABLE = False
 
-from drift.core.config import PROJECT_ROOT, DATA_DIR
+from drift.core.config import DATA_DIR, PROJECT_ROOT
 from drift.core.embeddings import (
-    get_default_embedding_function,
     LocalEmbeddingFunction,
+    get_default_embedding_function,
 )
 
 SUPPORTED_TEXT = {
@@ -64,18 +64,18 @@ def _resolve_ingest_path(path: str) -> Path:
     return target
 
 
-def _chunk_text(text: str, chunk_size: int = 800, overlap: int = 100) -> List[str]:
+def _chunk_text(text: str, chunk_size: int = 800, overlap: int = 100) -> list[str]:
     """Split text into overlapping chunks by paragraphs."""
     paragraphs = [p.strip() for p in re.split(r"\n\s*\n", text) if p.strip()]
     chunks = []
-    current: List[str] = []
+    current: list[str] = []
     current_len = 0
     for para in paragraphs:
         para_len = len(para)
         if current_len + para_len > chunk_size and current:
             chunks.append("\n\n".join(current))
             # Keep overlap
-            overlap_text: List[str] = []
+            overlap_text: list[str] = []
             overlap_len = 0
             for p in reversed(current):
                 if overlap_len + len(p) > overlap:
@@ -135,7 +135,7 @@ class DocumentStore:
             embedding_function=embedding_function,
         )
 
-    def ingest(self, file_path: str, tags: Optional[List[str]] = None) -> int:
+    def ingest(self, file_path: str, tags: list[str] | None = None) -> int:
         path = _resolve_ingest_path(file_path)
         if not path.exists():
             raise FileNotFoundError(f"Not found: {path}")
@@ -170,7 +170,7 @@ class DocumentStore:
         return len(chunks)
 
     def ingest_directory(
-        self, dir_path: Path, tags: Optional[List[str]] = None, recursive: bool = True
+        self, dir_path: Path, tags: list[str] | None = None, recursive: bool = True
     ) -> int:
         total = 0
         scanned = 0
@@ -189,7 +189,7 @@ class DocumentStore:
                     print(f"[ingest skip] {child}: {exc}")
         return total
 
-    def search(self, query: str, n_results: int = 5) -> List[dict]:
+    def search(self, query: str, n_results: int = 5) -> list[dict]:
         results = self.collection.query(
             query_texts=[query],
             n_results=n_results,
@@ -207,7 +207,7 @@ class DocumentStore:
             )
         return out
 
-    def list_sources(self) -> List[str]:
+    def list_sources(self) -> list[str]:
         results = self.collection.get(include=["metadatas"])
         sources = set()
         for meta in results.get("metadatas", []):
@@ -229,7 +229,7 @@ class DocumentStore:
         return self.collection.count()
 
 
-def format_doc_results(results: List[dict]) -> str:
+def format_doc_results(results: list[dict]) -> str:
     if not results:
         return "No matching documents found."
     lines = []

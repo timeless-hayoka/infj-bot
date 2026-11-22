@@ -1,11 +1,11 @@
 """Tests for the logic chain reasoning system."""
 
 from drift.core.logic_chain import (
+    ChainNavigator,
     ChainNode,
     LogicChain,
-    ChainNavigator,
-    _fingerprint_query,
     _extract_approach,
+    _fingerprint_query,
 )
 
 

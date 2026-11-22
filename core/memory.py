@@ -1,19 +1,18 @@
-import uuid
+import asyncio
 import datetime
 import json
 import re
-import asyncio
+import uuid
 from pathlib import Path
 from typing import List, Tuple
 
-from drift.core.config import PERSIST_DIRECTORY, DRIFT_USE_LOCAL_EMBEDDINGS
+from drift.core.config import DRIFT_USE_LOCAL_EMBEDDINGS, PERSIST_DIRECTORY
 from drift.core.embeddings import (
-    get_default_embedding_function,
     LocalEmbeddingFunction,
     SemanticEmbeddingFunction,
+    get_default_embedding_function,
 )
-from drift.core.unified_memory import MemoryManager, Event
-
+from drift.core.unified_memory import Event, MemoryManager
 
 # ── Secret scrubbing ──────────────────────────────────────────────
 # Patterns are ordered from most specific to least specific.
@@ -22,7 +21,8 @@ from drift.core.unified_memory import MemoryManager, Event
 SECRET_PATTERNS = [
     # PEM private keys (most specific)
     re.compile(
-        r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----", re.S
+        r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----",
+        re.DOTALL,
     ),
     # API key / token / password with common prefixes (highly specific)
     re.compile(
@@ -406,7 +406,7 @@ class DriftMemory:
 
     def _rerank(
         self, documents, metadatas, distances, top_k=5
-    ) -> Tuple[List[str], List[dict]]:
+    ) -> tuple[list[str], list[dict]]:
         # Deprecated: _rerank logic is now handled internally by MemoryManager.recall
         pass
 
@@ -450,7 +450,7 @@ class DriftMemory:
     def export_json(self, path):
         # We export what we can from unified manager via recall
         # This is a bit of a hack for backwards compatibility
-        pass  # Will implement fully later if needed, but for now we skip or return 0
+        # Will implement fully later if needed, but for now we skip or return 0
         return 0
 
     def import_json(self, path):

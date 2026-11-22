@@ -23,12 +23,12 @@ Usage:
 
 from __future__ import annotations
 
+import json
+import logging
 import os
 import sqlite3
-import logging
-import json
-from datetime import datetime, timezone
 from dataclasses import asdict
+from datetime import UTC, datetime, timezone
 from typing import Union
 
 logger = logging.getLogger("drift.being_snapshot")
@@ -117,7 +117,7 @@ class CognitiveSnapshotWriter:
 
     def write(
         self,
-        cognitive_state: Union[dict, object],
+        cognitive_state: dict | object,
         session_id: str = "",
         cycle: int = 0,
         error_pressure: float = 0.0,
@@ -176,7 +176,7 @@ class CognitiveSnapshotWriter:
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
             (
-                datetime.now(timezone.utc).isoformat(),
+                datetime.now(UTC).isoformat(),
                 session_id,
                 cycle,
                 dims.get("focus", 0.5),

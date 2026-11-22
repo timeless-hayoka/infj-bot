@@ -39,47 +39,47 @@ if new_genai is None and legacy_genai is None:
         legacy_genai = None
 
 
+import collections
+import logging
+from typing import Optional
+
+from drift.core.being import get_being
 from drift.core.config import (
     API_KEY,
-    DRIFT_PRIMARY_MODEL,
     DRIFT_CRITIC_MODEL,
+    DRIFT_GEN_CACHE_SIZE,
+    DRIFT_GROQ_MODEL,
+    DRIFT_HISTORY_SIZE,
+    DRIFT_KIMI_MODEL,
+    DRIFT_PREFER_LOCAL,
+    DRIFT_PRIMARY_MODEL,
+    DRIFT_USE_GROQ,
+    DRIFT_USE_HF,
+    DRIFT_USE_KIMI,
     DRIFT_USE_LOCAL_FALLBACK,
     GROQ_API_KEY,
-    DRIFT_GROQ_MODEL,
-    DRIFT_USE_GROQ,
     KIMI_API_KEY,
-    DRIFT_KIMI_MODEL,
-    DRIFT_USE_KIMI,
-    DRIFT_USE_HF,
-    DRIFT_PREFER_LOCAL,
-    DRIFT_HISTORY_SIZE,
-    DRIFT_GEN_CACHE_SIZE,
 )
-import collections
 from drift.core.gen_cache import DiskGenCache
-from drift.core.hf_bridge import DriftHFBridge
-from drift.core.local_llm import OllamaBridge
-from drift.core.logic_chain import get_chain_navigator, ChainNavigator
-from drift.core.plugins.self_eval import SelfEvaluator
-from drift.core.security_defense import scan_input, get_security_scanner
-from drift.core.types import SecurityScanResult
-from drift.core.being import get_being
-from drift.core.tools import (
-    build_tool_prompt,
-    extract_tool_calls,
-    execute_tool_call,
-    HIGH_RISK_TOOLS,
-)
-import logging
-from drift.core.safe_math_integration import critic_math_check, active_grounded_math_var
-from typing import Optional
 from drift.core.generation import (
     RequestCancelled,
     RequestDeadlineExceeded,
     SystemOverload,
     _BrainGenerationMixin,
 )
-
+from drift.core.hf_bridge import DriftHFBridge
+from drift.core.local_llm import OllamaBridge
+from drift.core.logic_chain import ChainNavigator, get_chain_navigator
+from drift.core.plugins.self_eval import SelfEvaluator
+from drift.core.safe_math_integration import active_grounded_math_var, critic_math_check
+from drift.core.security_defense import get_security_scanner, scan_input
+from drift.core.tools import (
+    HIGH_RISK_TOOLS,
+    build_tool_prompt,
+    execute_tool_call,
+    extract_tool_calls,
+)
+from drift.core.types import SecurityScanResult
 
 try:
     from drift.core.prompts.word_list import CHILL_WORD_LIST
@@ -93,8 +93,9 @@ if not API_KEY and not GROQ_API_KEY and not KIMI_API_KEY:
         file=sys.stderr,
     )
 import subprocess as _subprocess
-from drift.core.trajectory import StateTrajectoryLogger, CPUSampler
+
 from drift.core.cognitive_governor import CognitiveGovernor
+from drift.core.trajectory import CPUSampler, StateTrajectoryLogger
 
 _OLLAMA_PID: int | None = None
 
@@ -179,7 +180,7 @@ class DriftBrain(_BrainGenerationMixin):
         self.evaluator = evaluator if evaluator is not None else SelfEvaluator()
         self.chain_navigator: ChainNavigator = get_chain_navigator()
         # current conversation scope (can be set by caller)
-        self.scope: Optional[str] = None
+        self.scope: str | None = None
         self.turns = 0
         self.chat = None
         self._cognitive_governor = CognitiveGovernor()
@@ -245,7 +246,7 @@ class DriftBrain(_BrainGenerationMixin):
         self.init_governor()
 
     # ----------------- Scope management -----------------
-    def set_scope(self, scope: Optional[str]):
+    def set_scope(self, scope: str | None):
         """Set the current conversation scope (conversation id, project id, etc.).
 
         Use `None` for the global scope.
@@ -253,7 +254,7 @@ class DriftBrain(_BrainGenerationMixin):
         self.scope = scope
         self.logger.info(f"Scope set to: {scope}")
 
-    def get_scope(self) -> Optional[str]:
+    def get_scope(self) -> str | None:
         return self.scope
 
     def _history_to_messages(self) -> list[dict]:
@@ -575,8 +576,8 @@ class DriftBrain(_BrainGenerationMixin):
     def _enhanced_security_check(
         self,
         user_input: str,
-        raw_user_input: Optional[str] = None,
-        mode: Optional[str] = None,
+        raw_user_input: str | None = None,
+        mode: str | None = None,
     ) -> SecurityScanResult:
         """Full context security check with PEDI/DII + social risk + Shadow."""
         sec = self._security_check(user_input, raw_user_input, mode=mode)
@@ -624,8 +625,8 @@ class DriftBrain(_BrainGenerationMixin):
     def _security_check(
         self,
         user_input: str,
-        raw_user_input: Optional[str] = None,
-        mode: Optional[str] = None,
+        raw_user_input: str | None = None,
+        mode: str | None = None,
     ) -> SecurityScanResult:
         """Run security defense scan on user input, extracting raw content if it is an assembled prompt."""
         if raw_user_input is not None:
@@ -723,19 +724,7 @@ class DriftBrain(_BrainGenerationMixin):
                     self.history.extend([f"User: {user_input}", f"Bot: {primary_text}"])
                     if len(self.history) > self._max_history:
                         self.history = self.history[-self._max_history :]
-            elif self.sdk == "google.genai":
-                primary_text = self._generate(
-                    self.primary_model_name,
-                    sys_instruction,
-                    full_prompt,
-                    max_tokens=max_tokens,
-                )
-                if request_budget is not None:
-                    request_budget.check()
-                self.history.extend([f"User: {user_input}", f"Bot: {primary_text}"])
-                if len(self.history) > self._max_history:
-                    self.history = self.history[-self._max_history :]
-            elif self.sdk == "google.generativeai":
+            elif self.sdk == "google.genai" or self.sdk == "google.generativeai":
                 primary_text = self._generate(
                     self.primary_model_name,
                     sys_instruction,

@@ -1,7 +1,8 @@
 from typing import Optional
+
+from drift.core.config import DRIFT_HF_MODEL, HF_PRO_TOKEN
 from huggingface_hub import InferenceClient
 from huggingface_hub.errors import HfHubHTTPError
-from drift.core.config import HF_PRO_TOKEN, DRIFT_HF_MODEL
 
 
 class DriftHFBridge:
@@ -21,8 +22,8 @@ class DriftHFBridge:
         system_prompt: str,
         user_input: str,
         history: list[dict] | None = None,
-        temperature: Optional[float] = None,
-        top_p: Optional[float] = None,
+        temperature: float | None = None,
+        top_p: float | None = None,
     ) -> str:
         """Sends the localized state and prompt to HF for heavy inference.
 

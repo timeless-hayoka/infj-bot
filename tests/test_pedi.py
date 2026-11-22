@@ -1,18 +1,18 @@
 import os
 import tempfile
 import unittest
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from unittest.mock import MagicMock
 
-from drift.metrics.pedi import (
-    PediIndex,
-    StateSnapshot,
-    ResetEvent,
-    NEED_DIMENSIONS,
-    CRITICAL_FLUIDITY,
-)
 from drift.core.cognitive_orchestrator import CognitiveOrchestrator
 from drift.core.commands import BotState
+from drift.metrics.pedi import (
+    CRITICAL_FLUIDITY,
+    NEED_DIMENSIONS,
+    PediIndex,
+    ResetEvent,
+    StateSnapshot,
+)
 
 
 class TestPediIndex(unittest.TestCase):
@@ -30,7 +30,7 @@ class TestPediIndex(unittest.TestCase):
         needs = {dim: 0.5 for dim in NEED_DIMENSIONS}
         snap = StateSnapshot(
             turn_id=1,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             needs=needs,
             context_tokens_used=100,
         )
@@ -47,20 +47,18 @@ class TestPediIndex(unittest.TestCase):
         needs = {dim: 0.5 for dim in NEED_DIMENSIONS}
         snap1 = StateSnapshot(
             turn_id=1,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             needs=needs,
             context_tokens_used=100,
         )
         snap2 = StateSnapshot(
             turn_id=2,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             needs=needs,
             context_tokens_used=120,
         )
 
-        event = ResetEvent(
-            turn_id=2, timestamp=datetime.now(timezone.utc), reason="test"
-        )
+        event = ResetEvent(turn_id=2, timestamp=datetime.now(UTC), reason="test")
         report = self.pedi.evaluate_reset(snap1, snap2, event)
 
         self.assertEqual(report.state_jump, 0.0)
@@ -76,20 +74,18 @@ class TestPediIndex(unittest.TestCase):
 
         snap1 = StateSnapshot(
             turn_id=1,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             needs=needs_min,
             context_tokens_used=100,
         )
         snap2 = StateSnapshot(
             turn_id=2,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             needs=needs_max,
             context_tokens_used=120,
         )
 
-        event = ResetEvent(
-            turn_id=2, timestamp=datetime.now(timezone.utc), reason="test"
-        )
+        event = ResetEvent(turn_id=2, timestamp=datetime.now(UTC), reason="test")
         report = self.pedi.evaluate_reset(snap1, snap2, event)
 
         # Max Euclidean jump distance should be sqrt(len(NEED_DIMENSIONS) * 1.0^2)
@@ -101,7 +97,7 @@ class TestPediIndex(unittest.TestCase):
         needs_1 = {dim: 0.5 for dim in NEED_DIMENSIONS}
         snap1 = StateSnapshot(
             turn_id=1,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             needs=needs_1,
             context_tokens_used=100,
         )
@@ -110,7 +106,7 @@ class TestPediIndex(unittest.TestCase):
         needs_2 = {dim: 0.6 for dim in NEED_DIMENSIONS}
         snap2 = StateSnapshot(
             turn_id=2,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             needs=needs_2,
             context_tokens_used=120,
         )
@@ -118,9 +114,7 @@ class TestPediIndex(unittest.TestCase):
         # Baseline start: EMA = 1.0
         self.assertEqual(self.pedi._cumulative_fluidity, 1.0)
 
-        event = ResetEvent(
-            turn_id=2, timestamp=datetime.now(timezone.utc), reason="test"
-        )
+        event = ResetEvent(turn_id=2, timestamp=datetime.now(UTC), reason="test")
         report = self.pedi.evaluate_reset(snap1, snap2, event)
 
         # Expected EMA calculation
@@ -134,7 +128,7 @@ class TestPediIndex(unittest.TestCase):
 
         snap_prev = StateSnapshot(
             turn_id=1,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             needs=needs_min,
             context_tokens_used=100,
         )
@@ -143,13 +137,11 @@ class TestPediIndex(unittest.TestCase):
         for turn in range(2, 20):
             snap_curr = StateSnapshot(
                 turn_id=turn,
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
                 needs=needs_max if turn % 2 == 0 else needs_min,
                 context_tokens_used=100,
             )
-            event = ResetEvent(
-                turn_id=turn, timestamp=datetime.now(timezone.utc), reason="test"
-            )
+            event = ResetEvent(turn_id=turn, timestamp=datetime.now(UTC), reason="test")
             report = self.pedi.evaluate_reset(snap_prev, snap_curr, event)
             snap_prev = snap_curr
 

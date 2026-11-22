@@ -5,19 +5,20 @@ Simulates background cycles and verifies inner continuity.
 
 import asyncio
 import logging
-import pytest
-import sys
 import os
+import sys
+
+import pytest
 
 # Add project root to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 from drift.core.being import get_being
+from drift.core.cognitive_orchestrator import CognitiveOrchestrator
+from drift.core.dii_tracker import get_dii_tracker
+from drift.core.global_workspace import get_workspace
 from drift.core.homeostasis import get_homeostasis
 from drift.core.shadow import get_shadow
-from drift.core.dii_tracker import get_dii_tracker
-from drift.core.cognitive_orchestrator import CognitiveOrchestrator
-from drift.core.global_workspace import get_workspace
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("continuous_thought_test")

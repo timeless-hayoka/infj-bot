@@ -1,4 +1,5 @@
 import os
+
 from google.cloud import run_v2
 from opentelemetry import metrics
 from opentelemetry.exporter.cloud_monitoring import CloudMonitoringMetricsExporter

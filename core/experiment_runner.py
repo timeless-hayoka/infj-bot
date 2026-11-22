@@ -30,8 +30,8 @@ class ExperimentRun:
     run_id: int
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
     input: str = ""
-    variables: Dict[str, Any] = field(default_factory=dict)
-    metrics: Dict[str, Any] = field(default_factory=dict)
+    variables: dict[str, Any] = field(default_factory=dict)
+    metrics: dict[str, Any] = field(default_factory=dict)
     errors: int = 0
     duration_ms: float = 0.0
 
@@ -42,8 +42,8 @@ class ExperimentReport:
     baseline_hash: str
     variable_tested: str
     start_time: str = field(default_factory=lambda: datetime.now().isoformat())
-    runs: List[ExperimentRun] = field(default_factory=list)
-    aggregate: Dict[str, Any] = field(default_factory=dict)
+    runs: list[ExperimentRun] = field(default_factory=list)
+    aggregate: dict[str, Any] = field(default_factory=dict)
 
 
 class ExperimentRunner:
@@ -130,7 +130,7 @@ class ExperimentRunner:
         logger.info(f"Baseline '{name}' restored.")
 
     def run_trial(
-        self, trial_func: callable, input_text: str, variables: Dict[str, Any]
+        self, trial_func: callable, input_text: str, variables: dict[str, Any]
     ) -> ExperimentRun:
         """Execute a single trial run with isolation."""
         start_time = time.monotonic()

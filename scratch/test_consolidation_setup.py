@@ -1,16 +1,16 @@
-import sqlite3
 import shutil
+import sqlite3
 import sys
-from pathlib import Path
 from datetime import datetime, timedelta
+from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 # Force load config
-from drift.core.config import DATA_DIR
 from drift.core.being import get_being
+from drift.core.config import DATA_DIR
 
 BEING_DB = DATA_DIR / "being.db"
 NEXUS_DB = DATA_DIR / "nexus.db"

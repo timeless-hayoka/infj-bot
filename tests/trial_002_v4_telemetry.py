@@ -6,16 +6,16 @@ to the cognitive_snapshots table without affecting the primary being_state.
 """
 
 import logging
-import sys
 import sqlite3
+import sys
 from pathlib import Path
 
 # Add project root to path
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
-from drift.core.logger import DriftLabLogger
 from drift.core.being import get_being
 from drift.core.config import BEING_DB
+from drift.core.logger import DriftLabLogger
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)

@@ -14,8 +14,7 @@ if (
 ):
     # Unindent lines by 4 spaces
     for i in range(start_line, end_line):
-        if lines[i].startswith("    "):
-            lines[i] = lines[i][4:]
+        lines[i] = lines[i].removeprefix("    ")
     with open("/home/crexs/drift/interfaces/api.py", "w") as f:
         f.writelines(lines)
     print("SUCCESS: Unindented lines 782 to 1132 successfully.")

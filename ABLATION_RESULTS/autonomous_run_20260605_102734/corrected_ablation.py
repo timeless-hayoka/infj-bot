@@ -3,10 +3,10 @@ Corrected Ablation Test Suite — Conditions A through F.
 Savingly applied at the prompt assembly layer (read path).
 """
 
-import sys
-import json
-import time
 import difflib
+import json
+import sys
+import time
 from pathlib import Path
 
 # Add project root to path
@@ -17,16 +17,17 @@ import dotenv
 
 dotenv.load_dotenv(override=True)
 
-from core.being import get_being
 from drift.core.cognitive_orchestrator import CognitiveOrchestrator
 from drift.core.commands import BotState
 from drift.core.config import DEFAULT_AUTHORIZED_TARGETS
-from drift.core.plugins.goals import GoalsDB
 from drift.core.plugins.documents import DocumentStore
-from core.trajectory import StateTrajectoryLogger
-from core.homeostasis import get_homeostasis, NEED_DEFINITIONS
-from core.safe_math_integration import active_grounded_math_var
+from drift.core.plugins.goals import GoalsDB
+
+from core.being import get_being
 from core.global_workspace import get_workspace
+from core.homeostasis import NEED_DEFINITIONS, get_homeostasis
+from core.safe_math_integration import active_grounded_math_var
+from core.trajectory import StateTrajectoryLogger
 
 # Setup output dir from script directory/environment
 OUTPUT_DIR = Path("/home/crexs/drift/ABLATION_RESULTS/autonomous_run_20260605_102734")
@@ -66,8 +67,8 @@ def switch_to_ollama_globally(brain_instance):
     current_provider_override = "ollama"
 
     # Disable Gemini globally in modules
-    import core.generation
     import core.brain
+    import core.generation
 
     core.generation.API_KEY = ""
     core.brain.API_KEY = ""

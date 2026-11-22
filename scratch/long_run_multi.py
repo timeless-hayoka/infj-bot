@@ -1,17 +1,18 @@
+import json
+import multiprocessing
 import os
 import shutil
-import json
 import sqlite3
-import multiprocessing
-import matplotlib.pyplot as plt
 from pathlib import Path
+
+import matplotlib.pyplot as plt
 
 # Ensure we use the actual API, not the mock
 os.environ["DRIFT_BYPASS_SECURITY"] = "0"
 os.environ["DRIFT_USE_LOCAL_FALLBACK"] = "0"
 
-from drift.core.brain import DriftBrain
 from drift.core.being import get_being
+from drift.core.brain import DriftBrain
 from drift.core.unified_memory import get_unified_memory
 
 
@@ -30,8 +31,8 @@ def run_single_simulation(run_id: str, cycles: int = 500, test_type: str = "cont
 
     # IMPORTANT: We must reload configuration and reset singletons
     import drift.core.being as core_being
-    import drift.core.unified_memory as core_um
     import drift.core.shadow as core_shadow
+    import drift.core.unified_memory as core_um
 
     # Reset singletons
     core_being._being_instance = None

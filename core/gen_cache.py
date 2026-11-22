@@ -5,7 +5,7 @@ from typing import Optional
 
 
 class DiskGenCache:
-    def __init__(self, path: Optional[Path] = None, max_entries: int = 1024):
+    def __init__(self, path: Path | None = None, max_entries: int = 1024):
         if path is None:
             path = Path.home() / ".drift" / "drift_gen_cache.sqlite3"
         self.path = Path(path)
@@ -17,7 +17,7 @@ class DiskGenCache:
         )
         self._conn.commit()
 
-    def get(self, key: str) -> Optional[str]:
+    def get(self, key: str) -> str | None:
         cur = self._conn.execute("SELECT v FROM cache WHERE k = ?", (key,))
         row = cur.fetchone()
         if not row:

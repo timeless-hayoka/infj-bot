@@ -7,8 +7,8 @@ continue to work without modification.
 
 from drift.core.cognitive_orchestrator import CognitiveOrchestrator
 from drift.core.safe_math_integration import (
-    inject_grounded_math,
     active_grounded_math_var,
+    inject_grounded_math,
 )
 
 _orchestrator = CognitiveOrchestrator()

@@ -3,35 +3,33 @@
 import asyncio
 import json
 import logging
+import threading
 import time
 import traceback
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-import threading
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
-from fastapi.staticfiles import StaticFiles
-
-from drift.core.generation import (
-    SystemOverload,
-    RequestCancelled,
-    RequestDeadlineExceeded,
-    RequestBudget,
-)
-
 from drift.core.brain import DriftBrain
+from drift.core.cognitive_orchestrator import CognitiveOrchestrator, IntentBlockedError
 from drift.core.commands import BotState, handle_command
 from drift.core.config import DEFAULT_AUTHORIZED_TARGETS
+from drift.core.generation import (
+    RequestBudget,
+    RequestCancelled,
+    RequestDeadlineExceeded,
+    SystemOverload,
+)
+from drift.core.history import ChatHistory
+from drift.core.memory import DriftMemory
+from drift.core.phi_council import COUNCIL_MAPPING
 from drift.core.plugins.documents import DocumentStore
 from drift.core.plugins.goals import GoalsDB
 from drift.core.plugins.growth import growth_profile
-from drift.core.history import ChatHistory
-from drift.core.memory import DriftMemory
 from drift.core.prompt_builder import build_chat_prompt
 from drift.core.tools import format_tool_inventory
-from drift.core.cognitive_orchestrator import CognitiveOrchestrator, IntentBlockedError
-from drift.core.phi_council import COUNCIL_MAPPING
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 
 logger = logging.getLogger("drift")
 
@@ -46,12 +44,12 @@ doc_store = DocumentStore()
 async def background_drift_cycle():
     """Background task to run drift cycles and compute aliveness metrics."""
     from drift.core.being import get_being
+    from drift.core.cognitive_orchestrator import CognitiveOrchestrator
+    from drift.core.config import BACKGROUND_CYCLE_SECONDS, STRONG_CONTINUOUS_MODE
+    from drift.core.dii_tracker import get_dii_tracker
+    from drift.core.global_workspace import get_workspace
     from drift.core.homeostasis import get_homeostasis
     from drift.core.shadow import get_shadow
-    from drift.core.dii_tracker import get_dii_tracker
-    from drift.core.config import STRONG_CONTINUOUS_MODE, BACKGROUND_CYCLE_SECONDS
-    from drift.core.cognitive_orchestrator import CognitiveOrchestrator
-    from drift.core.global_workspace import get_workspace
 
     if not STRONG_CONTINUOUS_MODE:
         return
@@ -111,6 +109,8 @@ async def lifespan(_app: FastAPI):
         pass
 
 
+from datetime import UTC
+
 from drift.core.gateway import HardenedGatewayMiddleware
 
 app = FastAPI(title="PHI // Drift", lifespan=lifespan)
@@ -132,7 +132,7 @@ except Exception as e:
 @app.exception_handler(SystemOverload)
 async def system_overload_handler(request: Request, exc: SystemOverload):
     logger.warning(
-        f"Load shedding active: Rejected request from {request.client.host if request.client else 'unknown'} - {str(exc)}"
+        f"Load shedding active: Rejected request from {request.client.host if request.client else 'unknown'} - {exc!s}"
     )
     return JSONResponse(
         status_code=429,
@@ -164,7 +164,7 @@ async def request_cancelled_handler(request: Request, exc: RequestCancelled):
 @app.exception_handler(IntentBlockedError)
 async def intent_blocked_handler(request: Request, exc: IntentBlockedError):
     logger.warning(
-        f"Intent blocked for {request.client.host if request.client else 'unknown'}: {str(exc)}"
+        f"Intent blocked for {request.client.host if request.client else 'unknown'}: {exc!s}"
     )
     return JSONResponse(
         status_code=403,
@@ -871,7 +871,7 @@ async def api_reset():
 
     # 1. Reset ContextVars
     try:
-        from drift.core.causal_wiring import state_override_var, generation_params_var
+        from drift.core.causal_wiring import generation_params_var, state_override_var
 
         state_override_var.set(None)
         generation_params_var.set(None)
@@ -925,7 +925,8 @@ async def api_reset():
     # 4. Clean database tables
     try:
         import sqlite3
-        from drift.core.config import MEMORY_DB, HOMEOSTASIS_DB
+
+        from drift.core.config import HOMEOSTASIS_DB, MEMORY_DB
 
         # Clear Memory
         with sqlite3.connect(MEMORY_DB) as conn:
@@ -1021,10 +1022,10 @@ async def api_chat(request: Request):
         # ── Aliveness Tracking (DII) ──
         try:
             from drift.core.being import get_being
-            from drift.core.homeostasis import get_homeostasis
-            from drift.core.shadow import get_shadow
             from drift.core.dii_tracker import get_dii_tracker
             from drift.core.global_workspace import get_workspace
+            from drift.core.homeostasis import get_homeostasis
+            from drift.core.shadow import get_shadow
 
             tracker = get_dii_tracker()
             tracker.compute(
@@ -1130,10 +1131,10 @@ async def api_chat_stream(request: Request):
             # ── Aliveness Tracking (DII) ──
             try:
                 from drift.core.being import get_being
-                from drift.core.homeostasis import get_homeostasis
-                from drift.core.shadow import get_shadow
                 from drift.core.dii_tracker import get_dii_tracker
                 from drift.core.global_workspace import get_workspace
+                from drift.core.homeostasis import get_homeostasis
+                from drift.core.shadow import get_shadow
 
                 tracker = get_dii_tracker()
                 tracker.compute(
@@ -1197,10 +1198,10 @@ async def api_tools():
 
 @app.get("/api/phi")
 async def api_phi():
+    from drift.adapters.cognition_adapter import adapter as cog_adapter
     from drift.core.being import get_being
     from drift.core.homeostasis import get_homeostasis
     from drift.core.phi_proxy import PhiProxy
-    from drift.adapters.cognition_adapter import adapter as cog_adapter
 
     being = get_being()
     homeo = get_homeostasis()
@@ -1254,8 +1255,8 @@ async def api_health():
 
 @app.get("/api/identity")
 async def api_identity(key_id: str = "v1", nonce: str = None):
-    import hmac
     import hashlib
+    import hmac
     import os
     from datetime import datetime, timezone
 
@@ -1279,7 +1280,7 @@ async def api_identity(key_id: str = "v1", nonce: str = None):
             )
 
     secret = secret_str.encode()
-    ts = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    ts = datetime.now(UTC).isoformat().replace("+00:00", "Z")
 
     # Body is empty for GET /api/identity
     body_hash = hashlib.sha256(b"").hexdigest()
@@ -1352,10 +1353,10 @@ async def api_hive_deliberations(limit: int = 10):
 async def api_observer():
     """Full real-time cognitive state for the observer dashboard."""
     from drift.core.being import get_being
-    from drift.core.homeostasis import get_homeostasis
-    from drift.core.shadow import get_shadow
     from drift.core.dii_tracker import get_dii_tracker
     from drift.core.global_workspace import get_workspace
+    from drift.core.homeostasis import get_homeostasis
+    from drift.core.shadow import get_shadow
 
     being = get_being()
     homeo = get_homeostasis()
@@ -1428,9 +1429,9 @@ async def api_observer():
 
 
 if __name__ == "__main__":
-    import uvicorn
-
     import os
+
+    import uvicorn
 
     host = os.getenv("DRIFT_API_HOST", "127.0.0.1")
     uvicorn.run(app, host=host, port=8765)

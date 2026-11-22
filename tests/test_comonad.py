@@ -1,21 +1,22 @@
 import unittest
-from pydantic import ValidationError
-from drift.core.context_engine import (
-    CognitiveState,
-    Context,
-    ContextWorker,
-    CognitivePayload,
-)
+
 from drift.core.cognitive_ops import (
     pedi_regulation_step,
-    state_conditioned_llm,
     predicted_transition_step,
+    state_conditioned_llm,
 )
-from drift.interfaces.comonad_cli import calculate_state_diff
 from drift.core.cognitive_snapshot import (
     SnapshotLogger,
     TransitionComparator,
 )
+from drift.core.context_engine import (
+    CognitivePayload,
+    CognitiveState,
+    Context,
+    ContextWorker,
+)
+from drift.interfaces.comonad_cli import calculate_state_diff
+from pydantic import ValidationError
 
 
 class TestComonadicWorkspaceBridge(unittest.TestCase):

@@ -19,7 +19,7 @@ logger = logging.getLogger("drift.audit")
 UNIFIED_AUDIT_PATH = Path(ConfigAdapter.get_log_path("unified_audit"))
 
 # Standard Singleton
-_AUDIT_LOGGER: Optional[HardenedJsonlLogger] = None
+_AUDIT_LOGGER: HardenedJsonlLogger | None = None
 
 
 def get_audit_logger() -> HardenedJsonlLogger:
@@ -29,7 +29,7 @@ def get_audit_logger() -> HardenedJsonlLogger:
     return _AUDIT_LOGGER
 
 
-def audit_log(event_type: str, source: str, payload: Dict[str, Any]):
+def audit_log(event_type: str, source: str, payload: dict[str, Any]):
     """Append an event to the unified audit stream."""
     record = {
         "timestamp": datetime.now().isoformat(timespec="seconds"),

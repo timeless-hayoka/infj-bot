@@ -88,7 +88,7 @@ MAX_ACTIVE_ASPIRATIONS = 5
 class AspirationalSelf:
     """The bot's capacity to grow with direction and coherence."""
 
-    def __init__(self, db_path: Optional[Path] = None):
+    def __init__(self, db_path: Path | None = None):
         self.db_path = str(db_path or ASPIRATIONS_DB)
         self._init_db()
         self.aspirations = self._load_aspirations()
@@ -134,7 +134,7 @@ class AspirationalSelf:
             )
             conn.commit()
 
-    def _load_aspirations(self) -> List[Dict]:
+    def _load_aspirations(self) -> list[dict]:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
@@ -142,7 +142,7 @@ class AspirationalSelf:
             ).fetchall()
         return [dict(r) for r in rows]
 
-    def _load_visions(self) -> List[Dict]:
+    def _load_visions(self) -> list[dict]:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
@@ -157,7 +157,7 @@ class AspirationalSelf:
                 return True
         return False
 
-    def dream_aspiration(self) -> Optional[Dict]:
+    def dream_aspiration(self) -> dict | None:
         """Generate a new aspiration only if there's room and coherence."""
         active = [a for a in self.aspirations if a["status"] == "active"]
         if len(active) >= MAX_ACTIVE_ASPIRATIONS:
@@ -210,7 +210,7 @@ class AspirationalSelf:
         self.aspirations.append(aspiration)
         return aspiration
 
-    def deepen_existing(self) -> Optional[Dict]:
+    def deepen_existing(self) -> dict | None:
         """Advance progress on an existing aspiration rather than creating a new one."""
         active = [
             a
@@ -223,7 +223,7 @@ class AspirationalSelf:
         self.advance_progress(target["id"], 0.05)
         return target
 
-    def record_vision(self, vision_text: str, aspiration_id: Optional[int] = None):
+    def record_vision(self, vision_text: str, aspiration_id: int | None = None):
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
                 "INSERT INTO visions (timestamp, vision_text, related_aspiration_id) VALUES (?, ?, ?)",
@@ -259,7 +259,7 @@ class AspirationalSelf:
         self,
         action_type: str,
         description: str,
-        aspiration_id: Optional[int] = None,
+        aspiration_id: int | None = None,
         impact: float = 0.1,
     ):
         with sqlite3.connect(self.db_path) as conn:

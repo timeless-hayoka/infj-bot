@@ -7,13 +7,13 @@ extracts final numeric answers, compares them against the ground truth,
 and outputs validation metrics.
 """
 
-import json
-import urllib.request
-import urllib.error
 import argparse
-import time
+import json
 import re
 import sys
+import time
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 GSM8K_URL = "https://raw.githubusercontent.com/openai/grade-school-math/master/grade_school_math/data/test.jsonl"

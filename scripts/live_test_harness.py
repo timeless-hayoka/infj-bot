@@ -34,7 +34,7 @@ import json
 import shutil
 import sqlite3
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -309,7 +309,7 @@ def main() -> None:
         run_monitor()
         return
 
-    ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    ts = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     backup_dir = PROJECT_ROOT / "ABLATION_RESULTS" / f"live_test_{ts}" / "state_backup"
     results_dir = PROJECT_ROOT / "ABLATION_RESULTS" / f"live_test_{ts}" / "results"
 

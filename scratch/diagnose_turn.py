@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import sys
 import time
+
 from dotenv import load_dotenv
 
 sys.path.insert(0, "/home/crexs/drift")
@@ -10,10 +11,10 @@ env_path = "/home/crexs/drift/.env"
 load_dotenv(env_path)
 
 from drift.core.brain import DriftBrain
-from drift.core.memory import DriftMemory
 from drift.core.commands import BotState
-from drift.core.plugins.goals import GoalsDB
+from drift.core.memory import DriftMemory
 from drift.core.plugins.documents import DocumentStore
+from drift.core.plugins.goals import GoalsDB
 from drift.core.prompt_builder import build_chat_prompt
 
 

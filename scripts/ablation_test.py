@@ -9,8 +9,8 @@ Tests the new chill persona vs old behaviors:
 """
 
 import json
-import urllib.request
 import os
+import urllib.request
 from datetime import datetime
 
 BASE_URL = "http://127.0.0.1:8765"
@@ -196,8 +196,7 @@ def run_tests():
         f.write(f"Chill markers found:  {summary['total_chill_markers']}\n")
         f.write(f"State parrot instances: {summary['state_parrot_instances']}\n\n")
         f.write("VERDICT:\n")
-        for k, v in summary["verdict"].items():
-            f.write(f"  {k}: {v}\n")
+        f.writelines(f"  {k}: {v}\n" for k, v in summary["verdict"].items())
         f.write("\n" + "=" * 60 + "\n")
         f.write("DETAILED RESULTS:\n\n")
         for r in results:

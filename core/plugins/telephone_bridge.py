@@ -5,7 +5,7 @@ Allows DRIFT to autonomously monitor his telephone inbox and communicate with Ju
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -40,7 +40,7 @@ class TelephoneBridge:
                 f"TelephoneBridge: {len(self.pending_messages)} new message(s) from Jude."
             )
 
-    def _load_pending(self) -> List[Dict]:
+    def _load_pending(self) -> list[dict]:
         pending = []
         for f in sorted(INBOX_DIR.glob("*.json")):
             try:
@@ -67,17 +67,17 @@ class TelephoneBridge:
 
     # --- Tool Methods ---
 
-    def reply(self, content: str, original_msg_id: Optional[str] = None) -> str:
+    def reply(self, content: str, original_msg_id: str | None = None) -> str:
         """
         Sends a reply back to the user via the telephone outbox.
         """
-        msg_id = f"drift-{datetime.now(timezone.utc).isoformat()}"
+        msg_id = f"drift-{datetime.now(UTC).isoformat()}"
         payload = {
             "id": msg_id,
             "from": "drift",
             "to": "user",
             "content": content,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "meta": {
                 "relayed_by": "telephone_bridge_plugin",
                 "original_msg_id": original_msg_id,

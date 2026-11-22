@@ -25,9 +25,9 @@ Retry policy:
 
 import os
 import time
+from collections.abc import Callable
 from functools import wraps
-from typing import Optional, Callable
-
+from typing import Optional
 
 # ── Timeout Configuration ────────────────────────────────────────────────────
 
@@ -197,7 +197,7 @@ def generate_with_retry(
     prompt_text: str,
     history_text: str,
     mode: str = "standard",
-    llm_generate_fn: Optional[Callable] = None,
+    llm_generate_fn: Callable | None = None,
 ) -> dict:
     """
     Main generation entry point with retry and dynamic timeout.

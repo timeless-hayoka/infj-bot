@@ -15,9 +15,9 @@ def bugbot_proof_gate_status(*, total: int, passed: int, failed: int) -> str:
 **Validation Hierarchy** (`anchor_server.py:50`)
 ```python
 LADDER = {
-    "DETECTED": 0,           # Scanner found it
-    "CORRELATED": 1,         # Multiple tools agree / hypothesis formed
-    "REPRODUCED_REAL": 2     # PoC executed with runtime state delta + assertions passed
+    "DETECTED": 0,  # Scanner found it
+    "CORRELATED": 1,  # Multiple tools agree / hypothesis formed
+    "REPRODUCED_REAL": 2,  # PoC executed with runtime state delta + assertions passed
 }
 ```
 
@@ -25,16 +25,20 @@ LADDER = {
 ```python
 @dataclass
 class EvidenceRecord:
-    schema_version: str          # "1.0"
-    kind: str                    # "benchmark" | "bugbot_training" | "hunt_analysis"
-    artifact_path: str           # Path to JSON proof file
-    timestamp: str               # ISO timestamp
-    target: str                  # Contract or scenario identifier
-    run_id: str                  # Unique run ID
-    status: str                  # proof_gate_passed | proof_gate_failed | published | rejected | unknown
-    metrics: dict[str, Any]      # Total, passed, failed, proofs[], reproduction_rate, precision, recall
-    links: dict[str, str]        # artifact_json, metrics_json, record paths
-    source: dict[str, Any]       # benchmark_id, level, runner, scenario_pack, final_status
+    schema_version: str  # "1.0"
+    kind: str  # "benchmark" | "bugbot_training" | "hunt_analysis"
+    artifact_path: str  # Path to JSON proof file
+    timestamp: str  # ISO timestamp
+    target: str  # Contract or scenario identifier
+    run_id: str  # Unique run ID
+    status: (
+        str  # proof_gate_passed | proof_gate_failed | published | rejected | unknown
+    )
+    metrics: dict[
+        str, Any
+    ]  # Total, passed, failed, proofs[], reproduction_rate, precision, recall
+    links: dict[str, str]  # artifact_json, metrics_json, record paths
+    source: dict[str, Any]  # benchmark_id, level, runner, scenario_pack, final_status
 ```
 
 **Evidence Statuses** (`evidence_schema.py:13-20`)
@@ -90,7 +94,7 @@ Trinity does **NOT**:
 # Trinity wants ANCHOR to validate a hypothesis
 verdict = anchor.validate_poc(
     hypothesis={
-        "swc": "SWC-107",           # Weakness class
+        "swc": "SWC-107",  # Weakness class
         "title": "Reentrancy via fallback",
         "breach_step": "Call target with state unchecked",
         "attack_path": ["external call", "callback", "state mutation"],

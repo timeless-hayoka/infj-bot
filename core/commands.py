@@ -3,11 +3,11 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Set
+
 from drift.core.cognition import map_dissonance
 from drift.core.plugins.growth import format_growth, growth_profile
-from drift.core.plugins.scheduler import TaskScheduler, parse_duration
 from drift.core.plugins.preferences import PreferenceStore
-
+from drift.core.plugins.scheduler import TaskScheduler, parse_duration
 
 MODES = {
     "companion": "Warm, curious, emotionally aware conversation.",
@@ -28,7 +28,7 @@ class BotState:
     proactive_enabled: bool = True
     turns: int = 0
     started_at: datetime = field(default_factory=datetime.now)
-    authorized_targets: Set[str] = field(default_factory=set)
+    authorized_targets: set[str] = field(default_factory=set)
     scheduler: TaskScheduler = field(default_factory=TaskScheduler)
     prefs: PreferenceStore = field(default_factory=PreferenceStore)
 
@@ -601,7 +601,7 @@ def _parse_kv_bug_add(text: str) -> dict:
 
 
 def handle_bug_command(args, _state, brain=None, memory=None):
-    _ = memory  # noqa: F841
+    _ = memory
     if not args:
         return command_help("bug")
     from drift.core.bug_bot import BugBot
@@ -1708,7 +1708,7 @@ def handle_hive_command(args, brain=None, memory=None):
             if not thought:
                 return "Usage: /hive propose <thought>"
 
-            from drift.hive_mind.protocol.dcp import DCPMessage, Resolution, NodeRole
+            from drift.hive_mind.protocol.dcp import DCPMessage, NodeRole, Resolution
 
             msg = DCPMessage.thought(
                 source_node="spark-0", source_role=NodeRole.PRIMARY, content=thought

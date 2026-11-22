@@ -3,14 +3,14 @@ from gevent import monkey
 monkey.patch_all()
 
 import json
+import threading
 import time
 from pathlib import Path
 
 import gevent
-from flask import Flask, request, jsonify
-from flask_socketio import SocketIO, emit
-import threading
 from drift.core.cognitive_orchestrator import CognitiveOrchestrator
+from flask import Flask, jsonify, request
+from flask_socketio import SocketIO, emit
 
 # Observatory integration — hive_mind is an external symlinked dependency
 try:
@@ -28,21 +28,19 @@ except Exception:
 
 from drift.core.brain import DriftBrain
 from drift.core.commands import BotState, handle_command
-from drift.core.plugins.growth import growth_profile
+from drift.core.config import DATA_DIR, DEFAULT_AUTHORIZED_TARGETS
 from drift.core.history import ChatHistory
 from drift.core.memory import DriftMemory
 from drift.core.plugins.goals import GoalsDB
-from drift.core.config import DATA_DIR, DEFAULT_AUTHORIZED_TARGETS
+from drift.core.plugins.growth import growth_profile
 
 STATE_ROOT = DATA_DIR
+from drift.core.gen_cache import DiskGenCache
 from drift.core.plugins.documents import DocumentStore
-from drift.core.prompt_builder import build_chat_prompt
-
-
 from drift.core.plugins.preferences import PreferenceStore
 from drift.core.plugins.scheduler import TaskScheduler
 from drift.core.plugins.self_eval import SelfEvaluator
-from drift.core.gen_cache import DiskGenCache
+from drift.core.prompt_builder import build_chat_prompt
 
 SESSIONS_DIR = STATE_ROOT / "sessions"
 SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
@@ -172,10 +170,10 @@ def prune_and_cleanup_sessions():
 def background_cognitive_loop():
     """Background loop to tick homeostasis, shadow, and embodiment for the active sessions."""
     from drift.core.being import get_being
-    from drift.core.homeostasis import get_homeostasis
-    from drift.core.shadow import get_shadow
     from drift.core.dii_tracker import get_dii_tracker
     from drift.core.global_workspace import get_workspace
+    from drift.core.homeostasis import get_homeostasis
+    from drift.core.shadow import get_shadow
 
     being = get_being()
     homeostasis = get_homeostasis()
@@ -194,19 +192,17 @@ def background_cognitive_loop():
                 bpm = getattr(embodiment, "heartbeat_bpm", 72)
                 bpm += random.uniform(-1.5, 1.5)
                 bpm = max(60, min(100, bpm))
-                setattr(embodiment, "heartbeat_bpm", bpm)
+                embodiment.heartbeat_bpm = bpm
 
                 phase = getattr(embodiment, "breath_phase", "exhale")
                 depth = getattr(embodiment, "breath_depth", 0.65)
                 depth += random.uniform(-0.05, 0.05)
                 depth = max(0.3, min(0.95, depth))
-                setattr(embodiment, "breath_depth", depth)
+                embodiment.breath_depth = depth
 
                 if random.random() < 0.2:
-                    setattr(
-                        embodiment,
-                        "breath_phase",
-                        "inhale" if phase == "exhale" else "exhale",
+                    embodiment.breath_phase = (
+                        "inhale" if phase == "exhale" else "exhale"
                     )
 
             # Let homeostasis and shadow run their background cycles
@@ -821,8 +817,8 @@ def chat_reply(message, session_res: SessionResources):
 
 
 app = Flask(__name__)
-import secrets
 import os
+import secrets
 
 app.config["SECRET_KEY"] = os.environ.get("DRIFT_SECRET_KEY", secrets.token_hex(32))
 
@@ -873,6 +869,7 @@ def start_expo():
 @app.route("/trial")
 def start_trial():
     import uuid
+
     from flask import make_response
 
     session_id = str(uuid.uuid4())

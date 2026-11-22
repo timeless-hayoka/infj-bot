@@ -23,7 +23,6 @@ from drift.core.plugins.findings_db import Finding, FindingsDB
 from drift.core.plugins.report_builder import ReportBuilder
 from drift.core.plugins.target_manager import TargetManager
 
-
 RECON_DIR = Path(PROJECT_ROOT) / "recon"
 BUGBOT_LOG = Path(PROJECT_ROOT) / "logs" / "bugbot.log"
 
@@ -43,8 +42,8 @@ class BugBot:
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
-        memory: Optional[DriftMemory] = None,
+        api_key: str | None = None,
+        memory: DriftMemory | None = None,
     ):
         self.client = BugcrowdClient(api_key=api_key)
         self.findings = FindingsDB()
@@ -112,7 +111,7 @@ class BugBot:
         domains = [t.asset for t in targets if t.asset_type in ("domain", "wildcard")]
         urls = [t.asset for t in targets if t.asset_type == "url"]
 
-        results: List[str] = []
+        results: list[str] = []
         stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         out_dir = RECON_DIR / program_id / stamp
         out_dir.mkdir(parents=True, exist_ok=True)
@@ -135,7 +134,7 @@ class BugBot:
         self._log(f"Recon {program_id}/{tool}: {summary[:200]}")
         return f"🛰️ Recon complete for {program_id}\n{summary}\n📁 Artifacts: {out_dir}"
 
-    def _run_subfinder(self, domains: List[str], out_dir: Path) -> str:
+    def _run_subfinder(self, domains: list[str], out_dir: Path) -> str:
         domain_file = out_dir / "domains.txt"
         domain_file.write_text("\n".join(domains))
         output = out_dir / "subdomains.txt"
@@ -154,7 +153,7 @@ class BugBot:
         except Exception as exc:
             return f"  ❌ subfinder error: {exc}"
 
-    def _run_nuclei(self, targets: List[str], out_dir: Path) -> str:
+    def _run_nuclei(self, targets: list[str], out_dir: Path) -> str:
         target_file = out_dir / "nuclei_targets.txt"
         target_file.write_text("\n".join(targets))
         output = out_dir / "nuclei.json"
@@ -226,7 +225,7 @@ class BugBot:
         except Exception as exc:
             return f"  ❌ nuclei error: {exc}"
 
-    def _run_ffuf(self, targets: List[str], out_dir: Path) -> str:
+    def _run_ffuf(self, targets: list[str], out_dir: Path) -> str:
         # Run ffuf on first domain only (safety)
         domain = targets[0].replace("https://", "").replace("http://", "").split("/")[0]
         output = out_dir / "ffuf.json"
@@ -325,7 +324,7 @@ class BugBot:
         return "\n".join(lines)
 
     def list_findings(
-        self, program_id: Optional[str] = None, status: Optional[str] = None
+        self, program_id: str | None = None, status: str | None = None
     ) -> str:
         items = self.findings.list(program_id=program_id, status=status, limit=100)
         if not items:

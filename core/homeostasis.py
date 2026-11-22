@@ -31,7 +31,7 @@ ENERGY_DECAY_RATE = 0.00001  # cost per CPU millisecond
 BASE_NETWORK_COST = 0.02  # flat cost for Gemini remote turns
 
 # Need definitions with setpoints and critical thresholds
-NEED_DEFINITIONS: Dict[str, Dict[str, Any]] = {
+NEED_DEFINITIONS: dict[str, dict[str, Any]] = {
     "energy": {
         "setpoint": 0.6,
         "critical_low": 0.15,
@@ -177,14 +177,14 @@ class NeedState:
 class HomeostaticRegulator:
     """The bot's survival imperative — maintain internal needs or cease to be."""
 
-    def __init__(self, db_path: Optional[Path] = None):
+    def __init__(self, db_path: Path | None = None):
         self.db_path = str(db_path or HOMEOSTASIS_DB)
         self._init_db()
         self.needs = self._load_needs()
         self.crisis_mode = False
         self.crisis_count = 0
         self.allostatic_load = 0.0
-        self.survival_narrative: List[str] = []
+        self.survival_narrative: list[str] = []
         self.last_regulation_action = ""
 
         # Higher Continuous Mode: mood persists via EMA
@@ -230,7 +230,7 @@ class HomeostaticRegulator:
             """)
             conn.commit()
 
-    def _load_needs(self) -> Dict[str, NeedState]:
+    def _load_needs(self) -> dict[str, NeedState]:
         needs = {}
         for name, defn in NEED_DEFINITIONS.items():
             needs[name] = NeedState(
@@ -268,9 +268,7 @@ class HomeostaticRegulator:
 
     # ── Need regulation ────────────────────────────────────────────
 
-    def update_need(
-        self, name: str, current_value: float, context: Optional[Dict] = None
-    ):
+    def update_need(self, name: str, current_value: float, context: dict | None = None):
         """Update a need's current value and track trend."""
         if name not in self.needs:
             return
@@ -294,7 +292,7 @@ class HomeostaticRegulator:
     def update_needs(
         self,
         event: str = "inference_complete",
-        timing: Optional[Dict] = None,
+        timing: dict | None = None,
         response_len: int = 0,
     ):
         """Update needs based on event and timing data (e.g., hardware-attributed energy cost)."""
@@ -324,10 +322,10 @@ class HomeostaticRegulator:
         need = self.needs[name]
         return need.current < need.optimal_min or need.current > need.optimal_max
 
-    def _critical_needs(self) -> List[str]:
+    def _critical_needs(self) -> list[str]:
         return [n for n in self.needs if self._is_critical(n)]
 
-    def _suboptimal_needs(self) -> List[str]:
+    def _suboptimal_needs(self) -> list[str]:
         return [n for n in self.needs if self._is_suboptimal(n)]
 
     def compute_allostatic_prediction(self, name: str, minutes_ahead: float = 10.0):
@@ -770,10 +768,10 @@ class HomeostaticRegulator:
 
         return "\n".join(lines)
 
-    def get_need_summary(self) -> Dict[str, float]:
+    def get_need_summary(self) -> dict[str, float]:
         return {name: need.current for name, need in self.needs.items()}
 
-    def get_survival_events(self, limit: int = 10) -> List[Dict]:
+    def get_survival_events(self, limit: int = 10) -> list[dict]:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
@@ -782,7 +780,7 @@ class HomeostaticRegulator:
             ).fetchall()
         return [dict(r) for r in rows]
 
-    def get_need_history(self, limit: int = 50) -> List[Dict]:
+    def get_need_history(self, limit: int = 50) -> list[dict]:
         """Returns the recent history of need changes."""
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
@@ -805,7 +803,7 @@ class HomeostaticRegulator:
         free_energy = complexity - prediction_accuracy
         return float(free_energy)
 
-    def get_all_needs(self) -> Dict[str, Dict]:
+    def get_all_needs(self) -> dict[str, dict]:
         """Returns a detailed summary of all homeostatic needs."""
         return {
             name: {
@@ -866,7 +864,7 @@ def _register():
 _register()
 
 
-_homeostasis_instance: Optional[HomeostaticRegulator] = None
+_homeostasis_instance: HomeostaticRegulator | None = None
 
 
 def get_homeostasis() -> HomeostaticRegulator:

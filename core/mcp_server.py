@@ -4,30 +4,29 @@ Supports stdio transport (default) and a simple HTTP transport for local orchest
 """
 
 import asyncio
-import os
-from typing import Any, Dict, List, Optional
 import logging
-from collections import deque
-
-from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse
-from fastapi.staticfiles import StaticFiles
-from prometheus_client import Gauge, Counter, generate_latest, CONTENT_TYPE_LATEST
-import uvicorn
+import os
 import time
+from collections import deque
 from datetime import datetime
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
-from drift.core.brain import DriftBrain
+import uvicorn
 from drift.core.being import get_being
-from drift.core.websocket_manager import manager
-from drift.core.config import PROJECT_ROOT
+from drift.core.brain import DriftBrain
 from drift.core.cognition import map_dissonance
+from drift.core.config import PROJECT_ROOT
+from drift.core.global_workspace import GlobalWorkspace
+from drift.core.memory import DriftMemory
 from drift.core.plugins.documents import DocumentStore, format_doc_results
 from drift.core.plugins.emotion import detect_emotion
 from drift.core.plugins.goals import GoalsDB
-from drift.core.memory import DriftMemory
-from drift.core.global_workspace import GlobalWorkspace
+from drift.core.websocket_manager import manager
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, generate_latest
 
 try:
     # MCP SDK >= 2.0 renamed FastMCP to MCPServer and moved the module.
@@ -55,10 +54,10 @@ Use these tools when:
 """,
 )
 
-brain: Optional[DriftBrain] = None
-memory: Optional[DriftMemory] = None
-goals_db: Optional[GoalsDB] = None
-doc_store: Optional[DocumentStore] = None
+brain: DriftBrain | None = None
+memory: DriftMemory | None = None
+goals_db: GoalsDB | None = None
+doc_store: DocumentStore | None = None
 
 
 # === Prometheus Metrics ===
@@ -202,7 +201,7 @@ def create_http_app(token: str | None = None) -> FastAPI:
         asyncio.create_task(server_heartbeat())
 
     # Map public tool names to callables
-    TOOLS: Dict[str, Any] = {
+    TOOLS: dict[str, Any] = {
         "emotional_clarity": emotional_clarity,
         "dissonance_map": dissonance_map,
         "memory_search": memory_search,
@@ -218,10 +217,10 @@ def create_http_app(token: str | None = None) -> FastAPI:
     concurrency = int(os.getenv("MCP_AUTONOMY_CONCURRENCY", "2"))
     min_interval = float(os.getenv("MCP_AUTONOMY_MIN_INTERVAL", "1.0"))
     semaphore = asyncio.Semaphore(concurrency)
-    last_run: Dict[str, float] = {}
+    last_run: dict[str, float] = {}
 
     # Simple in-memory scheduled tasks store: id -> {run_at, plan, token}
-    scheduled: Dict[str, Dict[str, Any]] = {}
+    scheduled: dict[str, dict[str, Any]] = {}
 
     # Metrics and rate-limiting
     metrics = {
@@ -231,7 +230,7 @@ def create_http_app(token: str | None = None) -> FastAPI:
     }
 
     rate_limit_per_min = int(os.getenv("MCP_RATE_LIMIT_PER_MIN", "60"))
-    rate_buckets: Dict[str, deque] = {}
+    rate_buckets: dict[str, deque] = {}
 
     # configure logging
     logging.basicConfig(level=os.getenv("MCP_LOG_LEVEL", "INFO"))
@@ -305,11 +304,11 @@ def create_http_app(token: str | None = None) -> FastAPI:
         pass
 
     @app.get("/health")
-    def health() -> Dict[str, str]:
+    def health() -> dict[str, str]:
         return {"status": "ok", "transport": "http"}
 
     @app.get("/metrics")
-    def metrics_endpoint() -> Dict[str, Any]:
+    def metrics_endpoint() -> dict[str, Any]:
         return {
             "metrics": metrics,
             "rate_limit_per_min": rate_limit_per_min,
@@ -330,7 +329,7 @@ def create_http_app(token: str | None = None) -> FastAPI:
         q.append(now)
 
     @app.post("/invoke/{tool_name}")
-    async def invoke(tool_name: str, body: Dict[str, Any], request: Request):
+    async def invoke(tool_name: str, body: dict[str, Any], request: Request):
         # Rate limit by client IP
         client_ip = request.client.host if request.client else "unknown"
         check_rate_limit(client_ip)
@@ -353,8 +352,8 @@ def create_http_app(token: str | None = None) -> FastAPI:
             if auth_token != token:
                 raise HTTPException(status_code=403, detail="Invalid auth token")
 
-        args: List[Any] = body.get("args") or []
-        kwargs: Dict[str, Any] = body.get("kwargs") or {}
+        args: list[Any] = body.get("args") or []
+        kwargs: dict[str, Any] = body.get("kwargs") or {}
         try:
             result = fn(*args, **kwargs)
             metrics["invoke_count"] += 1
@@ -363,7 +362,7 @@ def create_http_app(token: str | None = None) -> FastAPI:
             raise HTTPException(status_code=500, detail=str(exc))
 
     @app.post("/autonomy")
-    async def autonomy(body: Dict[str, Any], request: Request):
+    async def autonomy(body: dict[str, Any], request: Request):
         """Execute a small plan of tool invocations sequentially.
 
         Body shape:

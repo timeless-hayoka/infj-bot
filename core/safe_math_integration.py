@@ -38,13 +38,13 @@ FORBIDDEN_IMPORTS NOTE
 
 from __future__ import annotations
 
+import contextvars
 import re
 from typing import Any, Dict, List
 
-import contextvars
-from drift.core.safe_math import compute, looks_like_math, MathError
+from drift.core.safe_math import MathError, compute, looks_like_math
 
-active_grounded_math_var: contextvars.ContextVar[List[GroundedResult]] = (
+active_grounded_math_var: contextvars.ContextVar[list[GroundedResult]] = (
     contextvars.ContextVar("active_grounded_math", default=[])
 )
 
@@ -68,7 +68,7 @@ _EXPR_PATTERNS = [
 ]
 
 
-def extract_math_candidates(text: str) -> List[str]:
+def extract_math_candidates(text: str) -> list[str]:
     """Return candidate math sub-strings from natural-language text.
 
     Returns a de-duplicated list, shortest-first, max 5 candidates so we don't
@@ -94,7 +94,7 @@ def extract_math_candidates(text: str) -> List[str]:
 class GroundedResult:
     """One verified math result for this turn."""
 
-    def __init__(self, expression: str, result: Dict[str, Any]):
+    def __init__(self, expression: str, result: dict[str, Any]):
         self.expression = expression
         self.result = result  # the full dict from compute()
         self.ok = result["ok"]
@@ -124,7 +124,7 @@ class GroundedResult:
 # --------------------------------------------------------------------------- #
 
 
-def compute_grounded_results(user_input: str) -> List[GroundedResult]:
+def compute_grounded_results(user_input: str) -> list[GroundedResult]:
     """Compute verified results for all math found in user_input.
 
     Call this BEFORE assembling the final prompt. Store the returned list on
@@ -145,7 +145,7 @@ def compute_grounded_results(user_input: str) -> List[GroundedResult]:
     return results
 
 
-def build_grounding_block(grounded: List[GroundedResult]) -> str:
+def build_grounding_block(grounded: list[GroundedResult]) -> str:
     """Format a [MATH ENGINE] section to inject into the system prompt.
 
     Inject this BEFORE the user message, so the model reads the verified results
@@ -176,7 +176,7 @@ def build_grounding_block(grounded: List[GroundedResult]) -> str:
 
 def inject_grounded_math(
     user_input: str, existing_prompt: str
-) -> tuple[str, List[GroundedResult]]:
+) -> tuple[str, list[GroundedResult]]:
     """One-call convenience: compute, format, and prepend to the existing prompt.
 
     ADAPT: Replace `existing_prompt` with whatever your prompt_builder constructs.
@@ -207,10 +207,10 @@ _NUMBER_RE = re.compile(r"-?\d+(?:[./]\d+)?")
 
 def critic_math_check(
     model_draft: str,
-    grounded: List[GroundedResult],
+    grounded: list[GroundedResult],
     *,
     correct_in_place: bool = True,
-) -> tuple[str, List[str]]:
+) -> tuple[str, list[str]]:
     """Check and optionally correct the model's draft against grounded results.
 
     Call this inside brain.py's critic pass, AFTER factuality / logical-integrity
@@ -238,7 +238,7 @@ def critic_math_check(
         return model_draft, []
 
     draft = model_draft
-    violations: List[str] = []
+    violations: list[str] = []
 
     for gr in grounded:
         if not gr.ok:

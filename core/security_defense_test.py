@@ -1,9 +1,9 @@
 """Tests for the security defense scanner."""
 
 from drift.core.security_defense import (
+    PROMPT_INJECTION_PATTERNS,
     SecurityScanner,
     _score_text,
-    PROMPT_INJECTION_PATTERNS,
 )
 
 

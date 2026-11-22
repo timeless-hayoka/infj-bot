@@ -8,7 +8,7 @@ from typing import Any, Dict, Optional
 import requests
 
 
-def run_plan(host: str, port: int, token: Optional[str], plan: Dict[str, Any]):
+def run_plan(host: str, port: int, token: str | None, plan: dict[str, Any]):
     protocol = (
         "https" if not host.startswith("127.") and host != "localhost" else "http"
     )

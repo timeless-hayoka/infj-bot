@@ -1,16 +1,15 @@
-import unittest
-from unittest.mock import MagicMock
-from pathlib import Path
-
 # Ensure paths are correctly resolved
 import sys
+import unittest
+from pathlib import Path
+from unittest.mock import MagicMock
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from drift.core.brain import DriftBrain
 from drift.core.being import get_being
+from drift.core.brain import DriftBrain
 from drift.core.homeostasis import get_homeostasis
 
 

@@ -18,9 +18,9 @@ class Dreamer:
 
     def __init__(self):
         self.dream_count = 0
-        self.last_dream: Optional[datetime] = None
+        self.last_dream: datetime | None = None
 
-    def dream(self, recent_memories: List[str]) -> Optional[str]:
+    def dream(self, recent_memories: list[str]) -> str | None:
         """Process recent memories and return a dream/insight if one forms."""
         if not recent_memories:
             return None
@@ -43,7 +43,7 @@ class Dreamer:
             return insight
         return None
 
-    def _extract_themes(self, memories: List[str]) -> List[str]:
+    def _extract_themes(self, memories: list[str]) -> list[str]:
         """Extract emotional and conceptual themes from memories."""
         theme_keywords = {
             "growth": ["learn", "improve", "better", "progress", "evolve", "become"],
@@ -76,7 +76,7 @@ class Dreamer:
                 found_themes.append(theme)
         return found_themes
 
-    def _find_patterns(self, memories: List[str]) -> List[str]:
+    def _find_patterns(self, memories: list[str]) -> list[str]:
         """Look for repeating patterns in recent memories."""
         patterns = []
         text = " ".join(memories).lower()
@@ -108,8 +108,8 @@ class Dreamer:
         return patterns
 
     def _generate_insight(
-        self, themes: List[str], patterns: List[str], mood: str
-    ) -> Optional[str]:
+        self, themes: list[str], patterns: list[str], mood: str
+    ) -> str | None:
         """Generate a novel insight from themes and patterns."""
         if not themes:
             return None

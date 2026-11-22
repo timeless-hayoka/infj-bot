@@ -5,12 +5,11 @@ from __future__ import annotations
 import hashlib
 import logging
 import math
+import os
+import threading
 from typing import Any, List
 
-import threading
-
 import numpy as np
-import os
 
 try:
     import torch
@@ -25,8 +24,8 @@ except ImportError:
 try:
     from chromadb.api.types import Documents, Embeddings
 except ImportError:
-    Documents = List  # type: ignore[misc,assignment]
-    Embeddings = List  # type: ignore[misc,assignment]
+    Documents = list  # type: ignore[misc,assignment]
+    Embeddings = list  # type: ignore[misc,assignment]
 
 
 logger = logging.getLogger(__name__)
@@ -79,8 +78,8 @@ class SemanticEmbeddingFunction:
         """Return the loaded model, or None when it is unreachable offline."""
         with self._lock:
             if self._model is None and not self._unavailable:
-                from sentence_transformers import SentenceTransformer
                 import torch
+                from sentence_transformers import SentenceTransformer
 
                 # Ensure we are on CPU before loading
                 torch.set_default_device("cpu")
@@ -133,7 +132,7 @@ class SemanticEmbeddingFunction:
         v = enc.encode(input, convert_to_numpy=True)
         return np.asarray(v, dtype=np.float64)
 
-    def embed_documents(self, texts: List[str]) -> List[np.ndarray]:
+    def embed_documents(self, texts: list[str]) -> list[np.ndarray]:
         if not texts:
             return []
         enc = self._encoder()
@@ -173,13 +172,13 @@ class LocalEmbeddingFunction:
             return [self._vec(t) for t in input]
         return self._vec(input)
 
-    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
         return [self._vec(t) for t in texts]
 
     def __call__(self, input: Documents) -> Embeddings:
         return self.embed_documents(list(input))  # type: ignore[return-value]
 
-    def _vec(self, text: str) -> List[float]:
+    def _vec(self, text: str) -> list[float]:
         h = hashlib.sha256(text.encode("utf-8")).digest()
         # Stretch 32 bytes to 64 floats in [-1, 1]
         raw = (h * 2)[: self._dim]
@@ -197,7 +196,7 @@ def get_default_embedding_function():
         return LocalEmbeddingFunction()
 
     try:
-        import sentence_transformers  # noqa: F401
+        import sentence_transformers
     except ImportError:
         return LocalEmbeddingFunction()
     # SemanticEmbeddingFunction loads lazily and degrades to the local hash

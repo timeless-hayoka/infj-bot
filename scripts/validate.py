@@ -14,15 +14,15 @@ import argparse
 import json
 import sys
 import time
-import urllib.request
 import urllib.error
+import urllib.request
 from datetime import datetime
 from typing import Dict, List, Optional
 
 BASE_URL = "http://127.0.0.1:8765"
 
 
-def api_health() -> Optional[Dict]:
+def api_health() -> dict | None:
     try:
         with urllib.request.urlopen(f"{BASE_URL}/api/health", timeout=5) as resp:
             return json.loads(resp.read().decode())
@@ -30,7 +30,7 @@ def api_health() -> Optional[Dict]:
         return {"error": str(e)}
 
 
-def api_phi() -> Optional[Dict]:
+def api_phi() -> dict | None:
     try:
         with urllib.request.urlopen(f"{BASE_URL}/api/phi", timeout=5) as resp:
             return json.loads(resp.read().decode())
@@ -60,7 +60,7 @@ def api_chat(message: str) -> tuple:
         return {"error": str(e), "reply": ""}, latency
 
 
-def run_cycle(cycle_num: int, message: str, mode: str) -> Dict:
+def run_cycle(cycle_num: int, message: str, mode: str) -> dict:
     """Run one validation cycle and return metrics."""
     time.time()
 
@@ -92,7 +92,7 @@ def run_cycle(cycle_num: int, message: str, mode: str) -> Dict:
     return record
 
 
-def conversational_run(cycles: int, delay: float = 2.0) -> List[Dict]:
+def conversational_run(cycles: int, delay: float = 2.0) -> list[dict]:
     """Paced conversational test with delays between turns."""
     results = []
     messages = [
@@ -149,7 +149,7 @@ def conversational_run(cycles: int, delay: float = 2.0) -> List[Dict]:
     return results
 
 
-def stress_run(cycles: int) -> List[Dict]:
+def stress_run(cycles: int) -> list[dict]:
     """Hammered stress test with no delay between turns."""
     results = []
     messages = [
@@ -197,7 +197,7 @@ def stress_run(cycles: int) -> List[Dict]:
     return results
 
 
-def summarize(results: List[Dict]) -> Dict:
+def summarize(results: list[dict]) -> dict:
     """Compute summary statistics."""
     latencies = [
         r["latency_seconds"]
@@ -283,7 +283,7 @@ def main():
     print(
         f"[+] Server OK: turns={health.get('turns', '?')}, memory={health.get('memory_count', '?')}, mode={health.get('mode', '?')}"
     )
-    print("")
+    print()
 
     print(f"[*] Starting {args.mode} run: {args.cycles} cycles")
     print("=" * 80)
@@ -320,7 +320,7 @@ def main():
         print(
             f"Energy range:      {min(summary['energy_values']):.2f} — {max(summary['energy_values']):.2f}"
         )
-    print("")
+    print()
 
     # Output raw JSONL for downstream analysis
     for r in results:

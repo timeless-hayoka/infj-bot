@@ -1,11 +1,11 @@
-import sqlite3
 import datetime
-import math
-import uuid
 import json
+import math
+import sqlite3
+import uuid
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 import anyio
 
@@ -31,7 +31,7 @@ class Event:
 class MemoryEntry:
     unified_id: str
     event: Event
-    metadata: Dict[str, Any]
+    metadata: dict[str, Any]
     score: float = 0.0
 
 
@@ -47,9 +47,7 @@ class MemoryManager:
     Atomic guarantees and Ebbinghaus forgetting built-in.
     """
 
-    def __init__(
-        self, db_path: Optional[str] = None, chroma_path: Optional[str] = None
-    ):
+    def __init__(self, db_path: str | None = None, chroma_path: str | None = None):
         if db_path is None:
             self.db_path = str(Path(PERSIST_DIRECTORY) / "unified_memory.db")
         else:
@@ -107,7 +105,7 @@ class MemoryManager:
             conn.commit()
 
     def remember_sync(
-        self, event: Event, metadata: dict, vector: Optional[Any] = None
+        self, event: Event, metadata: dict, vector: Any | None = None
     ) -> str:
         unified_id = str(uuid.uuid4())
         salience = float(metadata.get("importance", metadata.get("salience", 0.5)))
@@ -140,7 +138,7 @@ class MemoryManager:
         return unified_id
 
     async def remember(
-        self, event: Event, metadata: dict, vector: Optional[Any] = None
+        self, event: Event, metadata: dict, vector: Any | None = None
     ) -> str:
         return await anyio.to_thread.run_sync(
             self.remember_sync, event, metadata, vector
@@ -193,7 +191,7 @@ class MemoryManager:
 
     def recall_sync(
         self, query: str, limit: int = 20, decay_weight: float = 1.0
-    ) -> List[MemoryEntry]:
+    ) -> list[MemoryEntry]:
         results = self._collection.query(query_texts=[query], n_results=limit * 2)
         if not results["ids"] or not results["ids"][0]:
             return []
@@ -271,12 +269,12 @@ class MemoryManager:
 
     async def recall(
         self, query: str, limit: int = 20, decay_weight: float = 1.0
-    ) -> List[MemoryEntry]:
+    ) -> list[MemoryEntry]:
         return await anyio.to_thread.run_sync(
             self.recall_sync, query, limit, decay_weight
         )
 
-    def get_recent_sync(self, event_type: str, limit: int = 5) -> List[MemoryEntry]:
+    def get_recent_sync(self, event_type: str, limit: int = 5) -> list[MemoryEntry]:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
@@ -302,10 +300,10 @@ class MemoryManager:
                 )
             return entries
 
-    async def get_recent(self, event_type: str, limit: int = 5) -> List[MemoryEntry]:
+    async def get_recent(self, event_type: str, limit: int = 5) -> list[MemoryEntry]:
         return await anyio.to_thread.run_sync(self.get_recent_sync, event_type, limit)
 
-    def count_sync(self, event_type: Optional[str] = None) -> int:
+    def count_sync(self, event_type: str | None = None) -> int:
         with sqlite3.connect(self.db_path) as conn:
             if event_type:
                 return conn.execute(
@@ -313,7 +311,7 @@ class MemoryManager:
                 ).fetchone()[0]
             return conn.execute("SELECT COUNT(*) FROM episodic").fetchone()[0]
 
-    async def count(self, event_type: Optional[str] = None) -> int:
+    async def count(self, event_type: str | None = None) -> int:
         return await anyio.to_thread.run_sync(self.count_sync, event_type)
 
     def forget_concept_sync(self, concept_name: str) -> int:
@@ -455,9 +453,9 @@ class MemoryManager:
         """
         from drift.core.config import (
             BACKGROUND_PRUNE_INTERVAL_SECONDS,
+            MAX_MEMORIES,
             PRUNE_EVERY_N_TURNS,
             PRUNING_THRESHOLD,
-            MAX_MEMORIES,
         )
 
         should_prune = force
@@ -528,7 +526,7 @@ class MemoryManager:
         return await anyio.to_thread.run_sync(self.get_state_sync, key, default)
 
     def set_state_sync(
-        self, key: str, value: Any, ttl: Optional[datetime.timedelta] = None
+        self, key: str, value: Any, ttl: datetime.timedelta | None = None
     ):
         expires_at = None
         if ttl:
@@ -542,6 +540,6 @@ class MemoryManager:
             conn.commit()
 
     async def set_state(
-        self, key: str, value: Any, ttl: Optional[datetime.timedelta] = None
+        self, key: str, value: Any, ttl: datetime.timedelta | None = None
     ):
         return await anyio.to_thread.run_sync(self.set_state_sync, key, value, ttl)

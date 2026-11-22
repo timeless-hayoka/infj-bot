@@ -20,8 +20,8 @@ Key fixes over the previous implementation:
 import logging
 import os
 import sqlite3
-import threading
 import sys
+import threading
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Dict, List, Optional
@@ -29,11 +29,11 @@ from typing import Dict, List, Optional
 from drift.core.config import DATA_DIR
 
 try:
-    from drift.core.svalbard_vault import SvalbardVault
     from drift.core.pedi_metrics import PEDIEngine
+    from drift.core.svalbard_vault import SvalbardVault
 except ImportError:
-    from svalbard_vault import SvalbardVault
     from pedi_metrics import PEDIEngine
+    from svalbard_vault import SvalbardVault
 
 logger = logging.getLogger("drift")
 WORKSPACE_DB = DATA_DIR / "workspace.db"
@@ -65,12 +65,12 @@ class Broadcast:
     source: str
     content: str
     salience: float = 0.5
-    emotion_tag: Optional[str] = None
+    emotion_tag: str | None = None
     intensity: float = 0.0
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
     decay_rate: float = 0.08  # fractional salience lost per minute
 
-    def current_salience(self, now: Optional[datetime] = None) -> float:
+    def current_salience(self, now: datetime | None = None) -> float:
         """Exponential decay from creation time + emotional intensity boost."""
         if now is None:
             now = datetime.now()
@@ -87,13 +87,13 @@ class Broadcast:
 @dataclass
 class WorkspaceState:
     capacity: int = ACTIVE_CAPACITY
-    contents: List[Broadcast] = field(default_factory=list)
-    spotlight: Optional[Broadcast] = None
-    spotlight_source: Optional[str] = None
+    contents: list[Broadcast] = field(default_factory=list)
+    spotlight: Broadcast | None = None
+    spotlight_source: str | None = None
     cycle_count: int = 0
     total_broadcasts: int = 0
-    broadcast_history: List[Dict] = field(default_factory=list)
-    last_ignition: Optional[datetime] = None
+    broadcast_history: list[dict] = field(default_factory=list)
+    last_ignition: datetime | None = None
 
 
 class GlobalWorkspace:
@@ -110,8 +110,8 @@ class GlobalWorkspace:
     def __init__(self, db_path=None, capacity: int = ACTIVE_CAPACITY):
         self.db_path = str(db_path or WORKSPACE_DB)
         self.state = WorkspaceState(capacity=capacity)
-        self._pool: List[Broadcast] = []  # incoming submissions awaiting next cycle
-        self.preconscious: Dict[str, List[Broadcast]] = {
+        self._pool: list[Broadcast] = []  # incoming submissions awaiting next cycle
+        self.preconscious: dict[str, list[Broadcast]] = {
             "strong": [],
             "moderate": [],
             "faint": [],
@@ -207,11 +207,11 @@ class GlobalWorkspace:
     # ── Properties for direct access (used by dii_tracker, etc.) ──────────
 
     @property
-    def spotlight(self) -> Optional[Broadcast]:
+    def spotlight(self) -> Broadcast | None:
         return self.state.spotlight
 
     @property
-    def contents(self) -> List[Broadcast]:
+    def contents(self) -> list[Broadcast]:
         return self.state.contents
 
     # ── DB setup ──────────────────────────────────────────────────────────
@@ -264,7 +264,7 @@ class GlobalWorkspace:
         except Exception as e:
             logger.warning("Could not save workspace state: %s", e)
 
-    def _archive_to_db(self, entries: List[tuple]):
+    def _archive_to_db(self, entries: list[tuple]):
         """Write (broadcast, tier_label) pairs to workspace_history."""
         try:
             with sqlite3.connect(self.db_path) as conn:
@@ -286,7 +286,7 @@ class GlobalWorkspace:
         source: str,
         content: str,
         salience: float = 0.5,
-        emotion_tag: Optional[str] = None,
+        emotion_tag: str | None = None,
         intensity: float = 0.0,
     ):
         """Add a new broadcast to the pool for the next competition cycle."""
@@ -332,7 +332,7 @@ class GlobalWorkspace:
             self._pool = []
 
             # Deduplicate: same (source, content prefix) → keep highest base salience
-            seen: Dict[tuple, Broadcast] = {}
+            seen: dict[tuple, Broadcast] = {}
             for b in all_items:
                 key = (b.source, b.content[:80])
                 if key not in seen or b.salience > seen[key].salience:
@@ -343,14 +343,14 @@ class GlobalWorkspace:
             )
 
             # Partition into tiers
-            new_active: List[Broadcast] = []
-            new_preconscious: Dict[str, List[Broadcast]] = {
+            new_active: list[Broadcast] = []
+            new_preconscious: dict[str, list[Broadcast]] = {
                 "strong": [],
                 "moderate": [],
                 "faint": [],
                 "trace": [],
             }
-            to_archive: List[tuple] = []
+            to_archive: list[tuple] = []
             preconscious_count = 0
 
             for b in ranked:
@@ -425,7 +425,7 @@ class GlobalWorkspace:
 
         return "\n".join(lines)
 
-    def get_preconscious_summary(self) -> Dict:
+    def get_preconscious_summary(self) -> dict:
         """Returns each preconscious tier's items as a dict (for inspection/debug)."""
         return {
             band: [
@@ -493,7 +493,7 @@ class GlobalWorkspace:
                     return True
         return False
 
-    def reflect_on_workspace(self) -> Optional[Broadcast]:
+    def reflect_on_workspace(self) -> Broadcast | None:
         """Generate a higher-order reflection on current conscious contents."""
         with self._lock:
             items = self.state.contents
@@ -509,7 +509,7 @@ class GlobalWorkspace:
 
 # ── Singleton ──────────────────────────────────────────────────────────────
 
-_workspace_instance: Optional[GlobalWorkspace] = None
+_workspace_instance: GlobalWorkspace | None = None
 
 
 def get_workspace() -> GlobalWorkspace:

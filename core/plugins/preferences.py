@@ -27,7 +27,7 @@ DEFAULT_PREFS = {
 
 
 class PreferenceStore:
-    def __init__(self, db_path: Optional[Path] = None):
+    def __init__(self, db_path: Path | None = None):
         self.db_path = str(db_path or PREFS_DB)
         self._init_db()
         self._ensure_defaults()
@@ -79,7 +79,7 @@ class PreferenceStore:
             conn.commit()
             return cur.rowcount > 0
 
-    def all(self) -> Dict[str, Any]:
+    def all(self) -> dict[str, Any]:
         with sqlite3.connect(self.db_path) as conn:
             rows = conn.execute("SELECT key, value FROM preferences").fetchall()
         result = {}
@@ -155,7 +155,7 @@ class PreferenceStore:
 
         return "\n".join(lines)
 
-    def suggest_from_memory(self, memory_text: str) -> List[str]:
+    def suggest_from_memory(self, memory_text: str) -> list[str]:
         """Heuristic suggestions for new preferences based on memory text."""
         suggestions = []
         lowered = memory_text.lower()

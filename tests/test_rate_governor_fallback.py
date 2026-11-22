@@ -1,8 +1,9 @@
+import sys
 import unittest
 from unittest.mock import MagicMock, patch
-import sys
-from drift.core.generation import RateGovernor, Provider, ProviderError
+
 from drift.core.brain import DriftBrain
+from drift.core.generation import Provider, ProviderError, RateGovernor
 
 
 class TestRateGovernorFallback(unittest.TestCase):

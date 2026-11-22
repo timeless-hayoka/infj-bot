@@ -17,17 +17,18 @@ import os
 import sqlite3
 import sys
 import time
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 # ── Lazy imports for drift subsystems ─────────────────────────────────────────
 # We import lazily so a missing dependency doesn't crash the whole check suite.
 
 
-def _import_config() -> Tuple[Any, Any]:
+def _import_config() -> tuple[Any, Any]:
     try:
-        from drift.core.config import DATA_DIR, SQLITE_DIR, CHROMA_DIR
+        from drift.core.config import CHROMA_DIR, DATA_DIR, SQLITE_DIR
 
         return DATA_DIR, SQLITE_DIR, CHROMA_DIR
     except Exception:
@@ -88,15 +89,15 @@ class SelfCheckRunner:
     """Runs a suite of health checks and aggregates results."""
 
     def __init__(self):
-        self._checks: Dict[str, CheckFn] = {}
-        self._results: List[Any] = []
+        self._checks: dict[str, CheckFn] = {}
+        self._results: list[Any] = []
 
     def register(self, name: str, fn: CheckFn):
         self._checks[name] = fn
 
     def run(
-        self, names: Optional[List[str]] = None, verbose: bool = False
-    ) -> Tuple[List[Any], int]:
+        self, names: list[str] | None = None, verbose: bool = False
+    ) -> tuple[list[Any], int]:
         """Run checks and return (results, max_severity).
 
         Severity: 0 = healthy, 1 = warning, 2 = critical
@@ -560,7 +561,7 @@ def check_environment() -> Any:
 # ── MOUSE Vanguard checks ─────────────────────────────────────────────────────
 
 
-def _mouse_home() -> Optional[Path]:
+def _mouse_home() -> Path | None:
     script_dir = Path(__file__).resolve().parent
     mouse_home = script_dir / ".mouse_vanguard"
     return mouse_home if mouse_home.exists() else None
@@ -691,7 +692,7 @@ def _quick_check(name: str, healthy: bool, message: str, start: float):
 # ── Fix helpers ───────────────────────────────────────────────────────────────
 
 
-def _fix_missing_dirs() -> List[str]:
+def _fix_missing_dirs() -> list[str]:
     """Create missing data directories."""
     DATA_DIR, SQLITE_DIR, CHROMA_DIR = _import_config()
     fixes = []
@@ -712,7 +713,7 @@ def _fix_missing_dirs() -> List[str]:
     return fixes
 
 
-def _fix_missing_tables() -> List[str]:
+def _fix_missing_tables() -> list[str]:
     """Trigger subsystem initialization to create missing tables."""
     fixes = []
     try:
@@ -802,7 +803,7 @@ def main():
         fixes.extend(_fix_missing_tables())
         for f in fixes:
             print(f"  {f}")
-        print("")
+        print()
 
     runner = build_runner()
     results, severity = runner.run(names=args.checks, verbose=args.verbose)

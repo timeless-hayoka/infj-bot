@@ -1,8 +1,8 @@
-import sys
-import shutil
-import json
 import argparse
 import hashlib
+import json
+import shutil
+import sys
 from datetime import datetime
 from pathlib import Path
 

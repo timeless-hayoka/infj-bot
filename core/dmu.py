@@ -187,7 +187,7 @@ class DMURetriever:
         chroma_collection,
         psc_engine=None,  # PSCBatchEngine instance — optional
         max_retrieval_count: int = 100,
-        tau_overrides: Optional[dict[str, float]] = None,
+        tau_overrides: dict[str, float] | None = None,
     ):
         self.collection = chroma_collection
         self.psc_engine = psc_engine

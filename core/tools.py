@@ -6,10 +6,11 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from collections.abc import Callable
 from datetime import datetime
 from ipaddress import ip_address
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 
 from drift.core.config import DATA_DIR, PROJECT_ROOT
@@ -123,7 +124,7 @@ def _coerce_timeout(
     return max(1, min(timeout, maximum))
 
 
-def _redact_audit_arguments(arguments: Dict[str, Any]) -> Dict[str, Any]:
+def _redact_audit_arguments(arguments: dict[str, Any]) -> dict[str, Any]:
     redacted = {}
     for key, value in (arguments or {}).items():
         if key in {"content", "code"}:
@@ -136,7 +137,7 @@ def _redact_audit_arguments(arguments: Dict[str, Any]) -> Dict[str, Any]:
     return redacted
 
 
-def _audit_tool_call(name: str, arguments: Dict[str, Any], result: str) -> None:
+def _audit_tool_call(name: str, arguments: dict[str, Any], result: str) -> None:
     try:
         record = {
             "timestamp": datetime.now().isoformat(timespec="seconds"),
@@ -304,7 +305,7 @@ def tool_write_to_cold_storage(file_name: str, content: str) -> str:
         return f"[error writing cold storage file: {exc}]"
 
 
-def _ensure_wordlist(wordlist: str) -> Optional[str]:
+def _ensure_wordlist(wordlist: str) -> str | None:
     if not wordlist or not wordlist.strip():
         wordlist = "/usr/share/wordlists/dirb/common.txt"
     if Path(wordlist).exists():
@@ -456,9 +457,9 @@ def tool_enumerate_subdomains(
 
 
 def tool_computer_use(
-    actions: List[Dict[str, Any]],
+    actions: list[dict[str, Any]],
     authorization_confirmed: bool = False,
-    authorized_domains: Optional[List[str]] = None,
+    authorized_domains: list[str] | None = None,
 ) -> str:
     """Run a batch of browser UI actions (navigate, click, type, scroll, screenshot, etc.).
     Requires authorization. Screenshots are returned as base64 in the JSON report."""
@@ -652,7 +653,7 @@ safe_builtins = {{
 }}
 sandbox_globals = {{"__name__": "__main__", "__builtins__": safe_builtins, "plt": plt}}
 try:
-    exec({repr(code)}, sandbox_globals)
+    exec({code!r}, sandbox_globals)
 except Exception as e:
     print("[runtime error]", e, file=sys.stderr)
     traceback.print_exc()
@@ -719,8 +720,8 @@ print(json.dumps(result))
 def tool_call_api(
     url: str,
     method: str = "GET",
-    headers: Optional[Dict[str, str]] = None,
-    body: Optional[str] = None,
+    headers: dict[str, str] | None = None,
+    body: str | None = None,
     authorization_confirmed: bool = False,
     timeout: int = 30,
 ) -> str:
@@ -901,7 +902,7 @@ HIGH_RISK_TOOLS = {
 }
 
 
-TOOL_REGISTRY: Dict[str, Callable] = {
+TOOL_REGISTRY: dict[str, Callable] = {
     "read_file": tool_read_file,
     "write_file": tool_write_file,
     "shell": tool_shell,
@@ -1241,10 +1242,10 @@ def execute_tool_call(raw_json: str) -> str:
         return result
 
 
-def extract_tool_calls(text: str) -> List[Dict[str, Any]]:
+def extract_tool_calls(text: str) -> list[dict[str, Any]]:
     """Extract tool call JSON blocks from model output."""
     calls = []
-    pattern = re.compile(r"```tool\s*\n(.*?)\n```", re.S)
+    pattern = re.compile(r"```tool\s*\n(.*?)\n```", re.DOTALL)
     for match in pattern.finditer(text):
         raw = match.group(1).strip()
         try:

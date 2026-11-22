@@ -45,10 +45,10 @@ def meow_banner() -> str:
     return MEOW + "\n🐛✨ **BUG BOT MEOW** has awakened... nyaa~\n"
 
 
-def scan_codebase(root: str = ".") -> Tuple[List[Dict], Dict[str, int]]:
+def scan_codebase(root: str = ".") -> tuple[list[dict], dict[str, int]]:
     """Scan for suspicious patterns and return findings + summary."""
-    findings: List[Dict] = []
-    summary: Dict[str, int] = {name: 0 for name in PATTERNS}
+    findings: list[dict] = []
+    summary: dict[str, int] = {name: 0 for name in PATTERNS}
     files_scanned = 0
 
     for pattern in glob.glob(os.path.join(root, "**/*.py"), recursive=True):
@@ -77,14 +77,14 @@ def scan_codebase(root: str = ".") -> Tuple[List[Dict], Dict[str, int]]:
     return findings, summary
 
 
-def format_meow_report(findings: List[Dict], summary: Dict[str, int]) -> str:
+def format_meow_report(findings: list[dict], summary: dict[str, int]) -> str:
     lines = [meow_banner()]
     lines.append(
         f"😼 Scanned codebase... found **{len(findings)}** suspicious meows:\n"
     )
 
     # Group by pattern
-    by_pattern: Dict[str, List[Dict]] = {}
+    by_pattern: dict[str, list[dict]] = {}
     for f in findings:
         by_pattern.setdefault(f["pattern"], []).append(f)
 

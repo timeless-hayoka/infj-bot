@@ -17,7 +17,7 @@ import requests
 
 def invoke(
     host: str, port: int, tool: str, args=None, kwargs=None, token: str | None = None
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     protocol = (
         "https" if not host.startswith("127.") and host != "localhost" else "http"
     )

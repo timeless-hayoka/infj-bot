@@ -91,7 +91,7 @@ core-memory deposit is guarded by:
 
 ```python
 is_hold_state = status.startswith("HOLD")
-in_correcting_state = (status == "CORRECTING")
+in_correcting_state = status == "CORRECTING"
 if not is_hold_state and not in_correcting_state:
     _workspace.vault.deposit_core_memory(..., quarantined=(shadow_depth > 0.75))
 ```
@@ -124,7 +124,10 @@ behavior intact.
 
 ```python
 from drift.core.context_engine import (
-    CognitiveState, CognitivePayload, Context, ContextWorker,
+    CognitiveState,
+    CognitivePayload,
+    Context,
+    ContextWorker,
 )
 from drift.core.cognitive_ops import pedi_regulation_step, state_conditioned_llm
 
@@ -135,9 +138,9 @@ worker = ContextWorker[CognitivePayload](Context(state=state, value=payload))
 worker = worker.extend(pedi_regulation_step)
 worker = worker.extend(state_conditioned_llm)
 
-print(worker.current().internal_log)   # what PEDI did
-print(worker.current().response)       # gate directive for the LLM
-print(worker.history[0], worker.state) # initial vs final state
+print(worker.current().internal_log)  # what PEDI did
+print(worker.current().response)  # gate directive for the LLM
+print(worker.history[0], worker.state)  # initial vs final state
 ```
 
 `interfaces/comonad_cli.py` contains a runnable version of the same flow plus

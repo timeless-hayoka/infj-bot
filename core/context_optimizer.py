@@ -1,7 +1,7 @@
 """Context Optimizer — Regulates token homeostasis to prevent API cost overflow."""
 
 import math
-from typing import List, Dict
+from typing import Dict, List
 
 
 class TokenHomeostasis:
@@ -9,7 +9,7 @@ class TokenHomeostasis:
         self.max_tokens = max_tokens
         self.decay_rate = decay_rate
 
-    def prune_context(self, history: List[Dict]) -> List[Dict]:
+    def prune_context(self, history: list[dict]) -> list[dict]:
         """
         Surgically removes low-importance memories to fit the budget.
         Priority:

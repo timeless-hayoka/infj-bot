@@ -26,7 +26,7 @@ class BudgetTier:
     name: str
     max_chars: int
     current_chars: int = 0
-    sections: List[Dict[str, Any]] = field(default_factory=list)
+    sections: list[dict[str, Any]] = field(default_factory=list)
 
     def add(self, text: str, label: str = "") -> bool:
         """Add text to this tier. Returns False if it would exceed the budget."""
@@ -93,15 +93,15 @@ class PromptBudget:
         context_budget: int = 2500,
     ):
         self.max_total_chars = max_total_chars
-        self.tiers: Dict[str, BudgetTier] = {
+        self.tiers: dict[str, BudgetTier] = {
             "core": BudgetTier("core", core_budget),
             "cognitive": BudgetTier("cognitive", cognitive_budget),
             "analysis": BudgetTier("analysis", analysis_budget),
             "context": BudgetTier("context", context_budget),
         }
         self.footer: str = ""
-        self.overlaps: List[Dict] = []
-        self.debug_path: Optional[Path] = None
+        self.overlaps: list[dict] = []
+        self.debug_path: Path | None = None
 
     def add(self, tier_name: str, text: str, label: str = "") -> bool:
         """Add text to a named tier."""
@@ -120,10 +120,10 @@ class PromptBudget:
     def total_tokens(self) -> int:
         return int(self.total_chars() / CHARS_PER_TOKEN)
 
-    def check_overlaps(self) -> List[Dict]:
+    def check_overlaps(self) -> list[dict]:
         """Detect redundant or overlapping phrases across tiers."""
         self.overlaps = []
-        all_phrases: Dict[str, List[Tuple[str, str]]] = {}
+        all_phrases: dict[str, list[tuple[str, str]]] = {}
 
         # Extract normalized phrases (3+ word sequences) from each section
         for tier_name, tier in self.tiers.items():
@@ -220,7 +220,7 @@ class PromptBudget:
                 )
         return "\n".join(lines)
 
-    def dump(self, path: Optional[Path] = None) -> Path:
+    def dump(self, path: Path | None = None) -> Path:
         """Dump the full prompt structure to a JSON file for debugging."""
         if path is None:
             timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")

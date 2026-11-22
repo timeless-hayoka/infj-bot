@@ -4,15 +4,16 @@ Enforces API authentication, rate limiting, request validation,
 concurrency caps, queue timeouts, and structured logging at the ingress layer.
 """
 
-import time
-import hmac
-import hashlib
-import logging
 import asyncio
-import sqlite3
+import hashlib
+import hmac
 import json
+import logging
+import sqlite3
+import time
 from pathlib import Path
-from typing import Dict, Tuple, Optional
+from typing import Dict, Optional, Tuple
+
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from starlette.types import ASGIApp
@@ -70,13 +71,13 @@ class GatewayState:
     """Manages active in-memory buckets, concurrency semaphores, and usage tracking."""
 
     def __init__(self):
-        self.buckets: Dict[str, TokenBucket] = {}
-        self.semaphores: Dict[str, asyncio.Semaphore] = {}
-        self.daily_usage: Dict[
-            str, Tuple[int, float]
+        self.buckets: dict[str, TokenBucket] = {}
+        self.semaphores: dict[str, asyncio.Semaphore] = {}
+        self.daily_usage: dict[
+            str, tuple[int, float]
         ] = {}  # key_hash -> (count, day_start_time)
         self.global_sem = asyncio.Semaphore(GLOBAL_CONCURRENCY_CAP)
-        self.nonces: Dict[str, float] = {}  # nonce -> expiry_timestamp
+        self.nonces: dict[str, float] = {}  # nonce -> expiry_timestamp
         self.nonces_lock = asyncio.Lock()
 
     async def validate_nonce(self, nonce: str, timestamp: float) -> bool:
@@ -129,7 +130,7 @@ state_manager = GatewayState()
 
 
 class HardenedGatewayMiddleware:
-    def __init__(self, app: ASGIApp, data_dir: Optional[str] = None):
+    def __init__(self, app: ASGIApp, data_dir: str | None = None):
         self.app = app
 
         # Resolve DB path using environment/data dir
@@ -158,7 +159,7 @@ class HardenedGatewayMiddleware:
         conn.commit()
         conn.close()
 
-    def _verify_key(self, raw_key: str) -> Optional[str]:
+    def _verify_key(self, raw_key: str) -> str | None:
         """Checks if key is valid and returns its assigned tier."""
         if not raw_key.startswith("drift_live_"):
             return None
@@ -471,7 +472,7 @@ class HardenedGatewayMiddleware:
             await asyncio.wait_for(
                 state_manager.global_sem.acquire(), timeout=QUEUE_TIMEOUT_SECONDS
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.error(
                 f"Concurrency queue timeout reached for key {key_prefix} on {path}"
             )

@@ -1,53 +1,54 @@
 import asyncio
 import logging
 import random
+import sys
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from typing import Dict, Optional
-from drift.core.brain import DriftBrain
-from drift.core.commands import BotState, handle_command, is_command, parse_command
-from drift.core.cognitive_orchestrator import CognitiveOrchestrator
-from drift.core.logic_chain import get_chain_navigator
-from drift.core.global_workspace import get_workspace
-from drift.core.resilience import get_resilience, HealthCheck
-from drift.core.history import ChatHistory
-from drift.core.memory import DriftMemory
-from drift.core.plugins.goals import GoalsDB
-from drift.core.plugins.proactive import ProactiveState
-from drift.core.plugins.documents import DocumentStore
-from drift.core.plugins.aspirations import AspirationalSelf
+
 from drift.core.being import get_being
-from drift.core.config import DEFAULT_AUTHORIZED_TARGETS, REFLECTION_INTERVAL
-from drift.core.plugins.creativity import CreativeEngine
-from drift.core.plugins.dreamer import Dreamer
-from drift.core.emotional_field import EmotionalField
-from drift.core.plugins.explorer import AutonomousExplorer
-from drift.core.plugins.growth_trajectory import GrowthTrajectory
-from drift.core.plugins.inner_voice import InnerVoice
-from drift.core.metacognition import MetacognitionEngine
-from drift.core.plugins.predictor import PredictiveNeeds
-from drift.core.plugins.relationship import RelationshipModel
-from drift.core.self_modify import SelfModification
-from drift.core.plugins.temporal import TemporalSense
-from drift.core.plugins.values import ValueSystem
-from drift.core.plugins.physics import PhysicsEngine
-from drift.core.plugins.humanity import HumanityEngine
-from drift.core.intuition import IntuitionEngine
-from drift.core.embodiment import EmbodiedSelf
-from drift.core.phi_proxy import PhiProxy
-from drift.core.homeostasis import HomeostaticRegulator
-from drift.core.shadow import get_shadow
+from drift.core.brain import DriftBrain
 from drift.core.cognitive_architecture import CognitiveArchitecture, CycleContext
-from drift.core.hive.elysium import get_elysium
-from drift.core.dii_tracker import get_dii_tracker
-import sys
+from drift.core.cognitive_ops import pedi_regulation_step, state_conditioned_llm
+from drift.core.cognitive_orchestrator import CognitiveOrchestrator
+from drift.core.commands import BotState, handle_command, is_command, parse_command
+from drift.core.config import DEFAULT_AUTHORIZED_TARGETS, REFLECTION_INTERVAL
 from drift.core.context_engine import (
+    CognitivePayload,
     CognitiveState,
     Context,
     ContextWorker,
-    CognitivePayload,
 )
-from drift.core.cognitive_ops import pedi_regulation_step, state_conditioned_llm
+from drift.core.dii_tracker import get_dii_tracker
+from drift.core.embodiment import EmbodiedSelf
+from drift.core.emotional_field import EmotionalField
+from drift.core.global_workspace import get_workspace
+from drift.core.history import ChatHistory
+from drift.core.hive.elysium import get_elysium
+from drift.core.homeostasis import HomeostaticRegulator
+from drift.core.intuition import IntuitionEngine
+from drift.core.logic_chain import get_chain_navigator
+from drift.core.memory import DriftMemory
+from drift.core.metacognition import MetacognitionEngine
+from drift.core.phi_proxy import PhiProxy
+from drift.core.plugins.aspirations import AspirationalSelf
+from drift.core.plugins.creativity import CreativeEngine
+from drift.core.plugins.documents import DocumentStore
+from drift.core.plugins.dreamer import Dreamer
+from drift.core.plugins.explorer import AutonomousExplorer
+from drift.core.plugins.goals import GoalsDB
+from drift.core.plugins.growth_trajectory import GrowthTrajectory
+from drift.core.plugins.humanity import HumanityEngine
+from drift.core.plugins.inner_voice import InnerVoice
+from drift.core.plugins.physics import PhysicsEngine
+from drift.core.plugins.predictor import PredictiveNeeds
+from drift.core.plugins.proactive import ProactiveState
+from drift.core.plugins.relationship import RelationshipModel
+from drift.core.plugins.temporal import TemporalSense
+from drift.core.plugins.values import ValueSystem
+from drift.core.resilience import HealthCheck, get_resilience
+from drift.core.self_modify import SelfModification
+from drift.core.shadow import get_shadow
 from drift.interfaces.comonad_cli import calculate_state_diff
 
 logger = logging.getLogger("drift")
@@ -62,6 +63,7 @@ history = ChatHistory()
 def deliberation_bridge(goal: str):
     """Synchronous bridge to the async Elysium deliberation, avoiding deadlocks."""
     import asyncio
+
     from drift.core.hive.elysium import DeliberationResult
 
     def run_in_new_loop():
@@ -130,9 +132,9 @@ _embodiment = EmbodiedSelf()
 _iit = PhiProxy()
 _homeostasis = HomeostaticRegulator()
 _shadow = get_shadow()
-_last_interaction_time: Optional[datetime] = None
+_last_interaction_time: datetime | None = None
 _last_user_input: str = ""
-_last_interaction_data: Optional[Dict] = None
+_last_interaction_data: dict | None = None
 
 
 def _wire_singletons():

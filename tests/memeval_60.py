@@ -10,10 +10,10 @@ Mechanism:
 3. Measure hit rate and response accuracy.
 """
 
+import asyncio
+import json
 import logging
 import sys
-import json
-import asyncio
 from pathlib import Path
 
 # Add project root to path

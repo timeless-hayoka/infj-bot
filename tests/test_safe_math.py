@@ -19,6 +19,7 @@ Exit:  0 = all pass, 1 = failures
 """
 
 from __future__ import annotations
+
 import json
 import subprocess
 import sys

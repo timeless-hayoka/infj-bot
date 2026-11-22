@@ -9,16 +9,16 @@ Success criteria:
 
 import os
 import tempfile
-import pytest
 from pathlib import Path
 
-from drift.core.shadow import Shadow
 import drift.core.shadow as shadow_module
-from drift.core.plugins.self_eval import SelfEvaluator
+import pytest
 from drift.core.brain import DriftBrain
-from drift.core.prompt_builder import build_chat_prompt
 from drift.core.commands import BotState
 from drift.core.memory import DriftMemory
+from drift.core.plugins.self_eval import SelfEvaluator
+from drift.core.prompt_builder import build_chat_prompt
+from drift.core.shadow import Shadow
 
 
 @pytest.fixture

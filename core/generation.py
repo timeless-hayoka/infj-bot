@@ -32,21 +32,21 @@ import random
 import re
 import threading
 import time
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
-from typing import Callable, Iterator, Optional
+from typing import Optional
 
 import requests
-
 from drift.core.config import (
     API_KEY,
-    DRIFT_USE_GROQ,
-    GROQ_API_KEY,
     DRIFT_GROQ_MODEL,
-    DRIFT_USE_KIMI,
-    KIMI_API_KEY,
     DRIFT_KIMI_MODEL,
-    KIMI_BASE_URL,
+    DRIFT_USE_GROQ,
     DRIFT_USE_HF,
+    DRIFT_USE_KIMI,
+    GROQ_API_KEY,
+    KIMI_API_KEY,
+    KIMI_BASE_URL,
 )
 
 log = logging.getLogger("drift.generation")
@@ -69,8 +69,8 @@ class ProviderError(Exception):
         message: str,
         *,
         kind: str = "transient",  # "auth" | "client" | "rate_limit" | "transient"
-        status: Optional[int] = None,
-        retry_after: Optional[float] = None,
+        status: int | None = None,
+        retry_after: float | None = None,
     ):
         super().__init__(message)
         self.kind = kind
@@ -100,13 +100,13 @@ class RequestDeadlineExceeded(Exception):
 
 @dataclass
 class RequestBudget:
-    deadline: Optional[float] = None
-    cancel_event: Optional[threading.Event] = None
+    deadline: float | None = None
+    cancel_event: threading.Event | None = None
 
     def cancelled(self) -> bool:
         return bool(self.cancel_event and self.cancel_event.is_set())
 
-    def remaining(self) -> Optional[float]:
+    def remaining(self) -> float | None:
         if self.deadline is None:
             return None
         return max(0.0, self.deadline - time.monotonic())
@@ -169,7 +169,7 @@ class TokenBucket:
         self,
         tokens: float = 1.0,
         timeout: float = 30.0,
-        budget: Optional[RequestBudget] = None,
+        budget: RequestBudget | None = None,
     ) -> bool:
         """Block (cooperatively) up to `timeout` for `tokens`. False on timeout."""
         deadline = time.monotonic() + timeout
@@ -235,10 +235,10 @@ class Provider:
     name: str
     enabled: Callable[[], bool]
     generate: Callable  # (system, prompt, timeout, **kwargs) -> text
-    stream: Optional[Callable] = (
+    stream: Callable | None = (
         None  # (system, prompt, timeout, **kwargs) -> Iterator[str]
     )
-    limiter: Optional[TokenBucket] = None
+    limiter: TokenBucket | None = None
     est_tokens: Callable[[str, str], int] = field(
         default=lambda s, p: max(1, (len(s) + len(p)) // 4)
     )
@@ -370,8 +370,8 @@ def openai_stream(
 @dataclass
 class _InflightCall:
     event: threading.Event = field(default_factory=threading.Event)
-    result: Optional[str] = None
-    error: Optional[BaseException] = None
+    result: str | None = None
+    error: BaseException | None = None
 
 
 # --------------------------------------------------------------------------- #
@@ -382,14 +382,14 @@ class RateGovernor:
         self,
         providers: list[Provider],
         *,
-        cache_get: Callable[[str], Optional[str]],
+        cache_get: Callable[[str], str | None],
         cache_set: Callable[[str, str], None],
         max_retries: int = 3,
         backoff_base: float = 1.5,
         backoff_cap: float = 30.0,
         max_concurrency: int = 4,  # global cap on simultaneous outbound calls
         gate_timeout: float = 5.0,
-        metrics: Optional[Metrics] = None,
+        metrics: Metrics | None = None,
     ):
         self.providers = providers
         self.cache_get = cache_get
@@ -475,7 +475,7 @@ class RateGovernor:
 
     # ---- backoff with jitter; honors server-provided Retry-After --------- #
     def _sleep_for(
-        self, attempt: int, err: ProviderError, budget: Optional[RequestBudget] = None
+        self, attempt: int, err: ProviderError, budget: RequestBudget | None = None
     ) -> None:
         if err.retry_after is not None:
             delay = err.retry_after
@@ -493,7 +493,7 @@ class RateGovernor:
             time.sleep(min(remaining, 0.25))
 
     # ---- one provider, with cooldown + rate-limit + retry ---------------- #
-    def _acquire_gate(self, name: str, budget: Optional[RequestBudget] = None) -> None:
+    def _acquire_gate(self, name: str, budget: RequestBudget | None = None) -> None:
         """Acquire the global concurrency permit, waiting in slices. Gate
         saturation means the SYSTEM is crowded (internal), not that this provider
         failed — so we wait instead of failing over. If it can't be acquired
@@ -532,9 +532,9 @@ class RateGovernor:
         system: str,
         prompt: str,
         errors: list | None = None,
-        budget: Optional[RequestBudget] = None,
+        budget: RequestBudget | None = None,
         **kwargs,
-    ) -> Optional[str]:
+    ) -> str | None:
         if not p.enabled():
             if errors is not None:
                 errors.append(f"{p.name}: disabled")
@@ -645,7 +645,7 @@ class RateGovernor:
         key: str,
         system: str,
         prompt: str,
-        budget: Optional[RequestBudget] = None,
+        budget: RequestBudget | None = None,
         **kwargs,
     ) -> str:
         errors = []
@@ -668,7 +668,7 @@ class RateGovernor:
         key: str,
         system: str,
         prompt: str,
-        budget: Optional[RequestBudget] = None,
+        budget: RequestBudget | None = None,
         **kwargs,
     ) -> str:
         cached = self.cache_get(key)
@@ -731,7 +731,7 @@ class RateGovernor:
         key: str,
         system: str,
         prompt: str,
-        budget: Optional[RequestBudget] = None,
+        budget: RequestBudget | None = None,
         **kwargs,
     ) -> Iterator[str]:
         cached = self.cache_get(key)
@@ -888,7 +888,7 @@ class _BrainGenerationMixin:
     plus the module-level config flags from your current brain.py."""
 
     def _build_governor(self) -> RateGovernor:
-        def cache_get(key: str) -> Optional[str]:
+        def cache_get(key: str) -> str | None:
             import os
 
             if os.getenv("DRIFT_BYPASS_CACHE") == "1":
@@ -1061,7 +1061,7 @@ class _BrainGenerationMixin:
         self,
         system: str,
         prompt: str,
-        timeout: Optional[float] = None,
+        timeout: float | None = None,
         history=None,
         **kwargs,
     ) -> str:
@@ -1071,7 +1071,7 @@ class _BrainGenerationMixin:
         return out
 
     def _gemini_generate(
-        self, system: str, prompt: str, timeout: Optional[float] = None, **kwargs
+        self, system: str, prompt: str, timeout: float | None = None, **kwargs
     ) -> str:
         try:
             if self.sdk == "google.genai":
@@ -1111,7 +1111,7 @@ class _BrainGenerationMixin:
             raise ProviderError(str(exc), kind="client")
 
     def _gemini_stream(
-        self, system: str, prompt: str, timeout: Optional[float] = None, **kwargs
+        self, system: str, prompt: str, timeout: float | None = None, **kwargs
     ) -> Iterator[str]:
         try:
             if self.sdk == "google.genai":
@@ -1163,7 +1163,7 @@ class _BrainGenerationMixin:
     # e.g. _state_sections = [("[STATE]", "[/STATE]"), ("[META]", "[/META]")].
     # When set, only those blocks are stripped; the user's question is untouched.
     # When None, falls back to the broader regex stripper (riskier — verify it).
-    _state_sections: Optional[list[tuple[str, str]]] = None
+    _state_sections: list[tuple[str, str]] | None = None
 
     def _normalized_cache_key(self, model_name, system_instruction, prompt) -> str:
         """

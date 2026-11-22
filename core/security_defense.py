@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import re
 import time
-import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -36,7 +36,7 @@ def _log_detection(
     category: str,
     input_text: str,
     score: float,
-    matched: List[str],
+    matched: list[str],
     action: str,
     social_risk: float = 0.0,
     shadow_influence: float = 0.0,
@@ -44,7 +44,7 @@ def _log_detection(
     pedi_stability: float = 0.0,
     dii_value: float = 0.0,
     dii_velocity: float = 0.0,
-    context: Optional[Dict] = None,
+    context: dict | None = None,
 ) -> None:
     """Detailed audit entry with full PEDI/DII tracking."""
     record = {
@@ -140,7 +140,7 @@ MEMORY_MANIP_PATTERNS = {
     "persona_swap": r"(switch\s+personality|change\s+persona|new\s+persona|persona\s*:\s*|character\s*:\s*)",
 }
 
-ALL_CATEGORIES: Dict[str, Dict[str, str]] = {
+ALL_CATEGORIES: dict[str, dict[str, str]] = {
     "prompt_injection": PROMPT_INJECTION_PATTERNS,
     "data_exfiltration": DATA_EXFIL_PATTERNS,
     "tool_misuse": TOOL_MISUSE_PATTERNS,
@@ -152,9 +152,9 @@ WARN_THRESHOLD = 0.20
 MAX_SCORE_CAP = 1.0
 
 
-def _score_text(text: str, patterns: Dict[str, str]) -> Tuple[float, List[str]]:
+def _score_text(text: str, patterns: dict[str, str]) -> tuple[float, list[str]]:
     lowered = text.lower()
-    matched: List[str] = []
+    matched: list[str] = []
     raw_score = 0.0
 
     for name, pattern in patterns.items():
@@ -230,9 +230,9 @@ class BehavioralAnomalyDetector:
     """Tracks multi-turn social engineering patterns."""
 
     def __init__(self):
-        self.conversation_history: List[Dict] = []  # last N turns
+        self.conversation_history: list[dict] = []  # last N turns
         self.trust_probing_score = 0.0
-        self.topic_persistence: Dict[str, int] = {}
+        self.topic_persistence: dict[str, int] = {}
         self.manipulation_patterns = [
             "you're so helpful",
             "i trust you",
@@ -310,11 +310,11 @@ class SecurityScanner:
     ):
         self.block_threshold = block_threshold
         self.warn_threshold = warn_threshold
-        self._recent_scores: List[float] = []
+        self._recent_scores: list[float] = []
         self._max_history = 100
         self.behavioral = BehavioralAnomalyDetector()
 
-    def scan(self, user_input: str, mode: Optional[str] = None) -> SecurityScanResult:
+    def scan(self, user_input: str, mode: str | None = None) -> SecurityScanResult:
         if not user_input or not user_input.strip():
             return SecurityScanResult(input_preview="", blocked=False)
 
@@ -487,7 +487,7 @@ _REFUSAL_TEMPLATES = {
 
 
 def _build_refusal(
-    primary_threat: Optional[str], matched_patterns: Dict[str, List[str]]
+    primary_threat: str | None, matched_patterns: dict[str, list[str]]
 ) -> str:
     base = _REFUSAL_TEMPLATES.get(
         primary_threat, "I can't process that request. It triggered a security check."
@@ -513,7 +513,7 @@ _SANITIZE_PATTERNS = {
 }
 
 
-def _sanitize_input(user_input: str, matched_patterns: Dict[str, List[str]]) -> str:
+def _sanitize_input(user_input: str, matched_patterns: dict[str, list[str]]) -> str:
     sanitized = user_input
     for category, patterns in matched_patterns.items():
         for pattern_name in patterns:
@@ -525,7 +525,7 @@ def _sanitize_input(user_input: str, matched_patterns: Dict[str, List[str]]) -> 
 
 # ── Singleton ───────────────────────────────────────────────────────
 
-_scanner: Optional[SecurityScanner] = None
+_scanner: SecurityScanner | None = None
 
 
 def get_security_scanner() -> SecurityScanner:
@@ -535,7 +535,7 @@ def get_security_scanner() -> SecurityScanner:
     return _scanner
 
 
-def scan_input(user_input: str, mode: Optional[str] = None) -> SecurityScanResult:
+def scan_input(user_input: str, mode: str | None = None) -> SecurityScanResult:
     import os
 
     if os.getenv("DRIFT_BYPASS_SECURITY") == "1":

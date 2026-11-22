@@ -5,11 +5,10 @@ import tempfile
 from pathlib import Path
 
 import pytest
-
 from drift.core.self_modify import (
-    SelfModification,
     IMPROVEMENT_AREAS,
     MAX_PENDING_PROPOSALS,
+    SelfModification,
 )
 
 

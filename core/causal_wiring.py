@@ -1,18 +1,18 @@
 import contextvars
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 
 # ContextVar for active state override during a request lifecycle
-state_override_var: contextvars.ContextVar[Optional[Dict[str, Any]]] = (
+state_override_var: contextvars.ContextVar[dict[str, Any] | None] = (
     contextvars.ContextVar("state_override", default=None)
 )
 
 # ContextVar for active generation parameters (temperature, top_p, etc.) calculated for the turn
-generation_params_var: contextvars.ContextVar[Optional[Dict[str, Any]]] = (
+generation_params_var: contextvars.ContextVar[dict[str, Any] | None] = (
     contextvars.ContextVar("generation_params", default=None)
 )
 
 # ContextVar for retrieved memory keys during a request lifecycle
-retrieved_memory_keys_var: contextvars.ContextVar[List[str]] = contextvars.ContextVar(
+retrieved_memory_keys_var: contextvars.ContextVar[list[str]] = contextvars.ContextVar(
     "retrieved_memory_keys", default=[]
 )
 

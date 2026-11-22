@@ -8,7 +8,6 @@ from typing import Any, Dict, List, Optional
 from urllib import request
 from urllib.error import HTTPError
 
-
 BUGCROWD_API_BASE = "https://api.bugcrowd.com"
 DEFAULT_RATE_LIMIT_DELAY = 1.0  # seconds between requests
 
@@ -21,9 +20,9 @@ class BugcrowdProgram:
     url: str
     status: str
     rewards: str = ""
-    scope: List[Dict[str, Any]] = field(default_factory=list)
-    oos: List[Dict[str, Any]] = field(default_factory=list)
-    raw: Dict[str, Any] = field(default_factory=dict)
+    scope: list[dict[str, Any]] = field(default_factory=list)
+    oos: list[dict[str, Any]] = field(default_factory=list)
+    raw: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -34,7 +33,7 @@ class BugcrowdSubmission:
     severity: str
     program_uuid: str
     asset: str = ""
-    raw: Dict[str, Any] = field(default_factory=dict)
+    raw: dict[str, Any] = field(default_factory=dict)
 
 
 class BugcrowdClient:
@@ -45,14 +44,14 @@ class BugcrowdClient:
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
         rate_limit_delay: float = DEFAULT_RATE_LIMIT_DELAY,
     ):
         self.api_key = api_key or os.getenv("BUGCROWD_API_KEY", "")
         self.rate_limit_delay = rate_limit_delay
         self._last_request_time = 0.0
 
-    def _headers(self) -> Dict[str, str]:
+    def _headers(self) -> dict[str, str]:
         return {
             "Authorization": f"Token {self.api_key}",
             "Accept": "application/vnd.bugcrowd+json",
@@ -60,8 +59,8 @@ class BugcrowdClient:
         }
 
     def _request(
-        self, method: str, path: str, data: Optional[bytes] = None
-    ) -> Dict[str, Any]:
+        self, method: str, path: str, data: bytes | None = None
+    ) -> dict[str, Any]:
         if not self.api_key:
             raise RuntimeError("BUGCROWD_API_KEY is not set. Add it to your .env file.")
 
@@ -82,7 +81,7 @@ class BugcrowdClient:
             body = exc.read().decode("utf-8") if exc.fp else ""
             raise RuntimeError(f"Bugcrowd API {exc.code}: {body}") from exc
 
-    def list_programs(self) -> List[BugcrowdProgram]:
+    def list_programs(self) -> list[BugcrowdProgram]:
         """Fetch all programs the researcher is enrolled in."""
         resp = self._request("GET", "/programs")
         programs = []
@@ -145,8 +144,8 @@ class BugcrowdClient:
         )
 
     def list_submissions(
-        self, program_uuid: Optional[str] = None
-    ) -> List[BugcrowdSubmission]:
+        self, program_uuid: str | None = None
+    ) -> list[BugcrowdSubmission]:
         """Fetch submissions. Optionally filter by program."""
         path = "/submissions"
         if program_uuid:

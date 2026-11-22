@@ -43,7 +43,6 @@ from typing import List, Optional
 
 import numpy as np
 
-
 # --------------------------------------------------------------------------- #
 # Mode definitions — integrate with existing DRIFT mode names
 # Energy modes MODIFY the current mode's parameters, not replace it
@@ -81,7 +80,7 @@ class GateResult:
     max_tokens: int
     energy_mode: str
     mode_entered: bool  # True if mode changed this turn
-    interventions: List[str]  # audit trail for this turn
+    interventions: list[str]  # audit trail for this turn
     gate_applied: bool  # True if max_tokens is below unconstrained
     energy_snapshot: float
     turn: int
@@ -98,7 +97,7 @@ class TurnRecord:
     response_len: int
     gate_applied: bool
     energy_mode: str
-    interventions: List[str]
+    interventions: list[str]
     timestamp: float = field(default_factory=time.time)
 
 
@@ -119,12 +118,12 @@ class CognitiveGovernor:
     ):
         self._lock = threading.Lock()
         self._current_mode = "NORMAL"
-        self._prev_energy: Optional[float] = None
-        self._turn_records: List[TurnRecord] = []
+        self._prev_energy: float | None = None
+        self._turn_records: list[TurnRecord] = []
         self._calibration_log = Path(calibration_log)
         self._calibration_log.parent.mkdir(parents=True, exist_ok=True)
         self.energy_min = energy_min
-        self._fitted_alpha: Optional[float] = None
+        self._fitted_alpha: float | None = None
 
         # NEW: Asymmetric Recovery Parameters
         self.beta = 0.05  # Energy recovered during light rest
@@ -140,7 +139,7 @@ class CognitiveGovernor:
         to the generation API. Log GateResult.interventions.
         """
         with self._lock:
-            interventions: List[str] = []
+            interventions: list[str] = []
 
             # Determine energy mode
             new_mode = self._compute_mode(current_energy)
@@ -175,7 +174,7 @@ class CognitiveGovernor:
         prev_energy: float,
         new_energy: float,
         response_len: int,
-        gate_result: Optional[GateResult] = None,
+        gate_result: GateResult | None = None,
     ) -> TurnRecord:
         """Append causal event data. Applies light rest recovery if eligible."""
 
@@ -250,7 +249,7 @@ class CognitiveGovernor:
     # ---------------------------------------------------------------------- #
     # α calibration
     # ---------------------------------------------------------------------- #
-    def calibrate_alpha(self, min_samples: int = 20) -> Optional[float]:
+    def calibrate_alpha(self, min_samples: int = 20) -> float | None:
         """Fit energy_drain = α * response_len from recorded turns.
 
         Returns None if insufficient data or no variance in response_len.

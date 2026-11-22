@@ -19,8 +19,9 @@ import json
 import os
 import shutil
 import threading
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Iterator, Optional
+from typing import Optional
 
 
 class HardenedJsonlLogger:
@@ -46,7 +47,7 @@ class HardenedJsonlLogger:
         path: Path,
         max_bytes: int = 50_000_000,
         max_backups: int = 3,
-        disk_quota_bytes: Optional[int] = 200_000_000,
+        disk_quota_bytes: int | None = 200_000_000,
     ):
         self.path = Path(path)
         self.max_bytes = max_bytes
@@ -140,7 +141,7 @@ class HardenedJsonlLogger:
     def read_lines(
         self,
         include_backups: bool = False,
-        since: Optional[str] = None,
+        since: str | None = None,
     ) -> Iterator[dict]:
         """Yield decoded JSON objects one at a time.
 
@@ -200,7 +201,7 @@ class HardenedJsonlLogger:
                 return False
 
     @staticmethod
-    def read_any(path: Path, limit: Optional[int] = None) -> Iterator[dict]:
+    def read_any(path: Path, limit: int | None = None) -> Iterator[dict]:
         """Standalone helper: read *any* JSONL file with per-line fault tolerance.
 
         Does NOT rotate or check quotas — pure read-only safety.

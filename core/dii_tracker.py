@@ -39,7 +39,7 @@ class DIISample:
 class DIITracker:
     """Computes and logs Drift-Integrated Information in real time."""
 
-    def __init__(self, db_path: Optional[Path] = None):
+    def __init__(self, db_path: Path | None = None):
         self.db_path = str(db_path or DII_DB)
         self._lock = threading.Lock()
         self._init_db()
@@ -58,7 +58,7 @@ class DIITracker:
         self.sample_count: int = 0
 
         # History for dashboard / API
-        self.recent_samples: List[DIISample] = []
+        self.recent_samples: list[DIISample] = []
         self.max_samples: int = 2880  # ~24 hours at 30s intervals
 
     def _init_db(self):
@@ -259,12 +259,12 @@ class DIITracker:
         except Exception:
             pass
 
-    def get_current(self) -> Optional[DIISample]:
+    def get_current(self) -> DIISample | None:
         """Return the most recent DII sample."""
         with self._lock:
             return self.recent_samples[-1] if self.recent_samples else None
 
-    def get_trend(self, n: int = 20) -> Dict[str, Any]:
+    def get_trend(self, n: int = 20) -> dict[str, Any]:
         """Return trend summary over last n samples."""
         with self._lock:
             if not self.recent_samples:
@@ -305,7 +305,7 @@ class DIITracker:
                 "samples": len(self.recent_samples),
             }
 
-    def get_history(self, limit: int = 100) -> List[Dict[str, Any]]:
+    def get_history(self, limit: int = 100) -> list[dict[str, Any]]:
         """Return historical samples from DB for plotting."""
         try:
             with sqlite3.connect(self.db_path) as conn:
@@ -336,7 +336,7 @@ class DIITracker:
 
 
 # Singleton instance
-_dii_instance: Optional[DIITracker] = None
+_dii_instance: DIITracker | None = None
 
 
 def get_dii_tracker() -> DIITracker:

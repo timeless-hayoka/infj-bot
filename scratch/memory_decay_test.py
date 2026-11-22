@@ -1,11 +1,12 @@
-from drift.core.brain import DriftBrain
-from drift.core.being import get_being
-from drift.core.memory import DriftMemory
-from drift.core.config import DATA_DIR
-import time
 import json
-import matplotlib.pyplot as plt
 import sqlite3
+import time
+
+import matplotlib.pyplot as plt
+from drift.core.being import get_being
+from drift.core.brain import DriftBrain
+from drift.core.config import DATA_DIR
+from drift.core.memory import DriftMemory
 
 
 def run_memory_decay_test(cycles=500):

@@ -9,7 +9,6 @@ from pathlib import Path
 
 from drift.core.memory import DriftMemory, LocalEmbeddingFunction
 
-
 PROMPTS = [
     "I feel pulled between discipline and imagination.",
     "How should I think about building a private AI companion?",

@@ -7,12 +7,12 @@ from typing import Dict, Optional
 
 class ProactiveState:
     def __init__(self):
-        self.last_user_time: Optional[datetime] = None
+        self.last_user_time: datetime | None = None
         self.last_stress_level: float = 0.0
         self.last_dissonance_score: float = 0.0
         self.proactive_count: int = 0
 
-    def record_interaction(self, user_input: str, emotion: Dict, dissonance: Dict):
+    def record_interaction(self, user_input: str, emotion: dict, dissonance: dict):
         self.last_user_time = datetime.now()
         self.last_stress_level = emotion.get("intensity", 0.0) * (
             1.0
@@ -21,7 +21,7 @@ class ProactiveState:
         )
         self.last_dissonance_score = dissonance.get("score", 0.0)
 
-    def should_trigger(self, goals_db=None) -> Optional[str]:
+    def should_trigger(self, goals_db=None) -> str | None:
         """Returns a proactive prompt if a trigger fires, else None."""
         now = datetime.now()
 

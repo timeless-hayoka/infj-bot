@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import json
-from pathlib import Path
 import shutil
+from pathlib import Path
 
 run_id = "20260606_035445"
 results_dir = (
@@ -41,8 +41,7 @@ def reprocess():
 
     # Write test-only state_trace.jsonl
     with open(results_dir / "test_only_state_trace.jsonl", "w") as f:
-        for turn in test_turns:
-            f.write(json.dumps(turn) + "\n")
+        f.writelines(json.dumps(turn) + "\n" for turn in test_turns)
 
     # Perform analysis
     turns_logged = len(test_turns)

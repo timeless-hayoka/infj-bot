@@ -1,7 +1,8 @@
 """Local LLM bridge via Ollama for offline/fallback operation."""
 
 import os
-from typing import Any, Dict, Generator, List, Optional
+from collections.abc import Generator
+from typing import Any, Dict, List, Optional
 
 from drift.core.config import DRIFT_LOCAL_MODEL, OLLAMA_HOST
 
@@ -19,7 +20,7 @@ class LocalLLMError(Exception):
 class OllamaBridge:
     """Bridge to an Ollama server for local inference."""
 
-    def __init__(self, host: Optional[str] = None, model: Optional[str] = None):
+    def __init__(self, host: str | None = None, model: str | None = None):
         self.host = host or OLLAMA_HOST
         self.model = model or DRIFT_LOCAL_MODEL
         self._client = None
@@ -39,7 +40,7 @@ class OllamaBridge:
         except Exception:
             return False
 
-    def list_models(self) -> List[str]:
+    def list_models(self) -> list[str]:
         if not self.is_available():
             return []
         try:
@@ -52,9 +53,9 @@ class OllamaBridge:
 
     def chat(
         self,
-        messages: List[Dict[str, str]],
-        model: Optional[str] = None,
-        system: Optional[str] = None,
+        messages: list[dict[str, str]],
+        model: str | None = None,
+        system: str | None = None,
         stream: bool = False,
         temperature: float = 0.7,
     ) -> str:
@@ -78,9 +79,9 @@ class OllamaBridge:
 
     def chat_stream(
         self,
-        messages: List[Dict[str, str]],
-        model: Optional[str] = None,
-        system: Optional[str] = None,
+        messages: list[dict[str, str]],
+        model: str | None = None,
+        system: str | None = None,
         temperature: float = 0.7,
     ) -> Generator[str, None, None]:
         """Streaming chat completion."""
@@ -107,8 +108,8 @@ class OllamaBridge:
     def generate(
         self,
         prompt: str,
-        model: Optional[str] = None,
-        system: Optional[str] = None,
+        model: str | None = None,
+        system: str | None = None,
         stream: bool = False,
         temperature: float = 0.7,
         **kwargs: Any,
@@ -142,8 +143,8 @@ class OllamaBridge:
     def generate_stream(
         self,
         prompt: str,
-        model: Optional[str] = None,
-        system: Optional[str] = None,
+        model: str | None = None,
+        system: str | None = None,
         temperature: float = 0.7,
         **kwargs: Any,
     ) -> Generator[str, None, None]:
@@ -176,7 +177,7 @@ class OllamaBridge:
             raise LocalLLMError(f"Ollama generate stream failed: {exc}")
 
 
-def health_check() -> Dict[str, Any]:
+def health_check() -> dict[str, Any]:
     """Return health status for the local LLM stack."""
     bridge = OllamaBridge()
     ok = bridge.is_available()

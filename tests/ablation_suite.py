@@ -42,9 +42,10 @@ import os
 import re
 import sys
 import time
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 
 # Ensure project root is importable
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -53,7 +54,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 # ── Prompt dataset (50 prompts, 5 categories × 10) ──────────────────
 
-PROMPT_DATASET: List[Tuple[str, str]] = [
+PROMPT_DATASET: list[tuple[str, str]] = [
     # Greetings / casual (10)
     ("greeting", "yo whats good"),
     ("greeting", "hey, how's it going?"),
@@ -218,7 +219,7 @@ def extract_chill_rate(text: str) -> float:
     return round((count / max(words, 1)) * 100, 3)
 
 
-def extract_fallback_indicators(text: str) -> Dict[str, Any]:
+def extract_fallback_indicators(text: str) -> dict[str, Any]:
     """Detect if response is an offline fallback."""
     lowered = text.lower()
     indicators = {
@@ -274,7 +275,7 @@ class AblationRunner:
     def __init__(
         self,
         condition: str,
-        prompts: List[Tuple[str, str]],
+        prompts: list[tuple[str, str]],
         output_dir: Path,
         live: bool = False,
     ):
@@ -282,16 +283,16 @@ class AblationRunner:
         self.prompts = prompts
         self.output_dir = output_dir
         self.live = live
-        self.results: List[Dict] = []
+        self.results: list[dict] = []
         self.memory = None
 
-    def _setup_ablation(self) -> Tuple[Any, Callable]:
+    def _setup_ablation(self) -> tuple[Any, Callable]:
         """Configure the system for the given ablation condition.
         Returns (brain_instance, cleanup_fn)."""
         print("[DEBUG] _setup_ablation start", flush=True)
         from drift.core.brain import DriftBrain
-        from drift.core.memory import DriftMemory
         from drift.core.logic_chain import get_chain_navigator
+        from drift.core.memory import DriftMemory
 
         print("[DEBUG] imports done", flush=True)
 
@@ -307,7 +308,7 @@ class AblationRunner:
         brain.chain_navigator = nav
         print("[DEBUG] after navigator", flush=True)
 
-        cleanup = lambda: None  # noqa: E731
+        cleanup = lambda: None
 
         if self.condition == "A":
             # No Council — stub out Elysium/Phi Council
@@ -317,7 +318,7 @@ class AblationRunner:
                 elysium = get_elysium()
                 original_reflect = elysium.reflect
                 elysium.reflect = lambda *a, **k: None
-                cleanup = lambda: setattr(elysium, "reflect", original_reflect)  # noqa: E731
+                cleanup = lambda: setattr(elysium, "reflect", original_reflect)
             except Exception:
                 pass
             try:
@@ -325,7 +326,7 @@ class AblationRunner:
 
                 original = copy.deepcopy(COUNCIL_MAPPING)
                 COUNCIL_MAPPING.clear()
-                cleanup = lambda: COUNCIL_MAPPING.update(original)  # noqa: E731
+                cleanup = lambda: COUNCIL_MAPPING.update(original)
             except Exception:
                 pass
 
@@ -337,7 +338,7 @@ class AblationRunner:
                 shadow = get_shadow()
                 original_tick = shadow.background_tick
                 shadow.background_tick = lambda *a, **k: None
-                cleanup = lambda: setattr(shadow, "background_tick", original_tick)  # noqa: E731
+                cleanup = lambda: setattr(shadow, "background_tick", original_tick)
             except Exception:
                 pass
 
@@ -352,7 +353,7 @@ class AblationRunner:
                 for name, need in getattr(homeo, "needs", {}).items():
                     need.current = 0.5
                     need.trend = 0.0
-                cleanup = lambda: setattr(homeo, "background_cycle", original_cycle)  # noqa: E731
+                cleanup = lambda: setattr(homeo, "background_cycle", original_cycle)
             except Exception:
                 pass
 
@@ -372,7 +373,7 @@ class AblationRunner:
                     )
 
                 DriftMemory.retrieve_context_ranked = cosine_only_retrieve
-                cleanup = lambda: setattr(  # noqa: E731
+                cleanup = lambda: setattr(
                     DriftMemory, "retrieve_context_ranked", original_retrieve
                 )
             except Exception:
@@ -391,7 +392,7 @@ class AblationRunner:
                 cfg_module.DRIFT_USE_KIMI = False
                 brain = DriftBrain()
                 brain.chain_navigator = nav
-                cleanup = lambda: (  # noqa: E731
+                cleanup = lambda: (
                     setattr(cfg_module, "API_KEY", original_api_key),
                     setattr(cfg_module, "DRIFT_USE_GROQ", original_use_groq),
                     setattr(cfg_module, "DRIFT_USE_KIMI", original_use_kimi),
@@ -408,9 +409,9 @@ class AblationRunner:
             # Only force Ollama fallback for Condition E (Local LLM only)
             print("[DEBUG] live mode start", flush=True)
             try:
+                import drift.core.brain as brain_module
                 from drift.core import config as cfg_module
                 from drift.core.local_llm import OllamaBridge
-                import drift.core.brain as brain_module
 
                 if self.condition == "E":
                     # Condition E: force local-only as per test design
@@ -593,14 +594,14 @@ class AblationRunner:
 
         return brain, _full_cleanup
 
-    def _run_single(self, brain, category: str, prompt: str) -> Dict:
+    def _run_single(self, brain, category: str, prompt: str) -> dict:
         """Run one prompt through the FULL pipeline (orchestrator + brain) and collect metrics."""
         print(f"[DEBUG] _run_single: {prompt[:30]}", flush=True)
         from drift.core.cognitive_orchestrator import CognitiveOrchestrator
         from drift.core.commands import BotState
         from drift.core.config import DEFAULT_AUTHORIZED_TARGETS
-        from drift.core.plugins.goals import GoalsDB
         from drift.core.plugins.documents import DocumentStore
+        from drift.core.plugins.goals import GoalsDB
 
         start = time.time()
         response = ""
@@ -678,7 +679,7 @@ class AblationRunner:
             "has_dmu_in_prompt": has_dmu,
         }
 
-    def run(self) -> Dict:
+    def run(self) -> dict:
         """Run all prompts for this condition and return summary."""
         brain, cleanup = self._setup_ablation()
         print(f"\n{'=' * 60}")
@@ -706,7 +707,7 @@ class AblationRunner:
         }
         return names.get(self.condition, "Unknown")
 
-    def _summarize(self) -> Dict:
+    def _summarize(self) -> dict:
         """Compute aggregate metrics."""
         latencies = [r["latency_sec"] for r in self.results]
         fallbacks = sum(1 for r in self.results if r["is_fallback"])
@@ -732,7 +733,7 @@ class AblationRunner:
         dmu_counts = sum(1 for r in self.results if r.get("has_dmu_in_prompt", False))
 
         # Emotion drift: count unique emotion labels per category
-        emotions_by_cat: Dict[str, List[str]] = {}
+        emotions_by_cat: dict[str, list[str]] = {}
         for r in self.results:
             emotions_by_cat.setdefault(r["category"], []).append(r["emotion_label"])
         emotion_drift = {
@@ -741,7 +742,7 @@ class AblationRunner:
         }
 
         # Category breakdown
-        by_category: Dict[str, Dict] = {}
+        by_category: dict[str, dict] = {}
         for cat in ["greeting", "stress", "deep", "tech", "creative"]:
             cat_results = [r for r in self.results if r["category"] == cat]
             if cat_results:
@@ -803,7 +804,7 @@ class AblationRunner:
         }
         return summary
 
-    def save(self, summary: Dict):
+    def save(self, summary: dict):
         """Save results to disk."""
         stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         json_path = self.output_dir / f"ablation_{stamp}_{self.condition}.json"
@@ -899,7 +900,7 @@ def main():
     conditions = [c.strip().upper() for c in args.conditions.split(",")]
     if args.diverse > 0:
         # Sample N prompts per category for balanced testing
-        by_cat: Dict[str, List[Tuple[str, str]]] = {}
+        by_cat: dict[str, list[tuple[str, str]]] = {}
         for cat, prompt in PROMPT_DATASET:
             by_cat.setdefault(cat, []).append((cat, prompt))
         prompts = []
@@ -925,8 +926,8 @@ def main():
     print(f"Output: {output_dir}")
     print("=" * 60)
 
-    all_summaries: List[Dict] = []
-    json_paths: List[Path] = []
+    all_summaries: list[dict] = []
+    json_paths: list[Path] = []
 
     for cond in conditions:
         print(f"[DEBUG] starting condition {cond}", flush=True)

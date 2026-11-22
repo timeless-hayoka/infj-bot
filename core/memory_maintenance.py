@@ -16,9 +16,9 @@ Part of Phase 6 (Safety/Stability) and Nexus Roadmap.
 import logging
 import sqlite3
 from datetime import datetime, timedelta
-from typing import List, Dict
+from typing import Dict, List
 
-from drift.core.config import DATA_DIR, BEING_DB, NEXUS_DB
+from drift.core.config import BEING_DB, DATA_DIR, NEXUS_DB
 from drift.core.local_llm import OllamaBridge
 
 logger = logging.getLogger("drift.memory_maintenance")
@@ -76,7 +76,7 @@ class ForgettingEngine:
                 "[forgetting] No knowledge extracted. Retaining thoughts for next cycle."
             )
 
-    def _fetch_stale_thoughts(self, hours: int) -> List[Dict]:
+    def _fetch_stale_thoughts(self, hours: int) -> list[dict]:
         cutoff = datetime.now() - timedelta(hours=hours)
         with sqlite3.connect(BEING_DB) as conn:
             conn.row_factory = sqlite3.Row
@@ -85,7 +85,7 @@ class ForgettingEngine:
             ).fetchall()
         return [dict(r) for r in rows]
 
-    async def _extract_knowledge(self, thoughts: List[Dict]) -> List[Dict]:
+    async def _extract_knowledge(self, thoughts: list[dict]) -> list[dict]:
         if not thoughts:
             return []
 
@@ -117,7 +117,7 @@ THOUGHTS:
             logger.error("[forgetting] Extraction failed: %s", e)
         return []
 
-    def _commit_knowledge(self, knowledge: List[Dict]):
+    def _commit_knowledge(self, knowledge: list[dict]):
         now = datetime.now().isoformat()
         with sqlite3.connect(NEXUS_DB) as conn:
             for item in knowledge:
@@ -134,7 +134,7 @@ THOUGHTS:
                     pass
             conn.commit()
 
-    def _archive_and_purge(self, thoughts: List[Dict]):
+    def _archive_and_purge(self, thoughts: list[dict]):
         now = datetime.now().isoformat()
         with sqlite3.connect(ARCHIVE_DB) as conn:
             for t in thoughts:

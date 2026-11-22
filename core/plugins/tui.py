@@ -21,13 +21,13 @@ sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parent))
 from drift.core.brain import DriftBrain
 from drift.core.commands import BotState, handle_command, is_command, parse_command
 from drift.core.config import DEFAULT_AUTHORIZED_TARGETS
+from drift.core.history import ChatHistory
+from drift.core.memory import DriftMemory
 from drift.core.plugins.documents import DocumentStore
 from drift.core.plugins.goals import GoalsDB
 from drift.core.plugins.growth import growth_profile
-from drift.core.history import ChatHistory
-from drift.core.memory import DriftMemory
-from drift.core.prompt_builder import build_chat_prompt
 from drift.core.plugins.proactive import ProactiveState
+from drift.core.prompt_builder import build_chat_prompt
 
 console = Console()
 
@@ -56,7 +56,7 @@ class DriftTUI:
         return Panel(Align.left(text), height=3, style="on black")
 
     def _make_sidebar(self) -> Panel:
-        lines: List[Text] = []
+        lines: list[Text] = []
         # Health
         health = self.brain.health_check()
         lines.append(Text("Health", style="bold yellow"))
@@ -103,7 +103,7 @@ class DriftTUI:
                 Text("Start a conversation...", style="dim italic"), vertical="middle"
             )
         else:
-            parts: List[Text] = []
+            parts: list[Text] = []
             for role, text in self.messages[-50:]:
                 if role == "user":
                     parts.append(

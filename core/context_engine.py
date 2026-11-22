@@ -1,4 +1,6 @@
-from typing import TypeVar, Generic, Callable, Any
+from collections.abc import Callable
+from typing import Any, Generic, TypeVar
+
 from pydantic import BaseModel, Field
 
 A = TypeVar("A")

@@ -37,9 +37,10 @@ import json
 import os
 import threading
 import time
-from datetime import datetime, timezone
+from collections.abc import Iterable
+from datetime import UTC, datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, List, Optional
 
 try:
     import fcntl  # Linux/macOS
@@ -57,7 +58,7 @@ except (ValueError, AttributeError, OSError):  # pragma: no cover
 # --------------------------------------------------------------------------- #
 # Compute attribution — separate model time from wall time and neighbor noise
 # --------------------------------------------------------------------------- #
-def _read_total_and_steal() -> Optional[tuple[int, int]]:
+def _read_total_and_steal() -> tuple[int, int] | None:
     """System-wide (total_ticks, steal_ticks) from /proc/stat. None off-Linux."""
     try:
         with open("/proc/stat", "r") as f:
@@ -72,7 +73,7 @@ def _read_total_and_steal() -> Optional[tuple[int, int]]:
     return None
 
 
-def _read_pid_cpu_ms(pid: int) -> Optional[float]:
+def _read_pid_cpu_ms(pid: int) -> float | None:
     """CPU ms (utime+stime) consumed by a process, from /proc/<pid>/stat.
 
     Use this with the OLLAMA pid to capture real local-inference compute. Returns
@@ -108,12 +109,12 @@ class CPUSampler:
         loadavg_1m       host load, context for the above
     """
 
-    def __init__(self, inference_pid: Optional[int] = None):
+    def __init__(self, inference_pid: int | None = None):
         self.inference_pid = inference_pid
         self._wall0 = self._tcpu0 = self._infer0 = None
-        self._steal0: Optional[tuple[int, int]] = None
+        self._steal0: tuple[int, int] | None = None
 
-    def start(self) -> "CPUSampler":
+    def start(self) -> CPUSampler:
         self._wall0 = time.monotonic()
         self._tcpu0 = (
             time.thread_time() if hasattr(time, "thread_time") else time.process_time()
@@ -124,7 +125,7 @@ class CPUSampler:
         self._steal0 = _read_total_and_steal()
         return self
 
-    def stop(self) -> Dict[str, Any]:
+    def stop(self) -> dict[str, Any]:
         wall_ms = (time.monotonic() - self._wall0) * 1000.0
         tcpu_now = (
             time.thread_time() if hasattr(time, "thread_time") else time.process_time()
@@ -175,7 +176,7 @@ class StateTrajectoryLogger:
         self.max_bytes = max_bytes
         self.backup_count = backup_count
         self.fsync = fsync
-        self.session_id = datetime.now(timezone.utc).isoformat()
+        self.session_id = datetime.now(UTC).isoformat()
         self._thread_lock = threading.Lock()  # intra-process guard
 
     def _rotate_if_needed(self) -> None:
@@ -206,16 +207,16 @@ class StateTrajectoryLogger:
     def log_turn(
         self,
         turn: int,
-        state: Dict[str, Any],
+        state: dict[str, Any],
         *,
         prompt_len: int = 0,
         response_len: int = 0,
         provider: str = "unknown",
-        timing: Optional[Dict[str, Any]] = None,
-        metadata: Optional[Dict] = None,
+        timing: dict[str, Any] | None = None,
+        metadata: dict | None = None,
     ) -> None:
         entry = {
-            "timestamp_iso": datetime.now(timezone.utc).isoformat(),
+            "timestamp_iso": datetime.now(UTC).isoformat(),
             "timestamp": time.time(),
             "session_id": self.session_id,
             "turn": turn,
@@ -268,9 +269,9 @@ class StateTrajectoryLogger:
 # --------------------------------------------------------------------------- #
 # Reader — tolerant of partial/corrupt lines, reads rotated files in order
 # --------------------------------------------------------------------------- #
-def _ordered_files(log_path: str) -> List[Path]:
+def _ordered_files(log_path: str) -> list[Path]:
     base = Path(log_path)
-    files: List[Path] = []
+    files: list[Path] = []
     # Oldest first: .N ... .1, then the live file.
     for i in range(_MAX_BACKUPS, 0, -1):
         p = base.with_suffix(base.suffix + f".{i}")
@@ -286,7 +287,7 @@ _MAX_BACKUPS = 20  # generous ceiling for the reader; logger uses its own backup
 
 def read_trace(
     log_path: str = "logs/state_trace.jsonl", include_rotated: bool = True
-) -> Iterable[Dict[str, Any]]:
+) -> Iterable[dict[str, Any]]:
     """Yield entries, skipping any line that isn't valid JSON (torn/partial writes).
 
     NEVER use pandas.read_json(lines=True) directly on these files — one bad line

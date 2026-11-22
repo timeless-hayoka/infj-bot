@@ -26,7 +26,6 @@ import math
 from dataclasses import dataclass, field
 from typing import Optional
 
-
 # ── Mode Constants ──────────────────────────────────────────────────────────
 
 SHADOW_MODES = {
@@ -172,7 +171,7 @@ def adjusted_confidence(base_confidence: float, shadow_influence: float) -> floa
     return max(0.0, base_confidence * (1.0 - shadow_influence))
 
 
-def tick(state: ShadowState, new_anomalies: Optional[list] = None) -> ShadowState:
+def tick(state: ShadowState, new_anomalies: list | None = None) -> ShadowState:
     """
     Advance shadow state by one cycle.
 

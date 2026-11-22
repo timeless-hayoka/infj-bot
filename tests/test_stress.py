@@ -10,23 +10,21 @@ Finds bugs through:
 """
 
 import json
-import threading
-import time
 import random
 import string
+import threading
+import time
 
 import pytest
-
 from drift.core.being import Being
 from drift.core.cognitive_architecture import CycleContext
 from drift.core.cognitive_orchestrator import CognitiveOrchestrator
 from drift.core.embeddings import SemanticEmbeddingFunction
 from drift.core.memory import DriftMemory
-from drift.core.plugins.physics import PhysicsEngine
 from drift.core.plugins.humanity import HumanityEngine
+from drift.core.plugins.physics import PhysicsEngine
 from drift.core.prompt_budget import PromptBudget
 from drift.core.resilience import CircuitBreaker, ResilienceManager
-
 
 # ── Helpers ───────────────────────────────────────────────────────
 

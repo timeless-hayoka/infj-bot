@@ -20,7 +20,7 @@ logger = logging.getLogger("drift")
 @dataclass
 class DeveloperSuiteState:
     active: bool = True
-    last_run: Optional[str] = None
+    last_run: str | None = None
     working_dir: str = str(PROJECT_ROOT)
 
 
@@ -80,7 +80,7 @@ class DeveloperSuite:
         except Exception as e:
             return f"[error: {e}]"
 
-    def run_tool(self, command: List[str]) -> str:
+    def run_tool(self, command: list[str]) -> str:
         """Run a developer tool command."""
         allowed_tools = {
             "ruff",

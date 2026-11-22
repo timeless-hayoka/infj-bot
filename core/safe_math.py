@@ -312,10 +312,10 @@ def _symbolic_namespace():
 def _parse_sym(text: str):
     import sympy
     from sympy.parsing.sympy_parser import (
+        convert_xor,
+        implicit_multiplication_application,
         parse_expr,
         standard_transformations,
-        implicit_multiplication_application,
-        convert_xor,
     )
 
     transformations = standard_transformations + (

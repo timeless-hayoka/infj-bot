@@ -113,9 +113,7 @@ def synthesize_to_file(text: str, path: str):
         voice.synthesize_wav(text, wav)
 
 
-def listen_and_transcribe(
-    audio_path: str, wake_word: str = "companion"
-) -> Optional[str]:
+def listen_and_transcribe(audio_path: str, wake_word: str = "companion") -> str | None:
     """Transcribe audio and return text only if wake word is present."""
     text = transcribe(audio_path)
     if wake_word.lower() in text.lower():
@@ -127,7 +125,7 @@ def listen_and_transcribe(
     return None
 
 
-def speak(text: str, output_path: Optional[str] = None) -> Optional[bytes]:
+def speak(text: str, output_path: str | None = None) -> bytes | None:
     """Speak text. Returns WAV bytes if no path given, else writes to path."""
     if output_path:
         synthesize_to_file(text, output_path)

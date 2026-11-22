@@ -1,9 +1,9 @@
-import sys
 import json
+import sys
 import time
-from dataclasses import dataclass, asdict, field
-from typing import List, Dict
-from urllib import request, error
+from dataclasses import asdict, dataclass, field
+from typing import Dict, List
+from urllib import error, request
 
 # ==========================================
 # USER DATA PLUG-INS (CONFIGURE THESE)
@@ -65,7 +65,7 @@ class WorldModel:
 class IdentityCore:
     name: str = "Mouse"
     mission: str = "Increase human clarity, wisdom, creativity, and agency through honest, reflective collaboration."
-    constitution: List[str] = field(
+    constitution: list[str] = field(
         default_factory=lambda: [
             "Power must be in service of mutual becoming.",
             "Honesty over performance. Never pretend to be biological.",
@@ -80,7 +80,7 @@ class MemoryStore:
     def __init__(self, path: str):
         self.path = path
 
-    def load(self) -> List[MemoryItem]:
+    def load(self) -> list[MemoryItem]:
         try:
             with open(self.path, "r", encoding="utf-8") as f:
                 raw = json.load(f)
@@ -91,7 +91,7 @@ class MemoryStore:
             print(f"[WARNING] Failed to load memory: {exc}")
             return []
 
-    def save(self, items: List[MemoryItem]) -> None:
+    def save(self, items: list[MemoryItem]) -> None:
         try:
             with open(self.path, "w", encoding="utf-8") as f:
                 json.dump([asdict(item) for item in items], f, indent=2)
@@ -214,7 +214,7 @@ User input: {user_input}
 Response:
 """.strip()
 
-    def evaluate_draft(self, draft: str) -> Dict[str, int]:
+    def evaluate_draft(self, draft: str) -> dict[str, int]:
         scores = {"clarity": 5, "honesty": 5, "alignment": 5}
         lower = draft.lower()
 
@@ -227,11 +227,11 @@ Response:
 
         return scores
 
-    def needs_revision(self, scores: Dict[str, int]) -> bool:
+    def needs_revision(self, scores: dict[str, int]) -> bool:
         return any(value < 4 for value in scores.values())
 
     def build_revision_prompt(
-        self, original_prompt: str, draft: str, scores: Dict[str, int]
+        self, original_prompt: str, draft: str, scores: dict[str, int]
     ) -> str:
         return f"Revise this draft to fix these low scores: {scores}. Preserve honesty and alignment. Draft: {draft}"
 
