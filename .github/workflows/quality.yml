@@ -5,10 +5,11 @@ on:
     branches: [main, master, maintenance/ruff-runtime-safety]
   pull_request:
     branches: [main, master]
+  workflow_dispatch:
 
 jobs:
   safe-autofix:
-    if: (github.event_name == 'push' && github.ref == 'refs/heads/maintenance/ruff-runtime-safety') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'maintenance/ruff-runtime-safety')
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/maintenance/ruff-runtime-safety') || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/maintenance/ruff-runtime-safety') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'maintenance/ruff-runtime-safety')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -30,6 +31,27 @@ jobs:
           git diff --check
           python -m compileall -q core tests interfaces memory automation
           git diff --stat
+      - name: Inventory remaining Ruff findings
+        if: always()
+        shell: bash
+        run: |
+          ruff check . --exclude venv --exclude .venv --exclude chroma_db --ignore E701,E402 --output-format json > ruff-remaining.json || test "$?" -eq 1
+          python - <<'PY'
+          import collections
+          import json
+          from pathlib import Path
+          path = Path("ruff-remaining.json")
+          if path.exists():
+              findings = json.loads(path.read_text())
+              counts = collections.Counter(item["code"] for item in findings)
+              print("REMAINING_RUFF_FINDINGS", len(findings))
+              print("REMAINING_RUFF_BY_RULE", dict(counts.most_common()))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ruff-remaining-inventory
+          path: ruff-remaining.json
       - name: Commit safe fixes
         shell: bash
         run: |
