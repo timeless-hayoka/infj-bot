@@ -5,7 +5,6 @@ import logging
 import re
 import uuid
 from pathlib import Path
-from typing import List, Tuple
 
 from drift.core.config import DRIFT_USE_LOCAL_EMBEDDINGS, PERSIST_DIRECTORY
 from drift.core.embeddings import (
