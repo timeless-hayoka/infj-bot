@@ -41,7 +41,6 @@ if new_genai is None and legacy_genai is None:
 
 import collections
 import logging
-from typing import Optional
 
 from drift.core.being import get_being
 from drift.core.config import (
