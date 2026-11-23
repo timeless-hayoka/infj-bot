@@ -12,6 +12,9 @@ jobs:
     if: (github.event_name == 'push' && github.ref == 'refs/heads/maintenance/ruff-runtime-safety') || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/maintenance/ruff-runtime-safety') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'maintenance/ruff-runtime-safety')
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    concurrency:
+      group: ruff-autofix-maintenance
+      cancel-in-progress: false
     permissions:
       contents: write
     steps:
@@ -72,6 +75,8 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git commit -m 'style(ruff): apply safe automated lint fixes'
+          # Do not overwrite concurrent human or bot commits.
+          # A stale push must fail visibly and be retried from the new tip.
           git push origin HEAD:maintenance/ruff-runtime-safety
 
   factory-regression:
