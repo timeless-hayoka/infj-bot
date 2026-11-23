@@ -34,7 +34,6 @@ import threading
 import time
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
-from typing import Optional
 
 import requests
 from drift.core.config import (
