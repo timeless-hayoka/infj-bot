@@ -12,7 +12,7 @@ import os
 import textwrap
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Optional
 
 from drift.core.cognitive_architecture import CognitiveArchitecture
 
@@ -31,7 +31,7 @@ import logging
 import os
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Optional
 
 from drift.core.cognitive_architecture import CognitiveArchitecture, CognitivePlugin
 from drift.core.config import DATA_DIR
