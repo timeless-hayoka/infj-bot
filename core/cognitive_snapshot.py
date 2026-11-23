@@ -9,7 +9,6 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 from drift.core.context_engine import CognitivePayload, CognitiveState, ContextWorker
 from drift.core.jsonl_logger import HardenedJsonlLogger
