@@ -150,19 +150,7 @@ def evaluate(output, run):
                 bot.chain_navigator = ChainNavigator()
                 try:
                     run["active_trial"]["stage"] = "inference"
-                    try:
                     answer = bot.think(prompt, rcce_strict=True).strip()
-                except Exception as exc:
-                    cause = exc.__cause__
-                    details = {"status": "failed", "stage": stage,
-                               "error_type": type(exc).__name__,
-                               "cause_type": type(cause).__name__ if cause else None,
-                               "completed_trials": len(records), "trials": records}
-                    output.write_text(json.dumps(details, indent=2))
-                    raise RuntimeError(
-                        f"{stage}: {type(exc).__name__}; "
-                        f"provider_cause={type(cause).__name__ if cause else 'unknown'}"
-                    ) from exc
                 finally:
                     receipts = bot._rcce_provider_receipts
                     provider_outputs = bot._rcce_provider_outputs
