@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, List
+from typing import Any
 
 
 def detect_dissonance(text: str) -> dict[str, Any]:
