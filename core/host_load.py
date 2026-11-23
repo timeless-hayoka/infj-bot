@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import os
 import time
-from typing import Any, Dict, Optional
+from typing import Any
 
 _MIN_INTERVAL = float(os.getenv("INFJ_HOST_LOAD_INTERVAL_SEC", "2.5"))
 
