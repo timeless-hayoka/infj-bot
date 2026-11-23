@@ -29,7 +29,6 @@ import os
 import sqlite3
 from dataclasses import asdict
 from datetime import UTC, datetime, timezone
-from typing import Union
 
 logger = logging.getLogger("drift.being_snapshot")
 
