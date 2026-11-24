@@ -1,0 +1,31 @@
+name: FI-001 crash baseline
+on:
+  push:
+    branches: [validation/memory-crash-consistency]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DRIFT_USE_LOCAL_EMBEDDINGS: "1"
+      ANONYMIZED_TELEMETRY: "False"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install application
+        run: python -m pip install -e .
+      - name: Execute crash baseline
+        run: |
+          git rev-parse HEAD
+          python tests/fi001_crash_probe.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fi001-evidence
+          path: fi001-evidence.json
+          if-no-files-found: warn
