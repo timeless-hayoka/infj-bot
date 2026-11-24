@@ -110,8 +110,8 @@ def run(output):
     ):
         raise RuntimeError("Live pilot is restricted to the first attempt on its Actions branch")
 
-    key = os.getenv("GEMINI_API_KEY", "")
-    if not re.fullmatch(r"AIza[A-Za-z0-9_-]{35}", key):
+    key = os.getenv("GEMINI_API_KEY", "").strip()
+    if not re.fullmatch(r"(?:AIza[A-Za-z0-9_-]{35}|AQ\.[A-Za-z0-9_.=-]{20,4096})", key):
         raise RuntimeError("The configured Actions secret is missing or malformed")
 
     for trial in range(1, TRIALS + 1):
@@ -132,6 +132,9 @@ def run(output):
             root = Path(folder)
             (root / "home").mkdir()
             writer = turn(root, evidence / "writer", ledger, key, trial, "writer", write_prompt)
+            receipts = [json.loads(path.read_bytes()) for path in (evidence / "writer").glob("receipt-*.json")]
+            if not receipts or any(receipt["status"] != 200 for receipt in receipts):
+                raise RuntimeError("Writer did not complete a live Gemini request. See the trial artifact.")
             if writer["alive_after_wait"]:
                 raise RuntimeError("Writer did not terminate")
             persistence = root / "drift" / "memory" / "chroma"

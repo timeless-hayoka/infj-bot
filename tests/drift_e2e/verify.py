@@ -110,7 +110,7 @@ def verify_turn(folder, attempts, process, prompt):
               "Request size exceeds bound")
         check(0 < payload["generationConfig"]["maxOutputTokens"] <= MAX_OUTPUT_TOKENS,
               "Missing output cap")
-        check(payload["generationConfig"]["thinkingConfig"] == {"thinkingBudget": 0},
+        check(payload["generationConfig"]["thinkingConfig"] == {"thinkingLevel": "MINIMAL"},
               "Unexpected thinking budget")
         check(not payload.get("tools"), "Unexpected provider-side grounding")
         check(provider["modelVersion"] == MODEL, "Provider returned an unexpected model")

@@ -25,9 +25,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Install real CLI and storage dependencies
+      - name: Install pinned provider SDK and real storage dependencies
         run: |
-          python -m pip install 'google-genai==1.73.1' 'chromadb==1.5.8' 'httpx==0.28.1' requests sympy psutil prometheus-client python-dotenv rich pexpect
+          python -m pip install 'google-genai==1.75.0' 'chromadb==1.5.8' 'httpx==0.28.1' requests sympy psutil prometheus-client python-dotenv rich pexpect
           python -m pip install --no-deps -e .
       - name: Run five isolated chat restarts
         env:

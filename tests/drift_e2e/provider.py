@@ -8,13 +8,13 @@ import time
 from contextlib import closing
 from pathlib import Path
 
-MODEL = "gemini-2.5-flash-lite"
+MODEL = "gemini-3.5-flash-lite"
 HOST = "generativelanguage.googleapis.com"
 ROUTE = f"/v1beta/models/{MODEL}:generateContent"
 MAX_CALLS = 20
 MAX_MICRODOLLARS = 1_000_000
 RESERVATION = 50_000
-# Standard Flash-Lite text rates are $0.10/1M input and $0.40/1M output.
+# Standard Flash-Lite text rates are $0.30/1M input and $2.50/1M output.
 # ASCII JSON byte count conservatively bounds the text tokens with ample
 # reservation headroom for message framing. Strip grounding at the wire so
 # the service cannot add Search fees or external material to the recall.
@@ -95,7 +95,7 @@ def checked_payload(request):
     config["maxOutputTokens"] = min(
         config.get("maxOutputTokens", MAX_OUTPUT_TOKENS), MAX_OUTPUT_TOKENS
     )
-    config["thinkingConfig"] = {"thinkingBudget": 0}
+    config["thinkingConfig"] = {"thinkingLevel": "MINIMAL"}
     encoded = json.dumps(body, ensure_ascii=True, separators=(",", ":")).encode()
     if len(encoded) > MAX_BODY_BYTES:
         raise RuntimeError("Bounded Gemini request exceeds the pilot byte limit")
