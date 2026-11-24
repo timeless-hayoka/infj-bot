@@ -49,12 +49,18 @@ jobs:
               counts = collections.Counter(item["code"] for item in findings)
               print("REMAINING_RUFF_FINDINGS", len(findings))
               print("REMAINING_RUFF_BY_RULE", dict(counts.most_common()))
+              Path("ruff-summary.txt").write_text(
+                  f"remaining={len(findings)}\\n"
+                  + "".join(f"{code}={count}\\n" for code, count in counts.most_common())
+              )
           PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: ruff-remaining-inventory
-          path: ruff-remaining.json
+          path: |
+            ruff-remaining.json
+            ruff-summary.txt
       - name: Validate changed code before automated commit
         shell: bash
         run: |
