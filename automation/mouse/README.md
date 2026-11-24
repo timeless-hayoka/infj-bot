@@ -1,5 +1,9 @@
 # 🖱️ MOUSE (Mobile Operations Utility & Synthetic Evaluator)
 
+**PHI//DRIFT — Founding Mission & Guiding Principles**
+
+*Human Vision. Machine Intelligence. A Future We Build Together.*
+
 **The On-The-Go Bug Bot.** 
 
 MOUSE is an advanced, lightweight automation framework designed for the INFJ-Bot and the broader PHI//DRIFT ecosystem. Its primary function is to serve as an autonomous, roaming testing and evaluation agent. If the Forge Protocol is the heavy-duty stress testing facility, MOUSE is the nimble scout you deploy into the field to hunt down bugs, validate UI workflows, and stress-test code changes on the fly.
