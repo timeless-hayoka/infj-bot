@@ -1,3 +1,7 @@
+**PHI//DRIFT — Founding Mission & Guiding Principles**
+
+*Human Vision. Machine Intelligence. A Future We Build Together.*
+
 PHI // DRIFT is the internal companion and reasoning layer. The flagship evidence-gate repo now lives in [ANCHOR](https://github.com/timeless-hayoka/ANCHOR).
 
 **Portfolio architecture:** [timeless-hayoka/ARCHITECTURE.md](https://github.com/timeless-hayoka/timeless-hayoka/blob/main/ARCHITECTURE.md) — infj-bot owns Trinity engine, dashboard, CLI, and knowledge integration. Canonical local path: `/home/crexs/infj_bot` on branch `anchor`.
