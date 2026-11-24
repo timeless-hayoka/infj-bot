@@ -139,6 +139,10 @@ def verify_turn(folder, attempts, process, prompt):
     return runtime, response, primary_requests[0], trace, receipts
 
 
+def trim_line_ends(text):
+    return "\n".join(line.rstrip() for line in text.splitlines())
+
+
 def verify_trial(folder, attempts):
     fact = read(folder / "fact.json")
     writer = read(folder / "writer" / "process.json")
@@ -154,7 +158,7 @@ def verify_trial(folder, attempts):
         folder / "writer", attempts.get("writer", []), writer, writer["prompt"]
     )
     evidence = verify_store(folder / "writer-store", writer["prompt"], answer)
-    r, recalled, request, reader_trace, received = verify_turn(
+    r, recalled, request, _, received = verify_turn(
         folder / "reader", attempts.get("reader", []), reader, reader["prompt"]
     )
     check(w["sqlite"] == r["sqlite"] and w["chroma"] == r["chroma"] == restart["storage"],
@@ -162,18 +166,22 @@ def verify_trial(folder, attempts):
     check(restart["storage_inode_before_reader"] is not None, "No persisted spine at restart")
     check(re.fullmatch(re.escape(code) + r"[.!]?", recalled.strip(), re.I), "Incorrect recall")
     memory_id = evidence["memory_id"]
-    check(any(e["event"] == "recall_returned" and e["query"] == reader["prompt"]
-              and memory_id in e["ids"] for e in reader_trace), "Reader did not retrieve writer ID")
-    context = request_text(request)
-    check("Memory context below" in context and f"user: {writer['prompt']}" in context,
-          "Writer interaction absent from the Gemini recall prompt")
+    # The ranked CLI path queries Chroma directly and hydrates the selected
+    # IDs from SQLite. The recall_sync trace only covers the fallback path.
+    # Match the independently verified record in the actual provider prompt.
+    context = request_text(request).partition("Memory context below")[2]
+    interaction = f"Memory: user: {writer['prompt']}\nBot: {answer}"
+    memory_context = trim_line_ends(context.rpartition(reader["prompt"])[0])
+    check(trim_line_ends(interaction) in memory_context,
+          "Exact writer interaction absent from the Gemini memory context")
     completed = [e["time_ns"] for e in writer_trace
                  if e["event"] == "write_returned" and e["id"] == memory_id]
     check(len(completed) == 1 and completed[0] <= writer["ended_ns"], "No completed write observed")
+    cli_return = next(e["time_ns"] for e in writer_trace if e["event"] == "cli_returned")
     evidence.update(
         writer_pid=writer["pid"], reader_pid=reader["pid"], recalled=recalled,
         code=code, writer_receipts=sent, reader_receipts=received,
-        write_completed_before_exit_sent=completed[0] <= writer["exit_sent_ns"],
+        write_completed_before_cli_return=completed[0] <= cli_return,
     )
     return evidence
 
