@@ -44,7 +44,7 @@ def initialize(path):
         )
 
 
-def reserve(ledger, turn):
+def reserve(ledger, turn, *, limit=MAX_CALLS, once=False):
     # Commit before entering the transport. Failed requests and lost replies
     # retain their full reservation. The immediate transaction serializes workers.
     with closing(connect(ledger)) as conn:
@@ -53,7 +53,9 @@ def reserve(ledger, turn):
         count, reserved = conn.execute(
             "SELECT count(*), coalesce(sum(reservation), 0) FROM attempts"
         ).fetchone()
-        if count >= MAX_CALLS or reserved + RESERVATION > MAX_MICRODOLLARS:
+        if once and conn.execute("SELECT 1 FROM attempts WHERE turn = ?", (turn,)).fetchone():
+            raise RuntimeError("Duplicate answer or critic request blocked before transport")
+        if count >= limit or reserved + RESERVATION > MAX_MICRODOLLARS:
             raise RuntimeError("DRIFT-E2E-01 provider budget exhausted")
         cursor = conn.execute(
             "INSERT INTO attempts (turn, pid, started_ns, reservation) VALUES (?,?,?,?)",
@@ -102,7 +104,7 @@ def checked_payload(request):
     return encoded
 
 
-def install(ledger, turn, evidence):
+def install(ledger, turn, evidence, *, limit=MAX_CALLS, one_per_kind=False):
     import httpx
 
     transport = httpx.HTTPTransport.handle_request
@@ -110,7 +112,15 @@ def install(ledger, turn, evidence):
     def guarded(self, request):
         try:
             payload = checked_payload(request)
-            attempt = reserve(ledger, turn)
+            label = turn
+            if one_per_kind:
+                content = json.loads(payload)["contents"]
+                opening = content[0]["parts"][0]["text"]
+                kind = "critic" if opening.startswith(
+                    "Review the following response for hallucinations, errors, or unsafe content:"
+                ) else "answer"
+                label = f"{turn}/{kind}"
+            attempt = reserve(ledger, label, limit=limit, once=one_per_kind)
         except Exception as exc:
             write_json(evidence / "provider-block.json", {"error": str(exc)})
             raise

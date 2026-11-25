@@ -1,0 +1,61 @@
+name: DRIFT memory packing A/B
+
+on:
+  push:
+    branches: [validation/drift-memory-packing]
+    paths: [.github/workflows/drift-memory-packing.yml]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: drift-memory-packing
+  cancel-in-progress: false
+
+jobs:
+  packing:
+    if: github.run_attempt == 1
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned Gemini SDK and storage dependencies
+        run: |
+          python -m pip install 'google-genai==1.75.0' 'chromadb==1.5.8' 'httpx==0.28.1' requests sympy psutil prometheus-client python-dotenv rich pexpect
+          python -m pip install --no-deps -e .
+      - name: Retrieve and verify the original Trial 3 snapshot
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/14969128193/zip" > source.zip
+          printf '%s  %s\n' '186313ea5412acae02adb33fac9941db8c23df89c66f57601f9146b2bae7be3e' source.zip | sha256sum -c -
+          unzip -q source.zip '3/writer-store/*' '3/fact.json' '3/reader/process.json' pilot.json -d snapshot
+      - name: Verify Trial 3 and fresh-case delivery offline
+        run: |
+          python tests/drift_e2e/packing_ab.py snapshot evidence/offline-trial3
+          python tests/drift_e2e/packing_ab.py snapshot evidence/offline-fresh --cohort fresh
+      - name: Run approved Trial 3 matched pair
+        if: github.event.head_commit.message == 'Run DRIFT Trial 3 with four Gemini attempts'
+        env:
+          DRIFT_AB_APPROVED_LIMIT: '4'
+          GEMINI_API_KEY: ${{ secrets.GEMINIAPIKEY || secrets.GEMINI_API_KEY || secrets.GOOGLE_API_KEY }}
+        run: python tests/drift_e2e/packing_ab.py snapshot evidence/live-trial3 --live
+      - name: Run approved fresh-case cohort
+        if: github.event.head_commit.message == 'Run DRIFT fresh cohort with sixteen Gemini attempts'
+        env:
+          DRIFT_AB_APPROVED_LIMIT: '16'
+          GEMINI_API_KEY: ${{ secrets.GEMINIAPIKEY || secrets.GEMINI_API_KEY || secrets.GOOGLE_API_KEY }}
+        run: python tests/drift_e2e/packing_ab.py snapshot evidence/live-fresh --cohort fresh --live
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: drift-memory-packing-evidence
+          path: evidence
+          if-no-files-found: warn
+          retention-days: 14

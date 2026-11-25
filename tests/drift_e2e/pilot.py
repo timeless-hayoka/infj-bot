@@ -14,7 +14,6 @@ from pathlib import Path
 
 from provider import MODEL, initialize, write_json
 
-
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 TRIALS = 5
@@ -52,14 +51,14 @@ def child_env(root, key):
     }
 
 
-def turn(root, output, ledger, key, trial, role, prompt):
+def turn(root, output, ledger, key, trial, role, prompt, *, extra_env=None):
     import pexpect
 
     output.mkdir()
     child = pexpect.spawn(
         sys.executable,
         [str(HERE / "child.py"), str(ledger), f"{trial}/{role}", str(output)],
-        cwd=str(root), env=child_env(root, key), encoding="utf-8",
+        cwd=str(root), env={**child_env(root, key), **(extra_env or {})}, encoding="utf-8",
         codec_errors="replace", echo=False, timeout=100, dimensions=(50, 240),
     )
     record = {"pid": child.pid, "prompt": prompt, "started_ns": time.time_ns()}

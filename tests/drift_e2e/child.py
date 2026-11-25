@@ -14,7 +14,20 @@ from provider import install, write_json
 def main():
     ledger, turn, output = sys.argv[1:]
     output = Path(output)
-    install(Path(ledger), turn, output)
+    packing = os.environ.get("DRIFT_AB_PACKING")
+    if packing is None:
+        install(Path(ledger), turn, output)
+    else:
+        from packing_ab import observe_packing
+
+        install(
+            Path(ledger), turn, output,
+            limit=int(os.environ["DRIFT_AB_CALL_LIMIT"]), one_per_kind=True,
+        )
+        observe_packing(packing, output)
+        from drift.core.security_defense import _security_logger
+
+        _security_logger.path = Path.cwd() / "security_audit.jsonl"
     from drift.core.unified_memory import MemoryManager
 
     remember = MemoryManager.remember_sync
