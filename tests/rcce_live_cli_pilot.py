@@ -25,7 +25,7 @@ def digest(text):
     return hashlib.sha256(text.encode()).hexdigest()
 
 
-def capture_case(feedback, scope, output):
+def capture_case(feedback, scope, output, profile="demo"):
     from google.genai.models import Models
 
     from drift.interfaces.cli import main
@@ -65,7 +65,7 @@ def capture_case(feedback, scope, output):
         "--rcce-feedback",
         str(feedback),
         "--rcce-profile",
-        "demo",
+        profile,
         "--rcce-context",
         "planning",
         "--rcce-scope",
@@ -201,7 +201,7 @@ def run(output):
 if __name__ == "__main__":
     mode, *paths = sys.argv[1:]
     if mode == "case":
-        raise SystemExit(capture_case(Path(paths[0]), paths[1], Path(paths[2])))
+        raise SystemExit(capture_case(Path(paths[0]), paths[1], Path(paths[2]), *paths[3:]))
     if mode == "run":
         raise SystemExit(run(Path(paths[0])))
     raise SystemExit("expected case or run")
