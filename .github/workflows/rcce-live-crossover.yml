@@ -12,7 +12,9 @@ permissions:
 
 jobs:
   live-cli:
-    if: github.event.head_commit.message == 'ci(rcce): trigger approved branch crossover once' && github.run_attempt == 1
+    if: >-
+      github.event.head_commit.message == 'ci(rcce): run approved crossover' &&
+      github.run_attempt == 1
     runs-on: ubuntu-latest
     timeout-minutes: 18
     steps:
