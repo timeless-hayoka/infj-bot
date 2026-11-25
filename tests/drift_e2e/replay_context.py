@@ -78,6 +78,10 @@ def replay_trial(trial, store):
     from drift.core.cognitive_orchestrator import CognitiveOrchestrator
     from drift.core.commands import BotState
     from drift.core.memory import DriftMemory
+    from drift.core.security_defense import _security_logger
+
+    # The application defaults this audit log to the source checkout.
+    _security_logger.path = store.parent / "security_audit.jsonl"
 
     fact = read(trial / "fact.json")["code"]
     reader = read(trial / "reader" / "process.json")["prompt"]
