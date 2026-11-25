@@ -1,13 +1,18 @@
 name: RCCE-1 live CLI crossover pilot
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - validation/rcce-live-independent
+    paths:
+      - '.github/workflows/rcce-live-crossover.yml'
 
 permissions:
   contents: read
 
 jobs:
   live-cli:
+    if: github.event.head_commit.message == 'ci(rcce): trigger approved branch crossover once' && github.run_attempt == 1
     runs-on: ubuntu-latest
     timeout-minutes: 18
     steps:
