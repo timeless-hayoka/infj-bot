@@ -14,6 +14,7 @@ from pathlib import Path
 
 from rcce_partner_pilot import (
     PARTNERS,
+    STRATEGIES,
     PrincipleTransferPolicy,
     digest,
     failure_details,
