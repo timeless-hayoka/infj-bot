@@ -59,3 +59,5 @@ jobs:
           path: evidence
           if-no-files-found: warn
           retention-days: 14
+
+# Trial 3 live execution uses the frozen source artifact and four-attempt ledger.
