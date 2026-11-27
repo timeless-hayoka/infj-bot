@@ -44,3 +44,13 @@ def test_unverified_correction_cannot_modify_history(tmp_path):
     with pytest.raises(ValueError):
         bridge.correct(original, "failure", evidence="", source="reviewer")
     assert len(CognitiveLearningBridge(db).history("repair")) == 1
+
+def test_corrected_failure_controls_choice_after_restart(tmp_path):
+    db = tmp_path / "learning.db"
+    bridge = CognitiveLearningBridge(db, failure_threshold=1)
+    bridge.record("repair", "retry", "success", verified=True, evidence="trace-old")
+    original = bridge.history("repair")[0]["id"]
+    bridge.correct(original, "failure", evidence="trace-new", source="reviewer")
+    assert bridge.choose("repair", ["retry", "inspect"]).strategy == "inspect"
+    restarted = CognitiveLearningBridge(db, failure_threshold=1)
+    assert restarted.choose("repair", ["retry", "inspect"]).strategy == "inspect"
