@@ -33,10 +33,22 @@ class CognitiveLearningBridge:
         return sqlite3.connect(self.database)
 
     def _replay(self):
+        """Restore effective verified outcomes, including append-only corrections."""
         with self._connect() as db:
-            rows = db.execute(
-                "SELECT task,strategy,outcome FROM cognitive_outcomes ORDER BY id"
-            ).fetchall()
+            evidence_count = db.execute(
+                "SELECT COUNT(*) FROM cognitive_evidence"
+            ).fetchone()[0]
+            if evidence_count:
+                rows = db.execute(
+                    "SELECT e.task,e.strategy,e.outcome FROM cognitive_evidence e "
+                    "WHERE NOT EXISTS (SELECT 1 FROM cognitive_evidence c "
+                    "WHERE c.corrects_id=e.id) ORDER BY e.id"
+                ).fetchall()
+            else:
+                # Preserve behavior for databases created before the evidence schema.
+                rows = db.execute(
+                    "SELECT task,strategy,outcome FROM cognitive_outcomes ORDER BY id"
+                ).fetchall()
         for task, strategy, outcome in rows:
             self.controller.observe(task, strategy, outcome=outcome, verified=True)
 
