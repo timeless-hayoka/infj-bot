@@ -220,6 +220,32 @@ class CognitiveOrchestrator:
         self.turn_logs: list[TurnLog] = []
         self.last_state = {}
         self._wire_event_handlers()
+        self._cognitive_learning = None  # Opt-in; no implicit behavior changes
+
+    def enable_cognitive_learning(self, database_path):
+        """Opt in to verified strategy learning; preserve existing safety gates."""
+        from drift.core.cognitive_learning_bridge import CognitiveLearningBridge
+        self._cognitive_learning = CognitiveLearningBridge(database_path)
+        return self._cognitive_learning
+
+    def choose_cognitive_strategy(self, task, candidates):
+        """Return a choice only when learning has been explicitly enabled."""
+        if self._cognitive_learning is None:
+            return None
+        return self._cognitive_learning.choose(task, candidates)
+
+    def record_cognitive_outcome(self, task, strategy, outcome, *,
+                                 verified=False, evidence="", scope="global"):
+        if self._cognitive_learning is None:
+            return False
+        accepted = self._cognitive_learning.record(
+            task, strategy, outcome, verified=verified, evidence=evidence, scope=scope
+        )
+        if accepted:
+            self.bus.publish("cognitive_outcome_verified",
+                             {"task": task, "strategy": strategy, "outcome": outcome},
+                             source="cognitive_learning")
+        return accepted
 
     def _wire_event_handlers(self):
         """Set up cross-module communication via events instead of direct calls."""
