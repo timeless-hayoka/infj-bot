@@ -1,0 +1,47 @@
+name: DRIFT-S1-LIVE-01 authorized one-shot pilot
+on:
+  push:
+    branches: [validation/stage1-evidence-history]
+    paths: ['.github/workflows/drift-s1-live-01.yml']
+permissions:
+  contents: read
+concurrency:
+  group: drift-s1-live-01-authorized
+  cancel-in-progress: false
+jobs:
+  live-pilot:
+    if: github.run_attempt == 1 && github.event.head_commit.message == 'ci(stage1): execute authorized DRIFT-S1-LIVE-01 one-shot pilot'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install real application and official provider SDK
+        run: |
+          python -m pip install pytest
+          python -m pip install --no-deps -e .
+          python -m pip install 'chromadb>=1.5,<2' numpy requests sympy python-dotenv psutil 'google-genai>=1.56,<2'
+      - name: Fail-closed offline budget and prompt validation
+        run: python -m pytest -q tests/test_stage1_live_01.py tests/test_stage1_conversational_learning.py
+      - name: Prepare paired prompts without credentials
+        run: python tests/stage1_live_01.py prepare "${{ runner.temp }}/drift-s1-live-01"
+      - name: Authorized live Gemini experiment
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python tests/stage1_live_01.py live "${{ runner.temp }}/drift-s1-live-01"
+      - name: Preserve raw matched prompts, receipts, attempt ledger and scores
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: drift-s1-live-01-evidence-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/drift-s1-live-01/prepared.json
+            ${{ runner.temp }}/drift-s1-live-01/attempts.jsonl
+            ${{ runner.temp }}/drift-s1-live-01/receipts.jsonl
+            ${{ runner.temp }}/drift-s1-live-01/scores.jsonl
+          if-no-files-found: warn
+          retention-days: 30
