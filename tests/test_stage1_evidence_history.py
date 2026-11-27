@@ -245,3 +245,54 @@ def test_identical_legacy_and_new_outcomes_are_distinct_observations(tmp_path):
         assert connection.execute(
             "SELECT outcome,corrects_id FROM cognitive_evidence ORDER BY id"
         ).fetchall() == [("failure", None), ("success", root)]
+
+
+def test_opt_in_orchestrator_correction_survives_process_restart(tmp_path):
+    import json
+    import os
+    import secrets
+    import subprocess
+    import sys
+
+    path = tmp_path / "orchestrator.db"
+    env = dict(os.environ)
+    env["DRIFT_OS_ROOT"] = str(tmp_path / "isolated-state")
+    env["DRIFT_VAULT_PATH"] = str(tmp_path / "isolated-state" / "vault.jsonl")
+    env["DRIFT_VAULT_SECRET"] = secrets.token_hex(32)
+    writer = """
+import json, os, sys
+from drift.core.cognitive_orchestrator import CognitiveOrchestrator
+orchestrator = CognitiveOrchestrator()
+assert orchestrator.choose_cognitive_strategy("repair", ["retry", "inspect"]) is None
+assert not orchestrator.record_cognitive_outcome("repair", "retry", "failure", verified=True, evidence="disabled")
+bridge = orchestrator.enable_cognitive_learning(sys.argv[1])
+assert not orchestrator.record_cognitive_outcome("repair", "retry", "failure", evidence="unverified")
+assert not orchestrator.bus.get_recent("cognitive_outcome_verified")
+for n in range(3):
+    assert orchestrator.record_cognitive_outcome("repair", "retry", "failure", verified=True, evidence=f"trace-{n}")
+assert orchestrator.choose_cognitive_strategy("repair", ["retry", "inspect"]).strategy == "inspect"
+assert len(orchestrator.bus.get_recent("cognitive_outcome_verified")) == 3
+root = bridge.history("repair")[-1]["id"]
+bridge.correct(root, "success", evidence="review", source="reviewer")
+print(json.dumps({"pid": os.getpid(), "decision": orchestrator.choose_cognitive_strategy("repair", ["retry", "inspect"]).strategy}))
+"""
+    reader = """
+import json, os, sys
+from drift.core.cognitive_orchestrator import CognitiveOrchestrator
+orchestrator = CognitiveOrchestrator()
+assert orchestrator.choose_cognitive_strategy("repair", ["retry", "inspect"]) is None
+bridge = orchestrator.enable_cognitive_learning(sys.argv[1])
+print(json.dumps({"pid": os.getpid(), "decision": orchestrator.choose_cognitive_strategy("repair", ["retry", "inspect"]).strategy,
+                  "history": bridge.history("repair")}))
+"""
+    written = json.loads(subprocess.check_output(
+        [sys.executable, "-c", writer, str(path)], env=env, text=True, timeout=30
+    ).splitlines()[-1])
+    read = json.loads(subprocess.check_output(
+        [sys.executable, "-c", reader, str(path)], env=env, text=True, timeout=30
+    ).splitlines()[-1])
+    assert written["pid"] != read["pid"]
+    assert written["decision"] == read["decision"] == "retry"
+    assert len(read["history"]) == 4
+    assert read["history"][-1]["corrects_id"] == read["history"][-2]["id"]
+    assert read["history"][-1]["source"] == "reviewer"
