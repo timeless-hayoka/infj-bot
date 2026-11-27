@@ -5,6 +5,7 @@ on:
     paths:
       - '.github/workflows/drift-tunnel-trial.yml'
       - 'scripts/tunnel_trial.sh'
+      - 'docs/tunnel-trial-request.txt'
   workflow_dispatch:
 permissions:
   contents: read
@@ -23,7 +24,7 @@ jobs:
         run: bash scripts/tunnel_trial.sh preflight
   trial:
     needs: preflight
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/drift-private-mcp'
+    if: github.ref == 'refs/heads/feat/drift-private-mcp' && (github.event_name == 'workflow_dispatch' || github.event.head_commit.message == 'ci(tunnel): launch explicitly authorized private trial')
     environment: drift-tunnel-test
     runs-on: ubuntu-latest
     timeout-minutes: 25
