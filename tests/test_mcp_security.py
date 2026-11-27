@@ -3,7 +3,6 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import pytest
-
 from drift.core.mcp_security import McpSecurityGuard
 
 
@@ -25,9 +24,8 @@ def test_mcp_security_guard_auth_and_rate_limit():
 
 
 def test_http_bridge_status_and_metrics(monkeypatch):
-    from fastapi.testclient import TestClient
-
     from drift.core.mcp_server import create_http_app
+    from fastapi.testclient import TestClient
 
     app = create_http_app(token=None)
     client = TestClient(app)
