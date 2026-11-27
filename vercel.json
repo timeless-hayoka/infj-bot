@@ -1,16 +1,7 @@
 {
-  "version": 2,
-  "name": "drift",
-  "builds": [
-    {
-      "src": "core/mcp_server.py",
-      "use": "@vercel/python"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "core/mcp_server.py"
-    }
-  ]
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "",
+  "buildCommand": "mkdir -p vercel-public && cp index.html vercel-public/index.html",
+  "outputDirectory": "vercel-public"
 }
