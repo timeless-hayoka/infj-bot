@@ -42,8 +42,8 @@ def create_server() -> FastMCP:
                 raise ValueError("Oversized response")
             value = json.loads(raw)
             if not isinstance(value, dict):
-                raise ValueError("Invalid response")
-        except (OSError, ValueError):
+                raise TypeError("Invalid response")
+        except (OSError, TypeError, ValueError):
             raise RuntimeError("DRIFT adapter unavailable") from None
         return value
 
@@ -75,7 +75,7 @@ def create_server() -> FastMCP:
                 raise ValueError("Invalid query or limit")
             data = call_adapter("/memory/search", {"query": query, "limit": limit})
             if not isinstance(data.get("result"), str):
-                raise RuntimeError("Invalid DRIFT memory response")
+                raise TypeError("Invalid DRIFT memory response")
             return {"result": data["result"][:24000]}
 
     return server
