@@ -24,7 +24,9 @@ jobs:
         run: bash scripts/tunnel_trial.sh preflight
   trial:
     needs: preflight
-    if: github.ref == 'refs/heads/feat/drift-private-mcp' && (github.event_name == 'workflow_dispatch' || github.event.head_commit.message == 'ci(tunnel): launch explicitly authorized private trial')
+    if: >-
+      github.ref == 'refs/heads/feat/drift-private-mcp' &&
+      (github.event_name == 'workflow_dispatch' || github.event.head_commit.message == 'ci(tunnel): launch explicitly authorized private trial')
     environment: drift-tunnel-test
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -36,6 +38,6 @@ jobs:
         run: bash scripts/tunnel_trial.sh preflight
       - name: Start bounded private health-only connection
         env:
-          CONTROL_PLANE_API_KEY: ${{ secrets.DRIFT_TUNNEL_RUNTIME_KEY }}
+          CONTROL_PLANE_API_KEY: ${{ secrets.OPENAI_DRIFT }}
           CONTROL_PLANE_TUNNEL_ID: ${{ vars.DRIFT_TUNNEL_ID }}
         run: bash scripts/tunnel_trial.sh live
