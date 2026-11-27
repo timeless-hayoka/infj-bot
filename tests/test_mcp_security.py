@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from core.mcp_security import McpSecurityGuard
+from drift.core.mcp_security import McpSecurityGuard
 
 
 def test_mcp_security_guard_auth_and_rate_limit():
@@ -27,7 +27,7 @@ def test_mcp_security_guard_auth_and_rate_limit():
 def test_http_bridge_status_and_metrics(monkeypatch):
     from fastapi.testclient import TestClient
 
-    from core.mcp_server import create_http_app
+    from drift.core.mcp_server import create_http_app
 
     app = create_http_app(token=None)
     client = TestClient(app)
@@ -39,7 +39,7 @@ def test_http_bridge_status_and_metrics(monkeypatch):
             energy=0.5,
         )
     )
-    monkeypatch.setattr("core.mcp_server.get_being", lambda: fake_being)
+    monkeypatch.setattr("drift.core.mcp_server.get_being", lambda: fake_being)
 
     status = client.get("/status")
     assert status.status_code == 200
