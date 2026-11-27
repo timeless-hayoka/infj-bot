@@ -68,8 +68,9 @@ def test_memory_search_rejects_invalid_input_and_unauthorized_calls(monkeypatch)
 
 def test_persisted_memory_survives_restart_through_http(tmp_path, monkeypatch):
     """Exercise real persistent storage through the production MCP search path."""
-    from drift.core import embeddings, mcp_server
     from drift.core.memory import DriftMemory
+
+    from drift.core import embeddings, mcp_server
 
     # Exercise real storage and retrieval with deterministic offline embeddings.
     monkeypatch.setattr(
