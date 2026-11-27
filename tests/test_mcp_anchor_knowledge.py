@@ -43,13 +43,11 @@ def anchor_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
         encoding="utf-8",
     )
     monkeypatch.setenv("ANCHOR_ROOT", str(repo))
-    from core import anchor_context
+    from drift.core import anchor_context
 
     anchor_context._knowledge_provider = None
-    for name in ("core.anchor_context", "drift.core.anchor_context"):
-        if name in importlib.sys.modules:
-            mod = importlib.reload(importlib.import_module(name))
-            mod._knowledge_provider = None
+    mod = importlib.reload(anchor_context)
+    mod._knowledge_provider = None
     return repo
 
 
@@ -78,7 +76,7 @@ def test_list_and_search_repo_knowledge(anchor_repo: Path) -> None:
 
 
 def test_mcp_anchor_knowledge_tools(anchor_repo: Path) -> None:
-    from core.mcp_server import (
+    from drift.core.mcp_server import (
         anchor_knowledge_get,
         anchor_knowledge_list,
         anchor_knowledge_refs,

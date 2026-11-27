@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PHI // DRIFT — Interactive Live Observatory Demo</title>
-    <meta name="description" content="Explore DRIFT, a 5-layer homeostatic cognitive architecture for persistent, state-aware AI companions. Interactively chat and monitor telemetry in real-time.">
+    <title>PHI // DRIFT — Interactive Observatory Demo</title>
+    <meta name="description" content="Explore DRIFT, a 5-layer homeostatic cognitive architecture for persistent, state-aware AI companions. Explore a scripted chat and simulated telemetry in a browser-only demo. No live model or persistent memory is connected.">
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -171,21 +171,22 @@
 <header>
     <h1>PHI // DRIFT</h1>
     <p class="subtitle">Homeostatic Cognitive Architecture for Persistent AI Companionship</p>
+    <p>Interactive demonstration only — scripted responses and simulated telemetry. No live AI inference or persistent memory.</p>
 </header>
 
 <div class="container">
-    <h2 class="sr-only">PHI // DRIFT interactive demo showing a conversation with DRIFT and the real-time Observatory telemetry panel</h2>
+    <h2 class="sr-only">PHI // DRIFT interactive demo showing a conversation with DRIFT and a simulated Observatory telemetry panel</h2>
 
     <div class="shell">
       <div class="chat-panel">
         <div class="chat-header">
           <div class="chat-header-dot"></div>
           <span class="chat-header-title">PHI // DRIFT — COMPANION v1.2</span>
-          <span class="chat-header-status" id="status-tag">● ONLINE</span>
+          <span class="chat-header-status" id="status-tag">● DEMO</span>
         </div>
         <div class="chat-messages" id="msgs"></div>
         <div class="chat-input-area">
-          <input class="chat-input" id="user-input" placeholder="Talk to DRIFT..." />
+          <input class="chat-input" id="user-input" placeholder="Try a demo message..." />
           <button class="chat-send" id="send-btn">SEND</button>
         </div>
       </div>
@@ -305,7 +306,13 @@ function addMsg(type, text) {
   const el = document.createElement('div');
   el.className = `msg msg-${type}`;
   const labelMap = {jude:'[JUDE]', drift:'[INFJ COMPANION]', pedi:'[*]', proactive:'[INSIGHT]'};
-  el.innerHTML = `<div class="msg-label">${labelMap[type]||'[DRIFT]'}</div><div class="msg-body">${text}</div>`;
+  const label = document.createElement('div');
+  label.className = 'msg-label';
+  label.textContent = labelMap[type] || '[DRIFT]';
+  const body = document.createElement('div');
+  body.className = 'msg-body';
+  body.textContent = text;
+  el.append(label, body);
   msgs.appendChild(el);
   msgs.scrollTop = msgs.scrollHeight;
 }

@@ -61,10 +61,32 @@ _VARIABLE_RE = re.compile(r"[A-Za-z][A-Za-z0-9]{0,9}\Z", re.ASCII)
 _ALLOWED_CHARS_RE = re.compile(r"[0-9A-Za-z_+\-*/%().,^= \t]+\Z", re.ASCII)
 _SUSPICIOUS = ("__", "import", "lambda", "eval", "exec", "compile")
 _DENIED_NAMES = {
-    "builtins", "open", "print", "globals", "locals", "vars", "getattr",
-    "setattr", "delattr", "type", "object", "classmethod", "staticmethod",
-    "help", "input", "breakpoint", "memoryview", "super", "True", "False",
-    "None", "nan", "oo", "zoo", "inf", "Infinity",
+    "builtins",
+    "open",
+    "print",
+    "globals",
+    "locals",
+    "vars",
+    "getattr",
+    "setattr",
+    "delattr",
+    "type",
+    "object",
+    "classmethod",
+    "staticmethod",
+    "help",
+    "input",
+    "breakpoint",
+    "memoryview",
+    "super",
+    "True",
+    "False",
+    "None",
+    "nan",
+    "oo",
+    "zoo",
+    "inf",
+    "Infinity",
 }
 _MATH_HINT = re.compile(
     r"\d\s*(?:\*\*|[-+*/%^])\s*\d|=|"
@@ -88,7 +110,10 @@ class MathError(Exception):
 
 
 def _guard_fraction(value: Fraction) -> Fraction:
-    if max(abs(value.numerator).bit_length(), value.denominator.bit_length()) > MAX_RESULT_BITS:
+    if (
+        max(abs(value.numerator).bit_length(), value.denominator.bit_length())
+        > MAX_RESULT_BITS
+    ):
         raise MathError("result too large")
     return value
 
@@ -169,7 +194,9 @@ def _is_variable_name(name: str) -> bool:
     )
 
 
-def _validate_ast(node: ast.AST, source: str, *, symbolic: bool, depth: int = 0) -> None:
+def _validate_ast(
+    node: ast.AST, source: str, *, symbolic: bool, depth: int = 0
+) -> None:
     if depth > MAX_AST_DEPTH:
         raise MathError("expression too deeply nested")
 
@@ -196,7 +223,9 @@ def _validate_ast(node: ast.AST, source: str, *, symbolic: bool, depth: int = 0)
             try:
                 exponent = _eval_arithmetic(node.right, source)
             except MathError as exc:
-                raise MathError("power exponent must be bounded numeric arithmetic") from exc
+                raise MathError(
+                    "power exponent must be bounded numeric arithmetic"
+                ) from exc
             if abs(exponent) > MAX_POW_EXPONENT:
                 raise MathError("exponent too large")
             if exponent.denominator == 1 and not any(
@@ -205,9 +234,13 @@ def _validate_ast(node: ast.AST, source: str, *, symbolic: bool, depth: int = 0)
                 _safe_pow(_eval_arithmetic(node.left, source), exponent)
         child(node.left)
         child(node.right)
-        if isinstance(node.op, (ast.Div, ast.FloorDiv, ast.Mod)) and not any(
-            isinstance(part, (ast.Name, ast.Call)) for part in ast.walk(node.right)
-        ) and _eval_arithmetic(node.right, source) == 0:
+        if (
+            isinstance(node.op, (ast.Div, ast.FloorDiv, ast.Mod))
+            and not any(
+                isinstance(part, (ast.Name, ast.Call)) for part in ast.walk(node.right)
+            )
+            and _eval_arithmetic(node.right, source) == 0
+        ):
             raise MathError("division by zero")
         return
     if symbolic and isinstance(node, ast.Name):
@@ -360,7 +393,7 @@ def _run_with_timeout(function: Callable[[], _T]) -> _T:
     def worker() -> None:
         try:
             outcome.put((True, function()))
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - worker must relay all failures
             outcome.put((False, exc))
         finally:
             _SYMBOLIC_SLOTS.release()
@@ -395,16 +428,24 @@ def safe_symbolic(expr: str, *, solve_for: str | None = None) -> dict:
 def looks_like_math(text: str) -> bool:
     """Conservatively identify text that may contain a math request."""
 
-    return isinstance(text, str) and len(text) <= 4_096 and bool(_MATH_HINT.search(text))
+    return (
+        isinstance(text, str) and len(text) <= 4_096 and bool(_MATH_HINT.search(text))
+    )
 
 
 def _format_fraction(value: Fraction, significant_digits: int = 12) -> dict[str, str]:
-    exact = str(value.numerator) if value.denominator == 1 else f"{value.numerator}/{value.denominator}"
+    exact = (
+        str(value.numerator)
+        if value.denominator == 1
+        else f"{value.numerator}/{value.denominator}"
+    )
     if value.denominator == 1:
         return {"exact": exact, "approx": exact}
     with localcontext() as context:
         context.prec = significant_digits
-        approx = str((Decimal(value.numerator) / Decimal(value.denominator)).normalize())
+        approx = str(
+            (Decimal(value.numerator) / Decimal(value.denominator)).normalize()
+        )
     return {"exact": exact, "approx": approx}
 
 
@@ -443,5 +484,5 @@ def compute(text: str) -> dict:
         }
     except MathError as exc:
         return {"ok": False, "reason": str(exc), "input": original}
-    except Exception:
+    except Exception:  # noqa: BLE001 - public math API must never leak exceptions
         return {"ok": False, "reason": "computation failed safely", "input": original}

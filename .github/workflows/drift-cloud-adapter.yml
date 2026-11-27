@@ -1,0 +1,32 @@
+name: DRIFT cloud adapter verification
+
+on:
+  pull_request:
+    paths:
+      - "core/cloud_adapter.py"
+      - "tests/test_cloud_adapter.py"
+      - ".github/workflows/drift-cloud-adapter.yml"
+  workflow_dispatch:
+
+jobs:
+  adapter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install native audio runtime
+        run: sudo apt-get update -y && sudo apt-get install -y libportaudio2
+      - name: Install real project and test dependencies
+        run: python -m pip install -e ".[dev]"
+      - name: Run adapter tests (fail on missing production wiring)
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: python -m pytest tests/test_cloud_adapter.py -q -ra
+      - name: Ruff check changed adapter files
+        run: |
+          python -m pip install ruff
+          python -m ruff check core/cloud_adapter.py tests/test_cloud_adapter.py
+          python -m ruff format --check core/cloud_adapter.py tests/test_cloud_adapter.py

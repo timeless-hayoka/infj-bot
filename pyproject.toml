@@ -108,6 +108,10 @@ anchor = "drift.interfaces.cli:main"
 [tool.ruff.lint]
 ignore = ["E402", "E702", "E731", "F841", "F401", "F811", "E701", "F821", "E722", "E741"]
 
+[tool.ruff.lint.per-file-ignores]
+# Repository name contains a hyphen; this empty package initializer is valid.
+"benchmarks/__init__.py" = ["N999"]
+
 [tool.pytest.ini_options]
 filterwarnings = [
     "ignore:Using `httpx` with `starlette.testclient` is deprecated:DeprecationWarning",

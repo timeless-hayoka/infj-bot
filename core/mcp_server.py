@@ -27,6 +27,7 @@ from drift.core.being import get_being
 from drift.core.brain import DriftBrain
 from drift.core.cognition import map_dissonance
 from drift.core.config import PROJECT_ROOT
+from drift.core.mcp_security import McpSecurityGuard, SecurityPrincipal
 from drift.core.websocket_manager import manager
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, Response
@@ -85,10 +86,6 @@ except Exception:
         "Operation failed; applying fallback", exc_info=True
     )
     GlobalWorkspace = None  # type: ignore[assignment]
-from core.mcp_security import (
-    McpSecurityGuard,
-    SecurityPrincipal,
-)
 
 try:
     from hive_mind.orchestrator import HiveOrchestrator
