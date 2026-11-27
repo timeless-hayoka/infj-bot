@@ -1,4 +1,5 @@
 """Regression tests for continuity artifact auditing."""
+
 import copy
 import json
 
@@ -14,20 +15,27 @@ def fixture(tmp_path):
     counts_on["reviewer"] = 1
     counts_off["reviewer"] = 1
     summary = {
-        "pairs": 1, "possible_points_per_condition": 7,
+        "pairs": 1,
+        "possible_points_per_condition": 7,
         "points": {"on": 2, "off": 1},
-        "paired_on_minus_off": 1, "mean_paired_difference": 1,
-        "improved": 1, "tied": 0, "regressed": 0,
+        "paired_on_minus_off": 1,
+        "mean_paired_difference": 1,
+        "improved": 1,
+        "tied": 0,
+        "regressed": 0,
         "correct_by_field": {"on": counts_on, "off": counts_off},
         "all_seven_correct": {"on": 0, "off": 0},
     }
     data = {
         "scenarios.json": [scenario],
         "summary.json": summary,
-        "audit.json": {"pairs": 1, "summary": copy.deepcopy(summary),
-                       "actual_generation_calls": 14,
-                       "request_settings_all_match": {"seed": 42},
-                       "model_digest_all_calls": "digest"},
+        "audit.json": {
+            "pairs": 1,
+            "summary": copy.deepcopy(summary),
+            "actual_generation_calls": 14,
+            "request_settings_all_match": {"seed": 42},
+            "model_digest_all_calls": "digest",
+        },
         "midpoint-audit.json": {"completed_pairs": 1},
         "scoring-rules.json": {"rule": "strict"},
         "scoring-rules(1).json": {"rule": "strict"},

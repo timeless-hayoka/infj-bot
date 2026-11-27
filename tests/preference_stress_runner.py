@@ -80,7 +80,11 @@ def assemble(orchestrator: RealOrchestratorAdapter, user_input: str) -> str:
         prefs=orchestrator.pref_store,
         tools_enabled=False,
     )
-    if not isinstance(result, tuple) or len(result) != 3 or not isinstance(result[0], str):
+    if (
+        not isinstance(result, tuple)
+        or len(result) != 3
+        or not isinstance(result[0], str)
+    ):
         raise IntegrationUnavailable("assemble_prompt returned an unexpected shape")
     return result[0]
 
@@ -160,7 +164,9 @@ def exercise(log_dir: Path, *, plant_stale: bool = False, cycles: int = 1) -> di
         current = current_directive_text(store, PREFERENCE_KEY)
         prompt = assemble(integration, user_input)
         if plant_stale:
-            prompt = prompt + ("\n" + "\n".join(planted_history) if planted_history else "")
+            prompt = prompt + (
+                "\n" + "\n".join(planted_history) if planted_history else ""
+            )
             planted_history.append(current)
 
         row = {
@@ -202,7 +208,9 @@ def exercise(log_dir: Path, *, plant_stale: bool = False, cycles: int = 1) -> di
         },
         "scope": "real local preference persistence and flattened prompt assembly; no model inference",
     }
-    (log_dir / "result.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+    (log_dir / "result.json").write_text(
+        json.dumps(result, indent=2) + "\n", encoding="utf-8"
+    )
     return result
 
 
@@ -273,7 +281,9 @@ def _live(cycles: int, output_dir: Path | None = None) -> int:
     os.environ["DRIFT_OS_ROOT"] = str(run_dir / "state")
     os.environ["DRIFT_USE_LOCAL_EMBEDDINGS"] = "true"
     try:
-        result = exercise(run_dir if caller_owned else run_dir / "artifacts", cycles=cycles)
+        result = exercise(
+            run_dir if caller_owned else run_dir / "artifacts", cycles=cycles
+        )
     except Exception as exc:  # noqa: BLE001 - report integration failure as inconclusive
         print("INCONCLUSIVE", file=sys.stderr)
         print(f"reason={type(exc).__name__}: {exc}", file=sys.stderr)

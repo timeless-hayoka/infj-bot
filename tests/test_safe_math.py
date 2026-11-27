@@ -129,14 +129,18 @@ def run_suite(*, verbose: bool = True) -> dict:
         ):
             correctness_passed += 1
         else:
-            failures.append(f"arithmetic {expression!r}: expected {expected}, got {result}")
+            failures.append(
+                f"arithmetic {expression!r}: expected {expected}, got {result}"
+            )
 
     for expression, field, expected in SYMBOLIC_CASES:
         result = compute_no_leak(expression)
         if result.get("ok") is True and result.get("result", {}).get(field) == expected:
             correctness_passed += 1
         else:
-            failures.append(f"symbolic {expression!r}: expected {field}={expected}, got {result}")
+            failures.append(
+                f"symbolic {expression!r}: expected {field}={expected}, got {result}"
+            )
 
     adversarial = REQUIRED_ADVERSARIAL + BOUNDARY_ADVERSARIAL
     for expression in adversarial:
@@ -145,7 +149,9 @@ def run_suite(*, verbose: bool = True) -> dict:
             blocked += 1
         else:
             blocked_returned_value += 1
-            failures.append(f"RELEASE BLOCKER: adversarial input returned a value: {expression!r}: {result}")
+            failures.append(
+                f"RELEASE BLOCKER: adversarial input returned a value: {expression!r}: {result}"
+            )
 
     # Public API and explicit solve target checks.
     try:
@@ -174,7 +180,13 @@ def run_suite(*, verbose: bool = True) -> dict:
             failures.append(f"non-text input was accepted: {value!r}")
 
     source = Path(math.__file__).read_text(encoding="utf-8")
-    for forbidden in ("import os", "import subprocess", "import socket", "import pickle", "import ctypes"):
+    for forbidden in (
+        "import os",
+        "import subprocess",
+        "import socket",
+        "import pickle",
+        "import ctypes",
+    ):
         if forbidden in source:
             failures.append(f"forbidden sandbox import present: {forbidden}")
     if "parse_expr(" not in source or '"__builtins__": {}' not in source:
