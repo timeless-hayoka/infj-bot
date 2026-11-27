@@ -29,3 +29,7 @@ jobs:
         run: python -m pip install 'chromadb>=1.5,<2' numpy requests sympy python-dotenv psutil
       - name: Matched conversational prompt restart pilot (no provider)
         run: python -m pytest -q -s tests/test_stage1_conversational_learning.py
+      - name: Validate budget, scoring and paired prompt controls
+        run: python -m pytest -q tests/test_stage1_live_01.py
+      - name: Preflight live pilot without credentials
+        run: python tests/stage1_live_01.py prepare "${{ runner.temp }}/stage1-live-preflight"
