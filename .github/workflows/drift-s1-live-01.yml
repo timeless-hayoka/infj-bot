@@ -12,7 +12,7 @@ jobs:
   live-pilot:
     if: >-
       github.run_attempt == 1 &&
-      github.event.head_commit.message == 'ci(stage1): repair YAML and execute authorized DRIFT-S1-LIVE-01'
+      github.event.head_commit.message == 'ci(stage1): use existing GEMINIAPIKEY for authorized live pilot'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -33,7 +33,7 @@ jobs:
         run: python tests/stage1_live_01.py prepare "${{ runner.temp }}/drift-s1-live-01"
       - name: Authorized live Gemini experiment
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINIAPIKEY }}
         run: python tests/stage1_live_01.py live "${{ runner.temp }}/drift-s1-live-01"
       - name: Preserve raw matched prompts, receipts, attempt ledger and scores
         if: always()
