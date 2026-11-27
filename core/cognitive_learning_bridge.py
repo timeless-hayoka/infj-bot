@@ -33,24 +33,42 @@ class CognitiveLearningBridge:
         return sqlite3.connect(self.database)
 
     def _replay(self):
-        """Restore effective verified outcomes, including append-only corrections."""
+        """Rebuild from one snapshot, retaining pre-evidence legacy outcomes.
+
+        The evidence-era writer atomically appends each original event to both
+        tables. The corresponding legacy rows must therefore be an exact suffix.
+        Never guess a mapping if an old writer or corruption breaks that invariant.
+        """
         with self._connect() as db:
-            evidence_count = db.execute(
-                "SELECT COUNT(*) FROM cognitive_evidence"
-            ).fetchone()[0]
-            if evidence_count:
-                rows = db.execute(
-                    "SELECT e.task,e.strategy,e.outcome FROM cognitive_evidence e "
-                    "WHERE NOT EXISTS (SELECT 1 FROM cognitive_evidence c "
-                    "WHERE c.corrects_id=e.id) ORDER BY e.id"
-                ).fetchall()
-            else:
-                # Preserve behavior for databases created before the evidence schema.
-                rows = db.execute(
-                    "SELECT task,strategy,outcome FROM cognitive_outcomes ORDER BY id"
-                ).fetchall()
-        for task, strategy, outcome in rows:
-            self.controller.observe(task, strategy, outcome=outcome, verified=True)
+            db.execute("BEGIN")
+            legacy = db.execute(
+                "SELECT task,strategy,outcome,scope FROM cognitive_outcomes ORDER BY id"
+            ).fetchall()
+            originals = db.execute(
+                "SELECT task,strategy,outcome,scope FROM cognitive_evidence "
+                "WHERE corrects_id IS NULL ORDER BY id"
+            ).fetchall()
+            if originals:
+                if len(legacy) < len(originals) or legacy[-len(originals):] != originals:
+                    raise ValueError("ambiguous legacy/evidence outcome mapping")
+                legacy = legacy[:-len(originals)]
+            elif db.execute("SELECT 1 FROM cognitive_evidence LIMIT 1").fetchone():
+                raise ValueError("evidence history has no original events")
+            if db.execute(
+                "SELECT corrects_id FROM cognitive_evidence "
+                "WHERE corrects_id IS NOT NULL GROUP BY corrects_id HAVING COUNT(*) > 1"
+            ).fetchone():
+                raise ValueError("conflicting correction history")
+            effective = db.execute(
+                "SELECT e.task,e.strategy,e.outcome,e.scope FROM cognitive_evidence e "
+                "WHERE NOT EXISTS (SELECT 1 FROM cognitive_evidence c "
+                "WHERE c.corrects_id=e.id) ORDER BY e.id"
+            ).fetchall()
+
+        controller = CognitiveControl(self.failure_threshold)
+        for task, strategy, outcome, _scope in legacy + effective:
+            controller.observe(task, strategy, outcome=outcome, verified=True)
+        self.controller = controller
 
     def choose(self, task: str, candidates: list[str]):
         return self.controller.choose(task, candidates)
@@ -68,9 +86,15 @@ class CognitiveLearningBridge:
         if outcome not in {"success", "failure"} or not evidence.strip() or not source.strip() or not 0 <= confidence <= 1:
             raise ValueError("valid correction, evidence, source, and confidence required")
         with self._connect() as db:
+            # Serialize the check and append so concurrent reviewers cannot fork a correction.
+            db.execute("BEGIN IMMEDIATE")
             original = db.execute("SELECT task,strategy,scope FROM cognitive_evidence WHERE id=?", (original_id,)).fetchone()
             if original is None:
                 raise ValueError("unknown evidence event")
+            if db.execute(
+                "SELECT 1 FROM cognitive_evidence WHERE corrects_id=?", (original_id,)
+            ).fetchone():
+                raise ValueError("evidence event already superseded; correct the current event")
             task, strategy, scope = original
             cursor = db.execute(
                 "INSERT INTO cognitive_evidence(task,strategy,outcome,scope,evidence,source,confidence,corrects_id) VALUES (?,?,?,?,?,?,?,?)",
@@ -81,13 +105,7 @@ class CognitiveLearningBridge:
         return event_id
 
     def _rebuild_controller(self):
-        self.controller = CognitiveControl(self.failure_threshold)
-        with self._connect() as db:
-            rows = db.execute(
-                "SELECT task,strategy,outcome FROM cognitive_evidence AS e WHERE NOT EXISTS (SELECT 1 FROM cognitive_evidence AS c WHERE c.corrects_id=e.id) ORDER BY id"
-            ).fetchall()
-        for task, strategy, outcome in rows:
-            self.controller.observe(task, strategy, outcome=outcome, verified=True)
+        self._replay()
 
     def record(
         self,
