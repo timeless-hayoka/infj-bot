@@ -62,6 +62,16 @@ def cmd_ask(args):
         proactive_enabled=False,
         authorized_targets=set(DEFAULT_AUTHORIZED_TARGETS),
     )
+    learning_requested = any(
+        value is not None for value in
+        (args.learning_db, args.learning_task, args.learning_candidate)
+    )
+    if learning_requested and not (
+        args.learning_db and args.learning_task and args.learning_candidate
+    ):
+        print("Learning requires --learning-db, --learning-task and repeated --learning-candidate.")
+        return 2
+
     brain = DriftBrain()
     memory = DriftMemory()
     history = ChatHistory()
@@ -72,6 +82,8 @@ def cmd_ask(args):
     _orchestrator = CognitiveOrchestrator()
     _orchestrator.memory = memory
     _orchestrator.brain = brain
+    if learning_requested:
+        _orchestrator.enable_cognitive_learning(args.learning_db)
 
     # Phase 6: Unified Audit
     from drift.core.unified_audit import wire_orchestrator_audit
@@ -130,6 +142,9 @@ def cmd_ask(args):
             doc_store=doc_store,
             tools_enabled=not args.no_tools,
             prefs=state.prefs,
+            orchestrator=_orchestrator if learning_requested else None,
+            learning_task=args.learning_task,
+            learning_candidates=args.learning_candidate,
         )
     except Exception as exc:
         # Catch Shadow Intent Enforcement blocks
@@ -322,6 +337,9 @@ def build_parser():
     ask.add_argument(
         "--no-tools", action="store_true", help="Disable tool-use for this one-shot."
     )
+    ask.add_argument("--learning-db", help="Explicit local evidence database for strategy learning.")
+    ask.add_argument("--learning-task", help="Operator-selected task identifier.")
+    ask.add_argument("--learning-candidate", action="append", help="Candidate strategy identifier; repeat for each candidate.")
     ask.add_argument("prompt", nargs=argparse.REMAINDER)
     ask.set_defaults(func=cmd_ask)
 

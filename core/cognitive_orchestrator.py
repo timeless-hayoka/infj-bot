@@ -356,6 +356,9 @@ class CognitiveOrchestrator:
         tools_enabled=True,
         prefs=None,
         debug_dump=False,
+        *,
+        learning_task=None,
+        learning_candidates=None,
     ) -> tuple[str, dict, dict]:
         """Assemble the full prompt with budget tracking and conflict resolution."""
         # ── Shadow Intent Enforcement ──
@@ -691,6 +694,41 @@ Use this to clarify inner conflict without pathologizing it.
         )
         budget.add("analysis", cyber_context_hint(message), label="cyber")
 
+        # Explicit operator-supplied task identifiers only. Never infer a
+        # verified outcome from free-form chat, and never inject raw evidence.
+        learning_block = None
+        if learning_task is not None or learning_candidates is not None:
+            import json
+
+            def valid_identifier(value):
+                return isinstance(value, str) and re.fullmatch(
+                    r"[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}", value
+                ) is not None
+
+            if (
+                not valid_identifier(learning_task)
+                or not isinstance(learning_candidates, (list, tuple))
+                or not 2 <= len(learning_candidates) <= 8
+                or not all(valid_identifier(c) for c in learning_candidates)
+                or len(set(learning_candidates)) != len(learning_candidates)
+            ):
+                raise ValueError("learning requires a task ID and 2–8 unique strategy IDs")
+            if self._cognitive_learning is None:
+                raise ValueError("cognitive learning is not enabled")
+            if not homeo.get("memory_access", True):
+                raise RuntimeError("cognitive learning restricted by homeostasis")
+            if not self._cognitive_learning.history(learning_task):
+                raise ValueError("no verified evidence history for learning task")
+            decision = self.choose_cognitive_strategy(learning_task, list(learning_candidates))
+            learning_block = "[Verified strategy selection] " + json.dumps(
+                {"task": learning_task, "strategy": decision.strategy},
+                sort_keys=True,
+            )
+            if not budget.add(
+                "context", learning_block, label="verified_strategy_selection"
+            ):
+                raise RuntimeError("learning block exceeds prompt budget")
+
         # Context tier
         if homeo.get("memory_access", True):
             budget.add("context", memory_context_block(context), label="memory")
@@ -733,6 +771,8 @@ Use this to clarify inner conflict without pathologizing it.
 
         # Trim to budget
         prompt = budget.trim_to_budget()
+        if learning_block is not None and learning_block not in prompt.splitlines():
+            raise RuntimeError("verified strategy selection was lost during prompt trimming")
 
         # ── PEDI: evaluate state fluidity across context-window reset ──
         try:

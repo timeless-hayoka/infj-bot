@@ -20,8 +20,9 @@ CASES = [
 def _run(code, args, env):
     completed = subprocess.run(
         [sys.executable, "-c", code, *map(str, args)], env=env,
-        capture_output=True, text=True, timeout=90, check=True,
+        capture_output=True, text=True, timeout=90, check=False,
     )
+    assert completed.returncode == 0, completed.stderr
     return json.loads(completed.stdout.splitlines()[-1])
 
 

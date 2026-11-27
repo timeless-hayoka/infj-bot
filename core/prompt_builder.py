@@ -25,9 +25,14 @@ def build_chat_prompt(
     _temporal=None,
     _predictor=None,
     debug_dump=False,
+    *,
+    orchestrator=None,
+    learning_task=None,
+    learning_candidates=None,
 ):
     """Build the full chat prompt. Delegates to CognitiveOrchestrator."""
-    prompt, emotion, dissonance = _orchestrator.assemble_prompt(
+    selected_orchestrator = _orchestrator if orchestrator is None else orchestrator
+    prompt, emotion, dissonance = selected_orchestrator.assemble_prompt(
         message=message,
         state=state,
         memory=memory,
@@ -36,6 +41,8 @@ def build_chat_prompt(
         tools_enabled=tools_enabled,
         prefs=prefs,
         debug_dump=debug_dump,
+        learning_task=learning_task,
+        learning_candidates=learning_candidates,
     )
     # DRIFT V2 — math grounding hook
     # Detects math in user_input, computes verified results, prepends
