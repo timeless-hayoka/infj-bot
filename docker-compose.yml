@@ -1,31 +1,25 @@
-version: "3.8"
-
+# Local/private DRIFT adapter. Public traffic requires a separately reviewed TLS proxy.
 services:
   drift-core:
+    image: ${DRIFT_IMAGE:-drift-local:dev}
     build: .
+    command: ["python", "-m", "uvicorn", "drift.core.cloud_adapter:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
     ports:
-      - "8000:8000"
+      - "127.0.0.1:${DRIFT_PORT:-8000}:8000"
     environment:
-      - DRIFT_USE_GCP=true
-      - CLOUD_SQL_CONNECTION_NAME=your-project:region:drift-db
-      - DB_USER=drift_user
-      - DB_PASS=drift_password
-      - DB_NAME=drift_memory
+      DRIFT_OS_ROOT: /var/lib/drift
+      DRIFT_USE_GCP: "false"
+      DRIFT_USE_LOCAL_EMBEDDINGS: "true"
+      DRIFT_ENV: production
+      DRIFT_PLUGIN_TOKEN: ${DRIFT_PLUGIN_TOKEN:?Set a private adapter token}
+      DRIFT_VAULT_SECRET: ${DRIFT_VAULT_SECRET:?Set a durable private vault signing secret}
+      ANONYMIZED_TELEMETRY: "false"
+      HF_HUB_OFFLINE: "1"
     volumes:
-      - ~/.drift_os:/root/.drift_os
-      - /media/crexs/PortableSSD/ARSENAL:/root/ARSENAL:ro
-      - /media/crexs/PortableSSD/BLKKNIGHT1:/root/BLKKNIGHT1:ro
-      - /media/crexs/PortableSSD/driftcode:/root/driftcode:ro
-    depends_on:
-      - cloud-sql-proxy
+      - drift-state:/var/lib/drift
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
 
-  cloud-sql-proxy:
-    image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.1.0
-    command:
-      - "--address=0.0.0.0"
-      - "--port=5432"
-      - "your-project:region:drift-db"
-    ports:
-      - "5432:5432"
-    volumes:
-      - ~/.config/gcloud:/root/.config/gcloud:ro
+volumes:
+  drift-state:

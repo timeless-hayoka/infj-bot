@@ -56,6 +56,8 @@ jobs:
         run: docker build -t drift-validation:ci .
       - name: Boot default container command and verify API
         run: bash scripts/docker_smoke.sh drift-validation:ci
+      - name: Verify authenticated Compose adapter and persistent memory across container recreation
+        run: bash scripts/compose_adapter_smoke.sh drift-validation:ci
 
   foundry:
     runs-on: ubuntu-latest
