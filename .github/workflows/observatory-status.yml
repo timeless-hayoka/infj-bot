@@ -1,0 +1,18 @@
+name: Observatory public status
+on:
+  pull_request:
+    branches: [anchor, main, master]
+  push:
+    branches: [feat/observatory-public-status]
+permissions:
+  contents: read
+jobs:
+  status:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Verify public status boundary
+        run: node --test tests/observatory-status.test.mjs
