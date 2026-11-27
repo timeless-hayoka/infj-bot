@@ -177,3 +177,71 @@ print(json.dumps({"pid": os.getpid(), "decision": bridge.choose("repair", ["retr
     assert written["decision"] == read["decision"] == "inspect"
     assert [event["outcome"] for event in read["history"]] == ["success", "failure"]
     assert read["history"][1]["corrects_id"] == read["history"][0]["id"]
+
+
+def test_replay_same_instance_is_idempotent(tmp_path):
+    path = tmp_path / "replay.db"
+    bridge = CognitiveLearningBridge(path, failure_threshold=2)
+    bridge.record("repair", "retry", "failure", verified=True, evidence="single-failure")
+    for _ in range(3):
+        bridge._replay()
+        assert bridge.choose("repair", ["retry"]).strategy == "retry"
+    assert len(bridge.history("repair")) == 1
+
+
+def test_mismatched_dual_write_history_fails_closed(tmp_path):
+    import pytest
+
+    path = tmp_path / "ambiguous.db"
+    bridge = CognitiveLearningBridge(path)
+    bridge.record("repair", "retry", "failure", verified=True, evidence="trace")
+    # Simulate a pre-upgrade writer appending after the dual-write boundary.
+    with sqlite3.connect(path) as connection:
+        connection.execute(
+            "INSERT INTO cognitive_outcomes(task,strategy,outcome) VALUES (?,?,?)",
+            ("unexpected-old-writer", "retry", "success"),
+        )
+    with pytest.raises(ValueError, match="ambiguous legacy/evidence"):
+        CognitiveLearningBridge(path)
+
+
+def test_existing_forked_correction_history_fails_closed(tmp_path):
+    import pytest
+
+    path = tmp_path / "forked.db"
+    bridge = CognitiveLearningBridge(path)
+    bridge.record("repair", "retry", "success", verified=True, evidence="trace")
+    root = bridge.history("repair")[0]["id"]
+    bridge.correct(root, "failure", evidence="review-a", source="reviewer")
+    # Reproduce a database created by the previous permissive correction code.
+    with sqlite3.connect(path) as connection:
+        connection.execute(
+            "INSERT INTO cognitive_evidence(task,strategy,outcome,scope,evidence,source,"
+            "confidence,corrects_id) VALUES (?,?,?,?,?,?,?,?)",
+            ("repair", "retry", "success", "global", "review-b", "reviewer", 1.0, root),
+        )
+    with pytest.raises(ValueError, match="conflicting correction"):
+        CognitiveLearningBridge(path)
+
+
+def test_identical_legacy_and_new_outcomes_are_distinct_observations(tmp_path):
+    path = tmp_path / "duplicate-values.db"
+    _legacy_database(path)
+    bridge = CognitiveLearningBridge(path, failure_threshold=2)
+    bridge.record("legacy-task", "retry", "failure", verified=True, evidence="second-attempt")
+    # Two distinct attempts have identical values; do not deduplicate by value.
+    assert bridge.choose("legacy-task", ["retry", "inspect"]).strategy == "inspect"
+    reopened = CognitiveLearningBridge(path, failure_threshold=2)
+    assert reopened.choose("legacy-task", ["retry", "inspect"]).strategy == "inspect"
+    root = reopened.history("legacy-task")[0]["id"]
+    reopened.correct(root, "success", evidence="review", source="reviewer")
+    assert reopened.choose("legacy-task", ["retry", "inspect"]).strategy == "retry"
+    assert CognitiveLearningBridge(path, failure_threshold=2).choose(
+        "legacy-task", ["retry", "inspect"]
+    ).strategy == "retry"
+    # Audit raw persisted rows separately from the bridge history projection.
+    with sqlite3.connect(path) as connection:
+        assert connection.execute("SELECT COUNT(*) FROM cognitive_outcomes").fetchone() == (2,)
+        assert connection.execute(
+            "SELECT outcome,corrects_id FROM cognitive_evidence ORDER BY id"
+        ).fetchall() == [("failure", None), ("success", root)]
