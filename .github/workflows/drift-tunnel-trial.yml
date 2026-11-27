@@ -1,0 +1,40 @@
+name: DRIFT temporary ChatGPT connection trial
+on:
+  push:
+    branches: [feat/drift-private-mcp]
+    paths:
+      - '.github/workflows/drift-tunnel-trial.yml'
+      - 'scripts/tunnel_trial.sh'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: drift-private-tunnel-trial
+  cancel-in-progress: false
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Verify official tunnel-client and build DRIFT
+        run: bash scripts/tunnel_trial.sh preflight
+  trial:
+    needs: preflight
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/drift-private-mcp'
+    environment: drift-tunnel-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Prepare fresh runtime without credentials
+        run: bash scripts/tunnel_trial.sh preflight
+      - name: Start bounded private health-only connection
+        env:
+          CONTROL_PLANE_API_KEY: ${{ secrets.DRIFT_TUNNEL_RUNTIME_KEY }}
+          CONTROL_PLANE_TUNNEL_ID: ${{ vars.DRIFT_TUNNEL_ID }}
+        run: bash scripts/tunnel_trial.sh live

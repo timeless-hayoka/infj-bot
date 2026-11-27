@@ -19,9 +19,10 @@ async def check(memory_enabled: bool, token: str, marker: str) -> None:
             "DRIFT_MCP_MEMORY_READ": "1" if memory_enabled else "0",
         },
     )
-    async with stdio_client(params) as (reader, writer), ClientSession(
-        reader, writer
-    ) as session:
+    async with (
+        stdio_client(params) as (reader, writer),
+        ClientSession(reader, writer) as session,
+    ):
         await session.initialize()
         tools = (await session.list_tools()).tools
         expected = {"drift_health"}
@@ -56,7 +57,9 @@ async def main() -> None:
     await check(False, token, marker)
     await check(True, token, marker)
     await check(False, "wrong-token-long-enough", marker)
-    print("Real MCP initialization, allowlist, authentication and restarted memory recall passed")
+    print(
+        "Real MCP initialization, allowlist, authentication and restarted memory recall passed"
+    )
 
 
 if __name__ == "__main__":
