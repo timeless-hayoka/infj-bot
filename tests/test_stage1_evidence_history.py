@@ -54,3 +54,126 @@ def test_corrected_failure_controls_choice_after_restart(tmp_path):
     assert bridge.choose("repair", ["retry", "inspect"]).strategy == "inspect"
     restarted = CognitiveLearningBridge(db, failure_threshold=1)
     assert restarted.choose("repair", ["retry", "inspect"]).strategy == "inspect"
+
+
+def _legacy_database(path):
+    # Actual pre-evidence schema; no invented provenance.
+    with sqlite3.connect(path) as connection:
+        connection.execute(
+            """CREATE TABLE cognitive_outcomes (
+            id INTEGER PRIMARY KEY, task TEXT NOT NULL, strategy TEXT NOT NULL,
+            outcome TEXT NOT NULL CHECK(outcome IN ('success','failure')),
+            scope TEXT NOT NULL DEFAULT 'global')"""
+        )
+        connection.execute(
+            "INSERT INTO cognitive_outcomes(task,strategy,outcome) VALUES (?,?,?)",
+            ("legacy-task", "retry", "failure"),
+        )
+
+
+def test_legacy_only_database_preserves_controller_decision(tmp_path):
+    path = tmp_path / "legacy.db"
+    _legacy_database(path)
+    bridge = CognitiveLearningBridge(path, failure_threshold=1)
+    assert bridge.choose("legacy-task", ["retry", "inspect"]).strategy == "inspect"
+
+
+def test_mixed_schema_preserves_unrelated_legacy_outcome(tmp_path):
+    path = tmp_path / "mixed.db"
+    _legacy_database(path)
+    bridge = CognitiveLearningBridge(path, failure_threshold=1)
+    bridge.record("new-task", "scan", "success", verified=True, evidence="new-trace")
+    assert bridge.choose("legacy-task", ["retry", "inspect"]).strategy == "inspect"
+    restarted = CognitiveLearningBridge(path, failure_threshold=1)
+    assert restarted.choose("legacy-task", ["retry", "inspect"]).strategy == "inspect"
+
+
+def test_mixed_schema_preserves_legacy_outcome_after_correction(tmp_path):
+    path = tmp_path / "mixed-corrected.db"
+    _legacy_database(path)
+    bridge = CognitiveLearningBridge(path, failure_threshold=1)
+    bridge.record("new-task", "scan", "success", verified=True, evidence="new-trace")
+    root = bridge.history("new-task")[0]["id"]
+    bridge.correct(root, "failure", evidence="new-review", source="reviewer")
+    assert bridge.choose("legacy-task", ["retry", "inspect"]).strategy == "inspect"
+    restarted = CognitiveLearningBridge(path, failure_threshold=1)
+    assert restarted.choose("legacy-task", ["retry", "inspect"]).strategy == "inspect"
+    assert restarted.choose("new-task", ["scan", "inspect"]).strategy == "inspect"
+
+
+def test_new_outcome_is_not_counted_twice_on_replay(tmp_path):
+    path = tmp_path / "no-double-count.db"
+    bridge = CognitiveLearningBridge(path, failure_threshold=2)
+    bridge.record("repair", "retry", "failure", verified=True, evidence="one-failure")
+    assert bridge.choose("repair", ["retry"]).strategy == "retry"
+    assert CognitiveLearningBridge(path, failure_threshold=2).choose(
+        "repair", ["retry"]
+    ).strategy == "retry"
+
+
+def test_chained_corrections_and_repeated_restarts(tmp_path):
+    path = tmp_path / "chain.db"
+    bridge = CognitiveLearningBridge(path, failure_threshold=1)
+    bridge.record("repair", "retry", "success", verified=True, evidence="initial")
+    root = bridge.history("repair")[0]["id"]
+    first = bridge.correct(root, "failure", evidence="review-1", source="reviewer")
+    assert bridge.choose("repair", ["retry", "inspect"]).strategy == "inspect"
+    second = bridge.correct(first, "success", evidence="review-2", source="reviewer")
+    expected_history = bridge.history("repair")
+    assert [event["corrects_id"] for event in expected_history] == [None, root, first]
+    assert expected_history[-1]["id"] == second
+    for _ in range(3):
+        reopened = CognitiveLearningBridge(path, failure_threshold=1)
+        assert reopened.history("repair") == expected_history
+        assert reopened.choose("repair", ["retry", "inspect"]).strategy == "retry"
+
+
+def test_conflicting_sibling_corrections_cannot_both_be_effective(tmp_path):
+    import pytest
+
+    path = tmp_path / "conflict.db"
+    bridge = CognitiveLearningBridge(path, failure_threshold=1)
+    bridge.record("repair", "retry", "success", verified=True, evidence="initial")
+    root = bridge.history("repair")[0]["id"]
+    bridge.correct(root, "failure", evidence="review-1", source="reviewer-a")
+    # Reject a stale correction target rather than silently counting both leaves.
+    with pytest.raises(ValueError):
+        bridge.correct(root, "success", evidence="review-2", source="reviewer-b")
+    assert len(bridge.history("repair")) == 2
+    assert CognitiveLearningBridge(path, failure_threshold=1).choose(
+        "repair", ["retry", "inspect"]
+    ).strategy == "inspect"
+
+
+def test_corrected_decision_survives_separate_writer_and_reader_processes(tmp_path):
+    import json
+    import subprocess
+    import sys
+
+    path = tmp_path / "cross-process.db"
+    writer = """
+import json, os, sys
+from drift.core.cognitive_learning_bridge import CognitiveLearningBridge
+bridge = CognitiveLearningBridge(sys.argv[1], failure_threshold=1)
+bridge.record("repair", "retry", "success", verified=True, evidence="initial")
+root = bridge.history("repair")[0]["id"]
+bridge.correct(root, "failure", evidence="review", source="independent-reviewer")
+print(json.dumps({"pid": os.getpid(), "decision": bridge.choose("repair", ["retry", "inspect"]).strategy}))
+"""
+    reader = """
+import json, os, sys
+from drift.core.cognitive_learning_bridge import CognitiveLearningBridge
+bridge = CognitiveLearningBridge(sys.argv[1], failure_threshold=1)
+print(json.dumps({"pid": os.getpid(), "decision": bridge.choose("repair", ["retry", "inspect"]).strategy,
+                  "history": bridge.history("repair")}))
+"""
+    written = json.loads(subprocess.check_output(
+        [sys.executable, "-c", writer, str(path)], text=True, timeout=30
+    ))
+    read = json.loads(subprocess.check_output(
+        [sys.executable, "-c", reader, str(path)], text=True, timeout=30
+    ))
+    assert written["pid"] != read["pid"]
+    assert written["decision"] == read["decision"] == "inspect"
+    assert [event["outcome"] for event in read["history"]] == ["success", "failure"]
+    assert read["history"][1]["corrects_id"] == read["history"][0]["id"]
