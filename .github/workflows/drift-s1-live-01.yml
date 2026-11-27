@@ -12,7 +12,7 @@ jobs:
   live-pilot:
     if: >-
       github.run_attempt == 1 &&
-      github.event.head_commit.message == 'ci(stage1): use existing GEMINIAPIKEY for authorized live pilot'
+      github.event.head_commit.message == 'ci(stage1): continue remaining authorized pilot on Gemini 3.1 Flash-Lite'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

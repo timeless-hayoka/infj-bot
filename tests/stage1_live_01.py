@@ -12,16 +12,18 @@ import subprocess
 import sys
 from decimal import Decimal
 
-MODEL = "gemini-2.5-flash-lite"
+MODEL = "gemini-3.1-flash-lite"
+PRIOR_CALLS = 2  # run 45925243900: models.get + failed count_tokens
+PRIOR_RESERVED = Decimal("0.02")
 MAX_CALLS = 20
 MAX_USD = Decimal("1.00")
 MAX_INPUT = 20000
 MAX_MODEL_OUTPUT = 65536
 MAX_OUTPUT = 64
 # Standard text rates verified 2026-11-26:
-# https://ai.google.dev/gemini-api/docs/pricing#gemini-2.5-flash-lite
-INPUT_RATE = Decimal("0.10")
-OUTPUT_RATE = Decimal("0.40")
+# https://ai.google.dev/gemini-api/docs/pricing#gemini-3.1-flash-lite
+INPUT_RATE = Decimal("0.25")
+OUTPUT_RATE = Decimal("1.50")
 MILLION = Decimal(1000000)
 # Reserve for the *entire* documented model output limit, not merely the
 # requested 64 tokens, and for a bounded text prompt. No tools or caching.
@@ -50,12 +52,15 @@ def emit(path, item):
 
 
 class Budget:
-    def __init__(self, path):
+    def __init__(self, path, *, prior_calls=0, prior_reserved=Decimal(0)):
         self.path = path
         if path.exists():
             raise RuntimeError("refuse to reuse live attempt ledger")
-        self.calls = 0
-        self.reserved = Decimal(0)
+        self.calls = prior_calls
+        self.reserved = prior_reserved
+        if prior_calls or prior_reserved:
+            emit(self.path, {"prior_run": 45925243900, "prior_calls": prior_calls,
+                             "prior_reserved_usd": str(prior_reserved)})
 
     def reserve(self, operation, amount):
         if amount < 0 or self.calls >= MAX_CALLS or self.reserved + amount > MAX_USD:
@@ -164,7 +169,9 @@ def live(root):
     items = json.loads((root / "prepared.json").read_text(encoding="utf-8"))
     if len(items) != 8:
         raise RuntimeError("invalid prepared trial count")
-    budget = Budget(root / "attempts.jsonl")
+    budget = Budget(root / "attempts.jsonl", prior_calls=PRIOR_CALLS, prior_reserved=PRIOR_RESERVED)
+    if budget.calls + 17 > MAX_CALLS or budget.reserved + 9 * META_RESERVE + 8 * GENERATE_RESERVE > MAX_USD:
+        raise RuntimeError("remaining authorization insufficient")
     receipts = root / "receipts.jsonl"
     # Explicit key, Developer API, no auto-routing through other providers.
     client = genai.Client(api_key=key, vertexai=False, http_options=types.HttpOptions(
@@ -191,7 +198,7 @@ def live(root):
         response = client.models.generate_content(
             model=MODEL, contents=prompt,
             config=types.GenerateContentConfig(temperature=0, candidate_count=1,
-                max_output_tokens=MAX_OUTPUT, thinking_config=types.ThinkingConfig(thinking_budget=0)))
+                max_output_tokens=MAX_OUTPUT, thinking_config=types.ThinkingConfig(thinking_level="MINIMAL")))
         usage = response.usage_metadata
         response_id = response.response_id
         model_version = response.model_version
@@ -208,9 +215,9 @@ def live(root):
             raise RuntimeError("missing, duplicate, or wrong provider identity")
         if not usage or usage.prompt_token_count is None or usage.total_token_count is None:
             raise RuntimeError("missing usage evidence")
-        if usage.cached_content_token_count or usage.thoughts_token_count:
-            raise RuntimeError("cached or thinking tokens detected")
-        if usage.prompt_token_count > MAX_INPUT or (usage.candidates_token_count or 0) > MAX_MODEL_OUTPUT:
+        if usage.cached_content_token_count:
+            raise RuntimeError("cached tokens detected")
+        if usage.prompt_token_count > MAX_INPUT or (usage.candidates_token_count or 0) + (usage.thoughts_token_count or 0) > MAX_MODEL_OUTPUT:
             raise RuntimeError("provider usage exceeds reserved envelope")
         if not response.candidates or str(response.candidates[0].finish_reason).split(".")[-1] != "STOP" or not text.strip():
             raise RuntimeError("incomplete provider response")
@@ -233,7 +240,8 @@ if __name__ == "__main__":
     except Exception as exc:
         # Do not print provider exception messages containing request metadata.
         if sys.argv[1] == "live":
-            print("INCONCLUSIVE:", type(exc).__name__, flush=True)
+            status = getattr(exc, "code", None)
+            print("INCONCLUSIVE:", type(exc).__name__, "http_code:", status if isinstance(status, int) else None, flush=True)
         else:
             print("PREPARE FAILED:", str(exc), flush=True)
         raise SystemExit(1)

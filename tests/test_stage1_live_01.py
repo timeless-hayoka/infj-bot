@@ -1,6 +1,6 @@
 from decimal import Decimal
 import pytest
-from stage1_live_01 import Budget, GENERATE_RESERVE, META_RESERVE, paired_prompts, score
+from stage1_live_01 import Budget, GENERATE_RESERVE, META_RESERVE, PRIOR_CALLS, PRIOR_RESERVED, paired_prompts, score
 
 def test_budget_counts_every_attempt_and_refuses_over_limit(tmp_path):
     b = Budget(tmp_path / "attempts.jsonl")
@@ -21,7 +21,14 @@ def test_budget_refuses_over_spend_before_attempt(tmp_path):
         Budget(b.path)
 
 def test_reserved_full_experiment_is_under_authorization():
-    assert 9 * META_RESERVE + 8 * GENERATE_RESERVE < Decimal("1")
+    assert PRIOR_RESERVED + 9 * META_RESERVE + 8 * GENERATE_RESERVE < Decimal("1")
+    assert PRIOR_CALLS + 17 <= 20
+
+def test_budget_carries_prior_attempts(tmp_path):
+    b = Budget(tmp_path / "attempts.jsonl", prior_calls=PRIOR_CALLS, prior_reserved=PRIOR_RESERVED)
+    assert b.calls == 2 and b.reserved == Decimal("0.02")
+    b.reserve("metadata", Decimal("0.01"))
+    assert b.calls == 3 and b.reserved == Decimal("0.03")
 
 def test_pair_only_changes_actual_emitted_block():
     a = 'header\n[Verified strategy selection] {"strategy":"wrong"}\nquestion'
