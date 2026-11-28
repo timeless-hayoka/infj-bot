@@ -171,6 +171,7 @@
 <header>
     <h1>PHI // DRIFT</h1>
     <p class="subtitle">Homeostatic Cognitive Architecture for Persistent AI Companionship</p>
+    <p id="backend-status" role="status">Backend status: checking…</p>
     <p>Interactive demonstration only — scripted responses and simulated telemetry. No live AI inference or persistent memory.</p>
 </header>
 
@@ -399,6 +400,19 @@ document.getElementById('send-btn').addEventListener('click', handleSend);
 document.getElementById('user-input').addEventListener('keydown', e => { if (e.key === 'Enter') handleSend(); });
 document.getElementById('replay-btn').addEventListener('click', playScript);
 
+async function refreshBackendStatus() {
+  const label = document.getElementById('backend-status');
+  try {
+    const response = await fetch('/api/status', { cache: 'no-store', signal: AbortSignal.timeout(5500) });
+    const payload = await response.json();
+    label.textContent = response.ok && payload.status === 'ready'
+      ? 'Backend: authenticated adapter reachable — demonstration only; live inference disabled.'
+      : 'Backend: unavailable — demonstration only.';
+  } catch {
+    label.textContent = 'Backend: unavailable — demonstration only.';
+  }
+}
+refreshBackendStatus();
 setTimeout(playScript, 800);
 </script>
 </body>
