@@ -78,3 +78,4 @@ with urllib.request.urlopen(urllib.request.Request(url, data=payload, headers=he
 print("Authenticated HTTP recall survived container recreation with persistent volume")
 PY
 printf 'Distinct container IDs: %s -> %s\n' "$first" "$second"
+docker compose exec -T -e SMOKE_MARKER="$marker" drift-core python tests/private_mcp_probe.py
