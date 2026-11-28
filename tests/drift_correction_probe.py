@@ -195,7 +195,7 @@ def run(output, live):
     key = ""
     if live:
         require(os.getenv("GITHUB_ACTIONS") == "true"
-                and os.getenv("GITHUB_REF") == "refs/heads/validation/drift-correction-restart"
+                and os.getenv("GITHUB_REF") == "refs/heads/fix/drift-correction-restart"
                 and os.getenv("GITHUB_RUN_ATTEMPT") == "1"
                 and os.getenv("DRIFT_CORRECTION_APPROVED_LIMIT") == str(LIMIT), "Live run lacks its one-shot approval gate")
         key = os.getenv("GEMINI_API_KEY", "").strip()

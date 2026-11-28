@@ -351,6 +351,14 @@ class DriftMemory:
 
         Falls back to standard `retrieve_context` if the DMU module is unavailable.
         """
+        from drift.core.causal_wiring import retrieved_memory_keys_var
+
+        current = self.unified_manager.current_identifier_sync(query)
+        if current is not None:
+            record_id, content = current
+            retrieved_memory_keys_var.set([record_id] if record_id is not None else [])
+            return f"Memory: {content}"
+
         try:
             from drift.core.dmu import DMURetriever
             from drift.core.psc_scaled import get_psc_engine
@@ -380,8 +388,6 @@ class DriftMemory:
             selected = [key for key in ranked_ids if contents.get(key)]
             if not selected:
                 return self.retrieve_context(query, n_results=n_results)
-
-            from drift.core.causal_wiring import retrieved_memory_keys_var
 
             retrieved_memory_keys_var.set(selected)
             return "\n---\n".join(f"Memory: {contents[key]}" for key in selected)

@@ -2,15 +2,43 @@ import datetime
 import json
 import logging
 import math
+import re
 import sqlite3
 import uuid
 from dataclasses import dataclass, field
+from hashlib import sha256
 from pathlib import Path
 from typing import Any, Optional
 
 import anyio
 import chromadb
 from drift.core.config import PERSIST_DIRECTORY
+
+_IDENTIFIER_SUBJECT = r"[a-z0-9][a-z0-9 -]{0,159}"
+_IDENTIFIER_FIELD = re.compile(r"\b(?:code|id|identifier)\b", re.IGNORECASE)
+_CORRECTION = re.compile(
+    rf"user: correction: *(?:the +)?(?:current +)?"
+    rf"(?P<subject>{_IDENTIFIER_SUBJECT}) +is +"
+    r"(?P<value>[a-z0-9][a-z0-9_-]{0,63})"
+    r"(?:[.!](?: +the previous (?:code|id|identifier) is obsolete[.!]?)?)?",
+    re.IGNORECASE | re.ASCII,
+)
+_CURRENT_IDENTIFIER_QUERY = re.compile(
+    rf"(?:what +is|what['’]s) +(?:the +)?(?:current +)?"
+    rf"(?P<subject>{_IDENTIFIER_SUBJECT})(?:\?[^\n]*)?",
+    re.IGNORECASE | re.ASCII,
+)
+
+
+def _identifier_subject(match: re.Match[str] | None) -> str | None:
+    if match is None:
+        return None
+    subject = " ".join(match["subject"].lower().split())
+    return subject if _IDENTIFIER_FIELD.search(subject) else None
+
+
+def _identifier_state_key(subject: str) -> str:
+    return f"current-identifier:{sha256(subject.encode()).hexdigest()}"
 
 
 @dataclass
@@ -96,6 +124,11 @@ class MemoryManager:
     ) -> str:
         unified_id = str(uuid.uuid4())
         salience = float(metadata.get("importance", metadata.get("salience", 0.5)))
+        subject = None
+        if event.type == "interaction":
+            subject = _identifier_subject(
+                _CORRECTION.fullmatch(event.content.partition("\n")[0])
+            )
 
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
@@ -109,6 +142,14 @@ class MemoryManager:
                     salience,
                 ),
             )
+            if subject is not None:
+                conn.execute(
+                    """
+                    INSERT INTO state (key, value) VALUES (?, ?)
+                    ON CONFLICT(key) DO UPDATE SET value=excluded.value, expires_at=NULL
+                    """,
+                    (_identifier_state_key(subject), json.dumps(unified_id)),
+                )
 
         kwargs = {
             "documents": [event.content],
@@ -263,6 +304,53 @@ class MemoryManager:
     def get_contents_by_id(self, ids: list[str]) -> dict[str, str]:
         """Read canonical text for candidates that still exist in SQLite."""
         return {key: row["content"] for key, row in self._episodic_rows(ids).items()}
+
+    def current_identifier_sync(self, query: str) -> tuple[str | None, str] | None:
+        """Resolve an explicit identifier correction from SQLite before semantic ranking."""
+        subject = _identifier_subject(
+            _CURRENT_IDENTIFIER_QUERY.fullmatch(query.strip())
+        )
+        if subject is None:
+            return None
+
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("BEGIN")
+            current = conn.execute(
+                """
+                SELECT e.unified_id, e.content
+                FROM state AS s LEFT JOIN episodic AS e
+                    ON e.unified_id = json_extract(s.value, '$')
+                WHERE s.key = ?
+                """,
+                (_identifier_state_key(subject),),
+            ).fetchone()
+            if current is not None:
+                candidates = (current,)
+            else:
+                # Databases written before correction pointers were introduced.
+                candidates = conn.execute(
+                    """
+                    SELECT unified_id, content FROM episodic
+                    WHERE event_type = 'interaction' AND content LIKE 'user: correction:%'
+                    ORDER BY rowid DESC
+                    """
+                )
+            for record_id, content in candidates:
+                if content is None:
+                    break
+                match = _CORRECTION.fullmatch(content.partition("\n")[0])
+                if match is not None and _identifier_subject(match) == subject:
+                    return (
+                        record_id,
+                        f"The user corrected the current {subject} to {match['value']}.",
+                    )
+
+        if current is not None:
+            return (
+                None,
+                f"No current {subject} is available. The prior value is obsolete.",
+            )
+        return None
 
     async def recall(
         self, query: str, limit: int = 20, decay_weight: float = 1.0

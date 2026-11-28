@@ -1,7 +1,7 @@
 name: DRIFT conversational correction restart
 on:
   push:
-    branches: [validation/drift-correction-restart]
+    branches: [fix/drift-correction-restart]
 permissions:
   contents: read
 concurrency:
@@ -10,7 +10,7 @@ concurrency:
 jobs:
   correction:
     if: >-
-      github.run_attempt == 1 && github.event.head_commit.message == 'test: run approved DRIFT conversational correction restart pair'
+      github.run_attempt == 1 && github.event.head_commit.message == 'fix: resolve explicit memory corrections before ranking'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -34,15 +34,31 @@ jobs:
           import json
 
           report = json.loads(Path("evidence/offline/summary.json").read_text())
-          arms = list(report["arms"].values())
-          if len(arms) != 3 or any(not a["old_in_prompt"] or a["new_in_prompt"] for a in arms):
-              raise SystemExit("Observed offline baseline changed. No live calls made.")
+          arms = report["arms"]
+          expected = {"uncorrected": (True, False), "completed": (False, True), "interrupted": (False, True)}
+          for name, markers in expected.items():
+              arm = arms[name]
+              if (arm["old_in_prompt"], arm["new_in_prompt"]) != markers:
+                  raise SystemExit(f"{name}: unexpected offline prompt. No live calls made.")
+          if arms["completed"]["request_sha256"] != arms["interrupted"]["request_sha256"]:
+              raise SystemExit("Offline corrected requests differ. No live calls made.")
           PY
       - name: Run approved live completed and interrupted correction pair
         env:
           DRIFT_CORRECTION_APPROVED_LIMIT: '4'
           GEMINI_API_KEY: ${{ secrets.GEMINIAPIKEY || secrets.GEMINI_API_KEY || secrets.GOOGLE_API_KEY }}
-        run: python tests/drift_correction_probe.py live evidence/live
+        run: |
+          python tests/drift_correction_probe.py live evidence/live
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path("evidence/live/summary.json").read_text())
+          for name, arm in report["arms"].items():
+              if not (arm["new_in_prompt"] and arm["exact_new_reply"] and arm["new_in_cli_reply"]
+                      and not arm["old_in_prompt"] and not arm["old_in_reply"] and not arm["old_in_cli_reply"]):
+                  raise SystemExit(f"{name}: the corrected value did not pass live scoring.")
+          PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
